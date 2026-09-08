@@ -1,17 +1,13 @@
 // ============================================================
 // AutoSetupClientSafe.js - SAFE PAID CLIENT PROVISIONING
 // ============================================================
-// Overrides the legacy autoSetupClient() flow without modifying
-// the existing Master Backend source yet.
-//
-// IMPORTANT: A client is NOT recorded as active unless the private
-// deployment succeeds. Failed provisioning cleans up the workspace
-// created during the attempt.
+// Overrides the legacy autoSetupClient() flow.
+// A client is not recorded as active unless the private deployment
+// succeeds. Failed provisioning cleans up the workspace and, when
+// possible, the generated Apps Script project.
 // ============================================================
 
 (function () {
-  var legacyAutoSetupClient = autoSetupClient;
-
   autoSetupClient = function (paymentData) {
     var clientId = '';
     var sheetResult = null;
@@ -33,9 +29,7 @@
       console.log('🚀 SAFE CLIENT SETUP:', paymentData.email);
       console.log('🆔 Client ID:', clientId);
 
-      // --------------------------------------------------------
       // 1. Duplicate protection
-      // --------------------------------------------------------
       var duplicateCheck = checkDuplicateClient(paymentData.email, businessName);
       if (duplicateCheck && duplicateCheck.isDuplicate) {
         return {
@@ -46,15 +40,11 @@
         };
       }
 
-      // --------------------------------------------------------
       // 2. Resolve existing BizOS business identity
-      // --------------------------------------------------------
       existingBusiness = getBusinessByEmail(paymentData.email);
       businessId = existingBusiness ? existingBusiness.businessId : clientId;
 
-      // --------------------------------------------------------
       // 3. Create the isolated client workspace
-      // --------------------------------------------------------
       sheetResult = createClientSheetInClientDrive(
         paymentData.email,
         clientId,
@@ -77,9 +67,7 @@
         };
       }
 
-      // --------------------------------------------------------
       // 4. Deploy the private client application
-      // --------------------------------------------------------
       var masterUrl = getMasterApiUrl();
       var clientCode = generateClientCodeSafely({
         clientId: clientId,
@@ -106,14 +94,15 @@
         paymentData.logoUrl || ''
       );
 
-      // NO FALLBACK LANDING PAGE HERE.
       // A paid client must receive a real isolated deployment.
+      // There is intentionally NO fallback landing page here.
       if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId) {
         var deploymentMessage = scriptResult && scriptResult.message
           ? scriptResult.message
           : 'The client application could not be deployed.';
 
         cleanupFailedClientProvisioning_(sheetResult, clientId);
+        cleanupFailedClientDeployment_(scriptResult);
 
         return {
           success: false,
@@ -126,9 +115,7 @@
 
       console.log('✅ Deployment successful:', scriptResult.webAppUrl);
 
-      // --------------------------------------------------------
       // 5. ONLY NOW create the master Clients record
-      // --------------------------------------------------------
       var saveResult = saveClientRecord({
         clientId: clientId,
         email: paymentData.email,
@@ -159,16 +146,12 @@
         };
       }
 
-      // --------------------------------------------------------
       // 6. Update existing business only after successful record
-      // --------------------------------------------------------
       if (existingBusiness && businessId) {
         updateBusinessWithClientInfo(businessId, clientId, scriptResult.webAppUrl);
       }
 
-      // --------------------------------------------------------
       // 7. Welcome email only after everything is successful
-      // --------------------------------------------------------
       sendClientWelcomeEmail(
         paymentData.email,
         businessName,
@@ -192,10 +175,11 @@
     } catch (error) {
       console.error('❌ SAFE CLIENT SETUP ERROR:', error);
 
-      // If a workspace was created but the workflow failed before the
-      // success record was committed, remove the workspace.
       if (sheetResult && sheetResult.success) {
         cleanupFailedClientProvisioning_(sheetResult, clientId);
+      }
+      if (scriptResult && !scriptResult.success) {
+        cleanupFailedClientDeployment_(scriptResult);
       }
 
       return {
@@ -208,33 +192,34 @@
     }
   };
 
-  // ------------------------------------------------------------
-  // Roll back the workspace created during a failed provisioning
-  // attempt. This does not touch unrelated client workspaces.
-  // ------------------------------------------------------------
   function cleanupFailedClientProvisioning_(sheetResult, clientId) {
     try {
       if (!sheetResult || !sheetResult.sheetId) return;
-
-      var file = DriveApp.getFileById(sheetResult.sheetId);
-      file.setTrashed(true);
-
+      DriveApp.getFileById(sheetResult.sheetId).setTrashed(true);
       console.log('🧹 Rolled back client workspace:', clientId, sheetResult.sheetId);
     } catch (error) {
-      // Never hide the original provisioning failure because cleanup failed.
       console.error('⚠️ Workspace cleanup failed for ' + clientId + ':', error);
     }
   }
 
-  // A deployed Apps Script project is not safely deleted here by default.
-  // Keeping this helper isolated lets us add authenticated project deletion
-  // later without weakening the provisioning transaction.
   function cleanupFailedClientDeployment_(scriptResult) {
     try {
       if (!scriptResult || !scriptResult.scriptId) return;
-      console.warn('⚠️ Orphaned deployment requires cleanup:', scriptResult.scriptId);
+
+      var url = 'https://script.googleapis.com/v1/projects/' + encodeURIComponent(scriptResult.scriptId);
+      var response = UrlFetchApp.fetch(url, {
+        method: 'delete',
+        headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+        muteHttpExceptions: true
+      });
+
+      if (response.getResponseCode() >= 200 && response.getResponseCode() < 300) {
+        console.log('🧹 Rolled back client Apps Script project:', scriptResult.scriptId);
+      } else {
+        console.error('⚠️ Client Apps Script cleanup failed:', response.getResponseCode(), response.getContentText());
+      }
     } catch (error) {
-      console.error('⚠️ Deployment cleanup check failed:', error);
+      console.error('⚠️ Deployment cleanup failed:', error);
     }
   }
 })();
