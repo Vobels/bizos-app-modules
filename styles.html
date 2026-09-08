@@ -1,0 +1,1184 @@
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #f9fafb;
+  }
+  
+  .btn-primary {
+    background: #5D2A86;
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .btn-primary:hover {
+    background: #4a1f6b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(93, 42, 134, 0.2);
+  }
+  
+  .btn-secondary {
+    background: white;
+    color: #5D2A86;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  
+  .btn-secondary:hover {
+    background: #f9fafb;
+    border-color: #5D2A86;
+  }
+  
+  .card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+  }
+  
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+  
+  .input-field {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    width: 100%;
+    transition: all 0.2s;
+  }
+  
+  .input-field:focus {
+    outline: none;
+    border-color: #5D2A86;
+    box-shadow: 0 0 0 3px rgba(93, 42, 134, 0.1);
+  }
+  
+  .table-container {
+    overflow-x: auto;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  th {
+    background: #f9fafb;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    color: #6b7280;
+  }
+  
+  tr:hover {
+    background: #f9fafb;
+  }
+  
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background: white;
+    border-radius: 1rem;
+    max-width: 90vw;
+    width: 100%;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 1.5rem;
+    position: relative;
+    z-index: 10000;
+  }
+  
+  .kpi-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Ensure header elements are above sidebar */
+#dashboard-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: white;
+}
+
+/* Make sure menu button is clickable on mobile */
+@media (max-width: 768px) {
+  #menu-toggle {
+    display: block !important;
+    width: 44px;
+    height: 44px;
+    margin-right: 12px;
+  }
+  
+  /* Ensure sidebar doesn't block clicks when closed */
+  .sidebar {
+    pointer-events: auto;
+  }
+  
+  .sidebar.open {
+    pointer-events: auto;
+  }
+  
+  /* Overlay should block clicks on main content when sidebar is open */
+  .sidebar-overlay.active {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+}
+
+/* Sidebar - smaller application text only */
+.sidebar #module-list button span {
+  font-size: 0.8125rem !important; /* 13px */
+}
+
+.sidebar #module-list button i {
+  font-size: 0.8125rem !important;
+  width: 1.25rem;
+}
+
+/* Keep Dashboard and Profile buttons normal size */
+.sidebar nav > button span {
+  font-size: 0.875rem !important; /* 14px - normal */
+}
+
+/* Fix sidebar scroll - keep signout at bottom */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+.sidebar > div:first-child {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar .absolute {
+  position: relative !important;
+  margin-top: auto;
+}
+
+
+  .sidebar {
+    width: 280px;
+    transition: transform 0.3s ease;
+  }
+  
+  @media (max-width: 768px) {
+    .sidebar {
+      position: fixed;
+      transform: translateX(-100%);
+      z-index: 50;
+    }
+    
+    .sidebar.open {
+      transform: translateX(0);
+    }
+  }
+
+  /* Mobile-specific modal fixes */
+@media (max-width: 768px) {
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+  }
+  
+  .modal-content {
+    margin: 20px;
+    padding: 20px;
+    max-height: 80vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  button, [onclick] {
+    cursor: pointer;
+    min-height: 44px; /* Better touch targets */
+  }
+}
+
+/* Verify html style sheet */
+/* ==================== VERIFICATION PAGE STYLES ==================== */
+
+.verify-container {
+  text-align: center;
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  max-width: 500px;
+  margin: 20px;
+}
+
+.verify-success-icon {
+  color: #10b981;
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.verify-error-icon {
+  color: #ef4444;
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.verify-loader {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #5D2A86;
+  border-radius: 50%;
+  margin: 20px auto;
+  animation: verify-spin 1s linear infinite;
+}
+
+@keyframes verify-spin {
+  to { transform: rotate(360deg); }
+}
+
+.verify-resend-link {
+  color: #5D2A86;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 16px;
+  display: inline-block;
+}
+
+.verify-input-group {
+  margin: 20px 0;
+  text-align: left;
+}
+
+.verify-input-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
+.verify-input-group input:focus {
+  outline: none;
+  border-color: #5D2A86;
+  box-shadow: 0 0 0 3px rgba(93, 42, 134, 0.1);
+}
+
+.verify-message {
+  margin: 16px 0;
+  font-size: 14px;
+}
+  /* ===== VERIFICATION PAGE STYLES ===== */
+  
+  .verify-container {
+    background: white;
+    border-radius: 24px;
+    padding: 48px 40px;
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: verifyFadeIn 0.5s ease;
+    margin: 0 auto;
+  }
+  
+  @keyframes verifyFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .verify-success-icon {
+    width: 80px;
+    height: 80px;
+    background: #10b981;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    font-size: 48px;
+    color: white;
+    animation: verifyScaleIn 0.3s ease;
+  }
+  
+  .verify-error-icon {
+    width: 80px;
+    height: 80px;
+    background: #ef4444;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    font-size: 48px;
+    color: white;
+    animation: verifyScaleIn 0.3s ease;
+  }
+  
+  @keyframes verifyScaleIn {
+    from {
+      transform: scale(0);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  
+  .verify-loader {
+    width: 50px;
+    height: 50px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #5D2A86;
+    border-radius: 50%;
+    animation: verifySpin 0.8s linear infinite;
+    margin: 0 auto;
+  }
+  
+  @keyframes verifySpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .verify-loading-text {
+    margin-top: 20px;
+    color: #6b7280;
+  }
+  
+  .verify-success-message {
+    color: #10b981;
+    margin-bottom: 8px;
+  }
+  
+  .verify-error-message {
+    color: #ef4444;
+    margin-bottom: 8px;
+  }
+  
+  .verify-instruction {
+    color: #6b7280;
+    margin-bottom: 24px;
+  }
+  
+  .verify-message-text {
+    color: #6b7280;
+    margin-bottom: 24px;
+  }
+  
+  .verify-input {
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .verify-btn {
+    padding: 12px 32px;
+    cursor: pointer;
+  }
+  
+  .verify-resend-btn {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  
+  .verify-link-btn {
+    margin-top: 16px;
+    background: none;
+    border: none;
+    color: #5D2A86;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .verify-link-btn:hover {
+    text-decoration: underline;
+  }
+  
+  .verify-inline-message {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: center;
+  }
+  
+  .verify-inline-success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+  
+  .verify-inline-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  /* Mobile sidebar fixes */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    width: 280px;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .flex-1 {
+    margin-left: 0 !important;
+  }
+  
+  /* Overlay when sidebar is open */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    display: none;
+  }
+  
+  .sidebar-overlay.active {
+    display: block;
+  }
+}
+
+/* Desktop sidebar */
+@media (min-width: 769px) {
+  .sidebar {
+    width: 256px;
+    transform: translateX(0) !important;
+  }
+  
+  .flex-1 {
+    margin-left: 256px;
+  }
+}
+
+/* Force proper stacking context */
+#dashboard-page,
+#landing-page,
+#cms-page 
+# profile-page{
+  position: relative;
+  z-index: 1;
+}
+/* CRITICAL FIX - Profile Page Dimensions */
+#profile-page {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  z-index: 999999 !important;
+  background: #f9fafb !important;
+  overflow-y: auto !important;
+  display: none !important;
+}
+
+#profile-page:not(.hidden) {
+  display: block !important;
+}
+
+body:has(#profile-page:not(.hidden)) {
+  overflow: hidden !important;
+}
+
+/* Ensure profile page content fills the space */
+#profile-page > div {
+  min-height: 0vh !important;
+  height: auto !important;
+}
+
+
+/* Fix sidebar positioning on profile page */
+#profile-page #profile-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  width: 280px !important;
+  z-index: 1000000 !important;
+}
+
+/* Main content area */
+#profile-page .flex-1 {
+  margin-left: 280px !important;
+  min-height: 0vh !important;
+  overflow-y: auto !important;
+}
+
+/* Mobile fix */
+@media (max-width: 768px) {
+  #profile-page .flex-1 {
+    margin-left: 0 !important;
+  }
+}
+/* Dashboard enhancements */
+.health-score-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-container {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+.period-btn.active {
+  background-color: #5D2A86 !important;
+  color: white !important;
+}
+
+/* Alert animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.alert-critical {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Responsive charts */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 200px;
+  }
+}
+
+
+
+/* Chart containers */
+.chart-container {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+}
+
+/* Period buttons */
+.period-btn {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.period-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Health score animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.alert-critical {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Responsive charts */
+@media (max-width: 768px) {
+  .chart-container {
+    min-height: 250px;
+  }
+}
+
+/* Mobile responsive KPIs */
+@media (max-width: 768px) {
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .kpi-card {
+    padding: 12px !important;
+  }
+  
+  .kpi-card p:first-child {
+    font-size: 11px !important;
+  }
+  
+  .kpi-card .text-3xl {
+    font-size: 18px !important;
+  }
+  
+  /* Make cards touch-friendly */
+  .card {
+    border-radius: 12px;
+  }
+  
+  /* Adjust spacing */
+  .p-6 {
+    padding: 16px !important;
+  }
+    
+  .mb-8 {
+    margin-bottom: 16px !important;
+  }
+  
+  .gap-6 {
+    gap: 12px !important;
+  }
+}
+
+/* Data Management Section Styles */
+.recent-tab {
+  transition: all 0.2s ease;
+}
+
+.recent-tab.active-tab {
+  color: #5D2A86;
+  border-bottom-color: #5D2A86;
+}
+
+.recent-records-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.record-item {
+  transition: all 0.2s ease;
+}
+
+.record-item:hover {
+  background-color: #f9fafb;
+  transform: translateX(4px);
+}
+
+/* Quick stats cards animation */
+.quick-stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Fix upgrade modal visibility */
+#upgrade-modal {
+  z-index: 9999999 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  display: none !important;
+}
+
+#upgrade-modal:not(.hidden) {
+  display: flex !important;
+}
+
+#upgrade-modal .modal-content {
+  z-index: 10000000 !important;
+  position: relative !important;
+  max-width: 90vw !important;
+  width: 100% !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+/* Apps Page Styles */
+#apps-page .bg-white.rounded-xl {
+  transition: all 0.2s ease;
+}
+
+#apps-page .bg-white.rounded-xl:hover {
+  transform: translateY(-2px);
+}
+
+/* Featured apps */
+#featured-apps > div {
+  transition: all 0.2s ease;
+}
+
+#featured-apps > div:hover {
+  transform: translateY(-2px);
+}
+
+/* Ensure modal is above everything */
+#upgrade-modal,
+#upgrade-modal * {
+  z-index: 9999999;
+}
+
+/* File upload styling */
+#document-upload-section label:hover {
+  background-color: #f9fafb;
+}
+
+#document-upload-section input[type="file"] {
+  cursor: pointer;
+}
+
+#upload-progress-bar {
+  transition: width 0.3s ease;
+}
+
+.faq-question {
+  cursor: pointer;
+}
+
+.faq-question i {
+  transition: transform 0.3s ease;
+}
+
+.faq-answer {
+  transition: all 0.3s ease;
+}
+
+/* ==================== MOBILE MODAL FIXES ==================== */
+
+/* Fix modal positioning and sizing on mobile */
+@media (max-width: 768px) {
+  .modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 99999 !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    border-radius: 16px !important;
+    background: white !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Login modal specific */
+  #login-modal .modal-content {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+  
+  #login-modal h2 {
+    font-size: 20px !important;
+  }
+  
+  #login-modal .input-field {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px !important;
+  }
+  
+  #login-modal .btn-primary {
+    padding: 14px !important;
+    font-size: 16px !important;
+  }
+  
+  /* Signup modal */
+  #signup-modal .modal-content {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+  
+  #signup-modal h2 {
+    font-size: 20px !important;
+  }
+  
+  #signup-modal .input-field {
+    font-size: 16px !important;
+    padding: 12px !important;
+  }
+  
+  /* Forgot password modal */
+  #forgot-modal .modal-content {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+  
+  /* Business registration modal */
+  #business-reg-modal .modal-content {
+    max-width: 100% !important;
+    padding: 16px !important;
+    max-height: 85vh !important;
+  }
+  
+  #business-reg-modal .grid {
+    gap: 12px !important;
+  }
+  
+  #business-reg-modal .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Invite modal */
+  #invite-modal .modal-content {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+  
+  /* Accept invite modal */
+  #accept-invite-modal .modal-content {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+  
+  /* Upgrade modal */
+  #upgrade-modal .modal-content {
+    max-width: 100% !important;
+    padding: 16px !important;
+    max-height: 85vh !important;
+  }
+  
+  #upgrade-modal .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Enterprise contact modal */
+  #enterprise-contact-modal .modal-content {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+}
+
+/* Fix for very small screens (phones under 400px) */
+@media (max-width: 400px) {
+  .modal-content {
+    padding: 16px !important;
+  }
+  
+  .modal-content h2 {
+    font-size: 18px !important;
+  }
+  
+  .modal-content .btn-primary {
+    padding: 12px !important;
+    font-size: 15px !important;
+  }
+  
+  .modal-content .input-field {
+    padding: 10px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* Prevent body scroll when modal is open */
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+}
+
+/* Modal close button touch target */
+.modal-content .fa-times {
+  padding: 8px !important;
+  font-size: 24px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Fix input fields on mobile */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents iOS zoom */
+  }
+  
+  .input-field {
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+  }
+  
+  label {
+    font-size: 14px !important;
+  }
+  
+  .text-sm {
+    font-size: 13px !important;
+  }
+}
+
+/* Fix checkbox and radio on mobile */
+@media (max-width: 768px) {
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+  }
+}
+
+/* Fix upgrade modal benefits grid on mobile */
+@media (max-width: 768px) {
+  #upgrade-modal .grid.grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+  
+  #upgrade-modal .bg-gradient-to-r {
+    padding: 12px !important;
+  }
+}
+
+/* Fix demo credentials box on mobile */
+@media (max-width: 768px) {
+  #login-modal .p-3.bg-gray-50 {
+    padding: 12px !important;
+  }
+  
+  #login-modal .text-xs {
+    font-size: 11px !important;
+  }
+}
+
+/* Fix signup password strength indicator on mobile */
+@media (max-width: 768px) {
+  #signup-password-strength .text-xs {
+    font-size: 11px !important;
+  }
+}
+
+/* Ensure buttons are touchable */
+@media (max-width: 768px) {
+  button, 
+  .btn-primary, 
+  .btn-secondary,
+  [onclick] {
+    min-height: 44px !important;
+    padding: 12px 20px !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* Buttons inside modals */
+  .modal-content button {
+    min-height: 48px !important;
+  }
+}
+
+/* Fix select dropdowns on mobile */
+@media (max-width: 768px) {
+  select.input-field {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    padding-right: 36px !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+}
+
+/* Fix the "hidden" class for modals on mobile */
+.modal.hidden {
+  display: none !important;
+}
+
+.modal:not(.hidden) {
+  display: flex !important;
+}
+
+/* Extra safety for modal z-index stacking */
+#login-modal,
+#signup-modal,
+#forgot-modal,
+#business-reg-modal,
+#invite-modal,
+#accept-invite-modal,
+#upgrade-modal,
+#enterprise-contact-modal,
+#verification-info-modal,
+#reset-password-modal {
+  z-index: 99999 !important;
+}
+
+/* Fix verification modal on mobile */
+#verification-info-modal .modal-content {
+  max-width: 100% !important;
+  padding: 24px !important;
+}
+
+/* Fix enterprise contact modal on mobile */
+#enterprise-contact-modal .modal-content {
+  max-width: 100% !important;
+  padding: 20px !important;
+}
+
+
+/* ===== LOADING SPINNER SMALL ===== */
+.loading-spinner-sm {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #5D2A86;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* ===== FEATURES SECTION ===== */
+#features-section {
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+#features-section:hover {
+  border-color: #c4b5fd;
+}
+
+.feature-new {
+  background: #f5f3ff;
+  border-left: 4px solid #7c3aed;
+}
+
+<style>
+/* ===== TOGGLE SWITCH ===== */
+.peer:checked ~ .peer-checked\:bg-purple-600 {
+  background-color: #7c3aed;
+}
+.peer:checked ~ .peer-checked\:after\:translate-x-full::after {
+  transform: translateX(100%);
+}
+.peer:focus ~ .peer-focus\:ring-2 {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+.peer:focus ~ .peer-focus\:ring-purple-300 {
+  --tw-ring-color: #d8b4fe;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Notification badge pulse */
+#notification-badge:not(.hidden) {
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* Settings page */
+#settings-page {
+  animation: fadeSlideIn 0.3s ease;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
+</style>
+
+
+
+
+
+

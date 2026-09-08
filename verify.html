@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Email Verification - BizOS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <?!= include('styles') ?>
+  </head>
+  <body>
+    <div class="verify-container" id="verification-container">
+      <div id="content">
+        <div class="verify-loader"></div>
+        <p class="verify-loading-text">Verifying your email...</p>
+      </div>
+    </div>
+
+    <script>
+    function redirectToLogin() {
+      window.top.location.href = "https://bizos.higroups.com/login";
+    }
+      
+      // Get token
+      const tokenFromTemplate = <?!= token ? JSON.stringify(token) : 'null' ?>;
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('verify');
+      const token = tokenFromTemplate || tokenFromUrl;
+      
+      if (!token) {
+        document.getElementById('content').innerHTML = `
+          <div class="verify-error-icon">✗</div>
+          <h2>Invalid Verification Link</h2>
+          <p class="verify-message-text">The verification link is missing or invalid.</p>
+          <button onclick="redirectToLogin()" class="btn-primary verify-btn">Return to Login</button>
+        `;
+      } else {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              // Show success message
+              document.getElementById('content').innerHTML = `
+                <div class="verify-success-icon">✓</div>
+                <h2>Email Verified Successfully!</h2>
+                <p class="verify-success-message">Your account has been verified.</p>
+                <p style="color: #666; margin: 15px 0; font-size: 14px;">
+                  Click the button below to login.
+                </p>
+                <button onclick="redirectToLogin()" class="btn-primary verify-btn" style="background: #5D2A86; font-size: 16px; padding: 12px 30px;">
+                  Click Here to Login →
+                </button>
+              `;
+              
+            } else if (result.expired) {
+              document.getElementById('content').innerHTML = `
+                <div class="verify-error-icon">✗</div>
+                <h2>Verification Link Expired</h2>
+                <p class="verify-error-message">${result.message}</p>
+                <p class="verify-instruction">Enter your email below to receive a new verification link.</p>
+                <input type="email" id="resend-email" class="input-field verify-input" placeholder="your@email.com">
+                <button onclick="resendVerification()" class="btn-primary verify-btn verify-resend-btn">Send New Link</button>
+                <button onclick="redirectToLogin()" class="verify-link-btn">Back to Login</button>
+              `;
+            } else {
+              document.getElementById('content').innerHTML = `
+                <div class="verify-error-icon">✗</div>
+                <h2>Verification Failed</h2>
+                <p class="verify-error-message">${result.message}</p>
+                <button onclick="redirectToLogin()" class="btn-primary verify-btn">Back to Login</button>
+              `;
+            }
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('content').innerHTML = `
+              <div class="verify-error-icon">✗</div>
+              <h2>Verification Error</h2>
+              <p class="verify-error-message">Unable to verify. Please try again.</p>
+              <button onclick="redirectToLogin()" class="btn-primary verify-btn">Back to Login</button>
+            `;
+          })
+          .verifyEmailToken(token);
+      }
+      
+      function resendVerification() {
+        const email = document.getElementById('resend-email').value;
+        if (!email) {
+          showMessage('Please enter your email address', 'error');
+          return;
+        }
+        
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = 'Sending...';
+        btn.disabled = true;
+        
+        google.script.run
+          .withSuccessHandler(function(response) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            if (response.success) {
+              showMessage('Verification email sent! Check your inbox.', 'success');
+            } else {
+              showMessage(response.message, 'error');
+            }
+          })
+          .withFailureHandler(function() {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            showMessage('Failed to send. Please try again.', 'error');
+          })
+          .resendVerificationEmail(email);
+      }
+      
+      function showMessage(message, type) {
+        const existing = document.querySelector('.verify-inline-message');
+        if (existing) existing.remove();
+        
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `verify-inline-message verify-inline-${type}`;
+        msgDiv.textContent = message;
+        
+        const contentDiv = document.getElementById('content');
+        contentDiv.appendChild(msgDiv);
+        
+        setTimeout(function() {
+          msgDiv.remove();
+        }, 4000);
+      }
+    </script>
+  </body>
+</html>

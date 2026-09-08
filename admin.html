@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - BizOS</title>
+  <?!= include('styles') ?>
+  <style>
+    /* ===== MODERN ADMIN STYLES ===== */
+    .admin-wrapper {
+      display: flex;
+      min-height: 100vh;
+      background: #f0f2f5;
+    }
+    
+    /* ===== SIDEBAR ===== */
+    .admin-sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 100;
+      transition: transform 0.3s ease;
+      box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+    }
+    
+    .admin-sidebar-brand {
+      padding: 24px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .admin-sidebar-brand h1 {
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+    }
+    
+    .admin-sidebar-brand .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fbbf24;
+      font-size: 20px;
+    }
+    
+    .admin-nav {
+      padding: 16px 12px;
+    }
+    
+    .admin-nav-item {
+      padding: 12px 16px;
+      border-radius: 10px;
+      transition: all 0.2s;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      margin-bottom: 2px;
+      position: relative;
+    }
+    
+    .admin-nav-item:hover {
+      background: rgba(255,255,255,0.08);
+      color: white;
+    }
+    
+    .admin-nav-item.active {
+      background: rgba(255,255,255,0.12);
+      color: white;
+    }
+    
+    .admin-nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 20%;
+      height: 60%;
+      width: 3px;
+      background: #8b5cf6;
+      border-radius: 0 3px 3px 0;
+    }
+    
+    .admin-nav-item i {
+      width: 20px;
+      font-size: 16px;
+    }
+    
+    .admin-nav-item .badge {
+      background: #ef4444;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      margin-left: auto;
+    }
+    
+    .admin-nav-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+      margin: 16px 12px;
+    }
+    
+    .admin-nav-logout {
+      margin-top: 20px;
+      color: #ef4444 !important;
+    }
+    
+    .admin-nav-logout:hover {
+      background: rgba(239, 68, 68, 0.15) !important;
+      color: #ef4444 !important;
+    }
+    
+    /* ===== MAIN CONTENT ===== */
+    .admin-main {
+      flex: 1;
+      margin-left: 260px;
+      padding: 24px 32px;
+      min-height: 100vh;
+    }
+    
+    /* ===== HEADER ===== */
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    
+    .admin-header-left h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 0;
+    }
+    
+    .admin-header-left p {
+      color: #6b7280;
+      margin: 4px 0 0;
+      font-size: 14px;
+    }
+    
+    .admin-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .admin-header-right .admin-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #5D2A86;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+    }
+    
+    /* ===== STATS CARDS ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: all 0.2s;
+      border: 1px solid #f0f0f0;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    
+    .stat-card .stat-label {
+      font-size: 13px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    
+    .stat-card .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 4px 0;
+    }
+    
+    .stat-card .stat-change {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .stat-card .stat-change.up { color: #10b981; }
+    .stat-card .stat-change.down { color: #ef4444; }
+    
+    .stat-card .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .stat-card .stat-icon.purple { background: #ede9fe; color: #7c3aed; }
+    .stat-card .stat-icon.blue { background: #dbeafe; color: #2563eb; }
+    .stat-card .stat-icon.green { background: #d1fae5; color: #059669; }
+    .stat-card .stat-icon.yellow { background: #fef3c7; color: #d97706; }
+    
+    /* ===== TABLES ===== */
+    .admin-table-wrapper {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid #f0f0f0;
+      overflow-x: auto;
+    }
+    
+    .admin-table-wrapper h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0 0 16px;
+    }
+    
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .admin-table th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .admin-table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1f2937;
+      border-bottom: 1px solid #f9fafb;
+    }
+    
+    .admin-table tr:hover td {
+      background: #f9fafb;
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status-badge.active { background: #d1fae5; color: #059669; }
+    .status-badge.pending { background: #fef3c7; color: #d97706; }
+    .status-badge.suspended { background: #fee2e2; color: #dc2626; }
+    .status-badge.verified { background: #dbeafe; color: #2563eb; }
+    
+    /* ===== TABS ===== */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .tab-content.active { display: block; }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .admin-sidebar {
+        transform: translateX(-100%);
+      }
+      .admin-sidebar.open {
+        transform: translateX(0);
+      }
+      .admin-main {
+        margin-left: 0;
+        padding: 16px;
+      }
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .admin-sidebar-toggle {
+        display: flex !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .admin-sidebar-toggle {
+      display: none;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: #1f2937;
+    }
+    
+    .admin-sidebar-toggle i {
+      font-size: 20px;
+    }
+    
+    /* Mobile overlay */
+    .admin-sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 99;
+    }
+    .admin-sidebar-overlay.active {
+      display: block;
+    }
+    
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+    .empty-state i {
+      font-size: 48px;
+      color: #d1d5db;
+      margin-bottom: 12px;
+    }
+    
+    /* ===== LOADING ===== */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #e5e7eb;
+      border-top: 3px solid #5D2A86;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* ===== MANUAL UPGRADE ===== */
+    .admin-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-wrapper">
+    <!-- Mobile Overlay -->
+    <div class="admin-sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div class="admin-sidebar-brand">
+        <div class="brand-icon"><i class="fas fa-crown"></i></div>
+        <h1>BizOS Admin</h1>
+      </div>
+      
+      <nav class="admin-nav">
+        <div class="admin-nav-item active" onclick="switchTab('overview')" data-tab="overview">
+          <i class="fas fa-chart-pie"></i>
+          <span>Overview</span>
+        </div>
+        <div class="admin-nav-item" onclick="switchTab('businesses')" data-tab="businesses">
+          <i class="fas fa-building"></i>
+          <span>Businesses</span>
+          <span class="badge" id="businessCount">0</span>
+        </div>
+        <div class="admin-nav-item" onclick="switchTab('users')" data-tab="users">
+          <i class="fas fa-users"></i>
+          <span>Users</span>
+          <span class="badge" id="userCount">0</span>
+        </div>
+        <div class="admin-nav-item" onclick="switchTab('modules')" data-tab="modules">
+          <i class="fas fa-th-large"></i>
+          <span>Modules</span>
+        </div>
+        <div class="admin-nav-item" onclick="switchTab('features')" data-tab="features">
+          <i class="fas fa-rocket"></i>
+          <span>Features</span>
+        </div>
+        <div class="admin-nav-item" onclick="switchTab('whitelabel')" data-tab="whitelabel">
+          <i class="fas fa-paint-brush"></i>
+          <span>White Label</span>
+        </div>
+        
+        <div class="admin-nav-divider"></div>
+        
+        <div class="admin-nav-item admin-nav-logout" onclick="logoutAdmin()">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="admin-main">
+      <!-- Header -->
+      <header class="admin-header">
+        <div class="admin-header-left">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="admin-sidebar-toggle" onclick="toggleSidebar()">
+              <i class="fas fa-bars"></i>
+            </button>
+            <div>
+              <h1 id="pageTitle">Overview</h1>
+              <p id="pageSubtitle">Welcome back, Admin</p>
+            </div>
+          </div>
+        </div>
+        <div class="admin-header-right">
+          <button onclick="refreshAllData()" class="btn-secondary" style="padding: 8px 16px; font-size: 13px;">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+          <div class="admin-avatar">A</div>
+        </div>
+      </header>
+
+      <!-- ===== OVERVIEW TAB ===== -->
+      <div id="tab-overview" class="tab-content active">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="stat-label">Total Businesses</div>
+                <div class="stat-number" id="totalBusinesses">0</div>
+                <div class="stat-change up" id="newBusinesses">+0 this month</div>
+              </div>
+              <div class="stat-icon purple"><i class="fas fa-building"></i></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="stat-label">Total Users</div>
+                <div class="stat-number" id="totalUsers">0</div>
+                <div class="stat-change up" id="newUsers">+0 this month</div>
+              </div>
+              <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="stat-label">Paid Subscriptions</div>
+                <div class="stat-number" id="paidUsers">0</div>
+                <div class="stat-change" id="freeUsers" style="color: #6b7280;">0 Free</div>
+              </div>
+              <div class="stat-icon green"><i class="fas fa-crown"></i></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-number" id="totalRevenue">$0</div>
+                <div class="stat-change" style="color: #6b7280;">Lifetime earnings</div>
+              </div>
+              <div class="stat-icon yellow"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-table-wrapper">
+          <h3><i class="fas fa-clock mr-2"></i>Recent Activity</h3>
+          <div id="recentActivity">
+            <div class="empty-state"><i class="fas fa-inbox"></i><p>No recent activity</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== BUSINESSES TAB ===== -->
+      <div id="tab-businesses" class="tab-content">
+        <div class="admin-table-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0;">All Businesses</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input type="text" id="searchBusiness" placeholder="Search..." style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; min-width: 150px;" onkeyup="filterBusinesses()">
+              <button onclick="exportBusinessData()" class="btn-primary" style="padding: 8px 16px; font-size: 13px;"><i class="fas fa-download mr-1"></i>Export</button>
+            </div>
+          </div>
+          <table class="admin-table">
+            <thead><tr>
+              <th>Business</th>
+              <th>Owner</th>
+              <th>Plan</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th style="text-align: center;">Actions</th>
+            </tr></thead>
+            <tbody id="businessesBody">
+              <tr><td colspan="6" class="empty-state"><div class="loading-spinner"></div> Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== USERS TAB ===== -->
+      <div id="tab-users" class="tab-content">
+        <!-- Users Table -->
+        <div class="admin-table-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0;">All Users</h3>
+            <input type="text" id="searchUser" placeholder="Search users..." style="padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; min-width: 150px;" onkeyup="filterUsers()">
+          </div>
+          <table class="admin-table">
+            <thead><tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Verified</th>
+              <th>Joined</th>
+            </tr></thead>
+            <tbody id="usersBody">
+              <tr><td colspan="5" class="empty-state"><div class="loading-spinner"></div> Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ===== MANUAL USER UPGRADE (WITH DROPDOWN) ===== -->
+        <div class="admin-card" style="margin-top: 24px; border-left: 4px solid #5D2A86;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 36px; height: 36px; background: #ede9fe; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #5D2A86;">
+              <i class="fas fa-crown" style="font-size: 16px;"></i>
+            </div>
+            <div>
+              <h3 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0;">Manual User Upgrade</h3>
+              <p style="font-size: 13px; color: #6b7280; margin: 2px 0 0;">Upgrade or downgrade any user</p>
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: end;">
+            <div>
+              <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px;">Select User</label>
+              <select id="upgrade-user-select" class="input-field" style="width: 100%; padding: 10px 14px; font-size: 14px;" onchange="showCurrentTier()">
+                <option value="">-- Select a user --</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px;">New Tier</label>
+              <select id="upgrade-target-tier" class="input-field" style="padding: 10px 14px; font-size: 14px; min-width: 140px;">
+                <option value="free">Free</option>
+                <option value="starter">Starter</option>
+                <option value="sovereign" selected>⭐ Sovereign</option>
+                <option value="professional">Professional</option>
+                <option value="enterprise">🏢 Enterprise</option>
+              </select>
+            </div>
+            <div>
+              <button onclick="manuallyUpgradeUser()" class="btn-primary" style="padding: 10px 24px; font-size: 14px; white-space: nowrap;">
+                <i class="fas fa-arrow-up" style="margin-right: 8px;"></i>Apply
+              </button>
+            </div>
+          </div>
+          
+          <!-- Current tier display -->
+          <div id="current-tier-display" style="margin-top: 8px; font-size: 13px; color: #6b7280; display: none;">
+            Current tier: <span id="current-tier-text" style="font-weight: 600;"></span>
+          </div>
+          
+          <div id="upgrade-result" style="margin-top: 12px; display: none;"></div>
+        </div>
+      </div>
+
+      <!-- ===== FEATURES TAB ===== -->
+      <div id="tab-features" class="tab-content">
+        <div class="admin-table-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0;">Feature Manager</h3>
+            <button onclick="showAddFeatureModal()" class="btn-primary" style="padding: 8px 16px; font-size: 13px;"><i class="fas fa-plus mr-1"></i>Add Feature</button>
+          </div>
+          <div id="featuresGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-puzzle-piece"></i><p>No features added yet</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MODULES TAB ===== -->
+      <div id="tab-modules" class="tab-content">
+        <div class="admin-table-wrapper">
+          <h3 style="margin: 0 0 16px;">Module Management</h3>
+          <div id="modulesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="empty-state" style="grid-column: 1 / -1;"><div class="loading-spinner"></div> Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== WHITE LABEL TAB ===== -->
+      <div id="tab-whitelabel" class="tab-content">
+        <div class="admin-table-wrapper" style="max-width: 600px;">
+          <h3>White Label Configuration</h3>
+          <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">Customize the platform for your clients</p>
+          <form id="whitelabelForm" onsubmit="saveWhiteLabel(event)">
+            <div style="margin-bottom: 16px;">
+              <label style="display: block; font-weight: 500; margin-bottom: 4px;">Client Name *</label>
+              <input type="text" id="wlClientName" class="input-field" placeholder="e.g., MyCompany" required>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <label style="display: block; font-weight: 500; margin-bottom: 4px;">Custom Domain *</label>
+              <input type="text" id="wlClientDomain" class="input-field" placeholder="e.g., mycompany.com" required>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <label style="display: block; font-weight: 500; margin-bottom: 4px;">Custom Logo URL</label>
+              <input type="url" id="wlLogo" class="input-field" placeholder="https://example.com/logo.png">
+            </div>
+            <div style="margin-bottom: 16px;">
+              <label style="display: block; font-weight: 500; margin-bottom: 4px;">Custom Favicon</label>
+              <input type="url" id="wlFavicon" class="input-field" placeholder="https://example.com/favicon.ico">
+            </div>
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-weight: 500; margin-bottom: 4px;">Custom CSS</label>
+              <textarea id="wlCss" class="input-field" rows="4" placeholder="/* Custom CSS */" style="font-family: monospace;"></textarea>
+            </div>
+            <button type="submit" class="btn-primary"><i class="fas fa-save mr-2"></i>Save Configuration</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS TAB ===== -->
+      <div id="tab-settings" class="tab-content">
+        <div class="admin-table-wrapper" style="max-width: 600px;">
+          <h3>System Settings</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <button onclick="clearCache()" class="btn-secondary" style="padding: 12px;"><i class="fas fa-eraser mr-2"></i>Clear Cache</button>
+            <button onclick="runHealthCheck()" class="btn-secondary" style="padding: 12px;"><i class="fas fa-heartbeat mr-2"></i>Health Check</button>
+            <button onclick="viewLogs()" class="btn-secondary" style="padding: 12px;"><i class="fas fa-file-alt mr-2"></i>View Logs</button>
+            <button onclick="exportAllData()" class="btn-secondary" style="padding: 12px;"><i class="fas fa-database mr-2"></i>Export All</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== ADD FEATURE MODAL ===== -->
+  <div id="addFeatureModal" class="modal hidden" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0;">Add New Feature</h3>
+        <button onclick="closeAddFeatureModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+      </div>
+      <form id="addFeatureForm" onsubmit="addFeature(event)">
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Feature Name *</label>
+          <input type="text" id="featureName" class="input-field" required>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Description</label>
+          <textarea id="featureDescription" class="input-field" rows="3"></textarea>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Module</label>
+          <select id="featureModule" class="input-field">
+            <option value="Finance">Finance</option>
+            <option value="Sales">Sales</option>
+            <option value="Ecommerce">Ecommerce</option>
+            <option value="HR">HR</option>
+            <option value="Agro">Agro</option>
+            <option value="All">All Modules</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Tier</label>
+          <select id="featureTier" class="input-field">
+            <option value="free">Free</option>
+            <option value="professional">Professional</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="all">All Plans</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%;"><i class="fas fa-plus mr-2"></i>Add Feature</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ==================== ADMIN SCRIPT ====================
+    
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+      const sidebar = document.getElementById('adminSidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('active');
+    }
+    
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
+      
+      const tab = document.getElementById('tab-' + tabName);
+      if (tab) tab.classList.add('active');
+      
+      const nav = document.querySelector(`.admin-nav-item[data-tab="${tabName}"]`);
+      if (nav) nav.classList.add('active');
+      
+      const titles = {
+        overview: 'Overview',
+        businesses: 'Businesses',
+        users: 'Users',
+        modules: 'Modules',
+        features: 'Features',
+        whitelabel: 'White Label',
+        settings: 'Settings'
+      };
+      document.getElementById('pageTitle').textContent = titles[tabName] || tabName;
+      
+      if (tabName === 'overview') loadOverview();
+      if (tabName === 'businesses') loadBusinesses();
+      if (tabName === 'users') {
+        loadUsers();
+        populateUserDropdown(); // Populate dropdown when Users tab is opened
+      }
+      if (tabName === 'features') loadFeatures();
+      if (tabName === 'modules') loadModules();
+      if (tabName === 'whitelabel') loadWhiteLabelConfig();
+      
+      // Close mobile sidebar
+      if (window.innerWidth <= 768) {
+        document.getElementById('adminSidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('active');
+      }
+    }
+    
+    // ===== LOAD FUNCTIONS =====
+    
+    function loadOverview() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          document.getElementById('totalBusinesses').textContent = data.totalBusinesses || 0;
+          document.getElementById('totalUsers').textContent = data.totalUsers || 0;
+          document.getElementById('paidUsers').textContent = data.paidUsers || 0;
+          document.getElementById('freeUsers').textContent = (data.freeUsers || 0) + ' Free';
+          document.getElementById('totalRevenue').textContent = '$' + (data.totalRevenue || 0).toLocaleString();
+          document.getElementById('newBusinesses').textContent = '+ ' + (data.newBusinesses || 0) + ' this month';
+          document.getElementById('newUsers').textContent = '+ ' + (data.newUsers || 0) + ' this month';
+          document.getElementById('businessCount').textContent = data.totalBusinesses || 0;
+          document.getElementById('userCount').textContent = data.totalUsers || 0;
+          
+          const activityContainer = document.getElementById('recentActivity');
+          if (data.recentActivity && data.recentActivity.length > 0) {
+            activityContainer.innerHTML = data.recentActivity.map(item => `
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: ${item.type === 'new_user' ? '#d1fae5' : '#ede9fe'}; color: ${item.type === 'new_user' ? '#059669' : '#7c3aed'}; display: flex; align-items: center; justify-content: center;">
+                  <i class="fas ${item.type === 'new_user' ? 'fa-user-plus' : 'fa-building'}"></i>
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-size: 14px; font-weight: 500;">${item.message}</div>
+                  <div style="font-size: 12px; color: #6b7280;">${item.time}</div>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            activityContainer.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No recent activity</p></div>';
+          }
+        })
+        .withFailureHandler(function() { showNotification('Error loading stats', 'error'); })
+        .getAdminStats();
+    }
+    
+    function loadBusinesses() {
+      google.script.run
+        .withSuccessHandler(function(businesses) {
+          const tbody = document.getElementById('businessesBody');
+          if (!businesses || businesses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-building"></i><p>No businesses found</p></td></tr>';
+            return;
+          }
+          tbody.innerHTML = businesses.map(biz => `
+            <tr>
+              <td><span style="font-weight: 500;">${biz.businessName || 'Unnamed'}</span></td>
+              <td>${biz.ownerEmail || 'N/A'}</td>
+              <td><span class="status-badge ${biz.subscriptionTier === 'free' ? 'pending' : 'active'}">${biz.subscriptionTier || 'Free'}</span></td>
+              <td><span class="status-badge ${biz.verificationStatus === 'verified' ? 'verified' : 'pending'}">${biz.verificationStatus || 'Pending'}</span></td>
+              <td>${biz.createdAt ? new Date(biz.createdAt).toLocaleDateString() : 'N/A'}</td>
+              <td style="text-align: center;">
+                <button onclick="toggleBusinessStatus('${biz.businessId}')" style="background: none; border: none; color: #f59e0b; cursor: pointer;" title="Toggle Status"><i class="fas fa-toggle-on"></i></button>
+                <button onclick="deleteBusiness('${biz.businessId}')" style="background: none; border: none; color: #ef4444; cursor: pointer;" title="Delete"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          `).join('');
+        })
+        .withFailureHandler(function() { showNotification('Error loading businesses', 'error'); })
+        .getAllBusinesses();
+    }
+    
+    function loadUsers() {
+      google.script.run
+        .withSuccessHandler(function(users) {
+          const tbody = document.getElementById('usersBody');
+          if (!users || users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><i class="fas fa-users"></i><p>No users found</p></td></tr>';
+            return;
+          }
+          tbody.innerHTML = users.map(user => `
+            <tr>
+              <td>${user.name || 'N/A'}</td>
+              <td>${user.email}</td>
+              <td><span class="status-badge ${user.role === 'owner' ? 'verified' : 'pending'}">${user.role || 'Staff'}</span></td>
+              <td><span class="status-badge ${user.isVerified === 'YES' ? 'verified' : 'pending'}">${user.isVerified === 'YES' ? 'Verified' : 'Pending'}</span></td>
+              <td>${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
+            </tr>
+          `).join('');
+          
+          // Also populate the dropdown
+          populateUserDropdown();
+        })
+        .withFailureHandler(function() { showNotification('Error loading users', 'error'); })
+        .getAllUsers();
+    }
+    
+    function loadFeatures() {
+      google.script.run
+        .withSuccessHandler(function(features) {
+          const grid = document.getElementById('featuresGrid');
+          if (!features || features.length === 0) {
+            grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-puzzle-piece"></i><p>No features added yet</p></div>';
+            return;
+          }
+          grid.innerHTML = features.map(f => `
+            <div style="background: white; border-radius: 12px; padding: 16px 20px; border: 1px solid #f0f0f0; transition: all 0.2s;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-weight: 600;">${f.name}</div>
+                  <div style="font-size: 13px; color: #6b7280;">${f.module || 'General'}</div>
+                </div>
+                <span class="status-badge ${f.tier === 'free' ? 'pending' : 'active'}">${f.tier || 'Free'}</span>
+              </div>
+              <div style="font-size: 14px; color: #4b5563; margin: 8px 0;">${f.description || 'No description'}</div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #6b7280;">
+                <span>Added: ${f.createdAt ? new Date(f.createdAt).toLocaleDateString() : 'N/A'}</span>
+                <div>
+                  <button onclick="toggleFeature('${f.id}')" style="background: none; border: none; color: ${f.active ? '#059669' : '#6b7280'}; cursor: pointer; padding: 4px 8px;">
+                    <i class="fas ${f.active ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                  </button>
+                  <button onclick="deleteFeature('${f.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px 8px;">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        })
+        .withFailureHandler(function() { showNotification('Error loading features', 'error'); })
+        .getAllFeatures();
+    }
+    
+    function loadModules() {
+      google.script.run
+        .withSuccessHandler(function(modules) {
+          const grid = document.getElementById('modulesGrid');
+          const colors = {
+            Finance: '#7c3aed', Sales: '#2563eb', Ecommerce: '#059669',
+            CRM: '#db2777', HR: '#dc2626', Logistics: '#d97706',
+            Tax: '#f59e0b', Agro: '#10b981'
+          };
+          if (!modules || modules.length === 0) {
+            grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-th-large"></i><p>No modules found</p></div>';
+            return;
+          }
+          grid.innerHTML = modules.map(m => `
+            <div style="background: white; border-radius: 12px; padding: 16px 20px; border: 1px solid #f0f0f0;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: ${colors[m.name] || '#6b7280'}20; color: ${colors[m.name] || '#6b7280'}; display: flex; align-items: center; justify-content: center;">
+                  <i class="fas ${m.icon || 'fa-folder'}"></i>
+                </div>
+                <div>
+                  <div style="font-weight: 600;">${m.label}</div>
+                  <div style="font-size: 12px; color: #6b7280;">${m.recordCount || 0} records</div>
+                </div>
+                <span class="status-badge ${m.tier === 'free' ? 'pending' : 'active'}" style="margin-left: auto;">${m.tier}</span>
+              </div>
+            </div>
+          `).join('');
+        })
+        .withFailureHandler(function() { showNotification('Error loading modules', 'error'); })
+        .getAllModules();
+    }
+    
+    function loadWhiteLabelConfig() {
+      google.script.run
+        .withSuccessHandler(function(config) {
+          if (config && config.enabled) {
+            document.getElementById('wlClientName').value = config.clientName || '';
+            document.getElementById('wlClientDomain').value = config.clientDomain || '';
+            document.getElementById('wlLogo').value = config.customLogo || '';
+            document.getElementById('wlFavicon').value = config.customFavicon || '';
+            document.getElementById('wlCss').value = config.customCss || '';
+          }
+        })
+        .getWhiteLabelConfig();
+    }
+    
+    // ===== FEATURE MANAGEMENT =====
+    
+    function showAddFeatureModal() {
+      const modal = document.getElementById('addFeatureModal');
+      if (modal) {
+        modal.classList.remove('hidden');  // Remove hidden class
+        modal.style.display = 'flex';      // Set display to flex
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        console.log("Modal opened");
+      } else {
+        console.error("Modal not found!");
+      }
+    }
+
+    function closeAddFeatureModal() {
+      const modal = document.getElementById('addFeatureModal');
+      if (modal) {
+        modal.classList.add('hidden');     // Add hidden class
+        modal.style.display = 'none';      // Set display to none
+        document.getElementById('addFeatureForm').reset();
+        console.log("Modal closed");
+      }
+    }
+    
+        
+    function addFeature(event) {
+      event.preventDefault();
+      console.log("Add feature called");
+      
+      const data = {
+        name: document.getElementById('featureName').value,
+        description: document.getElementById('featureDescription').value,
+        module: document.getElementById('featureModule').value,
+        tier: document.getElementById('featureTier').value
+      };
+      
+      if (!data.name) {
+        showNotification('Please enter a feature name', 'warning');
+        return;
+      }
+      
+      const btn = event.target.querySelector('button[type="submit"]') || document.querySelector('#addFeatureForm button[type="submit"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<div class="loading-spinner" style="width: 18px; height: 18px;"></div> Saving...';
+      btn.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(r) {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          if (r.success) {
+            showNotification('Feature added successfully!', 'success');
+            closeAddFeatureModal();
+            loadFeatures();
+          } else {
+            showNotification(r.message || 'Failed to add feature', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          console.error('Error:', error);
+          showNotification('Error: ' + error.message, 'error');
+        })
+        .addFeature(data);
+    }
+
+    
+    function toggleFeature(id) {
+      google.script.run
+        .withSuccessHandler(function() { loadFeatures(); })
+        .toggleFeature(id);
+    }
+    
+    function deleteFeature(id) {
+      if (confirm('Delete this feature?')) {
+        google.script.run
+          .withSuccessHandler(function() { loadFeatures(); })
+          .deleteFeature(id);
+      }
+    }
+    
+    // ===== BUSINESS MANAGEMENT =====
+    
+    function toggleBusinessStatus(id) {
+      google.script.run
+        .withSuccessHandler(function() { loadBusinesses(); })
+        .toggleBusinessStatus(id);
+    }
+    
+    function deleteBusiness(id) {
+      if (confirm('⚠️ Delete ALL data for this business? This cannot be undone!')) {
+        const confirmText = prompt('Type "DELETE" to confirm:');
+        if (confirmText === 'DELETE') {
+          google.script.run
+            .withSuccessHandler(function() { loadBusinesses(); loadOverview(); })
+            .deleteBusiness(id);
+        }
+      }
+    }
+    
+    // ===== WHITE LABEL =====
+    
+    function saveWhiteLabel(event) {
+      event.preventDefault();
+      const data = {
+        clientName: document.getElementById('wlClientName').value,
+        clientDomain: document.getElementById('wlClientDomain').value,
+        customLogo: document.getElementById('wlLogo').value,
+        customFavicon: document.getElementById('wlFavicon').value,
+        customCss: document.getElementById('wlCss').value
+      };
+      google.script.run
+        .withSuccessHandler(function(r) {
+          if (r.success) showNotification('White label saved!', 'success');
+        })
+        .setWhiteLabelConfig(data.clientName, data.clientDomain, data.customCss, data.customLogo, data.customFavicon);
+    }
+
+    // ===== SETTINGS =====
+    
+    function clearCache() {
+      google.script.run
+        .withSuccessHandler(function() { showNotification('Cache cleared!', 'success'); })
+        .clearSystemCache();
+    }
+    
+    function runHealthCheck() {
+      google.script.run
+        .withSuccessHandler(function(results) {
+          const issues = results.filter(r => !r.status);
+          if (issues.length === 0) {
+            showNotification('✅ All systems healthy!', 'success');
+          } else {
+            showNotification('⚠️ ' + issues.length + ' issues found', 'warning');
+            console.warn('Health issues:', issues);
+          }
+        })
+        .runSystemHealthCheck();
+    }
+    
+    function viewLogs() {
+      google.script.run
+        .withSuccessHandler(function(logs) {
+          const win = window.open('', '_blank');
+          win.document.write('<pre style="padding: 20px; font-family: monospace;">' + logs.join('\n') + '</pre>');
+        })
+        .getSystemLogs();
+    }
+    
+    function exportAllData() {
+      showNotification('Exporting...', 'info');
+      google.script.run
+        .withSuccessHandler(function(csv) {
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'businesses_export.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+          showNotification('Export complete!', 'success');
+        })
+        .exportBusinessData();
+    }
+    
+    // ===== FILTERS =====
+    
+    function filterBusinesses() {
+      const search = document.getElementById('searchBusiness').value.toLowerCase();
+      document.querySelectorAll('#businessesBody tr').forEach(row => {
+        if (row.querySelector('.empty-state')) return;
+        row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+      });
+    }
+    
+    function filterUsers() {
+      const search = document.getElementById('searchUser').value.toLowerCase();
+      document.querySelectorAll('#usersBody tr').forEach(row => {
+        if (row.querySelector('.empty-state')) return;
+        row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+      });
+    }
+    
+    function refreshAllData() {
+      showNotification('Refreshing...', 'info');
+      loadOverview();
+      loadBusinesses();
+      loadUsers();
+      loadFeatures();
+      loadModules();
+    }
+    
+    function logoutAdmin() {
+      if (confirm('Logout from admin panel?')) {
+        google.script.run
+          .withSuccessHandler(function() { 
+            window.location.href = window.location.origin + window.location.pathname;
+          })
+          .adminLogout();
+      }
+    }
+
+    // ===== POPULATE USER DROPDOWN =====
+    function populateUserDropdown() {
+      google.script.run
+        .withSuccessHandler(function(users) {
+          const select = document.getElementById('upgrade-user-select');
+          select.innerHTML = '<option value="">-- Select a user --</option>';
+          
+          if (users && users.length > 0) {
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.email;
+              option.textContent = `${user.name || user.email} (${user.email}) - ${user.role || 'Staff'}`;
+              option.dataset.tier = user.subscriptionTier || 'free';
+              select.appendChild(option);
+            });
+          }
+        })
+        .withFailureHandler(function() {
+          showNotification('Error loading users', 'error');
+        })
+        .getAllUsers();
+    }
+
+    // ===== SHOW CURRENT TIER ON SELECT =====
+    function showCurrentTier() {
+      const select = document.getElementById('upgrade-user-select');
+      const display = document.getElementById('current-tier-display');
+      const tierText = document.getElementById('current-tier-text');
+      
+      if (select.value) {
+        const selectedOption = select.options[select.selectedIndex];
+        const tier = selectedOption.dataset.tier || 'free';
+        tierText.textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
+        display.style.display = 'block';
+      } else {
+        display.style.display = 'none';
+      }
+    }
+
+    // ===== MANUAL UPGRADE FUNCTION =====
+    function manuallyUpgradeUser() {
+      const select = document.getElementById('upgrade-user-select');
+      const email = select.value;
+      const tier = document.getElementById('upgrade-target-tier').value;
+      const resultDiv = document.getElementById('upgrade-result');
+      
+      if (!email) {
+        showNotification('Please select a user', 'warning');
+        return;
+      }
+      
+      if (!confirm(`Apply ${tier} tier to ${email}?`)) {
+        return;
+      }
+      
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<div class="loading-spinner"></div> Processing...';
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            resultDiv.innerHTML = `
+              <div style="padding: 10px 14px; background: #d1fae5; border-radius: 8px; color: #065f46; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-check-circle" style="color: #059669;"></i>
+                ${response.message}
+              </div>
+            `;
+            showNotification('User upgraded successfully!', 'success');
+            loadUsers();
+            
+            setTimeout(() => {
+              resultDiv.style.display = 'none';
+            }, 5000);
+          } else {
+            resultDiv.innerHTML = `
+              <div style="padding: 10px 14px; background: #fee2e2; border-radius: 8px; color: #991b1b; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-exclamation-circle" style="color: #dc2626;"></i>
+                ${response.message}
+              </div>
+            `;
+          }
+        })
+        .withFailureHandler(function(error) {
+          resultDiv.innerHTML = `
+            <div style="padding: 10px 14px; background: #fee2e2; border-radius: 8px; color: #991b1b; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+              <i class="fas fa-exclamation-circle" style="color: #dc2626;"></i>
+              Error: ${error.message || 'Unknown error'}
+            </div>
+          `;
+        })
+        .manuallyUpgradeUser(email, tier);
+    }
+
+    // ===== NOTIFICATIONS =====
+    
+    function showNotification(message, type = 'info') {
+      const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        warning: '#f59e0b',
+        info: '#5D2A86'
+      };
+      const notif = document.createElement('div');
+      notif.style.cssText = `
+        position: fixed; top: 20px; right: 20px;
+        background: ${colors[type]}; color: white;
+        padding: 12px 24px; border-radius: 8px;
+        z-index: 9999; font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        max-width: 350px;
+      `;
+      notif.innerHTML = message;
+      document.body.appendChild(notif);
+      setTimeout(() => {
+        notif.style.opacity = '0';
+        notif.style.transition = 'opacity 0.5s';
+        setTimeout(() => notif.remove(), 500);
+      }, 3000);
+    }
+    
+    // ===== INIT =====
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      loadOverview();
+      
+      // Close modal on outside click
+      document.getElementById('addFeatureModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAddFeatureModal();
+      });
+    });
+    
+    // Add slideIn animation for notifications
+    if (!document.querySelector('#adminNotificationStyle')) {
+      const style = document.createElement('style');
+      style.id = 'adminNotificationStyle';
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  </script>
+</body>
+</html>

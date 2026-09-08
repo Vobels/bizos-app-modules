@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>BizOS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <?!= include('styles') ?>
+</head>
+<body class="bg-gray-50">
+  <div id="app">
+    <?!= include('landing') ?>
+    <?!= include('dashboard') ?>
+    <?!= include('profile') ?>
+
+    <?!= include('cms') ?>
+  </div>
+  
+  
+  
+  <?!= include('notification') ?>
+  <?!= include('scripts') ?>
+  
+  <?!= include('forms') ?> 
+
+  <script>
+    function openLoginModal() {
+      const modal = document.getElementById('login-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        console.log("✅ Login modal opened");
+      } else {
+        console.log("❌ Modal not found");
+      }
+    }
+
+    // 🔥 VALUE COMES FROM SERVER (NOT URL)
+    const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
+
+    window.addEventListener('load', function () {
+
+      if (shouldShowLogin) {
+        console.log("🔁 showLogin detected from server");
+
+        let attempts = 0;
+
+        const interval = setInterval(() => {
+          const modal = document.getElementById('login-modal');
+
+          if (modal) {
+            openLoginModal();
+            clearInterval(interval);
+          }
+
+          attempts++;
+          if (attempts > 20) {
+            console.log("❌ Modal never found");
+            clearInterval(interval);
+          }
+
+        }, 200);
+      }
+
+    });
+  </script>
+</body>
+</html>
+

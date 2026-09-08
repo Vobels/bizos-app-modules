@@ -1,0 +1,206 @@
+<script>
+// ============================================================
+// 📁 config.html - FRONTEND CONFIGURATION
+// ============================================================
+// Syncs with Config.gs - Do not hardcode values here
+// Values are passed from the backend
+// ============================================================
+
+// ============================================================
+// 🏢 APP IDENTITY (Hardcoded fallbacks - will be overridden)
+// ============================================================
+const APP_CONFIG = {
+  name: "BizOS",
+  tagline: "Business Operating System",
+  domain: "bizos.higroups.com",
+  supportEmail: "bizgroups@gmail.com",
+  supportPhone: "+234 123 456 7890",
+  colors: {
+    primary: "#5D2A86",
+    primaryLight: "#7C3AED",
+    primaryDark: "#4A1F6B",
+    secondary: "#10B981",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+  }
+};
+
+// ============================================================
+// 💰 PRICING (One-time payment only)
+// ============================================================
+const PRICING_CONFIG = {
+  sovereign: {
+    usd: 800,
+    naira: 1200000,
+    description: "Lifetime access + Custom Domain + White Label",
+    includes: [
+      "All 12 Business Modules",
+      "White Label + Custom Domain",
+      "Your Own Google Sheet Backend",
+      "Lifetime Updates",
+      "24/7 Email Support"
+    ]
+  },
+  // Service fees - shown ONLY inside the app
+  services: {
+    backup: 5,
+    maintenance: 5,
+    customization: 5,
+    support: 5,
+    default: 5,
+    description: "Optional service requests. Only pay when you need help."
+  }
+};
+
+// ============================================================
+// 📦 MODULES
+// ============================================================
+const MODULES_CONFIG = {
+  all: ["Finance", "Sales", "Ecommerce", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
+  free: ["Finance", "Ecommerce"],
+  access: {
+    demo: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
+    starter: ["Finance", "Ecommerce"],
+    sovereign: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
+    enterprise: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
+  },
+  icons: {
+    Finance: "fa-calculator",
+    Sales: "fa-chart-line",
+    Ecommerce: "fa-cart-shopping",
+    CRM: "fa-users",
+    HR: "fa-briefcase",
+    Logistics: "fa-truck",
+    Tax: "fa-file-invoice",
+    Agro: "fa-seedling",
+    Productivity: "fa-clock",
+    POS: "fa-cash-register",
+    Attendance: "fa-fingerprint",
+    Warehouse: "fa-warehouse",
+  },
+  colors: {
+    Finance: "from-purple-500 to-purple-700",
+    Sales: "from-blue-500 to-blue-700",
+    Ecommerce: "from-orange-500 to-orange-700",
+    CRM: "from-green-500 to-green-700",
+    HR: "from-red-500 to-red-700",
+    Logistics: "from-teal-500 to-teal-700",
+    Tax: "from-yellow-500 to-yellow-700",
+    Agro: "from-emerald-500 to-emerald-700",
+    Productivity: "from-indigo-500 to-indigo-700",
+    POS: "from-pink-500 to-pink-700",
+    Attendance: "from-cyan-500 to-cyan-700",
+    Warehouse: "from-slate-500 to-slate-700",
+  },
+  labels: {
+    Finance: "Financial Management",
+    Sales: "Sales Pipeline",
+    Ecommerce: "E-commerce",
+    CRM: "Customer Relations",
+    HR: "Human Resources",
+    Logistics: "Logistics",
+    Tax: "Tax Compliance",
+    Agro: "Agriculture",
+    Productivity: "Productivity Suite",
+    POS: "Point of Sale",
+    Attendance: "Staff Attendance",
+    Warehouse: "Warehouse Management",
+  },
+};
+
+// ============================================================
+// 👤 TIERS
+// ============================================================
+const TIERS_CONFIG = {
+  demo: {
+    name: "Demo",
+    isReadOnly: true,
+    maxRecords: 50,
+    badge: "(Demo)",
+    upgradeMessage: "Demo Mode - Read Only",
+  },
+  starter: {
+    name: "Free",
+    isReadOnly: false,
+    maxRecords: 500,
+    badge: "Free",
+    upgradeMessage: "Upgrade to Sovereign for lifetime access",
+  },
+  sovereign: {
+    name: "Sovereign",
+    isReadOnly: false,
+    maxRecords: null,
+    badge: "⭐ Sovereign",
+    upgradeMessage: "",
+  },
+  enterprise: {
+    name: "Enterprise",
+    isReadOnly: false,
+    maxRecords: null,
+    badge: "🏢 Enterprise",
+    upgradeMessage: "",
+  },
+};
+
+// ============================================================
+// 🛠 HELPER FUNCTIONS
+// ============================================================
+
+function getAppName() { return APP_CONFIG.name; }
+function getPrimaryColor() { return APP_CONFIG.colors.primary; }
+function getModuleIcon(name) { return MODULES_CONFIG.icons[name] || "fa-folder"; }
+function getModuleColor(name) { return MODULES_CONFIG.colors[name] || "from-gray-500 to-gray-700"; }
+function getModuleLabel(name) { return MODULES_CONFIG.labels[name] || name; }
+function isModuleFree(name) { return MODULES_CONFIG.free.includes(name); }
+function isModuleAccessible(name, tier) {
+  const access = MODULES_CONFIG.access[tier] || MODULES_CONFIG.access.starter;
+  return access.includes(name);
+}
+function getSovereignPrice() { return PRICING_CONFIG.sovereign; }
+function getServiceFee(type) { return PRICING_CONFIG.services[type] || PRICING_CONFIG.services.default; }
+function isFeatureEnabled(feature) { return true; } // Will be overridden by backend
+
+// ============================================================
+// 🚀 LOAD CONFIG FROM BACKEND
+// ============================================================
+function loadFrontendConfig() {
+  console.log('📦 Loading frontend config from backend...');
+  
+  // Check if we have a session
+  if (!currentSessionId && typeof currentSessionId !== 'undefined') {
+    console.log('No session, using default config');
+    return;
+  }
+  
+  callGoogleScript(
+    'getFrontendConfig',
+    [],
+    function(response) {
+      if (response && response.app) {
+        // Override with backend config
+        Object.assign(APP_CONFIG, response.app);
+        Object.assign(MODULES_CONFIG, response.modules);
+        Object.assign(PRICING_CONFIG, response.pricing);
+        Object.assign(TIERS_CONFIG, response.tiers);
+        console.log('✅ Frontend config loaded from backend');
+        console.log('🏢 App:', APP_CONFIG.name);
+        console.log('💰 Price:', PRICING_CONFIG.sovereign.usd);
+      }
+    },
+    function(error) {
+      console.log('⚠️ Using default frontend config');
+    }
+  );
+}
+
+// Load config when page loads
+if (typeof window !== 'undefined') {
+  // Will be called after session is loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure session is loaded
+    setTimeout(loadFrontendConfig, 1000);
+  });
+}
+
+console.log('✅ config.html loaded successfully');
+</script>

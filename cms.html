@@ -1,0 +1,34 @@
+<div id="import-modal" class="hidden modal">
+  <div class="modal-content max-w-md w-full">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-bold">Import CSV Data</h2>
+      <button onclick="closeImportModal()" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Select CSV File</label>
+        <input type="file" id="csv-file-input" accept=".csv" class="input-field">
+        <p class="text-xs text-gray-500 mt-1">File should match the module's column structure</p>
+      </div>
+      <button onclick="uploadCSV()" class="btn-primary w-full">Import</button>
+    </div>
+  </div>
+</div>
+
+<div id="delete-modal" class="hidden modal">
+  <div class="modal-content max-w-md w-full">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-bold">Confirm Delete</h2>
+      <button onclick="closeDeleteModal()" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <p class="text-gray-600 mb-6">Are you sure you want to delete this record? This action cannot be undone.</p>
+    <div class="flex space-x-3">
+      <button onclick="confirmDelete()" class="btn-primary flex-1">Delete</button>
+      <button onclick="closeDeleteModal()" class="btn-secondary flex-1">Cancel</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Payment - BizOS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-white rounded-lg shadow-lg overflow-hidden">
+      <div class="bg-gradient-to-r from-purple-600 to-purple-800 p-6 text-center">
+        <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="fas fa-crown text-purple-600 text-2xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-white">Complete Your Upgrade</h1>
+        <p class="text-purple-200 mt-2">Sovereign Tier - One Time Payment</p>
+      </div>
+      
+      <div class="p-6" id="payment-content">
+        <div class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-4"></div>
+          <p class="text-gray-600">Loading payment details...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Get requestId from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestId = urlParams.get('requestId');
+    const country = urlParams.get('country') || 'Nigeria';
+    
+    // Dashboard URL (where to go back)
+    const DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxydvMYfUDCzk0b-_MJpcUrwPhdWXsmQZMH847JxMd2/dev';
+    
+    console.log('Payment page loaded. Request ID:', requestId);
+    
+    function goToDashboard() {
+      window.location.href = DASHBOARD_URL;
+    }
+    
+    if (!requestId) {
+      document.getElementById('payment-content').innerHTML = `
+        <div class="text-center py-8">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">No Request Found</h3>
+          <p class="text-gray-600 mb-6">Unable to find upgrade request information.</p>
+          <button onclick="goToDashboard()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">
+            ← Return to Dashboard
+          </button>
+        </div>
+      `;
+    } else {
+      // Load upgrade request details
+      google.script.run
+        .withSuccessHandler(function(response) {
+          console.log('Upgrade request details:', response);
+          
+          if (response && response.success && response.request) {
+            const req = response.request;
+            const amount = (req.amount || 49900) / 100;
+            const currency = req.currency || 'NGN';
+            const symbols = { 'USD': '$', 'NGN': '₦', 'GBP': '£', 'EUR': '€' };
+            const symbol = symbols[currency] || '$';
+            
+            document.getElementById('payment-content').innerHTML = `
+              <div class="mb-6">
+                <div class="bg-purple-50 rounded-lg p-4 mb-6">
+                  <div class="flex justify-between mb-3">
+                    <span class="text-gray-600">Business:</span>
+                    <span class="font-semibold">${escapeHtml(req.businessName || 'Your Business')}</span>
+                  </div>
+                  <div class="flex justify-between mb-3">
+                    <span class="text-gray-600">Request ID:</span>
+                    <span class="font-mono text-sm">${escapeHtml(requestId)}</span>
+                  </div>
+                  <div class="flex justify-between pt-3 border-t">
+                    <span class="text-gray-600">Amount to Pay:</span>
+                    <span class="text-2xl font-bold text-purple-600">${symbol}${amount.toLocaleString()}</span>
+                  </div>
+                </div>
+                
+                <div class="bg-yellow-50 rounded-lg p-4 mb-6">
+                  <p class="text-sm text-yellow-800 text-center">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Please send payment to the bank details below and click "I Have Paid" when done.
+                  </p>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                  <p class="font-semibold mb-2">Bank Transfer Details:</p>
+                  <p class="text-sm">Bank: <strong>Example Bank</strong></p>
+                  <p class="text-sm">Account Name: <strong>BizOS Global</strong></p>
+                  <p class="text-sm">Account Number: <strong>1234567890</strong></p>
+                  <p class="text-sm mt-2">Reference: <strong class="font-mono">${requestId}</strong></p>
+                </div>
+                
+                <button onclick="confirmPayment('${requestId}')" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                  <i class="fas fa-check-circle mr-2"></i>I Have Made the Payment
+                </button>
+                
+                <div class="mt-6 pt-4 border-t text-center">
+                  <button onclick="goToDashboard()" class="text-gray-500 hover:text-purple-600">
+                    ← Return to Dashboard
+                  </button>
+                </div>
+              </div>
+            `;
+          } else {
+            showError('Upgrade request not found.');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error:', error);
+          showError('Failed to load payment details.');
+        })
+        .getUpgradeRequest(requestId);
+    }
+    
+    function confirmPayment(requestId) {
+      google.script.run
+        .withSuccessHandler(function() {
+          showMessage('Payment recorded! Redirecting to dashboard...', 'success');
+          setTimeout(() => goToDashboard(), 2000);
+        })
+        .withFailureHandler(function() {
+          showMessage('Payment recorded! Redirecting to dashboard...', 'success');
+          setTimeout(() => goToDashboard(), 2000);
+        })
+        .markPaymentInitiated(requestId);
+    }
+    
+    function showError(message) {
+      document.getElementById('payment-content').innerHTML = `
+        <div class="text-center py-8">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Error</h3>
+          <p class="text-gray-600 mb-6">${escapeHtml(message)}</p>
+          <button onclick="goToDashboard()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">
+            ← Return to Dashboard
+          </button>
+        </div>
+      `;
+    }
+    
+    function showMessage(message, type) {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#10b981' : '#3b82f6'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+      `;
+      toast.innerHTML = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+    
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+  </script>
+</body>
+</html>

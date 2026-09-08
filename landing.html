@@ -1,0 +1,1102 @@
+<div id="landing-page" class="min-h-screen">
+  <!-- HEADER / NAV -->
+  <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-gray-100">
+    <div class="flex items-center gap-8">
+      <div class="text-2xl font-bold text-[#5D2A86] cursor-pointer" onclick="scrollToSection('hero')">BizOS</div>
+      <div class="hidden lg:flex gap-6 text-sm font-medium text-gray-600">
+        <button onclick="scrollToSection('features')" class="hover:text-[#5D2A86] transition">Features</button>
+        <button onclick="scrollToSection('apps')" class="hover:text-[#5D2A86] transition">Apps</button>
+        <button onclick="scrollToSection('showcase')" class="hover:text-[#5D2A86] transition">Demo</button>
+        <button onclick="scrollToSection('pricing')" class="hover:text-[#5D2A86] transition">Pricing</button>
+        <button onclick="scrollToSection('faq')" class="hover:text-[#5D2A86] transition">FAQ</button>
+      </div>
+    </div>
+    
+    <div class="flex gap-4">
+      <button onclick="showDemoLoginModal()" class="text-sm font-medium text-purple-600 hover:text-[#5D2A86] transition">
+        <i class="fas fa-play-circle mr-1"></i>Demo
+      </button>
+      <button onclick="showLoginModal()" class="text-sm font-medium text-gray-600 hover:text-[#5D2A86] transition">Sign in</button>
+      <button onclick="showSignupModal()" class="bg-[#5D2A86] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#4a1f6b] transition shadow-sm">Start Free</button>
+    </div>
+  </nav>
+
+  <!-- ===== REGULAR LOGIN MODAL ===== -->
+  <div id="login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Sign In to BizOS</h2>
+        <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+          <input type="text" id="login-business-name" class="w-full border rounded-lg p-2" placeholder="Your Company Name" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+          <input type="email" id="login-email" class="w-full border rounded-lg p-2" placeholder="you@company.com" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+          <div class="relative">
+            <input type="password" id="login-password" class="w-full border rounded-lg p-2 pr-10" placeholder="••••••" required>
+            <button type="button" onclick="togglePassword('login-password')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        
+        <div class="mb-6 text-right">
+          <button type="button" onclick="showForgotPassword()" class="text-sm text-[#5D2A86] hover:underline">
+            Forgot password?
+          </button>
+        </div>
+        
+        <button type="submit" class="w-full bg-[#5D2A86] text-white py-2 rounded-lg font-semibold hover:bg-[#4a1f6b] transition">Sign In</button>
+        
+        <p class="text-center text-sm text-gray-600 mt-6">
+          Don't have an account? 
+          <button type="button" onclick="closeLoginModal(); showSignupModal();" class="text-[#5D2A86] font-semibold hover:underline">
+            Create free account
+          </button>
+        </p>
+        
+        <div id="resend-verification-section" class="text-center mt-4 hidden">
+          <button type="button" onclick="handleResendVerification()" class="text-sm text-[#5D2A86] hover:underline">
+            Didn't receive verification email? Click here to resend
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== SIGN UP MODAL ===== -->
+  <div id="signup-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Create Free Account</h2>
+        <button onclick="closeSignupModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="signup-form" onsubmit="handleSignup(event)">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Business Name *</label>
+          <input type="text" id="signup-company" class="w-full border rounded-lg p-2" placeholder="Your Company Name" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+          <input type="text" id="signup-name" class="w-full border rounded-lg p-2" placeholder="John Doe" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+          <input type="email" id="signup-email" class="w-full border rounded-lg p-2" placeholder="you@company.com" required>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+          <input type="tel" id="signup-phone" class="w-full border rounded-lg p-2" placeholder="Optional">
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+          <div class="relative">
+            <input type="password" id="signup-password" onkeyup="updatePasswordStrength('signup-password', 'signup-password-strength')" class="w-full border rounded-lg p-2 pr-10" placeholder="Minimum 6 characters" required>
+            <button type="button" onclick="togglePassword('signup-password')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <div id="signup-password-strength" class="mt-1"></div>
+        </div>
+        
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password *</label>
+          <div class="relative">
+            <input type="password" id="signup-confirm" class="w-full border rounded-lg p-2 pr-10" placeholder="Confirm password" required>
+            <button type="button" onclick="togglePassword('signup-confirm')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-green-50 p-3 rounded-lg mb-4">
+          <p class="text-sm text-green-800">
+            <i class="fas fa-check-circle mr-2"></i>
+            Free plan includes: Finance + E-commerce (Unlimited products, 50 orders/month)
+          </p>
+        </div>
+        
+        <button type="submit" class="w-full bg-[#5D2A86] text-white py-2 rounded-lg font-semibold hover:bg-[#4a1f6b] transition">Create Free Account</button>
+        
+        <p class="text-center text-sm text-gray-600 mt-6">
+          Already have an account? 
+          <button type="button" onclick="closeSignupModal(); showLoginModal();" class="text-[#5D2A86] font-semibold hover:underline">
+            Sign in
+          </button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== FORGOT PASSWORD MODAL ===== -->
+  <div id="forgot-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Reset Password</h2>
+        <button onclick="closeForgotModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="forgot-form" onsubmit="handleForgotPassword(event)">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+          <input type="email" id="forgot-email" class="w-full border rounded-lg p-2" placeholder="your@email.com" required>
+        </div>
+        
+        <button type="submit" class="w-full bg-[#5D2A86] text-white py-2 rounded-lg font-semibold hover:bg-[#4a1f6b] transition">Send Reset Link</button>
+        
+        <p class="text-center text-sm text-gray-600 mt-6">
+          Remember your password? 
+          <button type="button" onclick="closeForgotModal(); showLoginModal();" class="text-[#5D2A86] font-semibold hover:underline">
+            Back to sign in
+          </button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== DEMO LOGIN MODAL ===== -->
+  <div id="demo-login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+    <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-play-circle text-purple-600 text-2xl"></i>
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold text-[#5D2A86]">Demo Access</h2>
+            <p class="text-sm text-gray-500">No signup required</p>
+          </div>
+        </div>
+        <button onclick="closeDemoLoginModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+        <div class="flex items-start gap-3">
+          <i class="fas fa-info-circle text-yellow-600 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-medium text-yellow-800">Read-Only Demo</p>
+            <p class="text-sm text-yellow-700">Explore all features but cannot save data. Upgrade to Sovereign for full access.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-gray-50 rounded-xl p-4 mb-6">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md">
+            D
+          </div>
+          <div>
+            <p class="font-semibold text-gray-900">Demo User</p>
+            <p class="text-sm text-gray-500">demo@bizos.com</p>
+            <p class="text-xs text-gray-400">No password needed • Instant access</p>
+          </div>
+        </div>
+      </div>
+      
+      <button onclick="loginDemo()" class="w-full bg-[#5D2A86] text-white py-3.5 rounded-xl font-bold text-lg hover:bg-[#4a1f6b] transition shadow-lg hover:shadow-xl">
+        <i class="fas fa-play mr-2"></i>Enter Demo
+      </button>
+      
+      <div class="text-center mt-5">
+        <p class="text-sm text-gray-500">
+          Want full access? 
+          <button onclick="closeDemoLoginModal(); showSignupModal();" class="text-[#5D2A86] font-semibold hover:underline">
+            Sign up free →
+          </button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HERO SECTION ===== -->
+  <div id="hero" class="bg-gradient-to-b from-white to-gray-50 pt-20 pb-28 text-center px-4">
+    <div class="max-w-5xl mx-auto">
+      <div class="inline-flex items-center bg-purple-100 rounded-full px-4 py-2 mb-8">
+        <span class="text-[#5D2A86] text-sm font-medium">🚀 Launch Special</span>
+        <span class="mx-2 text-gray-400">•</span>
+        <span class="text-sm text-gray-600">Free tier available • One-time payment for full access</span>
+      </div>
+      
+      <h1 class="text-5xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+        The complete business
+        <span class="text-[#5D2A86] relative">
+          operating system
+          <svg class="absolute -bottom-3 left-0 w-full" height="12" viewBox="0 0 100 10" preserveAspectRatio="none">
+            <path d="M0 5 Q 50 10 100 5" stroke="#FFC107" stroke-width="4" fill="transparent"/>
+          </svg>
+        </span>
+      </h1>
+      
+      <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+        Replace multiple subscriptions with one integrated platform. Track finances, manage customers, 
+        process orders, and scale your business — all from Google Sheets.
+      </p>
+      
+      <div class="flex flex-col sm:flex-row justify-center gap-4 mb-12">
+        <button onclick="showDemoLoginModal()" class="bg-white border-2 border-[#5D2A86] text-[#5D2A86] px-8 py-4 rounded-xl font-bold text-lg hover:bg-purple-50 transition shadow-lg hover:shadow-xl">
+          <i class="fas fa-play-circle mr-2"></i>Try Demo
+          <span class="block text-xs font-normal text-gray-400 mt-0.5">No signup required</span>
+        </button>
+        
+        <button onclick="showSignupModal()" class="bg-[#5D2A86] text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-[#4a1f6b] transition shadow-lg hover:shadow-xl">
+          <i class="fas fa-rocket mr-2"></i>Start Free
+          <span class="block text-xs font-normal text-purple-200 mt-0.5">Finance + E-commerce</span>
+        </button>
+      </div>
+      
+      <div class="flex justify-center items-center space-x-8 text-sm text-gray-500">
+        <div class="flex items-center space-x-2">
+          <i class="fas fa-check-circle text-green-500"></i>
+          <span>Free forever plan</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <i class="fas fa-play-circle text-purple-500"></i>
+          <span>Try demo instantly</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <i class="fas fa-crown text-yellow-500"></i>
+          <span>$800 one-time • Lifetime access</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREENSHOT SHOWCASE SECTION ===== -->
+  <div id="showcase" class="py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-12">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">See BizOS in action</h2>
+        <p class="text-xl text-gray-600">A complete dashboard that puts you in control</p>
+      </div>
+      
+      <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
+        <div class="bg-gray-800 px-4 py-3 flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-red-500"></div>
+          <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div class="w-3 h-3 rounded-full bg-green-500"></div>
+          <div class="text-gray-400 text-sm ml-4">BizOS Dashboard — Financial Overview</div>
+        </div>
+        <div class="p-4 bg-white">
+          <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                 </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 text-sm text-gray-900">2024-01-15</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Client Payment - ABC Corp</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Services</td>
+                  <td class="px-6 py-4 text-sm text-green-600 font-medium">Revenue</td>
+                  <td class="px-6 py-4 text-sm text-right text-gray-900">$5,000.00</td>
+                </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 text-sm text-gray-900">2024-01-14</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Office Rent</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Rent</td>
+                  <td class="px-6 py-4 text-sm text-red-600 font-medium">Expense</td>
+                  <td class="px-6 py-4 text-sm text-right text-gray-900">-$1,200.00</td>
+                </tr>
+                <tr class="hover:bg-gray-50 bg-purple-50">
+                  <td class="px-6 py-4 text-sm text-gray-900">2024-01-13</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">E-commerce Order #1234</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Product Sales</td>
+                  <td class="px-6 py-4 text-sm text-green-600 font-medium">Revenue</td>
+                  <td class="px-6 py-4 text-sm text-right text-gray-900">$350.00</td>
+                </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 text-sm text-gray-900">2024-01-12</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Software Subscription</td>
+                  <td class="px-6 py-4 text-sm text-gray-600">Software</td>
+                  <td class="px-6 py-4 text-sm text-red-600 font-medium">Expense</td>
+                  <td class="px-6 py-4 text-sm text-right text-gray-900">-$89.00</td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colspan="4" class="px-6 py-4 text-right font-bold text-gray-900">Total Revenue:</td>
+                  <td class="px-6 py-4 text-right font-bold text-green-600">$5,350.00</td>
+                </tr>
+                <tr>
+                  <td colspan="4" class="px-6 py-4 text-right font-bold text-gray-900">Total Expenses:</td>
+                  <td class="px-6 py-4 text-right font-bold text-red-600">-$1,289.00</td>
+                </tr>
+                <tr>
+                  <td colspan="4" class="px-6 py-4 text-right font-bold text-gray-900">Net Profit:</td>
+                  <td class="px-6 py-4 text-right font-bold text-purple-600">$4,061.00</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid md:grid-cols-3 gap-6 mt-12">
+        <div class="text-center">
+          <div class="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-chart-line text-2xl text-[#5D2A86]"></i>
+          </div>
+          <h3 class="font-bold mb-2">Real-time KPIs</h3>
+          <p class="text-sm text-gray-500">Track revenue, expenses, and profit instantly</p>
+        </div>
+        <div class="text-center">
+          <div class="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-bell text-2xl text-[#5D2A86]"></i>
+          </div>
+          <h3 class="font-bold mb-2">Smart Alerts</h3>
+          <p class="text-sm text-gray-500">Get notified when spending exceeds limits</p>
+        </div>
+        <div class="text-center">
+          <div class="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-file-export text-2xl text-[#5D2A86]"></i>
+          </div>
+          <h3 class="font-bold mb-2">Export Reports</h3>
+          <p class="text-sm text-gray-500">Generate professional financial reports</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FEATURES SECTION ===== -->
+  <div id="features" class="py-24 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">Everything you need to run your business</h2>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto">From financial control to customer management — all in one place</p>
+      </div>
+      
+      <div class="grid md:grid-cols-3 gap-8">
+        <div class="bg-white rounded-2xl p-8 hover:shadow-lg transition">
+          <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+            <i class="fas fa-chart-line text-2xl text-[#5D2A86]"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Real-time Financial Control</h3>
+          <p class="text-gray-600 leading-relaxed">Track revenue, expenses, and profit instantly. Know your cash runway and make data-driven decisions.</p>
+        </div>
+        
+        <div class="bg-white rounded-2xl p-8 hover:shadow-lg transition">
+          <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+            <i class="fas fa-shopping-cart text-2xl text-[#5D2A86]"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">E-commerce Management</h3>
+          <p class="text-gray-600 leading-relaxed">Process orders, track inventory, manage products. Built specifically for online businesses.</p>
+        </div>
+        
+        <div class="bg-white rounded-2xl p-8 hover:shadow-lg transition">
+          <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+            <i class="fas fa-users text-2xl text-[#5D2A86]"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Customer Relationship Hub</h3>
+          <p class="text-gray-600 leading-relaxed">Manage leads, track interactions, and build lasting customer relationships.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== APP GRID SECTION ===== -->
+  <div id="apps" class="py-24 bg-white">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">Powerful business applications</h2>
+        <p class="text-xl text-gray-600">Integrated modules that work seamlessly together</p>
+      </div>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div onclick="openModuleFromLanding('Finance')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-calculator text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">Finance</h3>
+          <p class="text-sm text-gray-500">Accounting & expense tracking</p>
+          <span class="inline-block mt-3 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Free</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('Ecommerce')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-shopping-cart text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">E-commerce</h3>
+          <p class="text-sm text-gray-500">Orders & inventory management</p>
+          <span class="inline-block mt-3 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Free</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('Sales')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-chart-line text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">Sales</h3>
+          <p class="text-sm text-gray-500">Pipeline & quotations</p>
+          <span class="inline-block mt-3 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Sovereign</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('CRM')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-users text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">CRM</h3>
+          <p class="text-sm text-gray-500">Customer relationships</p>
+          <span class="inline-block mt-3 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Sovereign</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('HR')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-briefcase text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">HR</h3>
+          <p class="text-sm text-gray-500">Employee management</p>
+          <span class="inline-block mt-3 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Sovereign</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('Logistics')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-truck text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">Logistics</h3>
+          <p class="text-sm text-gray-500">Inventory & shipping</p>
+          <span class="inline-block mt-3 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Sovereign</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('Tax')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-file-invoice text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">Tax</h3>
+          <p class="text-sm text-gray-500">Compliance & reporting</p>
+          <span class="inline-block mt-3 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Sovereign</span>
+        </div>
+        
+        <div onclick="openModuleFromLanding('Agro')" class="group bg-gray-50 rounded-2xl p-6 hover:bg-white hover:shadow-xl transition-all cursor-pointer">
+          <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <i class="fas fa-leaf text-white text-xl"></i>
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2">Agro</h3>
+          <p class="text-sm text-gray-500">Farm management</p>
+          <span class="inline-block mt-3 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Sovereign</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PRICING SECTION - SIMPLIFIED ===== -->
+  <div id="pricing" class="py-24 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">Simple, transparent pricing</h2>
+        <p class="text-xl text-gray-600">Choose the plan that fits your business</p>
+      </div>
+      
+      <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        
+        <!-- FREE PLAN -->
+        <div class="bg-white rounded-2xl p-8 hover:shadow-lg transition border border-gray-200">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <i class="fas fa-gem text-green-600"></i>
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold">Free</h3>
+              <p class="text-sm text-gray-500">Get started with essential tools</p>
+            </div>
+          </div>
+          
+          <div class="text-4xl font-bold mb-2">$0</div>
+          <div class="text-sm text-gray-500 mb-6">Forever free • No credit card required</div>
+          
+          <ul class="space-y-3 mb-8">
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-green-500 mt-1"></i>
+              <div>
+                <span class="font-medium">Finance Module</span>
+                <p class="text-sm text-gray-500">Track income, expenses, and profits</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-green-500 mt-1"></i>
+              <div>
+                <span class="font-medium">E-commerce Module</span>
+                <p class="text-sm text-gray-500">Unlimited products, 50 orders/month</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-green-500 mt-1"></i>
+              <div>
+                <span class="font-medium">1 User</span>
+                <p class="text-sm text-gray-500">Single user access</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-green-500 mt-1"></i>
+              <div>
+                <span class="font-medium">Basic Analytics</span>
+                <p class="text-sm text-gray-500">View key business metrics</p>
+              </div>
+            </li>
+          </ul>
+          
+          <button onclick="showSignupModal()" class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300 transition">Start Free</button>
+        </div>
+        
+        <!-- SOVEREIGN - One Time Payment -->
+        <div class="bg-white rounded-2xl p-8 shadow-xl border-2 border-[#5D2A86] relative">
+          <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#5D2A86] text-white px-4 py-1 rounded-full text-xs font-medium">
+            🏆 Best Value
+          </div>
+          
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+              <i class="fas fa-crown text-purple-600"></i>
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold">Sovereign</h3>
+              <p class="text-sm text-gray-500">Complete business control</p>
+            </div>
+          </div>
+          
+          <div class="text-4xl font-bold mb-1">$800</div>
+          <div class="text-sm text-green-600 font-semibold mb-6">One-time payment • Lifetime access</div>
+          
+          <ul class="space-y-3 mb-8">
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-purple-600 mt-1"></i>
+              <div>
+                <span class="font-medium">All 12 Business Modules</span>
+                <p class="text-sm text-gray-500">Finance, Sales, E-commerce, CRM, HR, Logistics, Tax, Agro, Productivity, POS, Attendance, Warehouse</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-purple-600 mt-1"></i>
+              <div>
+                <span class="font-medium">White Label + Custom Domain</span>
+                <p class="text-sm text-gray-500">Your branding, your domain</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-purple-600 mt-1"></i>
+              <div>
+                <span class="font-medium">Your Own Google Sheet Backend</span>
+                <p class="text-sm text-gray-500">Full data ownership</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-purple-600 mt-1"></i>
+              <div>
+                <span class="font-medium">Unlimited Users</span>
+                <p class="text-sm text-gray-500">No limits on team members</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-purple-600 mt-1"></i>
+              <div>
+                <span class="font-medium">Lifetime Updates</span>
+                <p class="text-sm text-gray-500">Always get the latest features</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-3">
+              <i class="fas fa-check text-purple-600 mt-1"></i>
+              <div>
+                <span class="font-medium">Priority Support</span>
+                <p class="text-sm text-gray-500">24/7 dedicated support</p>
+              </div>
+            </li>
+          </ul>
+          
+          <button onclick="showSignupModal()" class="w-full bg-[#5D2A86] text-white py-3 rounded-xl font-bold hover:bg-[#4a1f6b] transition shadow-lg">Get Sovereign</button>
+          <p class="text-xs text-gray-400 text-center mt-3">One-time payment • No subscriptions</p>
+        </div>
+        
+      </div>
+      
+      <div class="text-center mt-8">
+        <p class="text-sm text-gray-500">All prices in USD. Enterprise options available for custom needs.</p>
+        <button onclick="contactSales()" class="text-[#5D2A86] font-semibold hover:underline">Contact sales →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FAQ SECTION ===== -->
+  <div id="faq" class="py-16 bg-white">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-gray-900 mb-3">Frequently asked questions</h2>
+        <p class="text-lg text-gray-600">Everything you need to know about BizOS</p>
+      </div>
+      
+      <div class="space-y-3">
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>What's included in the Free plan?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            Finance module (track income/expenses) and E-commerce module (manage products/orders). Unlimited products, 50 orders/month. 1 user. No credit card required.
+          </div>
+        </div>
+        
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>What does Sovereign include?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            All 12 modules: Finance, Sales, E-commerce, CRM, HR, Logistics, Tax, Agro, Productivity, POS, Attendance, Warehouse. Plus White Label, Custom Domain, your own Google Sheet backend, unlimited users, lifetime updates, and priority support.
+          </div>
+        </div>
+        
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>Is it really a one-time payment?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            Yes! $800 one-time payment gives you lifetime access to Sovereign. No recurring fees, no subscriptions. Pay once, use forever.
+          </div>
+        </div>
+        
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>Can I upgrade from Free to Sovereign?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            Absolutely! You can start with the Free plan and upgrade to Sovereign anytime. Pay the difference and unlock all features instantly.
+          </div>
+        </div>
+        
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>Is my data secure?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            Yes. Your data lives in Google Sheets with enterprise-grade security. Role-based access control, encryption in transit and at rest. You own your data completely.
+          </div>
+        </div>
+        
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>What payment methods do you accept?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            We accept credit/debit cards (Visa, Mastercard, Amex) via Paystack. Enterprise customers can also pay via wire transfer or crypto (USDT).
+          </div>
+        </div>
+        
+        <div class="faq-item bg-gray-50 rounded-lg overflow-hidden">
+          <button class="faq-question w-full text-left p-4 font-semibold text-gray-900 flex justify-between items-center hover:bg-gray-100 transition" onclick="toggleFaq(this)">
+            <span>Do you offer custom development?</span>
+            <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
+          </button>
+          <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
+            Yes, custom development is available for Sovereign customers. Pricing starts at $200 for small features. Contact us to discuss your requirements.
+          </div>
+        </div>
+      </div>
+      
+      <div class="text-center mt-10 p-6 bg-purple-50 rounded-xl">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Still have questions?</h3>
+        <button onclick="contactSales()" class="bg-[#5D2A86] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#4a1f6b] transition text-sm">
+          Contact Our Team
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CTA SECTION ===== -->
+  <div class="py-24 bg-gradient-to-r from-[#5D2A86] to-[#4a1f6b]">
+    <div class="max-w-4xl mx-auto text-center px-6">
+      <h2 class="text-4xl font-bold text-white mb-4">Ready to take control of your business?</h2>
+      <p class="text-xl text-purple-100 mb-8">Join thousands of businesses already using BizOS</p>
+      <button onclick="showSignupModal()" class="bg-white text-[#5D2A86] px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition">
+        Start Free — No Credit Card Required
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="bg-gray-900 text-gray-400 py-16 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-12 border-b border-gray-800 pb-12">
+        <div>
+          <h4 class="text-white font-bold mb-6">Product</h4>
+          <ul class="space-y-3 text-sm">
+            <li><button onclick="scrollToSection('features')" class="hover:text-white">Features</button></li>
+            <li><button onclick="scrollToSection('pricing')" class="hover:text-white">Pricing</button></li>
+            <li><button onclick="scrollToSection('apps')" class="hover:text-white">Apps</button></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-white font-bold mb-6">Solutions</h4>
+          <ul class="space-y-3 text-sm">
+            <li><button onclick="openModuleFromLanding('Finance')" class="hover:text-white">Finance</button></li>
+            <li><button onclick="openModuleFromLanding('Ecommerce')" class="hover:text-white">E-commerce</button></li>
+            <li><button onclick="openModuleFromLanding('CRM')" class="hover:text-white">CRM</button></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-white font-bold mb-6">Company</h4>
+          <ul class="space-y-3 text-sm">
+            <li class="hover:text-white cursor-pointer">About us</li>
+            <li class="hover:text-white cursor-pointer">Contact</li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-white font-bold mb-6">Resources</h4>
+          <ul class="space-y-3 text-sm">
+            <li><button onclick="scrollToSection('showcase')" class="hover:text-white">Demo</button></li>
+            <li><button onclick="scrollToSection('faq')" class="hover:text-white">FAQ</button></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-white font-bold mb-6">Legal</h4>
+          <ul class="space-y-3 text-sm">
+            <li class="hover:text-white cursor-pointer">Privacy</li>
+            <li class="hover:text-white cursor-pointer">Terms</li>
+          </ul>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row justify-between items-center pt-8">
+        <div class="text-2xl font-bold text-white mb-4 md:mb-0">BizOS</div>
+        <div class="flex space-x-6">
+          <i class="fab fa-twitter hover:text-white cursor-pointer text-xl"></i>
+          <i class="fab fa-linkedin hover:text-white cursor-pointer text-xl"></i>
+          <i class="fab fa-github hover:text-white cursor-pointer text-xl"></i>
+        </div>
+      </div>
+      <div class="text-center pt-8 text-xs">
+        <p>© 2026 BizOS. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+function scrollToSection(sectionId) {
+  const element = document.getElementById(sectionId);
+  if (element) {
+    const offset = 80;
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - offset;
+    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+  }
+}
+
+function contactSales() {
+  alert('Please email Bizoshigroups@gmail.com for enterprise pricing');
+}
+
+function openModuleFromLanding(moduleName) {
+  showLoginModal();
+  window.pendingModule = moduleName;
+}
+
+function toggleFaq(button) {
+  const answer = button.nextElementSibling;
+  const icon = button.querySelector('i');
+  if (answer.classList.contains('hidden')) {
+    answer.classList.remove('hidden');
+    icon.style.transform = 'rotate(180deg)';
+  } else {
+    answer.classList.add('hidden');
+    icon.style.transform = 'rotate(0deg)';
+  }
+}
+
+// ==================== MODAL FUNCTIONS ====================
+
+function showLoginModal() {
+  const modal = document.getElementById('login-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+  }
+}
+
+function closeLoginModal() {
+  const modal = document.getElementById('login-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+function showSignupModal() {
+  closeLoginModal();
+  const modal = document.getElementById('signup-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeSignupModal() {
+  const modal = document.getElementById('signup-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+function showForgotPassword() {
+  closeLoginModal();
+  const modal = document.getElementById('forgot-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeForgotModal() {
+  const modal = document.getElementById('forgot-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+// ==================== DEMO LOGIN FUNCTIONS ====================
+
+function showDemoLoginModal() {
+  const modal = document.getElementById('demo-login-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeDemoLoginModal() {
+  const modal = document.getElementById('demo-login-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+function loginDemo() {
+  console.log("🎯 Demo login triggered");
+  
+  const btn = document.querySelector('#demo-login-modal button:last-of-type');
+  const originalText = btn?.textContent;
+  if (btn) {
+    btn.textContent = 'Loading...';
+    btn.disabled = true;
+  }
+  
+  const demoEmail = 'demo@bizos.com';
+  const demoPassword = 'demo123';
+  const demoBusiness = 'Demo Business';
+  
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (btn) {
+        btn.textContent = originalText || 'Enter Demo';
+        btn.disabled = false;
+      }
+      
+      if (res.success) {
+        if (typeof saveSession === 'function') {
+          saveSession(res.sessionId, res.user);
+        }
+        
+        closeDemoLoginModal();
+        
+        const landingPage = document.getElementById('landing-page');
+        const dashboardPage = document.getElementById('dashboard-page');
+        
+        if (landingPage) landingPage.classList.add('hidden');
+        if (dashboardPage) {
+          dashboardPage.classList.remove('hidden');
+          dashboardPage.style.display = 'block';
+        }
+        
+        if (typeof loadDashboard === 'function') loadDashboard();
+        if (typeof loadModulesList === 'function') loadModulesList();
+        
+        if (typeof showNotification === 'function') {
+          showNotification('🎯 Welcome to BizOS Demo! (Read-Only Mode)', 'info');
+        }
+        
+        setTimeout(function() {
+          if (typeof loadEnhancedDashboard === 'function') loadEnhancedDashboard();
+        }, 1000);
+        
+      } else {
+        alert('Demo login failed: ' + res.message);
+      }
+    })
+    .withFailureHandler(function(err) {
+      if (btn) {
+        btn.textContent = originalText || 'Enter Demo';
+        btn.disabled = false;
+      }
+      console.error('Demo login error:', err);
+      alert('Demo login failed. Please try again.');
+    })
+    .authenticateUser(demoEmail, demoPassword, demoBusiness);
+}
+
+// ==================== HANDLE SIGNUP ====================
+
+function handleSignup(event) {
+  event.preventDefault();
+  
+  const name = document.getElementById('signup-name').value;
+  const email = document.getElementById('signup-email').value;
+  const company = document.getElementById('signup-company').value;
+  const password = document.getElementById('signup-password').value;
+  const confirm = document.getElementById('signup-confirm').value;
+  
+  if (password !== confirm) {
+    alert('Passwords do not match');
+    return;
+  }
+  
+  if (password.length < 6) {
+    alert('Password must be at least 6 characters');
+    return;
+  }
+  
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Creating account...';
+  submitBtn.disabled = true;
+  
+  const businessData = {
+    businessName: company,
+    ownerName: name,
+    ownerEmail: email,
+    ownerPhone: document.getElementById('signup-phone')?.value || '',
+    password: password,
+    subscriptionTier: 'free',
+    address: '',
+    city: '',
+    country: 'Nigeria',
+    website: ''
+  };
+  
+  google.script.run
+    .withSuccessHandler(function(response) {
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+      
+      if (response.success) {
+        alert('Account created! Please check your email to verify your account.');
+        closeSignupModal();
+        showLoginModal();
+        document.getElementById('login-email').value = email;
+        const resendSection = document.getElementById('resend-verification-section');
+        if (resendSection) resendSection.classList.remove('hidden');
+      } else {
+        alert(response.message);
+      }
+    })
+    .withFailureHandler(function(error) {
+      console.error('Signup error:', error);
+      alert('Signup failed. Please try again.');
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    })
+    .registerBusiness(businessData);
+}
+
+// ==================== HANDLE FORGOT PASSWORD ====================
+
+function handleForgotPassword(event) {
+  event.preventDefault();
+  
+  const email = document.getElementById('forgot-email').value;
+  
+  if (!email) {
+    alert('Please enter your email address');
+    return;
+  }
+  
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Sending...';
+  submitBtn.disabled = true;
+  
+  google.script.run
+    .withSuccessHandler(function(response) {
+      alert(response.message);
+      closeForgotModal();
+      showLoginModal();
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    })
+    .withFailureHandler(function(error) {
+      console.error('Forgot password error:', error);
+      alert('Failed to send reset link. Please try again.');
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    })
+    .resetPassword(email);
+}
+
+// ==================== URL PARAM CHECK ====================
+
+(function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('showLogin') === 'true') {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setTimeout(function() {
+      const modal = document.getElementById('login-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      }
+    }, 1000);
+  }
+})();
+
+// ==================== GLOBAL EXPOSE ====================
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.showSignupModal = showSignupModal;
+window.closeSignupModal = closeSignupModal;
+window.showForgotPassword = showForgotPassword;
+window.closeForgotModal = closeForgotModal;
+window.showDemoLoginModal = showDemoLoginModal;
+window.closeDemoLoginModal = closeDemoLoginModal;
+window.loginDemo = loginDemo;
+window.handleSignup = handleSignup;
+window.handleForgotPassword = handleForgotPassword;
+window.contactSales = contactSales;
+window.scrollToSection = scrollToSection;
+window.openModuleFromLanding = openModuleFromLanding;
+window.toggleFaq = toggleFaq;
+</script>

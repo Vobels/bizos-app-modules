@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - BizOS</title>
+  <?!= include('styles') ?>
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    .login-box {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-box h1 {
+      text-align: center;
+      color: #1f2937;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .login-box p {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 32px;
+    }
+    .login-box .lock-icon {
+      text-align: center;
+      font-size: 48px;
+      color: #5D2A86;
+      margin-bottom: 16px;
+    }
+    .login-box .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+    .login-box .input-field:focus {
+      outline: none;
+      border-color: #5D2A86;
+      box-shadow: 0 0 0 3px rgba(93, 42, 134, 0.1);
+    }
+    .login-box .btn-primary {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+    }
+    .login-box .error {
+      color: #ef4444;
+      font-size: 14px;
+      text-align: center;
+      margin-top: 12px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="lock-icon"><i class="fas fa-lock"></i></div>
+    <h1>Admin Login</h1>
+    <p>Enter your admin password to continue</p>
+    
+    <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+      <input type="password" id="adminPassword" class="input-field" placeholder="Enter admin password" required>
+      <button type="submit" class="btn-primary">Access Admin Panel</button>
+      <div id="loginError" class="error">Invalid password. Please try again.</div>
+    </form>
+  </div>
+  
+  <script>
+    function handleAdminLogin(event) {
+      event.preventDefault();
+      const password = document.getElementById('adminPassword').value;
+      const errorEl = document.getElementById('loginError');
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            // Store session and redirect
+            localStorage.setItem('admin_session', response.sessionId);
+            window.location.href = window.location.pathname + '?admin=true&session=' + response.sessionId;
+          } else {
+            errorEl.style.display = 'block';
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassword').focus();
+          }
+        })
+        .withFailureHandler(function() {
+          errorEl.style.display = 'block';
+        })
+        .adminLogin(password);
+    }
+  </script>
+</body>
+</html>
