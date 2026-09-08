@@ -2,9 +2,6 @@
 // 📁 ClientProvision.gs - Client Provisioning System (COMPLETE)
 // ============================================================
 
-// ============================================================
-// 📊 CREATE CLIENT SHEET IN CLIENT'S DRIVE
-// ============================================================
 function getClientDashboardHtml() {
   return `<!DOCTYPE html>
 <html>
@@ -69,15 +66,14 @@ function getClientDashboardHtml() {
 </html>`;
 }
 
-function createClientSheetInClientDrive(email, clientId, businessName) {
+function createClientSheetInClientDrive(email, clientId, businessName, options) {
   try {
-    // Create the sheet in client's drive
+    options = options || {};
     const sheetName = businessName + ' - BizOS Data';
     const newSheet = SpreadsheetApp.create(sheetName);
     const sheetId = newSheet.getId();
     const sheetUrl = newSheet.getUrl();
     
-    // Create module sheets with headers
     const modules = {
       'Financial_Data': ['Date', 'Type', 'Category', 'Subcategory', 'Amount', 'Description', 'Status', 'Created_By', 'Created_At'],
       'Ecommerce_Data': ['Order_ID', 'Date', 'Customer_Email', 'Product', 'Quantity', 'Price', 'Status', 'Created_At'],
@@ -96,94 +92,64 @@ function createClientSheetInClientDrive(email, clientId, businessName) {
     Object.entries(modules).forEach(([name, headers]) => {
       const sheet = newSheet.insertSheet(name);
       sheet.appendRow(headers);
-      const headerRange = sheet.getRange(1, 1, 1, headers.length);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#f3f4f6');
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f3f4f6');
     });
     
-    // Client info sheet
     const infoSheet = newSheet.insertSheet('Client_Info');
     infoSheet.appendRow(['Property', 'Value']);
     infoSheet.appendRow(['Client_ID', clientId]);
+    infoSheet.appendRow(['Business_ID', options.businessId || clientId]);
     infoSheet.appendRow(['Business_Name', businessName]);
+    infoSheet.appendRow(['Owner_Email', String(email || '').toLowerCase()]);
     infoSheet.appendRow(['Created_At', new Date().toISOString()]);
-    infoSheet.appendRow(['Tier', 'sovereign']);
+    infoSheet.appendRow(['Tier', options.tier || 'sovereign']);
+    infoSheet.appendRow(['Status', options.status || 'active']);
+    infoSheet.appendRow(['Primary_Color', options.primaryColor || '#2E7D32']);
+    infoSheet.appendRow(['Logo_Url', options.logoUrl || '']);
+    infoSheet.appendRow(['Provisioning_Version', options.provisioningVersion || '1.0']);
     
-    // Share sheet with client
     newSheet.addEditor(email);
-    
-    // Move to client's folder
     const folder = getOrCreateClientFolder(email, businessName);
     const file = DriveApp.getFileById(sheetId);
     file.moveTo(folder);
     
-    return {
-      success: true,
-      sheetId: sheetId,
-      sheetUrl: sheetUrl,
-      folderId: folder.getId()
-    };
-    
+    return { success:true, sheetId:sheetId, sheetUrl:sheetUrl, folderId:folder.getId() };
   } catch (error) {
     console.error('Create sheet error:', error);
-    return { success: false, message: error.message };
+    return { success:false, message:error.message };
   }
 }
-
-// ============================================================
-// 📁 GET OR CREATE CLIENT FOLDER
-// ============================================================
 
 function getOrCreateClientFolder(email, businessName) {
   try {
     const folders = DriveApp.getFoldersByName('BizOS_Client_Workspaces');
     let folder;
-    
-    if (folders.hasNext()) {
-      folder = folders.next();
-    } else {
-      folder = DriveApp.createFolder('BizOS_Client_Workspaces');
-    }
-    
+    if (folders.hasNext()) folder = folders.next();
+    else folder = DriveApp.createFolder('BizOS_Client_Workspaces');
     const cleanName = businessName.replace(/[^a-zA-Z0-9]/g, '_');
     const subfolderName = cleanName + '_' + email.split('@')[0];
-    
     const subFolders = folder.getFoldersByName(subfolderName);
-    if (subFolders.hasNext()) {
-      return subFolders.next();
-    } else {
-      return folder.createFolder(subfolderName);
-    }
-    
+    if (subFolders.hasNext()) return subFolders.next();
+    return folder.createFolder(subfolderName);
   } catch (error) {
     console.error('Folder error:', error);
     return DriveApp.createFolder('BizOS_' + businessName.replace(/[^a-zA-Z0-9]/g, '_'));
   }
 }
 
-
-
-// ============================================================
-// 📧 SEND WELCOME EMAIL
-// ============================================================
-
 function sendClientWelcomeEmail(email, businessName, landingUrl, clientId) {
   try {
     const subject = `🎉 Welcome to ${businessName}'s BizOS Workspace!`;
-    
     const body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #5D2A86;">Welcome to BizOS!</h1>
         <p>Your business <strong>${businessName}</strong> has been successfully set up.</p>
-        
         <h2>Your Branded Landing Page</h2>
         <p>Access your business portal at:</p>
         <p><strong><a href="${landingUrl}" target="_blank">${landingUrl}</a></strong></p>
-        
         <h2>Your Login Credentials</h2>
         <p><strong>Email:</strong> ${email}</p>
         <p><strong>Password:</strong> (The one you used during signup)</p>
-        
         <h2>What's Next?</h2>
         <ul>
           <li>Visit your branded landing page</li>
@@ -191,18 +157,10 @@ function sendClientWelcomeEmail(email, businessName, landingUrl, clientId) {
           <li>Access all 12 business modules</li>
           <li>Your data is stored securely in your own Google Sheet</li>
         </ul>
-        
         <hr>
         <p style="color: #666; font-size: 12px;">This is an automated message from BizOS.</p>
-      </div>
-    `;
-    
-    MailApp.sendEmail({
-      to: email,
-      subject: subject,
-      htmlBody: body
-    });
-    
+      </div>`;
+    MailApp.sendEmail({to:email,subject:subject,htmlBody:body});
     console.log('📧 Welcome email sent to:', email);
   } catch (error) {
     console.error('Welcome email error:', error);
