@@ -1,9 +1,6 @@
 // ============================================================
 // AutoSetupClientSafe.js - SAFE PAID CLIENT PROVISIONING
 // ============================================================
-// Paid clients are provisioned into a separate workspace and a
-// separate generated application. The legacy fallback path is not used.
-// ============================================================
 (function () {
   autoSetupClient = function (paymentData) {
     var clientId = '', sheetResult = null, scriptResult = null, existingBusiness = null, businessId = null, businessName = '';
@@ -18,8 +15,7 @@
       businessId = existingBusiness ? existingBusiness.businessId : clientId;
       sheetResult = createClientSheetInClientDrive(paymentData.email,clientId,businessName,{businessId:businessId,tier:paymentData.tier||'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',provisioningVersion:'3.0'});
       if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
-      var masterUrl = getMasterApiUrl();
-      var clientCode = generateClientCodeSafelyV2({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:masterUrl});
+      var clientCode = generateClientCodeSafelyV3({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
       if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
       scriptResult = createAndDeployClientScript(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor||'#2E7D32',paymentData.logoUrl||'');
       if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId) {
