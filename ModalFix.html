@@ -86,11 +86,6 @@
     return modal && !modal.classList.contains('hidden');
   }
 
-  /*
-     overflow:hidden alone is not reliable on some mobile browsers,
-     especially when Chrome is using Desktop Site mode. Freeze the
-     actual document at its current scroll position instead.
-  */
   function lockBody() {
     if (!document.body) return;
 
@@ -209,17 +204,30 @@
     return null;
   }
 
+  /*
+     IMPORTANT: Do NOT identify a close button merely because its onclick
+     contains "closeLoginModal". Action buttons such as "Create free
+     account" intentionally call closeLoginModal() and then open another
+     modal. Only a button whose onclick is the close function by itself is
+     handled here.
+  */
+  function isDedicatedCloseButton(button, functionName) {
+    if (!button) return false;
+    var onclick = (button.getAttribute('onclick') || '').replace(/\s+/g, ' ').trim();
+    var exact = new RegExp('^' + functionName + '\\s*\\(\\s*\\)\\s*;?$');
+    return exact.test(onclick);
+  }
+
   function handleCloseActivation(event) {
     var button = getButtonForClose(event.target);
     if (!button) return;
 
-    var onclick = button.getAttribute('onclick') || '';
     var modalId = null;
 
-    if (onclick.indexOf('closeLoginModal') !== -1) modalId = 'login-modal';
-    else if (onclick.indexOf('closeSignupModal') !== -1) modalId = 'signup-modal';
-    else if (onclick.indexOf('closeForgotModal') !== -1) modalId = 'forgot-modal';
-    else if (onclick.indexOf('closeDemoLoginModal') !== -1) modalId = 'demo-login-modal';
+    if (isDedicatedCloseButton(button, 'closeLoginModal')) modalId = 'login-modal';
+    else if (isDedicatedCloseButton(button, 'closeSignupModal')) modalId = 'signup-modal';
+    else if (isDedicatedCloseButton(button, 'closeForgotModal')) modalId = 'forgot-modal';
+    else if (isDedicatedCloseButton(button, 'closeDemoLoginModal')) modalId = 'demo-login-modal';
 
     if (!modalId) return;
 
@@ -228,7 +236,6 @@
     closeModal(modalId);
   }
 
-  /* Physical touch/pointer activation + traditional click activation. */
   document.addEventListener('pointerup', handleCloseActivation, true);
   document.addEventListener('click', handleCloseActivation, true);
 
