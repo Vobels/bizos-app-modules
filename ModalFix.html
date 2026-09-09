@@ -1,37 +1,211 @@
 <style>
-#bizos-modal-host{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483647!important;pointer-events:none!important;isolation:isolate!important;}
-#login-modal,#signup-modal,#forgot-modal,#demo-login-modal{ -webkit-tap-highlight-color:transparent; pointer-events:auto!important; isolation:isolate; overscroll-behavior:contain; padding:16px!important; overflow-y:auto!important; -webkit-overflow-scrolling:touch; }
-#login-modal,#signup-modal,#forgot-modal,#demo-login-modal{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;z-index:2147483647!important;}
-#login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{ position:relative!important; z-index:2147483648!important; pointer-events:auto!important; width:min(100%,420px)!important; max-width:420px!important; max-height:min(90vh,calc(100dvh - 32px))!important; overflow-y:auto!important; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
-#login-modal button[onclick="closeLoginModal()"],#signup-modal button[onclick="closeSignupModal()"],#forgot-modal button[onclick="closeForgotModal()"],#demo-login-modal button[onclick="closeDemoLoginModal()"]{ position:relative!important; z-index:2147483649!important; pointer-events:auto!important; touch-action:manipulation!important; min-width:44px!important; min-height:44px!important; display:inline-flex!important; align-items:center!important; justify-content:center!important; cursor:pointer!important; }
-@supports not (height:100dvh){#login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{max-height:calc(100vh - 32px)!important;}}
+/* BizOS — single authoritative modal controller */
+#login-modal,#signup-modal,#forgot-modal,#demo-login-modal{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:100vh!important;
+  min-height:100dvh!important;
+  z-index:2147483646!important;
+  padding:16px!important;
+  box-sizing:border-box!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  pointer-events:auto!important;
+  isolation:isolate!important;
+  -webkit-tap-highlight-color:transparent;
+}
+
+#login-modal.hidden,#signup-modal.hidden,#forgot-modal.hidden,#demo-login-modal.hidden{
+  display:none!important;
+}
+
+#login-modal:not(.hidden),#signup-modal:not(.hidden),#forgot-modal:not(.hidden),#demo-login-modal:not(.hidden){
+  display:flex!important;
+}
+
+#login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{
+  position:relative!important;
+  z-index:2147483647!important;
+  pointer-events:auto!important;
+  width:min(100%,420px)!important;
+  max-width:420px!important;
+  max-height:calc(100dvh - 32px)!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior:contain!important;
+  box-sizing:border-box!important;
+}
+
+#login-modal button[onclick="closeLoginModal()"],
+#signup-modal button[onclick="closeSignupModal()"],
+#forgot-modal button[onclick="closeForgotModal()"],
+#demo-login-modal button[onclick="closeDemoLoginModal()"]{
+  position:relative!important;
+  z-index:2147483648!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  min-width:44px!important;
+  min-height:44px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  cursor:pointer!important;
+}
+
+@supports not (height:100dvh){
+  #login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{
+    max-height:calc(100vh - 32px)!important;
+  }
+}
 </style>
+
 <script>
-(function(){'use strict';
-var MODALS=['login-modal','signup-modal','forgot-modal','demo-login-modal'],savedScrollY=0,pageWasLocked=false,host=null;
-function ensureHost(){if(!document.body)return null;host=document.getElementById('bizos-modal-host');if(!host){host=document.createElement('div');host.id='bizos-modal-host';document.body.appendChild(host);}return host;}
-function moveModalsToHost(){var h=ensureHost();if(!h)return;for(var i=0;i<MODALS.length;i++){var m=document.getElementById(MODALS[i]);if(m&&m.parentElement!==h)h.appendChild(m);}}
-function isOpen(m){return m&&!m.classList.contains('hidden');}
-function lockBody(){if(!document.body||pageWasLocked)return;savedScrollY=window.pageYOffset||document.documentElement.scrollTop||0;pageWasLocked=true;document.body.dataset.bizosModalOpen='1';document.body.dataset.bizosModalScrollY=String(savedScrollY);document.documentElement.style.overflow='hidden';}
-function unlockBody(){for(var i=0;i<MODALS.length;i++)if(isOpen(document.getElementById(MODALS[i])))return;if(!document.body||!pageWasLocked)return;pageWasLocked=false;document.documentElement.style.overflow='';delete document.body.dataset.bizosModalOpen;delete document.body.dataset.bizosModalScrollY;window.scrollTo(0,savedScrollY);}
-function closeModal(id){var m=document.getElementById(id);if(!m)return;m.classList.add('hidden');m.setAttribute('aria-hidden','true');unlockBody();}
-function openModal(id){moveModalsToHost();var m=document.getElementById(id);if(!m)return;m.classList.remove('hidden');m.setAttribute('aria-hidden','false');lockBody();}
-window.closeLoginModal=function(){closeModal('login-modal');};window.closeSignupModal=function(){closeModal('signup-modal');};window.closeForgotModal=function(){closeModal('forgot-modal');};window.closeDemoLoginModal=function(){closeModal('demo-login-modal');};
-var originalShowLogin=window.showLoginModal,originalShowSignup=window.showSignupModal,originalShowForgot=window.showForgotPassword,originalShowDemo=window.showDemoLoginModal,originalOpenLogin=window.openLoginModal;
-window.showLoginModal=function(){moveModalsToHost();closeModal('signup-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowLogin==='function')originalShowLogin.apply(this,arguments);openModal('login-modal');};
-window.showSignupModal=function(){moveModalsToHost();closeModal('login-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowSignup==='function')originalShowSignup.apply(this,arguments);openModal('signup-modal');};
-window.showForgotPassword=function(){moveModalsToHost();closeModal('login-modal');closeModal('signup-modal');closeModal('demo-login-modal');if(typeof originalShowForgot==='function')originalShowForgot.apply(this,arguments);openModal('forgot-modal');};
-window.showDemoLoginModal=function(){moveModalsToHost();closeModal('login-modal');closeModal('signup-modal');closeModal('forgot-modal');if(typeof originalShowDemo==='function')originalShowDemo.apply(this,arguments);openModal('demo-login-modal');};
-window.openLoginModal=function(){moveModalsToHost();if(typeof originalOpenLogin==='function')originalOpenLogin.apply(this,arguments);openModal('login-modal');};
-function buttonForClose(t){if(!t)return null;if(t.closest)return t.closest('button');var n=t;while(n&&n!==document){if(String(n.tagName).toLowerCase()==='button')return n;n=n.parentNode;}return null;}
-function dedicated(b,name){if(!b)return false;var x=(b.getAttribute('onclick')||'').replace(/\s+/g,' ').trim();return new RegExp('^'+name+'\\s*\\(\\s*\\)\\s*;?$').test(x);}
-function handleClose(e){var b=buttonForClose(e.target);if(!b)return;var id=null;if(dedicated(b,'closeLoginModal'))id='login-modal';else if(dedicated(b,'closeSignupModal'))id='signup-modal';else if(dedicated(b,'closeForgotModal'))id='forgot-modal';else if(dedicated(b,'closeDemoLoginModal'))id='demo-login-modal';if(!id)return;e.preventDefault();e.stopPropagation();closeModal(id);}
-function stopBackgroundScroll(e){var h=document.getElementById('bizos-modal-host');if(!h||e.target===h)e.preventDefault();}
-document.addEventListener('pointerup',handleClose,true);document.addEventListener('click',handleClose,true);
-document.addEventListener('wheel',stopBackgroundScroll,{capture:true,passive:false});
-function backdrop(e){var t=e.target;if(!t||!t.id||MODALS.indexOf(t.id)===-1)return;e.preventDefault();e.stopPropagation();closeModal(t.id);}document.addEventListener('pointerup',backdrop,true);document.addEventListener('click',backdrop,true);
-document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;for(var i=0;i<MODALS.length;i++)if(isOpen(document.getElementById(MODALS[i]))){closeModal(MODALS[i]);break;}});
-function aria(){moveModalsToHost();for(var i=0;i<MODALS.length;i++){var m=document.getElementById(MODALS[i]);if(m)m.setAttribute('aria-hidden',m.classList.contains('hidden')?'true':'false');}}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aria,{once:true});else aria();
+(function(){
+  'use strict';
+
+  var MODALS=['login-modal','signup-modal','forgot-modal','demo-login-modal'];
+  var savedScrollY=0;
+  var bodyLocked=false;
+
+  function getModal(id){ return document.getElementById(id); }
+  function isOpen(id){
+    var m=getModal(id);
+    return !!(m && !m.classList.contains('hidden'));
+  }
+
+  function lockPage(){
+    if(bodyLocked || !document.body) return;
+    savedScrollY=window.pageYOffset || document.documentElement.scrollTop || 0;
+    bodyLocked=true;
+
+    document.body.style.position='fixed';
+    document.body.style.top='-'+savedScrollY+'px';
+    document.body.style.left='0';
+    document.body.style.right='0';
+    document.body.style.width='100%';
+    document.body.style.overflow='hidden';
+    document.documentElement.style.overflow='hidden';
+  }
+
+  function unlockPage(){
+    if(!document.body || MODALS.some(isOpen)) return;
+    if(!bodyLocked) return;
+
+    document.body.style.position='';
+    document.body.style.top='';
+    document.body.style.left='';
+    document.body.style.right='';
+    document.body.style.width='';
+    document.body.style.overflow='';
+    document.documentElement.style.overflow='';
+    bodyLocked=false;
+    window.scrollTo(0,savedScrollY);
+  }
+
+  function clearFocus(modal){
+    var active=document.activeElement;
+    if(modal && active && modal.contains(active) && typeof active.blur==='function'){
+      active.blur();
+    }
+  }
+
+  function closeModal(id){
+    var modal=getModal(id);
+    if(!modal) return;
+
+    clearFocus(modal);
+    modal.classList.add('hidden');
+    modal.style.display='none';
+    modal.setAttribute('aria-hidden','true');
+
+    unlockPage();
+  }
+
+  function closeAllExcept(id){
+    MODALS.forEach(function(otherId){
+      if(otherId!==id) closeModal(otherId);
+    });
+  }
+
+  function openModal(id){
+    var modal=getModal(id);
+    if(!modal) return;
+
+    closeAllExcept(id);
+
+    /* Remove any stale inline display left by the old modal implementation. */
+    modal.style.display='';
+    modal.classList.remove('hidden');
+    modal.style.display='flex';
+    modal.setAttribute('aria-hidden','false');
+    lockPage();
+
+    /* Put focus into the first usable control without scrolling the page. */
+    window.setTimeout(function(){
+      var first=modal.querySelector('input:not([disabled]),button:not([disabled]),select:not([disabled]),textarea:not([disabled])');
+      if(first && typeof first.focus==='function') first.focus({preventScroll:true});
+    },30);
+  }
+
+  /* These are the ONLY public modal functions. We deliberately do not call
+     the previous implementations, because they used independent display state. */
+  window.closeLoginModal=function(){closeModal('login-modal');};
+  window.closeSignupModal=function(){closeModal('signup-modal');};
+  window.closeForgotModal=function(){closeModal('forgot-modal');};
+  window.closeDemoLoginModal=function(){closeModal('demo-login-modal');};
+
+  window.showLoginModal=function(){openModal('login-modal');};
+  window.showSignupModal=function(){openModal('signup-modal');};
+  window.showForgotPassword=function(){openModal('forgot-modal');};
+  window.showDemoLoginModal=function(){openModal('demo-login-modal');};
+  window.openLoginModal=function(){openModal('login-modal');};
+
+  function modalFromTarget(target){
+    if(!target) return null;
+    if(target.closest){
+      var found=target.closest('#login-modal,#signup-modal,#forgot-modal,#demo-login-modal');
+      if(found) return found;
+    }
+    return null;
+  }
+
+  /* Backdrop click: only the backdrop itself closes the modal. */
+  document.addEventListener('click',function(e){
+    var modal=modalFromTarget(e.target);
+    if(modal && e.target===modal){
+      closeModal(modal.id);
+    }
+  },false);
+
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Escape') return;
+    for(var i=0;i<MODALS.length;i++){
+      if(isOpen(MODALS[i])){
+        e.preventDefault();
+        closeModal(MODALS[i]);
+        break;
+      }
+    }
+  });
+
+  /* Keep aria state synchronized, but never hide a focused modal first. */
+  function syncAria(){
+    MODALS.forEach(function(id){
+      var m=getModal(id);
+      if(!m) return;
+      m.setAttribute('aria-hidden',m.classList.contains('hidden')?'true':'false');
+    });
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',syncAria,{once:true});
+  }else{
+    syncAria();
+  }
 })();
 </script>
