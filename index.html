@@ -15,7 +15,6 @@
     <?!= include('landing') ?>
     <?!= include('dashboard') ?>
     <?!= include('profile') ?>
-
     <?!= include('cms') ?>
   </div>
   
@@ -25,36 +24,28 @@
   <?!= include('ModalFix') ?>
   
   <script>
-    function openLoginModal() {
-      const modal = document.getElementById('login-modal');
-      if (modal) {
-        modal.classList.remove('hidden');
-        console.log("✅ Login modal opened");
-      } else {
-        console.log("❌ Modal not found");
-      }
-    }
-
-    // VALUE COMES FROM SERVER (NOT URL)
+    /* Login-page deep link uses the same authoritative modal controller
+       as every other landing-page login button. */
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
 
     window.addEventListener('load', function () {
-      if (shouldShowLogin) {
-        console.log("🔁 showLogin detected from server");
-        let attempts = 0;
-        const interval = setInterval(() => {
-          const modal = document.getElementById('login-modal');
-          if (modal) {
-            openLoginModal();
-            clearInterval(interval);
-          }
-          attempts++;
-          if (attempts > 20) {
-            console.log("❌ Modal never found");
-            clearInterval(interval);
-          }
-        }, 200);
-      }
+      if (!shouldShowLogin) return;
+
+      console.log("🔁 showLogin detected from server");
+      let attempts = 0;
+      const interval = setInterval(function () {
+        if (typeof window.openLoginModal === 'function' && document.getElementById('login-modal')) {
+          window.openLoginModal();
+          clearInterval(interval);
+          return;
+        }
+
+        attempts++;
+        if (attempts > 20) {
+          console.log("❌ Login modal controller never became available");
+          clearInterval(interval);
+        }
+      }, 200);
     });
   </script>
 </body>
