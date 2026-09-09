@@ -6,7 +6,7 @@
     var lock = null;
     var clientId = '', sheetResult = null, scriptResult = null;
     var existingBusiness = null, businessId = null, businessName = '';
-    var lockKey = '';
+    var committed = false;
 
     try {
       paymentData = paymentData || {};
@@ -15,9 +15,7 @@
       }
 
       businessName = paymentData.businessName || paymentData.name || 'My Business';
-      lockKey = 'BIZOS_PROVISION_' + String(paymentData.email).trim().toLowerCase() + '|' + String(businessName).trim().toLowerCase();
 
-      // Prevent concurrent webhook/payment requests from provisioning the same client twice.
       lock = LockService.getScriptLock();
       if (!lock.tryLock(30000)) {
         return { success:false, code:'PROVISIONING_BUSY', message:'Client provisioning is already in progress. Please retry shortly.' };
@@ -35,10 +33,9 @@
         };
       }
 
-      // Keep the legacy duplicate check as a secondary guard for other duplicate conditions.
+      // Secondary duplicate guard for legacy/non-active records.
       var duplicateCheck = checkDuplicateClient(paymentData.email, businessName);
       if (duplicateCheck && duplicateCheck.isDuplicate) {
-        // If the duplicate now resolves to a valid active deployment, return it idempotently.
         var recheckedClient = getExistingActiveClientDeployment_(paymentData.email, businessName);
         if (recheckedClient) {
           var recheckedResult = returnExistingClientDeployment_(recheckedClient);
@@ -66,14 +63,10 @@
         }
       );
       if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) {
-        return {
-          success:false,
-          code:'WORKSPACE_CREATION_FAILED',
-          message:'Client workspace could not be created: ' + ((sheetResult && sheetResult.message) || 'Unknown error')
-        };
+        return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: ' + ((sheetResult && sheetResult.message) || 'Unknown error')};
       }
 
-      // 2. Generate the isolated client package with loading/timeout UX.
+      // 2. Generate the isolated client package.
       var clientCode = generateClientCodeSafelyV5({
         clientId:clientId,
         clientName:businessName,
@@ -84,11 +77,9 @@
         businessId:businessId,
         masterApiUrl:getMasterApiUrl()
       });
-      if (!clientCode || !clientCode.files || !clientCode.files.length) {
-        throw new Error('Client deployment package is empty.');
-      }
+      if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
 
-      // 3. Deploy. A deployment is not considered successful without all required identifiers.
+      // 3. Deploy and require every deployment identifier.
       scriptResult = createAndDeployClientScript(
         paymentData.email,
         clientId,
@@ -101,16 +92,10 @@
         var deploymentMessage = scriptResult && scriptResult.message ? scriptResult.message : 'The client application could not be deployed.';
         cleanupFailedClientProvisioning_(sheetResult,clientId);
         cleanupFailedClientDeployment_(scriptResult);
-        return {
-          success:false,
-          code:'DEPLOYMENT_FAILED',
-          message:'Client provisioning failed: ' + deploymentMessage,
-          clientId:clientId,
-          cleanedUp:true
-        };
+        return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: ' + deploymentMessage,clientId:clientId,cleanedUp:true};
       }
 
-      // 4. Persist the complete client registry record, including workspace + deployment metadata.
+      // 4. Persist the complete registry record before considering provisioning committed.
       var saveResult = saveClientRecordV2({
         clientId:clientId,
         email:paymentData.email,
@@ -134,22 +119,22 @@
       if (!saveResult || !saveResult.success) {
         cleanupFailedClientProvisioning_(sheetResult,clientId);
         cleanupFailedClientDeployment_(scriptResult);
-        return {
-          success:false,
-          code:'CLIENT_RECORD_SAVE_FAILED',
-          message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',
-          clientId:clientId,
-          cleanedUp:true
-        };
+        return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true};
       }
+
+      // From this point the client is committed. Post-commit failures must not
+      // destroy an already-registered deployment.
+      committed = true;
 
       // 5. Preserve the existing BizOS business/account association.
-      if (existingBusiness && businessId) {
-        updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
-      }
+      if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
 
-      // 6. Only after the registry is active do we send the welcome email.
-      sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId);
+      // 6. Welcome email is post-commit; email failure must not roll back the client.
+      try {
+        sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId);
+      } catch (emailError) {
+        console.error('Client welcome email failed after successful provisioning:',emailError);
+      }
 
       return {
         success:true,
@@ -168,15 +153,13 @@
       };
     } catch (error) {
       console.error('SAFE CLIENT SETUP ERROR:',error);
-      if (sheetResult && sheetResult.success) cleanupFailedClientProvisioning_(sheetResult,clientId);
-      if (scriptResult && !scriptResult.success) cleanupFailedClientDeployment_(scriptResult);
-      return {
-        success:false,
-        code:'PROVISIONING_FAILED',
-        message:error && error.message ? error.message : 'Client provisioning failed.',
-        clientId:clientId || null,
-        cleanedUp:!!sheetResult
-      };
+      // Roll back only pre-commit work. Once the registry is active, preserve
+      // the live deployment and surface the error instead.
+      if (!committed) {
+        if (sheetResult && sheetResult.success) cleanupFailedClientProvisioning_(sheetResult,clientId);
+        if (scriptResult && scriptResult.scriptId) cleanupFailedClientDeployment_(scriptResult);
+      }
+      return {success:false,code:'PROVISIONING_FAILED',message:error && error.message ? error.message : 'Client provisioning failed.',clientId:clientId || null,cleanedUp:!committed};
     } finally {
       if (lock) {
         try { lock.releaseLock(); } catch (ignore) {}
@@ -197,14 +180,8 @@
     try {
       if (!scriptResult || !scriptResult.scriptId) return;
       var url='https://script.googleapis.com/v1/projects/' + encodeURIComponent(scriptResult.scriptId);
-      var response=UrlFetchApp.fetch(url,{
-        method:'delete',
-        headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},
-        muteHttpExceptions:true
-      });
-      if (response.getResponseCode()<200 || response.getResponseCode()>=300) {
-        console.error('Client Apps Script cleanup failed:',response.getResponseCode(),response.getContentText());
-      }
+      var response=UrlFetchApp.fetch(url,{method:'delete',headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},muteHttpExceptions:true});
+      if (response.getResponseCode()<200 || response.getResponseCode()>=300) console.error('Client Apps Script cleanup failed:',response.getResponseCode(),response.getContentText());
     } catch (error) {
       console.error('Deployment cleanup failed:',error);
     }
