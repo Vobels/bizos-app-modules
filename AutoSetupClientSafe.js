@@ -1,7 +1,7 @@
 // ============================================================
 // AutoSetupClientSafe.js - SAFE + IDEMPOTENT PAID CLIENT PROVISIONING
 // ============================================================
-// Explicit entry point. Does not override autoSetupClient().
+// Explicit production entry point. Does not override legacy functions.
 // ============================================================
 
 function autoSetupClientSafe(paymentData) {
@@ -48,14 +48,14 @@ function autoSetupClientSafe(paymentData) {
       status:'provisioning',
       primaryColor:paymentData.primaryColor || '#2E7D32',
       logoUrl:paymentData.logoUrl || '',
-      provisioningVersion:'4.1'
+      provisioningVersion:'6.0'
     });
     if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) {
       return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
     }
 
-    console.log('SAFE STEP 2: Generating V5 package');
-    var clientCode = generateClientCodeSafelyV5({
+    console.log('SAFE STEP 2: Generating V6 client package with main dashboard parity');
+    var clientCode = generateClientCodeSafelyV6({
       clientId:clientId,
       clientName:businessName,
       primaryColor:paymentData.primaryColor || '#2E7D32',
@@ -73,7 +73,7 @@ function autoSetupClientSafe(paymentData) {
       return {success:false,code:packageCheck&&packageCheck.code?packageCheck.code:'PACKAGE_INVALID',message:packageCheck&&packageCheck.message?packageCheck.message:'Generated client package failed validation.',clientId:clientId,cleanedUp:true};
     }
 
-    console.log('SAFE STEP 3: Publishing exact V5 package');
+    console.log('SAFE STEP 3: Publishing exact V6 package');
     scriptResult = createAndDeployClientScriptSafe(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor || '#2E7D32',paymentData.logoUrl || '');
     if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) {
       var deploymentMessage = scriptResult && scriptResult.message ? scriptResult.message : 'The client application could not be deployed.';
@@ -93,7 +93,7 @@ function autoSetupClientSafe(paymentData) {
       webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,
       apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,
       deploymentId:scriptResult.deploymentId,businessId:businessId,
-      provisioningVersion:'4.1'
+      provisioningVersion:'6.0'
     });
     if (!saveResult || !saveResult.success) {
       cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
