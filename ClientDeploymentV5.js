@@ -1,7 +1,7 @@
 // ============================================================
 // ClientDeploymentV5.js - CLIENT DEPLOYMENT UX HARDENING
 // ============================================================
-// Wraps the tested V4 generator without changing its server/data
+// Wraps the tested V4 generator without changing server/data
 // logic. Adds visible loading states, mobile-safe scrolling and
 // a timeout/failure state so the client UI never appears frozen.
 // ============================================================
@@ -13,9 +13,24 @@ function generateClientCodeSafelyV5(settings) {
   }
 
   base.files = base.files.map(function (file) {
-    if (!file || typeof file.content !== 'string') return file;
-    if (file.name === 'client-landing.html' || file.name === 'client-dashboard.html') {
-      file.content = addClientLoadingUX_(file.content, file.name);
+    if (!file) return file;
+    var isLanding = file.name === 'client-landing' || file.name === 'client-landing.html';
+    var isDashboard = file.name === 'client-dashboard' || file.name === 'client-dashboard.html';
+    if (!isLanding && !isDashboard) return file;
+
+    // V2/V3/V4 use {name,type,source}. Keep compatibility with any
+    // older package that used {content}.
+    var html = typeof file.source === 'string' ? file.source :
+               (typeof file.content === 'string' ? file.content : '');
+    if (!html) return file;
+
+    html = addClientLoadingUX_(html, file.name);
+
+    if (typeof file.source === 'string' || file.source === undefined) {
+      file.source = html;
+    }
+    if (typeof file.content === 'string') {
+      file.content = html;
     }
     return file;
   });
@@ -57,33 +72,17 @@ function addClientLoadingUX_(html, fileName) {
       'o.classList.add("show");o.setAttribute("aria-busy","true");active=true;' +
       'clearTimeout(timer);clearTimeout(hideTimer);stopObserver();' +
       'if(window.MutationObserver){observer=new MutationObserver(function(){if(!active)return;clearTimeout(hideTimer);hideTimer=setTimeout(function(){if(active)window.bizosHideLoader();},350);});observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true});}' +
-      'timer=setTimeout(function(){' +
-        'if(!active)return;' +
-        'el("bizosLoaderTitle").textContent="This is taking longer than expected";' +
-        'el("bizosLoaderText").textContent="The server may be busy or your connection may be slow.";' +
-        'el("bizosLoaderError").textContent="You can wait a little longer or refresh and try again.";' +
-        'el("bizosLoaderError").style.display="block";' +
-      '},Number(timeout||20000));' +
+      'timer=setTimeout(function(){if(!active)return;el("bizosLoaderTitle").textContent="This is taking longer than expected";el("bizosLoaderText").textContent="The server may be busy or your connection may be slow.";el("bizosLoaderError").textContent="You can wait a little longer or refresh and try again.";el("bizosLoaderError").style.display="block";},Number(timeout||20000));' +
     '};' +
     'window.bizosHideLoader=function(){var o=el("bizosLoader");if(!o)return;active=false;clearTimeout(timer);clearTimeout(hideTimer);stopObserver();o.classList.remove("show");o.setAttribute("aria-busy","false");};' +
     'window.addEventListener("error",function(){if(active){el("bizosLoaderTitle").textContent="Something went wrong";el("bizosLoaderText").textContent="BizOS could not complete the request.";el("bizosLoaderError").style.display="block";el("bizosLoaderError").textContent="Please try again.";}});' +
     'document.addEventListener("DOMContentLoaded",function(){' +
       'var buttons=document.querySelectorAll("button");' +
-      'Array.prototype.forEach.call(buttons,function(b){' +
-        'b.addEventListener("click",function(){' +
-          'var text=(b.textContent||"").trim().toLowerCase(),onclick=b.getAttribute("onclick")||"";' +
-          'if(text==="×"||text.indexOf("dashboard")>=0||text==="logout"||text.indexOf("add record")>=0||onclick.indexOf("openAdd")>=0)return;' +
-          'if(b.disabled)return;' +
-          'var serverAction=onclick.indexOf("google.script.run")>=0||onclick.indexOf("openModule")>=0||onclick.indexOf("load")>=0||onclick.indexOf("save")>=0||onclick.indexOf("delete")>=0||onclick.indexOf("login")>=0;' +
-          'if(!serverAction)return;' +
-          'window.bizosShowLoader(text.indexOf("sign")>=0?"Signing in":"Working","Please wait while BizOS completes this request...",20000);' +
-        '},true);' +
-      '});' +
+      'Array.prototype.forEach.call(buttons,function(b){b.addEventListener("click",function(){var text=(b.textContent||"").trim().toLowerCase(),onclick=b.getAttribute("onclick")||"";if(text==="×"||text.indexOf("dashboard")>=0||text==="logout"||text.indexOf("add record")>=0||onclick.indexOf("openAdd")>=0)return;if(b.disabled)return;var serverAction=onclick.indexOf("google.script.run")>=0||onclick.indexOf("openModule")>=0||onclick.indexOf("load")>=0||onclick.indexOf("save")>=0||onclick.indexOf("delete")>=0||onclick.indexOf("login")>=0;if(!serverAction)return;window.bizosShowLoader(text.indexOf("sign")>=0?"Signing in":"Working","Please wait while BizOS completes this request...",20000);},true);});' +
     '});' +
     'window.addEventListener("pageshow",function(){window.bizosHideLoader();});' +
   '})();</script>';
 
-  // Turn existing plain loading labels into a visible spinner.
   html = html.replace(/Loading\.\.\./g, '<span class="bizosInlineLoading"><span class="bizosSpinner" style="display:inline-block;width:16px;height:16px;border-width:2px;margin:0 7px 0 0;vertical-align:-3px"></span>Loading...</span>');
 
   if (html.indexOf('id="bizosLoadingUXMarker"') === -1) {
