@@ -8,27 +8,72 @@ function getClientDeploymentConfig() {
   } catch(e) {}
   return {success:false,message:'Client deployment configuration is unavailable.'};
 }
-function clientLogin(clientId,email,password,sheetId,businessId,businessName) {
+
+// The request's clientId/sheetId/businessId are treated only as deployment
+// binding hints. The authoritative paid-client identity and workspace always
+// come from the master Clients registry after the account is authenticated.
+function clientLogin(requestClientId,email,password,requestSheetId,requestBusinessId,businessName) {
   try {
-    if(!clientId||!email||!password)return{success:false,message:'Email, password and client ID are required',code:'INVALID_INPUT'};
-    var client=getClientById(clientId); if(!client&&sheetId)client=getClientFromWorkspace(sheetId,clientId);
-    if(!client)return{success:false,message:'Client workspace could not be identified. Please contact support.',code:'CLIENT_NOT_FOUND'};
-    if(client.status&&String(client.status).toLowerCase()!=='active')return{success:false,message:'This client workspace is inactive.',code:'CLIENT_INACTIVE'};
-    var authResult=null; try{if(typeof authenticateUser==='function')authResult=authenticateUser(email,password,null);}catch(e){console.log('Local authentication unavailable:',e.message);}
-    if(!authResult||!authResult.success)authResult=authenticateAgainstMaster(email,password,businessName||client.clientName||'',client);
+    if(!email||!password)return{success:false,message:'Email and password are required',code:'INVALID_INPUT'};
+
+    var authResult=null;
+    try{if(typeof authenticateUser==='function')authResult=authenticateUser(email,password,null);}catch(e){console.log('Local authentication unavailable:',e.message);}
+    if(!authResult||!authResult.success)authResult=authenticateAgainstMaster(email,password);
     if(!authResult||!authResult.success)return{success:false,message:authResult&&authResult.message?authResult.message:'Invalid email or password',code:'AUTH_FAILED'};
-    var user=authResult.user||{email:email.toLowerCase(),name:email.split('@')[0],role:'owner',isClient:true},resolvedSheetId=sheetId||client.sheetId||'',resolvedBusinessId=businessId||client.businessId||'';
-    if(!resolvedSheetId||!resolvedBusinessId)return{success:false,message:'Client workspace is not fully configured.',code:'INVALID_WORKSPACE'};
-    if(client.sheetId&&String(client.sheetId)!==String(resolvedSheetId))return{success:false,message:'Client workspace mismatch.',code:'WORKSPACE_MISMATCH'};
-    if(client.businessId&&String(client.businessId)!==String(resolvedBusinessId))return{success:false,message:'Client business mismatch.',code:'BUSINESS_MISMATCH'};
-    var now=Date.now(),sessionId='CLIENT_SESS_'+Utilities.getUuid(),session={email:String(email).toLowerCase(),clientId:String(clientId),sheetId:String(resolvedSheetId),businessId:String(resolvedBusinessId),businessName:businessName||client.clientName||'My Business',created:now,expiresAt:now+21600000,isClient:true,user:user,apiKey:client.apiKey||''};
+
+    // Re-read the authoritative client record by the authenticated account
+    // email. Never select a workspace from browser/request-supplied IDs.
+    var registryResult = getActiveClientByEmail_(email);
+    if(!registryResult||!registryResult.success){
+      return {success:false,message:registryResult&&registryResult.message?registryResult.message:'No active paid client is registered for this account.',code:registryResult&&registryResult.code?registryResult.code:'CLIENT_NOT_FOUND'};
+    }
+
+    var client=registryResult.client;
+    var normalizedRequestClientId=String(requestClientId||'').trim();
+    if(normalizedRequestClientId&&normalizedRequestClientId!==String(client.clientId)){
+      return {success:false,message:'This deployment is not authorized for the authenticated client.',code:'CLIENT_BINDING_MISMATCH'};
+    }
+
+    if(client.status&&String(client.status).toLowerCase()!=='active')return{success:false,message:'This client workspace is inactive.',code:'CLIENT_INACTIVE'};
+    if(!client.sheetId||!client.businessId)return{success:false,message:'Client workspace is not fully configured.',code:'INVALID_WORKSPACE'};
+
+    var user=authResult.user||{email:String(email).toLowerCase(),name:String(email).split('@')[0],role:'owner',isClient:true};
+    var now=Date.now(),sessionId='CLIENT_SESS_'+Utilities.getUuid(),session={
+      email:String(client.email||email).toLowerCase(),
+      clientId:String(client.clientId),
+      sheetId:String(client.sheetId),
+      businessId:String(client.businessId),
+      businessName:client.clientName||'My Business',
+      created:now,
+      expiresAt:now+21600000,
+      isClient:true,
+      user:user,
+      apiKey:''
+    };
     CacheService.getScriptCache().put(sessionId,JSON.stringify(session),21600);
-    return{success:true,sessionId:sessionId,message:'Login successful',clientName:client.clientName||businessName||'My Business',primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',user:{email:user.email||email.toLowerCase(),name:user.name||email.split('@')[0],role:user.role||'owner',clientId:String(clientId),businessId:String(resolvedBusinessId)},code:'SUCCESS'};
+
+    return{success:true,sessionId:sessionId,message:'Login successful',clientName:client.clientName||'My Business',primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',user:{email:user.email||email.toLowerCase(),name:user.name||email.split('@')[0],role:user.role||'owner',clientId:String(client.clientId),businessId:String(client.businessId)},code:'SUCCESS'};
   }catch(error){console.error('clientLogin error:',error);return{success:false,message:'Login error: '+error.message,code:'LOGIN_ERROR'};}
 }
-function authenticateAgainstMaster(email,password,businessName,client){try{var masterUrl='';if(typeof getMasterApiUrl==='function')masterUrl=getMasterApiUrl();if(!masterUrl&&typeof CLIENT_CONFIG!=='undefined')masterUrl=CLIENT_CONFIG.masterApiUrl||'';if(!masterUrl)return{success:false,message:'Master authentication service is not configured.'};var response=UrlFetchApp.fetch(masterUrl,{method:'post',contentType:'application/json',payload:JSON.stringify({action:'LOGIN',payload:{email:email,password:password,businessName:businessName||''}}),muteHttpExceptions:true});return JSON.parse(response.getContentText())||{success:false,message:'Authentication service returned no result.'};}catch(error){return{success:false,message:'Unable to contact authentication service: '+error.message};}}
+
+function authenticateAgainstMaster(email,password){
+  try{
+    var masterUrl='';
+    if(typeof getMasterApiUrl==='function')masterUrl=getMasterApiUrl();
+    if(!masterUrl&&typeof CLIENT_CONFIG!=='undefined')masterUrl=CLIENT_CONFIG.masterApiUrl||'';
+    if(!masterUrl)return{success:false,message:'Master authentication service is not configured.'};
+
+    var response=UrlFetchApp.fetch(masterUrl,{method:'post',contentType:'application/json',payload:JSON.stringify({action:'LOGIN',payload:{email:email,password:password}}),muteHttpExceptions:true});
+    var code=response.getResponseCode();
+    var text=response.getContentText();
+    if(code!==200)return{success:false,message:'Authentication service returned HTTP '+code};
+    return JSON.parse(text)||{success:false,message:'Authentication service returned no result.'};
+  }catch(error){return{success:false,message:'Unable to contact authentication service: '+error.message};}
+}
+
 function getClientFromWorkspace(sheetId,expectedClientId){try{var ss=SpreadsheetApp.openById(sheetId),info=ss.getSheetByName('Client_Info');if(!info)return null;var rows=info.getDataRange().getValues(),values={};for(var i=1;i<rows.length;i++)if(rows[i][0])values[String(rows[i][0])]=rows[i][1];if(expectedClientId&&String(values.Client_ID||'')!==String(expectedClientId))return null;return{clientId:values.Client_ID||expectedClientId,clientName:values.Business_Name||'My Business',businessName:values.Business_Name||'My Business',tier:values.Tier||'sovereign',status:values.Status||'active',sheetId:String(sheetId),primaryColor:values.Primary_Color||'#5D2A86',logoUrl:values.Logo_Url||'',businessId:values.Business_ID||expectedClientId,apiKey:values.API_Key||''};}catch(error){return null;}}
-function validateClientSession(sessionId){if(!sessionId)return null;var cache=CacheService.getScriptCache();try{var raw=cache.get(sessionId);if(!raw)return null;var session=JSON.parse(raw),now=Date.now();if(!session.created||!session.clientId||!session.sheetId||!session.businessId||(session.expiresAt&&now>=Number(session.expiresAt))||now-Number(session.created)>21600000){cache.remove(sessionId);return null;}var expected=getClientDeploymentConfig();if(!expected.success||String(session.clientId)!==String(expected.clientId)||String(session.sheetId)!==String(expected.sheetId)||String(session.businessId)!==String(expected.businessId)){cache.remove(sessionId);return null;}var client=getClientById(session.clientId);if(!client)client=getClientFromWorkspace(session.sheetId,session.clientId);if(!client||String(client.clientId)!==String(session.clientId)||String(client.sheetId)!==String(session.sheetId)||String(client.businessId)!==String(session.businessId)||(client.status&&String(client.status).toLowerCase()!=='active')){cache.remove(sessionId);return null;}return session;}catch(error){try{cache.remove(sessionId);}catch(ignore){}return null;}}
+
+function validateClientSession(sessionId){if(!sessionId)return null;var cache=CacheService.getScriptCache();try{var raw=cache.get(sessionId);if(!raw)return null;var session=JSON.parse(raw),now=Date.now();if(!session.created||!session.clientId||!session.sheetId||!session.businessId||(session.expiresAt&&now>=Number(session.expiresAt))||now-Number(session.created)>21600000){cache.remove(sessionId);return null;}var expected=getClientDeploymentConfig();if(!expected.success||String(session.clientId)!==String(expected.clientId)){cache.remove(sessionId);return null;}var client=getClientById(session.clientId);if(!client)client=getClientFromWorkspace(session.sheetId,session.clientId);if(!client||String(client.clientId)!==String(session.clientId)||String(client.sheetId)!==String(session.sheetId)||String(client.businessId)!==String(session.businessId)||(client.status&&String(client.status).toLowerCase()!=='active')){cache.remove(sessionId);return null;}return session;}catch(error){try{cache.remove(sessionId);}catch(ignore){}return null;}}
 function getClientUserFromSession(sessionId){var session=validateClientSession(sessionId);if(!session)return null;var client=getClientById(session.clientId);if(!client)client=getClientFromWorkspace(session.sheetId,session.clientId);if(!client)return null;return{email:session.email,name:session.user&&session.user.name?session.user.name:session.email,role:session.user&&session.user.role?session.user.role:'owner',clientId:session.clientId,businessId:session.businessId,clientName:client.clientName||client.businessName||session.businessName,primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',sheetId:session.sheetId,isClient:true,apiKey:client.apiKey||''};}
 function clientLogout(sessionId){try{if(sessionId)CacheService.getScriptCache().remove(sessionId);return{success:true,message:'Logged out successfully',code:'LOGOUT_SUCCESS'};}catch(error){return{success:false,message:error.message,code:'LOGOUT_ERROR'};}}
 function getClientDashboardData(sessionId){try{var session=validateClientSession(sessionId);if(!session)return{success:false,message:'Session expired. Please login again.',code:'SESSION_EXPIRED'};var client=getClientById(session.clientId);if(!client)client=getClientFromWorkspace(session.sheetId,session.clientId);if(!client)return{success:false,message:'Client workspace could not be verified.',code:'CLIENT_NOT_FOUND'};var ss=SpreadsheetApp.openById(session.sheetId),financeSheet=ss.getSheetByName('Financial_Data'),revenue=0,expenses=0,recentTransactions=[];if(financeSheet){var data=financeSheet.getDataRange().getValues();if(data.length>1){var headers=data[0],typeCol=headers.indexOf('Type'),amountCol=headers.indexOf('Amount'),dateCol=headers.indexOf('Date'),descCol=headers.indexOf('Description');for(var i=1;i<data.length;i++){var amount=parseFloat(data[i][amountCol])||0,type=String(data[i][typeCol]||'').toLowerCase();if(type==='revenue'||type==='income')revenue+=Math.abs(amount);else if(type==='expense')expenses+=Math.abs(amount);}if(dateCol!==-1)recentTransactions=data.slice(1).filter(function(r){return r[dateCol];}).sort(function(a,b){return new Date(b[dateCol])-new Date(a[dateCol]);}).slice(0,5).map(function(r){return{date:r[dateCol],description:descCol!==-1?r[descCol]:'',amount:amountCol!==-1?r[amountCol]:0,type:typeCol!==-1?r[typeCol]:''};});}}var profit=revenue-expenses,margin=revenue>0?(profit/revenue)*100:0,names=['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'],modules=names.map(function(name){var sheet=ss.getSheetByName(name+'_Data')||ss.getSheetByName(name);return{name:name,label:getModuleLabel(name),icon:getModuleIcon(name),count:sheet&&sheet.getLastRow()>1?sheet.getLastRow()-1:0,isAccessible:true};});return{success:true,dashboard:{kpis:{revenue:Math.round(revenue*100)/100,expenses:Math.round(expenses*100)/100,profit:Math.round(profit*100)/100,margin:Math.round(margin*10)/10},modules:modules,recentTransactions:recentTransactions,clientName:client.clientName||client.businessName||session.businessName,primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',sheetId:session.sheetId},code:'SUCCESS'};}catch(error){return{success:false,message:error.message,code:'DASHBOARD_ERROR'};}}
