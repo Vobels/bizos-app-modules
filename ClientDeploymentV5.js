@@ -46,15 +46,18 @@ function addClientLoadingUX_(html, fileName) {
     '</div></div>';
 
   var js = '<script id="bizos-loading-ux-js">(function(){' +
-    'var timer=null,active=false;' +
+    'var timer=null,hideTimer=null,active=false,observer=null;' +
     'function el(id){return document.getElementById(id);}' +
+    'function stopObserver(){if(observer){observer.disconnect();observer=null;}}' +
     'window.bizosShowLoader=function(title,text,timeout){' +
       'var o=el("bizosLoader");if(!o)return;' +
       'el("bizosLoaderTitle").textContent=title||"Please wait";' +
       'el("bizosLoaderText").textContent=text||"BizOS is processing your request...";' +
       'el("bizosLoaderError").style.display="none";el("bizosLoaderError").textContent="";' +
       'o.classList.add("show");o.setAttribute("aria-busy","true");active=true;' +
-      'clearTimeout(timer);timer=setTimeout(function(){' +
+      'clearTimeout(timer);clearTimeout(hideTimer);stopObserver();' +
+      'if(window.MutationObserver){observer=new MutationObserver(function(){if(!active)return;clearTimeout(hideTimer);hideTimer=setTimeout(function(){if(active)window.bizosHideLoader();},350);});observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true});}' +
+      'timer=setTimeout(function(){' +
         'if(!active)return;' +
         'el("bizosLoaderTitle").textContent="This is taking longer than expected";' +
         'el("bizosLoaderText").textContent="The server may be busy or your connection may be slow.";' +
@@ -62,7 +65,7 @@ function addClientLoadingUX_(html, fileName) {
         'el("bizosLoaderError").style.display="block";' +
       '},Number(timeout||20000));' +
     '};' +
-    'window.bizosHideLoader=function(){var o=el("bizosLoader");if(!o)return;active=false;clearTimeout(timer);o.classList.remove("show");o.setAttribute("aria-busy","false");};' +
+    'window.bizosHideLoader=function(){var o=el("bizosLoader");if(!o)return;active=false;clearTimeout(timer);clearTimeout(hideTimer);stopObserver();o.classList.remove("show");o.setAttribute("aria-busy","false");};' +
     'window.addEventListener("error",function(){if(active){el("bizosLoaderTitle").textContent="Something went wrong";el("bizosLoaderText").textContent="BizOS could not complete the request.";el("bizosLoaderError").style.display="block";el("bizosLoaderError").textContent="Please try again.";}});' +
     'document.addEventListener("DOMContentLoaded",function(){' +
       'var buttons=document.querySelectorAll("button");' +
@@ -76,7 +79,6 @@ function addClientLoadingUX_(html, fileName) {
           'window.bizosShowLoader(text.indexOf("sign")>=0?"Signing in":"Working","Please wait while BizOS completes this request...",20000);' +
         '},true);' +
       '});' +
-      'setTimeout(function(){window.bizosHideLoader();},800);' +
     '});' +
     'window.addEventListener("pageshow",function(){window.bizosHideLoader();});' +
   '})();</script>';
