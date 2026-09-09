@@ -1,276 +1,30 @@
 <style>
-/* ============================================================
-   BIZOS AUTH MODAL — VIEWPORT-INDEPENDENT TOUCH / CLOSE FIX
-   Works in normal mobile mode, Chrome Desktop Site mode, tablet,
-   and desktop. Loaded after landing, scripts and forms.
-   ============================================================ */
-#login-modal,
-#signup-modal,
-#forgot-modal,
-#demo-login-modal {
-  -webkit-tap-highlight-color: transparent;
-  pointer-events: auto !important;
-  isolation: isolate;
-  overscroll-behavior: contain;
-}
-
-#login-modal > div,
-#signup-modal > div,
-#forgot-modal > div,
-#demo-login-modal > div {
-  position: relative !important;
-  z-index: 100001 !important;
-  pointer-events: auto !important;
-}
-
-#login-modal button[onclick*="closeLoginModal"],
-#signup-modal button[onclick*="closeSignupModal"],
-#forgot-modal button[onclick*="closeForgotModal"],
-#demo-login-modal button[onclick*="closeDemoLoginModal"] {
-  position: relative !important;
-  z-index: 100002 !important;
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
-  -webkit-user-select: none !important;
-  user-select: none !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-}
-
-/* These rules intentionally apply at EVERY viewport width.
-   Chrome Desktop Site can report a desktop-sized viewport on a phone. */
-#login-modal,
-#signup-modal,
-#forgot-modal,
-#demo-login-modal {
-  padding: 16px !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-
-#login-modal > div,
-#signup-modal > div,
-#forgot-modal > div,
-#demo-login-modal > div {
-  width: min(100%, 420px) !important;
-  max-width: 420px !important;
-  max-height: min(90vh, calc(100dvh - 32px)) !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-}
-
-@supports not (height: 100dvh) {
-  #login-modal > div,
-  #signup-modal > div,
-  #forgot-modal > div,
-  #demo-login-modal > div {
-    max-height: calc(100vh - 32px) !important;
-  }
-}
+#login-modal,#signup-modal,#forgot-modal,#demo-login-modal{ -webkit-tap-highlight-color:transparent; pointer-events:auto!important; isolation:isolate; overscroll-behavior:contain; padding:16px!important; overflow-y:auto!important; -webkit-overflow-scrolling:touch; }
+#login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{ position:relative!important; z-index:100001!important; pointer-events:auto!important; width:min(100%,420px)!important; max-width:420px!important; max-height:min(90vh,calc(100dvh - 32px))!important; overflow-y:auto!important; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+#login-modal button[onclick="closeLoginModal()"],#signup-modal button[onclick="closeSignupModal()"],#forgot-modal button[onclick="closeForgotModal()"],#demo-login-modal button[onclick="closeDemoLoginModal()"]{ position:relative!important; z-index:100002!important; pointer-events:auto!important; touch-action:manipulation!important; min-width:44px!important; min-height:44px!important; display:inline-flex!important; align-items:center!important; justify-content:center!important; cursor:pointer!important; }
+@supports not (height:100dvh){#login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{max-height:calc(100vh - 32px)!important;}}
 </style>
-
 <script>
-(function () {
-  'use strict';
-
-  var MODALS = ['login-modal', 'signup-modal', 'forgot-modal', 'demo-login-modal'];
-  var savedScrollY = 0;
-  var pageWasLocked = false;
-
-  function isOpen(modal) {
-    return modal && !modal.classList.contains('hidden');
-  }
-
-  function lockBody() {
-    if (!document.body) return;
-
-    if (!pageWasLocked) {
-      savedScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-      pageWasLocked = true;
-
-      document.body.dataset.bizosModalOpen = '1';
-      document.body.dataset.bizosModalScrollY = String(savedScrollY);
-      document.body.style.position = 'fixed';
-      document.body.style.top = '-' + savedScrollY + 'px';
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none';
-    }
-  }
-
-  function unlockBody() {
-    for (var i = 0; i < MODALS.length; i++) {
-      var modal = document.getElementById(MODALS[i]);
-      if (isOpen(modal)) return;
-    }
-
-    if (!document.body || !pageWasLocked) return;
-
-    var restoreY = savedScrollY;
-    pageWasLocked = false;
-
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.right = '';
-    document.body.style.width = '';
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-    document.body.style.touchAction = '';
-    delete document.body.dataset.bizosModalOpen;
-    delete document.body.dataset.bizosModalScrollY;
-
-    window.scrollTo(0, restoreY);
-  }
-
-  function closeModal(id) {
-    var modal = document.getElementById(id);
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    unlockBody();
-  }
-
-  function openModal(id) {
-    var modal = document.getElementById(id);
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    lockBody();
-  }
-
-  window.closeLoginModal = function () { closeModal('login-modal'); };
-  window.closeSignupModal = function () { closeModal('signup-modal'); };
-  window.closeForgotModal = function () { closeModal('forgot-modal'); };
-  window.closeDemoLoginModal = function () { closeModal('demo-login-modal'); };
-
-  var originalShowLogin = window.showLoginModal;
-  var originalShowSignup = window.showSignupModal;
-  var originalShowForgot = window.showForgotPassword;
-  var originalShowDemo = window.showDemoLoginModal;
-
-  window.showLoginModal = function () {
-    closeModal('signup-modal');
-    closeModal('forgot-modal');
-    closeModal('demo-login-modal');
-    if (typeof originalShowLogin === 'function') originalShowLogin.apply(this, arguments);
-    openModal('login-modal');
-  };
-
-  window.showSignupModal = function () {
-    closeModal('login-modal');
-    closeModal('forgot-modal');
-    closeModal('demo-login-modal');
-    if (typeof originalShowSignup === 'function') originalShowSignup.apply(this, arguments);
-    openModal('signup-modal');
-  };
-
-  if (typeof originalShowForgot === 'function') {
-    window.showForgotPassword = function () {
-      closeModal('login-modal');
-      closeModal('signup-modal');
-      closeModal('demo-login-modal');
-      originalShowForgot.apply(this, arguments);
-      openModal('forgot-modal');
-    };
-  }
-
-  if (typeof originalShowDemo === 'function') {
-    window.showDemoLoginModal = function () {
-      closeModal('login-modal');
-      closeModal('signup-modal');
-      closeModal('forgot-modal');
-      originalShowDemo.apply(this, arguments);
-      openModal('demo-login-modal');
-    };
-  }
-
-  function getButtonForClose(target) {
-    if (!target) return null;
-    if (target.closest) return target.closest('button');
-    var node = target;
-    while (node && node !== document) {
-      if (String(node.tagName).toLowerCase() === 'button') return node;
-      node = node.parentNode;
-    }
-    return null;
-  }
-
-  /*
-     IMPORTANT: Do NOT identify a close button merely because its onclick
-     contains "closeLoginModal". Action buttons such as "Create free
-     account" intentionally call closeLoginModal() and then open another
-     modal. Only a button whose onclick is the close function by itself is
-     handled here.
-  */
-  function isDedicatedCloseButton(button, functionName) {
-    if (!button) return false;
-    var onclick = (button.getAttribute('onclick') || '').replace(/\s+/g, ' ').trim();
-    var exact = new RegExp('^' + functionName + '\\s*\\(\\s*\\)\\s*;?$');
-    return exact.test(onclick);
-  }
-
-  function handleCloseActivation(event) {
-    var button = getButtonForClose(event.target);
-    if (!button) return;
-
-    var modalId = null;
-
-    if (isDedicatedCloseButton(button, 'closeLoginModal')) modalId = 'login-modal';
-    else if (isDedicatedCloseButton(button, 'closeSignupModal')) modalId = 'signup-modal';
-    else if (isDedicatedCloseButton(button, 'closeForgotModal')) modalId = 'forgot-modal';
-    else if (isDedicatedCloseButton(button, 'closeDemoLoginModal')) modalId = 'demo-login-modal';
-
-    if (!modalId) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    closeModal(modalId);
-  }
-
-  document.addEventListener('pointerup', handleCloseActivation, true);
-  document.addEventListener('click', handleCloseActivation, true);
-
-  function handleBackdrop(event) {
-    var target = event.target;
-    if (!target || !target.id || MODALS.indexOf(target.id) === -1) return;
-    event.preventDefault();
-    event.stopPropagation();
-    closeModal(target.id);
-  }
-
-  document.addEventListener('pointerup', handleBackdrop, true);
-  document.addEventListener('click', handleBackdrop, true);
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key !== 'Escape') return;
-    for (var i = 0; i < MODALS.length; i++) {
-      if (isOpen(document.getElementById(MODALS[i]))) {
-        closeModal(MODALS[i]);
-        break;
-      }
-    }
-  });
-
-  function syncAria() {
-    for (var i = 0; i < MODALS.length; i++) {
-      var modal = document.getElementById(MODALS[i]);
-      if (modal) modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', syncAria, { once: true });
-  } else {
-    syncAria();
-  }
+(function(){'use strict';
+var MODALS=['login-modal','signup-modal','forgot-modal','demo-login-modal'],savedScrollY=0,pageWasLocked=false;
+function isOpen(m){return m&&!m.classList.contains('hidden');}
+function lockBody(){if(!document.body||pageWasLocked)return;savedScrollY=window.pageYOffset||document.documentElement.scrollTop||0;pageWasLocked=true;document.body.dataset.bizosModalOpen='1';document.body.dataset.bizosModalScrollY=String(savedScrollY);document.body.style.position='fixed';document.body.style.top='-'+savedScrollY+'px';document.body.style.left='0';document.body.style.right='0';document.body.style.width='100%';document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';}
+function unlockBody(){for(var i=0;i<MODALS.length;i++)if(isOpen(document.getElementById(MODALS[i])))return;if(!document.body||!pageWasLocked)return;var y=savedScrollY;pageWasLocked=false;document.body.style.position='';document.body.style.top='';document.body.style.left='';document.body.style.right='';document.body.style.width='';document.body.style.overflow='';document.documentElement.style.overflow='';delete document.body.dataset.bizosModalOpen;delete document.body.dataset.bizosModalScrollY;window.scrollTo(0,y);}
+function closeModal(id){var m=document.getElementById(id);if(!m)return;m.classList.add('hidden');m.setAttribute('aria-hidden','true');unlockBody();}
+function openModal(id){var m=document.getElementById(id);if(!m)return;m.classList.remove('hidden');m.setAttribute('aria-hidden','false');lockBody();}
+window.closeLoginModal=function(){closeModal('login-modal');};window.closeSignupModal=function(){closeModal('signup-modal');};window.closeForgotModal=function(){closeModal('forgot-modal');};window.closeDemoLoginModal=function(){closeModal('demo-login-modal');};
+var originalShowLogin=window.showLoginModal,originalShowSignup=window.showSignupModal,originalShowForgot=window.showForgotPassword,originalShowDemo=window.showDemoLoginModal,originalOpenLogin=window.openLoginModal;
+window.showLoginModal=function(){closeModal('signup-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowLogin==='function')originalShowLogin.apply(this,arguments);openModal('login-modal');};
+window.showSignupModal=function(){closeModal('login-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowSignup==='function')originalShowSignup.apply(this,arguments);openModal('signup-modal');};
+window.showForgotPassword=function(){closeModal('login-modal');closeModal('signup-modal');closeModal('demo-login-modal');if(typeof originalShowForgot==='function')originalShowForgot.apply(this,arguments);openModal('forgot-modal');};
+window.showDemoLoginModal=function(){closeModal('login-modal');closeModal('signup-modal');closeModal('forgot-modal');if(typeof originalShowDemo==='function')originalShowDemo.apply(this,arguments);openModal('demo-login-modal');};
+window.openLoginModal=function(){if(typeof originalOpenLogin==='function')originalOpenLogin.apply(this,arguments);openModal('login-modal');};
+function buttonForClose(t){if(!t)return null;if(t.closest)return t.closest('button');var n=t;while(n&&n!==document){if(String(n.tagName).toLowerCase()==='button')return n;n=n.parentNode;}return null;}
+function dedicated(b,name){if(!b)return false;var x=(b.getAttribute('onclick')||'').replace(/\s+/g,' ').trim();return new RegExp('^'+name+'\\s*\\(\\s*\\)\\s*;?$').test(x);}
+function handleClose(e){var b=buttonForClose(e.target);if(!b)return;var id=null;if(dedicated(b,'closeLoginModal'))id='login-modal';else if(dedicated(b,'closeSignupModal'))id='signup-modal';else if(dedicated(b,'closeForgotModal'))id='forgot-modal';else if(dedicated(b,'closeDemoLoginModal'))id='demo-login-modal';if(!id)return;e.preventDefault();e.stopPropagation();closeModal(id);}
+document.addEventListener('pointerup',handleClose,true);document.addEventListener('click',handleClose,true);
+function backdrop(e){var t=e.target;if(!t||!t.id||MODALS.indexOf(t.id)===-1)return;e.preventDefault();e.stopPropagation();closeModal(t.id);}document.addEventListener('pointerup',backdrop,true);document.addEventListener('click',backdrop,true);
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;for(var i=0;i<MODALS.length;i++)if(isOpen(document.getElementById(MODALS[i]))){closeModal(MODALS[i]);break;}});
+function aria(){for(var i=0;i<MODALS.length;i++){var m=document.getElementById(MODALS[i]);if(m)m.setAttribute('aria-hidden',m.classList.contains('hidden')?'true':'false');}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aria,{once:true});else aria();
 })();
 </script>
