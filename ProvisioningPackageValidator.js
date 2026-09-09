@@ -38,7 +38,7 @@ function validateClientDeploymentPackage_(pkg, expected) {
       'function getClientModuleData(moduleName,sid)',
       'function createClientModuleRecord(moduleName,record,sid)',
       'function updateClientModuleRecord(moduleName,rowIndex,record,sid)',
-      'function deleteClientModuleRecord(moduleName,rowIndex,record,sid)',
+      'function deleteClientModuleRecord(moduleName,rowIndex,sid)',
       'function getClientDashboardData(sid)'
     ];
     var missingCode = requiredCode.filter(function(token){return code.indexOf(token)<0;});
