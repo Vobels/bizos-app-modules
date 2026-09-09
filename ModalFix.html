@@ -1,0 +1,198 @@
+<style>
+/* ============================================================
+   BIZOS AUTH MODAL — MOBILE TOUCH / CLOSE FIX
+   Loaded after landing, scripts and forms so it is authoritative.
+   ============================================================ */
+.auth-modal-fix,
+#login-modal,
+#signup-modal,
+#forgot-modal,
+#demo-login-modal {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#login-modal > div,
+#signup-modal > div,
+#forgot-modal > div,
+#demo-login-modal > div {
+  position: relative;
+  z-index: 100001 !important;
+}
+
+#login-modal button[onclick*="closeLoginModal"],
+#signup-modal button[onclick*="closeSignupModal"],
+#forgot-modal button[onclick*="closeForgotModal"],
+#demo-login-modal button[onclick*="closeDemoLoginModal"] {
+  position: relative !important;
+  z-index: 100002 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+@media (max-width: 768px) {
+  #login-modal,
+  #signup-modal,
+  #forgot-modal,
+  #demo-login-modal {
+    padding: 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  #login-modal > div,
+  #signup-modal > div,
+  #forgot-modal > div,
+  #demo-login-modal > div {
+    width: min(100%, 420px) !important;
+    max-width: 420px !important;
+    max-height: calc(100dvh - 32px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  var MODALS = ['login-modal', 'signup-modal', 'forgot-modal', 'demo-login-modal'];
+
+  function isOpen(modal) {
+    return modal && !modal.classList.contains('hidden');
+  }
+
+  function lockBody() {
+    document.body.dataset.bizosModalOpen = '1';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+  }
+
+  function unlockBody() {
+    for (var i = 0; i < MODALS.length; i++) {
+      var modal = document.getElementById(MODALS[i]);
+      if (isOpen(modal)) return;
+    }
+    delete document.body.dataset.bizosModalOpen;
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+  }
+
+  function closeModal(id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    unlockBody();
+  }
+
+  function openModal(id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    lockBody();
+  }
+
+  // Authoritative wrappers. Existing callers continue to work.
+  window.closeLoginModal = function () { closeModal('login-modal'); };
+  window.closeSignupModal = function () { closeModal('signup-modal'); };
+  window.closeForgotModal = function () { closeModal('forgot-modal'); };
+  window.closeDemoLoginModal = function () { closeModal('demo-login-modal'); };
+
+  var originalShowLogin = window.showLoginModal;
+  var originalShowSignup = window.showSignupModal;
+  var originalShowForgot = window.showForgotPassword;
+  var originalShowDemo = window.showDemoLoginModal;
+
+  window.showLoginModal = function () {
+    closeModal('signup-modal');
+    closeModal('forgot-modal');
+    closeModal('demo-login-modal');
+    if (typeof originalShowLogin === 'function') originalShowLogin();
+    openModal('login-modal');
+  };
+
+  window.showSignupModal = function () {
+    closeModal('login-modal');
+    closeModal('forgot-modal');
+    closeModal('demo-login-modal');
+    if (typeof originalShowSignup === 'function') originalShowSignup();
+    openModal('signup-modal');
+  };
+
+  if (typeof originalShowForgot === 'function') {
+    window.showForgotPassword = function () {
+      closeModal('login-modal');
+      closeModal('signup-modal');
+      closeModal('demo-login-modal');
+      originalShowForgot.apply(this, arguments);
+      openModal('forgot-modal');
+    };
+  }
+
+  if (typeof originalShowDemo === 'function') {
+    window.showDemoLoginModal = function () {
+      closeModal('login-modal');
+      closeModal('signup-modal');
+      closeModal('forgot-modal');
+      originalShowDemo.apply(this, arguments);
+      openModal('demo-login-modal');
+    };
+  }
+
+  // Capture-phase touch/click handler. This runs before competing bubble handlers.
+  document.addEventListener('click', function (event) {
+    var button = event.target && event.target.closest ? event.target.closest('button') : null;
+    if (!button) return;
+
+    var onclick = button.getAttribute('onclick') || '';
+    if (onclick.indexOf('closeLoginModal') !== -1) {
+      event.preventDefault();
+      event.stopPropagation();
+      window.closeLoginModal();
+    } else if (onclick.indexOf('closeSignupModal') !== -1) {
+      event.preventDefault();
+      event.stopPropagation();
+      window.closeSignupModal();
+    } else if (onclick.indexOf('closeForgotModal') !== -1) {
+      event.preventDefault();
+      event.stopPropagation();
+      window.closeForgotModal();
+    } else if (onclick.indexOf('closeDemoLoginModal') !== -1) {
+      event.preventDefault();
+      event.stopPropagation();
+      window.closeDemoLoginModal();
+    }
+  }, true);
+
+  // Backdrop tap closes only the modal itself, never its content.
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.id || MODALS.indexOf(target.id) === -1) return;
+    closeModal(target.id);
+  }, true);
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    for (var i = 0; i < MODALS.length; i++) {
+      if (isOpen(document.getElementById(MODALS[i]))) {
+        closeModal(MODALS[i]);
+        break;
+      }
+    }
+  });
+
+  // Make all auth modals accessible to assistive technology.
+  for (var i = 0; i < MODALS.length; i++) {
+    var modal = document.getElementById(MODALS[i]);
+    if (modal) modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
+  }
+})();
+</script>
