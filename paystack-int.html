@@ -29,12 +29,10 @@
   </div>
 
   <script>
-    // Get requestId from URL
     const urlParams = new URLSearchParams(window.location.search);
     const requestId = urlParams.get('requestId');
     const country = urlParams.get('country') || 'Nigeria';
-    
-    // Dashboard URL (where to go back)
+    const paymentReference = urlParams.get('reference') || urlParams.get('trxref') || '';
     const DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxydvMYfUDCzk0b-_MJpcUrwPhdWXsmQZMH847JxMd2/dev';
     
     console.log('Payment page loaded. Request ID:', requestId);
@@ -51,67 +49,41 @@
           </div>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">No Request Found</h3>
           <p class="text-gray-600 mb-6">Unable to find upgrade request information.</p>
-          <button onclick="goToDashboard()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">
-            ← Return to Dashboard
-          </button>
-        </div>
-      `;
+          <button onclick="goToDashboard()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">← Return to Dashboard</button>
+        </div>`;
     } else {
-      // Load upgrade request details
       google.script.run
         .withSuccessHandler(function(response) {
           console.log('Upgrade request details:', response);
-          
           if (response && response.success && response.request) {
             const req = response.request;
-            const amount = (req.amount || 49900) / 100;
+            const amount = Number(req.amount || 49900);
             const currency = req.currency || 'NGN';
             const symbols = { 'USD': '$', 'NGN': '₦', 'GBP': '£', 'EUR': '€' };
             const symbol = symbols[currency] || '$';
-            
             document.getElementById('payment-content').innerHTML = `
               <div class="mb-6">
                 <div class="bg-purple-50 rounded-lg p-4 mb-6">
-                  <div class="flex justify-between mb-3">
-                    <span class="text-gray-600">Business:</span>
-                    <span class="font-semibold">${escapeHtml(req.businessName || 'Your Business')}</span>
-                  </div>
-                  <div class="flex justify-between mb-3">
-                    <span class="text-gray-600">Request ID:</span>
-                    <span class="font-mono text-sm">${escapeHtml(requestId)}</span>
-                  </div>
-                  <div class="flex justify-between pt-3 border-t">
-                    <span class="text-gray-600">Amount to Pay:</span>
-                    <span class="text-2xl font-bold text-purple-600">${symbol}${amount.toLocaleString()}</span>
-                  </div>
+                  <div class="flex justify-between mb-3"><span class="text-gray-600">Business:</span><span class="font-semibold">${escapeHtml(req.businessName || 'Your Business')}</span></div>
+                  <div class="flex justify-between mb-3"><span class="text-gray-600">Request ID:</span><span class="font-mono text-sm">${escapeHtml(requestId)}</span></div>
+                  <div class="flex justify-between pt-3 border-t"><span class="text-gray-600">Amount to Pay:</span><span class="text-2xl font-bold text-purple-600">${symbol}${amount.toLocaleString()}</span></div>
                 </div>
-                
                 <div class="bg-yellow-50 rounded-lg p-4 mb-6">
-                  <p class="text-sm text-yellow-800 text-center">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    Please send payment to the bank details below and click "I Have Paid" when done.
-                  </p>
+                  <p class="text-sm text-yellow-800 text-center"><i class="fas fa-info-circle mr-2"></i>Complete the Paystack payment. BizOS will verify the transaction on the server before provisioning your client deployment.</p>
                 </div>
-                
                 <div class="bg-gray-50 rounded-lg p-4 mb-6">
-                  <p class="font-semibold mb-2">Bank Transfer Details:</p>
-                  <p class="text-sm">Bank: <strong>Example Bank</strong></p>
-                  <p class="text-sm">Account Name: <strong>BizOS Global</strong></p>
-                  <p class="text-sm">Account Number: <strong>1234567890</strong></p>
-                  <p class="text-sm mt-2">Reference: <strong class="font-mono">${requestId}</strong></p>
+                  <p class="font-semibold mb-2">Payment reference</p>
+                  <input id="payment-reference" value="${escapeHtml(paymentReference)}" placeholder="Enter the Paystack transaction reference" class="w-full border rounded-lg px-3 py-3 font-mono text-sm" />
+                  <p class="text-xs text-gray-500 mt-2">Use the reference returned by Paystack after a successful payment.</p>
                 </div>
-                
-                <button onclick="confirmPayment('${requestId}')" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
-                  <i class="fas fa-check-circle mr-2"></i>I Have Made the Payment
+                <button id="verify-payment-button" onclick="confirmPayment('${requestId}')" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                  <i class="fas fa-shield-check mr-2"></i>Verify Payment & Activate
                 </button>
-                
-                <div class="mt-6 pt-4 border-t text-center">
-                  <button onclick="goToDashboard()" class="text-gray-500 hover:text-purple-600">
-                    ← Return to Dashboard
-                  </button>
-                </div>
-              </div>
-            `;
+                <div class="mt-6 pt-4 border-t text-center"><button onclick="goToDashboard()" class="text-gray-500 hover:text-purple-600">← Return to Dashboard</button></div>
+              </div>`;
+            if (paymentReference) {
+              confirmPayment(requestId, true);
+            }
           } else {
             showError('Upgrade request not found.');
           }
@@ -123,46 +95,57 @@
         .getUpgradeRequest(requestId);
     }
     
-    function confirmPayment(requestId) {
+    function confirmPayment(requestId, automatic) {
+      var input = document.getElementById('payment-reference');
+      var reference = input ? input.value.trim() : paymentReference;
+      if (!reference) {
+        if (automatic) return;
+        showError('A Paystack transaction reference is required.');
+        return;
+      }
+      var button = document.getElementById('verify-payment-button');
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Verifying payment...';
+      }
       google.script.run
-        .withSuccessHandler(function() {
-          showMessage('Payment recorded! Redirecting to dashboard...', 'success');
-          setTimeout(() => goToDashboard(), 2000);
+        .withSuccessHandler(function(response) {
+          console.log('Payment completion:', response);
+          if (response && response.success) {
+            showMessage('Payment verified and client deployment activated. Redirecting...', 'success');
+            setTimeout(function() { window.location.href = response.webAppUrl || response.landingUrl || DASHBOARD_URL; }, 1500);
+          } else {
+            if (button) {
+              button.disabled = false;
+              button.innerHTML = '<i class="fas fa-shield-check mr-2"></i>Verify Payment & Activate';
+            }
+            showError((response && response.message) || 'Payment verification failed.');
+          }
         })
-        .withFailureHandler(function() {
-          showMessage('Payment recorded! Redirecting to dashboard...', 'success');
-          setTimeout(() => goToDashboard(), 2000);
+        .withFailureHandler(function(error) {
+          console.error('Payment completion error:', error);
+          if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-shield-check mr-2"></i>Verify Payment & Activate';
+          }
+          showError('Payment verification could not be completed. Please try again.');
         })
-        .markPaymentInitiated(requestId);
+        .verifyPaystackPaymentAndProvision(reference, requestId);
     }
     
     function showError(message) {
       document.getElementById('payment-content').innerHTML = `
         <div class="text-center py-8">
-          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
-          </div>
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Error</h3>
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i></div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Payment Not Activated</h3>
           <p class="text-gray-600 mb-6">${escapeHtml(message)}</p>
-          <button onclick="goToDashboard()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">
-            ← Return to Dashboard
-          </button>
-        </div>
-      `;
+          <button onclick="goToDashboard()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold">← Return to Dashboard</button>
+        </div>`;
     }
     
     function showMessage(message, type) {
       const toast = document.createElement('div');
-      toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: ${type === 'success' ? '#10b981' : '#3b82f6'};
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        z-index: 10000;
-      `;
+      toast.style.cssText = `position:fixed;bottom:20px;right:20px;background:${type === 'success' ? '#10b981' : '#3b82f6'};color:white;padding:12px 20px;border-radius:8px;z-index:10000;`;
       toast.innerHTML = message;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
