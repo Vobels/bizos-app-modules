@@ -19,13 +19,11 @@
     <?!= include('cms') ?>
   </div>
   
-  
-  
   <?!= include('notification') ?>
   <?!= include('scripts') ?>
+  <?!= include('forms') ?>
+  <?!= include('ModalFix') ?>
   
-  <?!= include('forms') ?> 
-
   <script>
     function openLoginModal() {
       const modal = document.getElementById('login-modal');
@@ -37,35 +35,27 @@
       }
     }
 
-    // 🔥 VALUE COMES FROM SERVER (NOT URL)
+    // VALUE COMES FROM SERVER (NOT URL)
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
 
     window.addEventListener('load', function () {
-
       if (shouldShowLogin) {
         console.log("🔁 showLogin detected from server");
-
         let attempts = 0;
-
         const interval = setInterval(() => {
           const modal = document.getElementById('login-modal');
-
           if (modal) {
             openLoginModal();
             clearInterval(interval);
           }
-
           attempts++;
           if (attempts > 20) {
             console.log("❌ Modal never found");
             clearInterval(interval);
           }
-
         }, 200);
       }
-
     });
   </script>
 </body>
 </html>
-
