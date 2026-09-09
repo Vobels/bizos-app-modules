@@ -1,7 +1,7 @@
 // ============================================================
 // ProvisioningPreflight.js
 // ============================================================
-// Builds the complete V5 client package with synthetic identifiers
+// Builds the complete V6 client package with synthetic identifiers
 // and validates it without creating a workspace or Apps Script project.
 // Safe to run before any real provisioning test.
 // ============================================================
@@ -19,17 +19,20 @@ function runProvisioningPreflight() {
   };
 
   try {
-    var pkg = generateClientCodeSafelyV5(settings);
+    var pkg = generateClientCodeSafelyV6(settings);
     var result = validateClientDeploymentPackage_(pkg,settings);
-    return {
+    var output = {
       success:!!(result && result.success),
       stage:'generation_and_validation',
       result:result,
       generatedFiles:pkg&&pkg.files?pkg.files.map(function(f){return f.name;}):[],
       runAt:new Date().toISOString()
     };
+    console.log('PROVISIONING PREFLIGHT:', JSON.stringify(output));
+    Logger.log(JSON.stringify(output));
+    return output;
   } catch(error) {
-    return {
+    var failure = {
       success:false,
       stage:'generation',
       code:'PREFLIGHT_FAILED',
@@ -37,5 +40,8 @@ function runProvisioningPreflight() {
       stack:error&&error.stack?String(error.stack):'',
       runAt:new Date().toISOString()
     };
+    console.error('PROVISIONING PREFLIGHT FAILED:', JSON.stringify(failure));
+    Logger.log(JSON.stringify(failure));
+    return failure;
   }
 }
