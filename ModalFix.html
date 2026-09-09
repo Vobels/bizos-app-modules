@@ -7,24 +7,37 @@
 <script>
 (function(){'use strict';
 var MODALS=['login-modal','signup-modal','forgot-modal','demo-login-modal'],savedScrollY=0,pageWasLocked=false;
+
+// Structural fix: auth modals must live directly under <body>, not inside
+// #landing-page. This prevents mobile Chrome/Desktop Site from applying the
+// landing page's scrolling, stacking, and containing-block behavior to them.
+function moveModalsToBody(){
+  if(!document.body)return;
+  for(var i=0;i<MODALS.length;i++){
+    var m=document.getElementById(MODALS[i]);
+    if(m && m.parentElement!==document.body) document.body.appendChild(m);
+  }
+}
+moveModalsToBody();
+
 function isOpen(m){return m&&!m.classList.contains('hidden');}
 function lockBody(){if(!document.body||pageWasLocked)return;savedScrollY=window.pageYOffset||document.documentElement.scrollTop||0;pageWasLocked=true;document.body.dataset.bizosModalOpen='1';document.body.dataset.bizosModalScrollY=String(savedScrollY);document.body.style.position='fixed';document.body.style.top='-'+savedScrollY+'px';document.body.style.left='0';document.body.style.right='0';document.body.style.width='100%';document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';}
 function unlockBody(){for(var i=0;i<MODALS.length;i++)if(isOpen(document.getElementById(MODALS[i])))return;if(!document.body||!pageWasLocked)return;var y=savedScrollY;pageWasLocked=false;document.body.style.position='';document.body.style.top='';document.body.style.left='';document.body.style.right='';document.body.style.width='';document.body.style.overflow='';document.documentElement.style.overflow='';delete document.body.dataset.bizosModalOpen;delete document.body.dataset.bizosModalScrollY;window.scrollTo(0,y);}
 function closeModal(id){var m=document.getElementById(id);if(!m)return;m.classList.add('hidden');m.setAttribute('aria-hidden','true');unlockBody();}
-function openModal(id){var m=document.getElementById(id);if(!m)return;m.classList.remove('hidden');m.setAttribute('aria-hidden','false');lockBody();}
+function openModal(id){moveModalsToBody();var m=document.getElementById(id);if(!m)return;m.classList.remove('hidden');m.setAttribute('aria-hidden','false');lockBody();}
 window.closeLoginModal=function(){closeModal('login-modal');};window.closeSignupModal=function(){closeModal('signup-modal');};window.closeForgotModal=function(){closeModal('forgot-modal');};window.closeDemoLoginModal=function(){closeModal('demo-login-modal');};
 var originalShowLogin=window.showLoginModal,originalShowSignup=window.showSignupModal,originalShowForgot=window.showForgotPassword,originalShowDemo=window.showDemoLoginModal,originalOpenLogin=window.openLoginModal;
-window.showLoginModal=function(){closeModal('signup-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowLogin==='function')originalShowLogin.apply(this,arguments);openModal('login-modal');};
-window.showSignupModal=function(){closeModal('login-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowSignup==='function')originalShowSignup.apply(this,arguments);openModal('signup-modal');};
-window.showForgotPassword=function(){closeModal('login-modal');closeModal('signup-modal');closeModal('demo-login-modal');if(typeof originalShowForgot==='function')originalShowForgot.apply(this,arguments);openModal('forgot-modal');};
-window.showDemoLoginModal=function(){closeModal('login-modal');closeModal('signup-modal');closeModal('forgot-modal');if(typeof originalShowDemo==='function')originalShowDemo.apply(this,arguments);openModal('demo-login-modal');};
-window.openLoginModal=function(){if(typeof originalOpenLogin==='function')originalOpenLogin.apply(this,arguments);openModal('login-modal');};
+window.showLoginModal=function(){moveModalsToBody();closeModal('signup-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowLogin==='function')originalShowLogin.apply(this,arguments);openModal('login-modal');};
+window.showSignupModal=function(){moveModalsToBody();closeModal('login-modal');closeModal('forgot-modal');closeModal('demo-login-modal');if(typeof originalShowSignup==='function')originalShowSignup.apply(this,arguments);openModal('signup-modal');};
+window.showForgotPassword=function(){moveModalsToBody();closeModal('login-modal');closeModal('signup-modal');closeModal('demo-login-modal');if(typeof originalShowForgot==='function')originalShowForgot.apply(this,arguments);openModal('forgot-modal');};
+window.showDemoLoginModal=function(){moveModalsToBody();closeModal('login-modal');closeModal('signup-modal');closeModal('forgot-modal');if(typeof originalShowDemo==='function')originalShowDemo.apply(this,arguments);openModal('demo-login-modal');};
+window.openLoginModal=function(){moveModalsToBody();if(typeof originalOpenLogin==='function')originalOpenLogin.apply(this,arguments);openModal('login-modal');};
 function buttonForClose(t){if(!t)return null;if(t.closest)return t.closest('button');var n=t;while(n&&n!==document){if(String(n.tagName).toLowerCase()==='button')return n;n=n.parentNode;}return null;}
 function dedicated(b,name){if(!b)return false;var x=(b.getAttribute('onclick')||'').replace(/\s+/g,' ').trim();return new RegExp('^'+name+'\\s*\\(\\s*\\)\\s*;?$').test(x);}
 function handleClose(e){var b=buttonForClose(e.target);if(!b)return;var id=null;if(dedicated(b,'closeLoginModal'))id='login-modal';else if(dedicated(b,'closeSignupModal'))id='signup-modal';else if(dedicated(b,'closeForgotModal'))id='forgot-modal';else if(dedicated(b,'closeDemoLoginModal'))id='demo-login-modal';if(!id)return;e.preventDefault();e.stopPropagation();closeModal(id);}
 document.addEventListener('pointerup',handleClose,true);document.addEventListener('click',handleClose,true);
 function backdrop(e){var t=e.target;if(!t||!t.id||MODALS.indexOf(t.id)===-1)return;e.preventDefault();e.stopPropagation();closeModal(t.id);}document.addEventListener('pointerup',backdrop,true);document.addEventListener('click',backdrop,true);
 document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;for(var i=0;i<MODALS.length;i++)if(isOpen(document.getElementById(MODALS[i]))){closeModal(MODALS[i]);break;}});
-function aria(){for(var i=0;i<MODALS.length;i++){var m=document.getElementById(MODALS[i]);if(m)m.setAttribute('aria-hidden',m.classList.contains('hidden')?'true':'false');}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aria,{once:true});else aria();
+function aria(){moveModalsToBody();for(var i=0;i<MODALS.length;i++){var m=document.getElementById(MODALS[i]);if(m)m.setAttribute('aria-hidden',m.classList.contains('hidden')?'true':'false');}}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aria,{once:true});else aria();
 })();
 </script>
