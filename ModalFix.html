@@ -1,22 +1,26 @@
 <style>
 /* ============================================================
-   BIZOS AUTH MODAL — MOBILE TOUCH / CLOSE FIX
-   Loaded after landing, scripts and forms so it is authoritative.
+   BIZOS AUTH MODAL — VIEWPORT-INDEPENDENT TOUCH / CLOSE FIX
+   Works in normal mobile mode, Chrome Desktop Site mode, tablet,
+   and desktop. Loaded after landing, scripts and forms.
    ============================================================ */
-.auth-modal-fix,
 #login-modal,
 #signup-modal,
 #forgot-modal,
 #demo-login-modal {
   -webkit-tap-highlight-color: transparent;
+  pointer-events: auto !important;
+  isolation: isolate;
+  overscroll-behavior: contain;
 }
 
 #login-modal > div,
 #signup-modal > div,
 #forgot-modal > div,
 #demo-login-modal > div {
-  position: relative;
+  position: relative !important;
   z-index: 100001 !important;
+  pointer-events: auto !important;
 }
 
 #login-modal button[onclick*="closeLoginModal"],
@@ -27,33 +31,45 @@
   z-index: 100002 !important;
   pointer-events: auto !important;
   touch-action: manipulation !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
   min-width: 44px !important;
   min-height: 44px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  cursor: pointer !important;
 }
 
-@media (max-width: 768px) {
-  #login-modal,
-  #signup-modal,
-  #forgot-modal,
-  #demo-login-modal {
-    padding: 16px !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
+/* Do not put the core modal mechanics behind a mobile-only media query.
+   Chrome Desktop Site can report a desktop-sized viewport on a phone. */
+#login-modal,
+#signup-modal,
+#forgot-modal,
+#demo-login-modal {
+  padding: 16px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
 
+#login-modal > div,
+#signup-modal > div,
+#forgot-modal > div,
+#demo-login-modal > div {
+  width: min(100%, 420px) !important;
+  max-width: 420px !important;
+  max-height: min(90vh, calc(100dvh - 32px)) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@supports not (height: 100dvh) {
   #login-modal > div,
   #signup-modal > div,
   #forgot-modal > div,
   #demo-login-modal > div {
-    width: min(100%, 420px) !important;
-    max-width: 420px !important;
-    max-height: calc(100dvh - 32px) !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 32px) !important;
   }
 }
 </style>
@@ -69,9 +85,11 @@
   }
 
   function lockBody() {
+    if (!document.body) return;
     document.body.dataset.bizosModalOpen = '1';
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
   }
 
   function unlockBody() {
@@ -79,9 +97,11 @@
       var modal = document.getElementById(MODALS[i]);
       if (isOpen(modal)) return;
     }
+    if (!document.body) return;
     delete document.body.dataset.bizosModalOpen;
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
+    document.body.style.touchAction = '';
   }
 
   function closeModal(id) {
@@ -100,7 +120,6 @@
     lockBody();
   }
 
-  // Authoritative wrappers. Existing callers continue to work.
   window.closeLoginModal = function () { closeModal('login-modal'); };
   window.closeSignupModal = function () { closeModal('signup-modal'); };
   window.closeForgotModal = function () { closeModal('forgot-modal'); };
@@ -115,7 +134,7 @@
     closeModal('signup-modal');
     closeModal('forgot-modal');
     closeModal('demo-login-modal');
-    if (typeof originalShowLogin === 'function') originalShowLogin();
+    if (typeof originalShowLogin === 'function') originalShowLogin.apply(this, arguments);
     openModal('login-modal');
   };
 
@@ -123,7 +142,7 @@
     closeModal('login-modal');
     closeModal('forgot-modal');
     closeModal('demo-login-modal');
-    if (typeof originalShowSignup === 'function') originalShowSignup();
+    if (typeof originalShowSignup === 'function') originalShowSignup.apply(this, arguments);
     openModal('signup-modal');
   };
 
@@ -147,37 +166,44 @@
     };
   }
 
-  // Capture-phase touch/click handler. This runs before competing bubble handlers.
-  document.addEventListener('click', function (event) {
-    var button = event.target && event.target.closest ? event.target.closest('button') : null;
+  /*
+     Use both pointerup and click. This is important on phones running
+     Chrome Desktop Site, where the browser can expose a desktop layout
+     while the physical input is still touch.
+  */
+  function handleCloseActivation(event) {
+    var target = event.target;
+    var button = target && target.closest ? target.closest('button') : null;
     if (!button) return;
 
     var onclick = button.getAttribute('onclick') || '';
-    if (onclick.indexOf('closeLoginModal') !== -1) {
-      event.preventDefault();
-      event.stopPropagation();
-      window.closeLoginModal();
-    } else if (onclick.indexOf('closeSignupModal') !== -1) {
-      event.preventDefault();
-      event.stopPropagation();
-      window.closeSignupModal();
-    } else if (onclick.indexOf('closeForgotModal') !== -1) {
-      event.preventDefault();
-      event.stopPropagation();
-      window.closeForgotModal();
-    } else if (onclick.indexOf('closeDemoLoginModal') !== -1) {
-      event.preventDefault();
-      event.stopPropagation();
-      window.closeDemoLoginModal();
-    }
-  }, true);
+    var modalId = null;
 
-  // Backdrop tap closes only the modal itself, never its content.
-  document.addEventListener('click', function (event) {
+    if (onclick.indexOf('closeLoginModal') !== -1) modalId = 'login-modal';
+    else if (onclick.indexOf('closeSignupModal') !== -1) modalId = 'signup-modal';
+    else if (onclick.indexOf('closeForgotModal') !== -1) modalId = 'forgot-modal';
+    else if (onclick.indexOf('closeDemoLoginModal') !== -1) modalId = 'demo-login-modal';
+
+    if (!modalId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    closeModal(modalId);
+  }
+
+  document.addEventListener('pointerup', handleCloseActivation, true);
+  document.addEventListener('click', handleCloseActivation, true);
+
+  /* Backdrop activation works in every viewport mode. */
+  function handleBackdrop(event) {
     var target = event.target;
     if (!target || !target.id || MODALS.indexOf(target.id) === -1) return;
+    event.preventDefault();
     closeModal(target.id);
-  }, true);
+  }
+
+  document.addEventListener('pointerup', handleBackdrop, true);
+  document.addEventListener('click', handleBackdrop, true);
 
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;
@@ -189,10 +215,17 @@
     }
   });
 
-  // Make all auth modals accessible to assistive technology.
-  for (var i = 0; i < MODALS.length; i++) {
-    var modal = document.getElementById(MODALS[i]);
-    if (modal) modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
+  function syncAria() {
+    for (var i = 0; i < MODALS.length; i++) {
+      var modal = document.getElementById(MODALS[i]);
+      if (modal) modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncAria, { once: true });
+  } else {
+    syncAria();
   }
 })();
 </script>
