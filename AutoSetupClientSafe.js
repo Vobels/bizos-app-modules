@@ -13,17 +13,17 @@
       if (duplicateCheck && duplicateCheck.isDuplicate) return {success:false,code:'DUPLICATE_'+duplicateCheck.type,message:duplicateCheck.message,details:duplicateCheck};
       existingBusiness = getBusinessByEmail(paymentData.email);
       businessId = existingBusiness ? existingBusiness.businessId : clientId;
-      sheetResult = createClientSheetInClientDrive(paymentData.email,clientId,businessName,{businessId:businessId,tier:paymentData.tier||'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',provisioningVersion:'3.0'});
+      sheetResult = createClientSheetInClientDrive(paymentData.email,clientId,businessName,{businessId:businessId,tier:paymentData.tier||'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',provisioningVersion:'4.0'});
       if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
-      var clientCode = generateClientCodeSafelyV3({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
+      var clientCode = generateClientCodeSafelyV4({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
       if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
       scriptResult = createAndDeployClientScript(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor||'#2E7D32',paymentData.logoUrl||'');
-      if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId) {
+      if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) {
         var deploymentMessage = scriptResult && scriptResult.message ? scriptResult.message : 'The client application could not be deployed.';
         cleanupFailedClientProvisioning_(sheetResult,clientId); cleanupFailedClientDeployment_(scriptResult);
         return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: '+deploymentMessage,clientId:clientId,cleanedUp:true};
       }
-      var saveResult = saveClientRecord({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain||paymentData.customDomain||'',customDomain:paymentData.customDomain||'',primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',tier:paymentData.tier||'sovereign',status:'active',sheetId:sheetResult.sheetId,webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,businessId:businessId});
+      var saveResult = saveClientRecord({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain||paymentData.customDomain||'',customDomain:paymentData.customDomain||'',primaryColor:paymentData.primaryColor||'#2E7D32',logoUrl:paymentData.logoUrl||'',tier:paymentData.tier||'sovereign',status:'active',sheetId:sheetResult.sheetId,webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,businessId:businessId,deploymentId:scriptResult.deploymentId});
       if (!saveResult || !saveResult.success) { cleanupFailedClientProvisioning_(sheetResult,clientId); cleanupFailedClientDeployment_(scriptResult); return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true}; }
       if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
       sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId);
