@@ -73,8 +73,8 @@
         };
       }
 
-      // 2. Generate the isolated client package.
-      var clientCode = generateClientCodeSafelyV4({
+      // 2. Generate the isolated client package with loading/timeout UX.
+      var clientCode = generateClientCodeSafelyV5({
         clientId:clientId,
         clientName:businessName,
         primaryColor:paymentData.primaryColor || '#2E7D32',
