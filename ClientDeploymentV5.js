@@ -68,14 +68,12 @@ function addClientLoadingUX_(html, fileName) {
       'var buttons=document.querySelectorAll("button");' +
       'Array.prototype.forEach.call(buttons,function(b){' +
         'b.addEventListener("click",function(){' +
-          'var text=(b.textContent||"").trim().toLowerCase();' +
-          'if(text==="×"||text.indexOf("dashboard")>=0||text==="logout")return;' +
+          'var text=(b.textContent||"").trim().toLowerCase(),onclick=b.getAttribute("onclick")||"";' +
+          'if(text==="×"||text.indexOf("dashboard")>=0||text==="logout"||text.indexOf("add record")>=0||onclick.indexOf("openAdd")>=0)return;' +
           'if(b.disabled)return;' +
+          'var serverAction=onclick.indexOf("google.script.run")>=0||onclick.indexOf("openModule")>=0||onclick.indexOf("load")>=0||onclick.indexOf("save")>=0||onclick.indexOf("delete")>=0||onclick.indexOf("login")>=0;' +
+          'if(!serverAction)return;' +
           'window.bizosShowLoader(text.indexOf("sign")>=0?"Signing in":"Working","Please wait while BizOS completes this request...",20000);' +
-          'setTimeout(function(){if(document.visibilityState==="visible"&&active){' +
-            'var busy=document.querySelector("#bizosLoader.show");' +
-            'if(!busy)return;' +
-          '}},250);' +
         '},true);' +
       '});' +
       'setTimeout(function(){window.bizosHideLoader();},800);' +
@@ -83,10 +81,9 @@ function addClientLoadingUX_(html, fileName) {
     'window.addEventListener("pageshow",function(){window.bizosHideLoader();});' +
   '})();</script>';
 
-  // Turn existing plain loading labels into a visible spinner while server calls run.
+  // Turn existing plain loading labels into a visible spinner.
   html = html.replace(/Loading\.\.\./g, '<span class="bizosInlineLoading"><span class="bizosSpinner" style="display:inline-block;width:16px;height:16px;border-width:2px;margin:0 7px 0 0;vertical-align:-3px"></span>Loading...</span>');
 
-  // Inject once; the source generator remains otherwise untouched.
   if (html.indexOf('id="bizosLoadingUXMarker"') === -1) {
     html = html.replace('</head>', '<meta id="bizosLoadingUXMarker" name="bizos-loading-ux" content="v5">' + css + '</head>');
     html = html.replace('</body>', overlay + js + '</body>');
