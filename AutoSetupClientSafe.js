@@ -10,30 +10,20 @@
 
     try {
       paymentData = paymentData || {};
-      if (!paymentData.email) {
-        return { success:false, code:'INVALID_PAYMENT_DATA', message:'Client email is required.' };
-      }
+      if (!paymentData.email) return { success:false, code:'INVALID_PAYMENT_DATA', message:'Client email is required.' };
 
       businessName = paymentData.businessName || paymentData.name || 'My Business';
 
       lock = LockService.getScriptLock();
-      if (!lock.tryLock(30000)) {
-        return { success:false, code:'PROVISIONING_BUSY', message:'Client provisioning is already in progress. Please retry shortly.' };
-      }
+      if (!lock.tryLock(30000)) return { success:false, code:'PROVISIONING_BUSY', message:'Client provisioning is already in progress. Please retry shortly.' };
 
-      // Idempotency check MUST happen while holding the lock.
       var existingClient = getExistingActiveClientDeployment_(paymentData.email, businessName);
       if (existingClient) {
         var existingResult = returnExistingClientDeployment_(existingClient);
         if (existingResult && existingResult.success) return existingResult;
-        return existingResult || {
-          success:false,
-          code:'EXISTING_CLIENT_INCOMPLETE',
-          message:'An active client already exists, but its deployment metadata is incomplete. No duplicate deployment was created.'
-        };
+        return existingResult || {success:false,code:'EXISTING_CLIENT_INCOMPLETE',message:'An active client already exists, but its deployment metadata is incomplete. No duplicate deployment was created.'};
       }
 
-      // Secondary duplicate guard for legacy/non-active records.
       var duplicateCheck = checkDuplicateClient(paymentData.email, businessName);
       if (duplicateCheck && duplicateCheck.isDuplicate) {
         var recheckedClient = getExistingActiveClientDeployment_(paymentData.email, businessName);
@@ -48,7 +38,6 @@
       existingBusiness = getBusinessByEmail(paymentData.email);
       businessId = existingBusiness ? existingBusiness.businessId : clientId;
 
-      // 1. Create isolated client workspace in provisioning state.
       sheetResult = createClientSheetInClientDrive(
         paymentData.email,
         clientId,
@@ -62,11 +51,8 @@
           provisioningVersion:'4.1'
         }
       );
-      if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) {
-        return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: ' + ((sheetResult && sheetResult.message) || 'Unknown error')};
-      }
+      if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
 
-      // 2. Generate the isolated client package.
       var clientCode = generateClientCodeSafelyV5({
         clientId:clientId,
         clientName:businessName,
@@ -79,7 +65,14 @@
       });
       if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
 
-      // 3. Deploy and require every deployment identifier.
+      // Hard gate: do not create an Apps Script deployment unless the generated
+      // package contains the expected files, APIs, bindings and deployment mode.
+      var packageCheck = validateClientDeploymentPackage_(clientCode,{clientId:clientId,sheetId:sheetResult.sheetId});
+      if (!packageCheck || !packageCheck.success) {
+        cleanupFailedClientProvisioning_(sheetResult,clientId);
+        return {success:false,code:packageCheck&&packageCheck.code?packageCheck.code:'PACKAGE_INVALID',message:packageCheck&&packageCheck.message?packageCheck.message:'Generated client package failed validation.',clientId:clientId,cleanedUp:true};
+      }
+
       scriptResult = createAndDeployClientScript(
         paymentData.email,
         clientId,
@@ -92,28 +85,19 @@
         var deploymentMessage = scriptResult && scriptResult.message ? scriptResult.message : 'The client application could not be deployed.';
         cleanupFailedClientProvisioning_(sheetResult,clientId);
         cleanupFailedClientDeployment_(scriptResult);
-        return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: ' + deploymentMessage,clientId:clientId,cleanedUp:true};
+        return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: '+deploymentMessage,clientId:clientId,cleanedUp:true};
       }
 
-      // 4. Persist the complete registry record before considering provisioning committed.
       var saveResult = saveClientRecordV2({
-        clientId:clientId,
-        email:paymentData.email,
-        clientName:businessName,
+        clientId:clientId,email:paymentData.email,clientName:businessName,
         domain:paymentData.domain || paymentData.customDomain || '',
         customDomain:paymentData.customDomain || '',
-        primaryColor:paymentData.primaryColor || '#2E7D32',
-        logoUrl:paymentData.logoUrl || '',
-        tier:paymentData.tier || 'sovereign',
-        status:'active',
-        sheetId:sheetResult.sheetId,
-        workspaceId:sheetResult.sheetId,
-        webAppUrl:scriptResult.webAppUrl,
-        landingUrl:scriptResult.webAppUrl,
-        apiKey:Utilities.getUuid(),
-        scriptId:scriptResult.scriptId,
-        deploymentId:scriptResult.deploymentId,
-        businessId:businessId,
+        primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',
+        tier:paymentData.tier || 'sovereign',status:'active',
+        sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,
+        webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,
+        apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,
+        deploymentId:scriptResult.deploymentId,businessId:businessId,
         provisioningVersion:'4.1'
       });
       if (!saveResult || !saveResult.success) {
@@ -122,48 +106,21 @@
         return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true};
       }
 
-      // From this point the client is committed. Post-commit failures must not
-      // destroy an already-registered deployment.
       committed = true;
-
-      // 5. Preserve the existing BizOS business/account association.
       if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
+      try { sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId); }
+      catch (emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
 
-      // 6. Welcome email is post-commit; email failure must not roll back the client.
-      try {
-        sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId);
-      } catch (emailError) {
-        console.error('Client welcome email failed after successful provisioning:',emailError);
-      }
-
-      return {
-        success:true,
-        idempotent:false,
-        clientId:clientId,
-        landingUrl:scriptResult.webAppUrl,
-        webAppUrl:scriptResult.webAppUrl,
-        sheetUrl:sheetResult.sheetUrl,
-        sheetId:sheetResult.sheetId,
-        workspaceId:sheetResult.sheetId,
-        email:paymentData.email,
-        scriptId:scriptResult.scriptId,
-        deploymentId:scriptResult.deploymentId,
-        businessId:businessId,
-        message:'Client setup complete.'
-      };
+      return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,message:'Client setup complete.'};
     } catch (error) {
       console.error('SAFE CLIENT SETUP ERROR:',error);
-      // Roll back only pre-commit work. Once the registry is active, preserve
-      // the live deployment and surface the error instead.
       if (!committed) {
         if (sheetResult && sheetResult.success) cleanupFailedClientProvisioning_(sheetResult,clientId);
         if (scriptResult && scriptResult.scriptId) cleanupFailedClientDeployment_(scriptResult);
       }
-      return {success:false,code:'PROVISIONING_FAILED',message:error && error.message ? error.message : 'Client provisioning failed.',clientId:clientId || null,cleanedUp:!committed};
+      return {success:false,code:'PROVISIONING_FAILED',message:error&&error.message?error.message:'Client provisioning failed.',clientId:clientId||null,cleanedUp:!committed};
     } finally {
-      if (lock) {
-        try { lock.releaseLock(); } catch (ignore) {}
-      }
+      if (lock) { try { lock.releaseLock(); } catch (ignore) {} }
     }
   };
 
@@ -171,19 +128,15 @@
     try {
       if (!sheetResult || !sheetResult.sheetId) return;
       DriveApp.getFileById(sheetResult.sheetId).setTrashed(true);
-    } catch (error) {
-      console.error('Workspace cleanup failed for ' + clientId,error);
-    }
+    } catch (error) { console.error('Workspace cleanup failed for '+clientId,error); }
   }
 
   function cleanupFailedClientDeployment_(scriptResult) {
     try {
       if (!scriptResult || !scriptResult.scriptId) return;
-      var url='https://script.googleapis.com/v1/projects/' + encodeURIComponent(scriptResult.scriptId);
-      var response=UrlFetchApp.fetch(url,{method:'delete',headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},muteHttpExceptions:true});
+      var url='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptResult.scriptId);
+      var response=UrlFetchApp.fetch(url,{method:'delete',headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});
       if (response.getResponseCode()<200 || response.getResponseCode()>=300) console.error('Client Apps Script cleanup failed:',response.getResponseCode(),response.getContentText());
-    } catch (error) {
-      console.error('Deployment cleanup failed:',error);
-    }
+    } catch (error) { console.error('Deployment cleanup failed:',error); }
   }
 })();
