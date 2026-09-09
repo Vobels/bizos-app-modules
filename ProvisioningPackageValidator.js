@@ -51,8 +51,12 @@ function validateClientDeploymentPackage_(pkg, expected) {
       return {success:false,code:'FALLBACK_DEPLOYMENT_PATH',message:'Generated client package contains a forbidden fallback landing path.'};
     }
 
+    // Module definitions live in the generated client dashboard package,
+    // not necessarily in the server Code file. Validate the whole generated
+    // client package so V6's dashboard module registry is correctly checked.
+    var moduleSource = code + '\n' + dashboard;
     var modules = ['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
-    var missingModules = modules.filter(function(name){return code.indexOf(name+':')<0;});
+    var missingModules = modules.filter(function(name){return moduleSource.indexOf(name+':')<0;});
     if (missingModules.length) return {success:false,code:'PACKAGE_MODULES_MISSING',message:'Generated client package is missing module definitions: '+missingModules.join(', ')};
 
     if (landing.indexOf('authenticateClient') < 0) return {success:false,code:'LANDING_AUTH_MISSING',message:'Client landing page is not wired to authenticateClient.'};
