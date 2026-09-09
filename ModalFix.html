@@ -41,7 +41,7 @@
   cursor: pointer !important;
 }
 
-/* Do not put the core modal mechanics behind a mobile-only media query.
+/* These rules intentionally apply at EVERY viewport width.
    Chrome Desktop Site can report a desktop-sized viewport on a phone. */
 #login-modal,
 #signup-modal,
@@ -79,17 +79,36 @@
   'use strict';
 
   var MODALS = ['login-modal', 'signup-modal', 'forgot-modal', 'demo-login-modal'];
+  var savedScrollY = 0;
+  var pageWasLocked = false;
 
   function isOpen(modal) {
     return modal && !modal.classList.contains('hidden');
   }
 
+  /*
+     overflow:hidden alone is not reliable on some mobile browsers,
+     especially when Chrome is using Desktop Site mode. Freeze the
+     actual document at its current scroll position instead.
+  */
   function lockBody() {
     if (!document.body) return;
-    document.body.dataset.bizosModalOpen = '1';
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
+
+    if (!pageWasLocked) {
+      savedScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+      pageWasLocked = true;
+
+      document.body.dataset.bizosModalOpen = '1';
+      document.body.dataset.bizosModalScrollY = String(savedScrollY);
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + savedScrollY + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    }
   }
 
   function unlockBody() {
@@ -97,11 +116,24 @@
       var modal = document.getElementById(MODALS[i]);
       if (isOpen(modal)) return;
     }
-    if (!document.body) return;
-    delete document.body.dataset.bizosModalOpen;
+
+    if (!document.body || !pageWasLocked) return;
+
+    var restoreY = savedScrollY;
+    pageWasLocked = false;
+
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
     document.body.style.touchAction = '';
+    delete document.body.dataset.bizosModalOpen;
+    delete document.body.dataset.bizosModalScrollY;
+
+    window.scrollTo(0, restoreY);
   }
 
   function closeModal(id) {
@@ -166,14 +198,19 @@
     };
   }
 
-  /*
-     Use both pointerup and click. This is important on phones running
-     Chrome Desktop Site, where the browser can expose a desktop layout
-     while the physical input is still touch.
-  */
+  function getButtonForClose(target) {
+    if (!target) return null;
+    if (target.closest) return target.closest('button');
+    var node = target;
+    while (node && node !== document) {
+      if (String(node.tagName).toLowerCase() === 'button') return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+
   function handleCloseActivation(event) {
-    var target = event.target;
-    var button = target && target.closest ? target.closest('button') : null;
+    var button = getButtonForClose(event.target);
     if (!button) return;
 
     var onclick = button.getAttribute('onclick') || '';
@@ -191,14 +228,15 @@
     closeModal(modalId);
   }
 
+  /* Physical touch/pointer activation + traditional click activation. */
   document.addEventListener('pointerup', handleCloseActivation, true);
   document.addEventListener('click', handleCloseActivation, true);
 
-  /* Backdrop activation works in every viewport mode. */
   function handleBackdrop(event) {
     var target = event.target;
     if (!target || !target.id || MODALS.indexOf(target.id) === -1) return;
     event.preventDefault();
+    event.stopPropagation();
     closeModal(target.id);
   }
 
