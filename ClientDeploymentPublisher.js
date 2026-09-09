@@ -1,13 +1,12 @@
 // ============================================================
-// ClientDeploymentPublisher.js
+// ClientDeploymentPublisher.js - AUTHORITATIVE SAFE PUBLISHER
 // ============================================================
-// Authoritative publisher for generated paid-client packages.
-// Uploads the exact validated package produced by V5.
-// Does NOT replace files with legacy HTML and does NOT grant the
+// Explicit function name. Does not override legacy publishers.
+// Uploads the exact validated V5 package and never grants the
 // customer editor access to the Apps Script project.
 // ============================================================
 
-createAndDeployClientScript = function(email, clientId, code, businessName, primaryColor, logoUrl) {
+function createAndDeployClientScriptSafe(email, clientId, code, businessName, primaryColor, logoUrl) {
   var scriptId = '';
   try {
     if (!code || !Array.isArray(code.files) || !code.files.length) {
@@ -21,7 +20,7 @@ createAndDeployClientScript = function(email, clientId, code, businessName, prim
     var required=['Code','client-landing','client-dashboard','appsscript'];
     var names=files.map(function(f){return f.name;});
     var missing=required.filter(function(n){return names.indexOf(n)<0;});
-    if(missing.length)return{success:false,message:'Generated client package is missing: '+missing.join(', '),code:'PACKAGE_MISSING_FILES'};
+    if(missing.length) return {success:false,message:'Generated client package is missing: '+missing.join(', '),code:'PACKAGE_MISSING_FILES'};
 
     var createResponse=UrlFetchApp.fetch('https://script.googleapis.com/v1/projects',{
       method:'POST',
@@ -30,12 +29,12 @@ createAndDeployClientScript = function(email, clientId, code, businessName, prim
       muteHttpExceptions:true
     });
     if(createResponse.getResponseCode()!==200){
-      return{success:false,message:'Failed to create client Apps Script project: '+createResponse.getContentText(),code:'PROJECT_CREATE_FAILED'};
+      return {success:false,message:'Failed to create client Apps Script project: '+createResponse.getContentText(),code:'PROJECT_CREATE_FAILED'};
     }
 
     var createResult=JSON.parse(createResponse.getContentText()||'{}');
     scriptId=createResult.scriptId||'';
-    if(!scriptId)throw new Error('Apps Script project creation returned no script ID.');
+    if(!scriptId) throw new Error('Apps Script project creation returned no script ID.');
 
     var updateUrl='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptId)+'/content';
     var updateResponse=UrlFetchApp.fetch(updateUrl,{
@@ -45,8 +44,8 @@ createAndDeployClientScript = function(email, clientId, code, businessName, prim
       muteHttpExceptions:true
     });
     if(updateResponse.getResponseCode()!==200){
-      cleanupPublishedProject_(scriptId);
-      return{success:false,message:'Failed to upload generated client package: '+updateResponse.getContentText(),code:'PACKAGE_UPLOAD_FAILED',scriptId:scriptId};
+      cleanupPublishedProjectSafe_(scriptId);
+      return {success:false,message:'Failed to upload generated client package: '+updateResponse.getContentText(),code:'PACKAGE_UPLOAD_FAILED',scriptId:scriptId};
     }
 
     var versionUrl='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptId)+'/versions';
@@ -57,13 +56,13 @@ createAndDeployClientScript = function(email, clientId, code, businessName, prim
       muteHttpExceptions:true
     });
     if(versionResponse.getResponseCode()!==200){
-      cleanupPublishedProject_(scriptId);
-      return{success:false,message:'Failed to create client version: '+versionResponse.getContentText(),code:'VERSION_CREATE_FAILED',scriptId:scriptId};
+      cleanupPublishedProjectSafe_(scriptId);
+      return {success:false,message:'Failed to create client version: '+versionResponse.getContentText(),code:'VERSION_CREATE_FAILED',scriptId:scriptId};
     }
 
     var versionResult=JSON.parse(versionResponse.getContentText()||'{}');
     var versionNumber=versionResult.versionNumber;
-    if(!versionNumber)throw new Error('Version creation returned no version number.');
+    if(!versionNumber) throw new Error('Version creation returned no version number.');
 
     var deployUrl='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptId)+'/deployments';
     var deployResponse=UrlFetchApp.fetch(deployUrl,{
@@ -73,32 +72,32 @@ createAndDeployClientScript = function(email, clientId, code, businessName, prim
       muteHttpExceptions:true
     });
     if(deployResponse.getResponseCode()!==200){
-      cleanupPublishedProject_(scriptId);
-      return{success:false,message:'Failed to deploy client web app: '+deployResponse.getContentText(),code:'DEPLOYMENT_FAILED',scriptId:scriptId};
+      cleanupPublishedProjectSafe_(scriptId);
+      return {success:false,message:'Failed to deploy client web app: '+deployResponse.getContentText(),code:'DEPLOYMENT_FAILED',scriptId:scriptId};
     }
 
     var deployResult=JSON.parse(deployResponse.getContentText()||'{}');
     var deploymentId=deployResult.deploymentId||'';
-    if(!deploymentId)throw new Error('Deployment returned no deployment ID.');
+    if(!deploymentId) throw new Error('Deployment returned no deployment ID.');
 
     var webAppUrl='https://script.google.com/macros/s/'+deploymentId+'/exec';
 
-    // Intentionally no DriveApp.getFileById(scriptId).addEditor(email).
-    // The customer uses the deployed web app, not the Apps Script editor.
-    return{success:true,scriptId:scriptId,deploymentId:deploymentId,webAppUrl:webAppUrl,editUrl:'https://script.google.com/d/'+scriptId+'/edit',message:'Client script deployed as web app'};
-  }catch(error){
-    if(scriptId)cleanupPublishedProject_(scriptId);
-    return{success:false,message:error&&error.message?error.message:'Client deployment failed.',code:'DEPLOYMENT_EXCEPTION',scriptId:scriptId||''};
+    // Intentionally NO DriveApp.getFileById(scriptId).addEditor(email).
+    // Customer receives only the deployed web application.
+    return {success:true,scriptId:scriptId,deploymentId:deploymentId,webAppUrl:webAppUrl,editUrl:'https://script.google.com/d/'+scriptId+'/edit',message:'Client script deployed as web app'};
+  } catch(error) {
+    if(scriptId) cleanupPublishedProjectSafe_(scriptId);
+    return {success:false,message:error&&error.message?error.message:'Client deployment failed.',code:'DEPLOYMENT_EXCEPTION',scriptId:scriptId||''};
   }
-};
+}
 
-function cleanupPublishedProject_(scriptId){
-  try{
-    if(!scriptId)return;
+function cleanupPublishedProjectSafe_(scriptId) {
+  try {
+    if(!scriptId) return;
     UrlFetchApp.fetch('https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptId),{
       method:'DELETE',
       headers:{'Authorization':'Bearer '+ScriptApp.getOAuthToken()},
       muteHttpExceptions:true
     });
-  }catch(error){console.error('Published project cleanup failed:',error);}
+  } catch(error) { console.error('Published project cleanup failed:',error); }
 }
