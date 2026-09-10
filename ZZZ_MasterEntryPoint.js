@@ -56,6 +56,15 @@ doGet = function(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (error) {
     console.error('Master doGet error:', error);
-    return HtmlService.createHtmlOutput('<h1>BizOS</h1><p>Unable to load BizOS.</p>');
+    // Never leave a normal user on an Apps Script error/fallback page.
+    // Always return them to the public BizOS URL.
+    var publicUrl = getAppUrl();
+    return HtmlService.createHtmlOutput(
+      '<!doctype html><html><head>' +
+      '<meta http-equiv="refresh" content="0;url=' + publicUrl + '">' +
+      '<script>window.top.location.replace(' + JSON.stringify(publicUrl) + ');</script>' +
+      '</head><body style="font-family:Arial;text-align:center;padding:50px">' +
+      '<p>Returning to BizOS...</p></body></html>'
+    );
   }
 };
