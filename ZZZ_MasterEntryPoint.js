@@ -6,6 +6,21 @@
 // deployments have their own generated doGet and are not routed here.
 // ============================================================
 
+// Central public URL helper. Keep the public BizOS destination in CONFIG
+// so verification/login links can be changed in one place later.
+function getPublicBizOSUrl_() {
+  var base = '';
+  try {
+    base = CONFIG && CONFIG.URLS ? CONFIG.URLS.base : '';
+  } catch (e) {}
+  if (!base) base = 'https://bizos.higroups.com';
+  return String(base).replace(/\/$/, '');
+}
+
+function getAppUrl() {
+  return getPublicBizOSUrl_();
+}
+
 doGet = function(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
