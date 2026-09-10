@@ -31,11 +31,33 @@
     max-width: none !important;
   }
 }
+
+/* Business name is account data, not a login credential. */
+#login-business-name,
+label[for="login-business-name"] {
+  display: none !important;
+}
+
+#login-business-name {
+  display: none !important;
+}
 </style>
 
 <script>
 /* Override the older notification function after scripts.html loads. */
 setTimeout(function () {
+  /* The normal BizOS login identifies the account by email + password.
+     Keep the legacy field in the DOM for compatibility, but hide it and
+     make sure browser validation can never require it. */
+  var businessNameInput = document.getElementById('login-business-name');
+  if (businessNameInput) {
+    businessNameInput.required = false;
+    businessNameInput.removeAttribute('required');
+    businessNameInput.value = '';
+    var businessNameWrapper = businessNameInput.parentElement;
+    if (businessNameWrapper) businessNameWrapper.style.display = 'none';
+  }
+
   window.showNotification = function (message, type) {
     type = type || 'info';
 
