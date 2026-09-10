@@ -98,10 +98,48 @@ setTimeout(function () {
     }, 8000);
   };
 
-  /* Replace native browser alerts with the same BizOS notification UI.
-     This prevents Apps Script/googleusercontent alert boxes from appearing. */
+  /* Replace native browser alerts with BizOS notifications. */
   window.alert = function (message) {
     window.showNotification(String(message || ''), 'error');
+  };
+
+  /* The old login code uses confirm() specifically for the unverified-account
+     resend prompt. Handle that case in BizOS UI instead of an Apps Script
+     googleusercontent browser dialog. Other confirmation dialogs remain native. */
+  var nativeConfirm = window.confirm;
+  window.confirm = function (message) {
+    var text = String(message || '');
+
+    if (text.indexOf('Would you like to receive a new verification email?') !== -1) {
+      var emailInput = document.getElementById('login-email');
+      var email = emailInput ? String(emailInput.value || '').trim() : '';
+
+      if (!email) {
+        window.showNotification('Please enter your email address first.', 'warning');
+        return false;
+      }
+
+      window.showNotification('Sending a new verification email…', 'info');
+
+      google.script.run
+        .withSuccessHandler(function (response) {
+          if (response && response.success) {
+            window.showNotification(response.message || 'Verification email sent. Please check your inbox.', 'success');
+          } else {
+            window.showNotification((response && response.message) || 'Could not send the verification email.', 'error');
+          }
+        })
+        .withFailureHandler(function () {
+          window.showNotification('Could not send the verification email. Please try again.', 'error');
+        })
+        .resendVerificationEmail(email);
+
+      /* The resend has already been handled above. Return false so the old
+         handler does not send a second request. */
+      return false;
+    }
+
+    return nativeConfirm.call(window, message);
   };
 }, 0);
 </script>
