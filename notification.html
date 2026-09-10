@@ -1,4 +1,102 @@
+<style>
+/* Keep notifications above modals and easy to dismiss. */
+.bizos-notification {
+  z-index: 100001 !important;
+  pointer-events: auto !important;
+}
+
+.bizos-notification-close {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+.bizos-notification-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+@media (max-width: 768px) {
+  .bizos-notification {
+    top: 16px !important;
+    right: 16px !important;
+    left: 16px !important;
+    max-width: none !important;
+  }
+}
+</style>
 
 <script>
+/* Override the older notification function after scripts.html loads. */
+setTimeout(function () {
+  window.showNotification = function (message, type) {
+    type = type || 'info';
 
+    var existing = document.querySelector('.bizos-notification');
+    if (existing) existing.remove();
+
+    var colors = {
+      success: '#10b981',
+      error: '#ef4444',
+      warning: '#f59e0b',
+      info: '#5D2A86'
+    };
+
+    var icons = {
+      success: '<i class="fas fa-check-circle"></i>',
+      error: '<i class="fas fa-exclamation-circle"></i>',
+      warning: '<i class="fas fa-exclamation-triangle"></i>',
+      info: '<i class="fas fa-info-circle"></i>'
+    };
+
+    var notification = document.createElement('div');
+    notification.className = 'bizos-notification';
+    notification.style.cssText =
+      'position:fixed;' +
+      'top:20px;' +
+      'right:20px;' +
+      'background:white;' +
+      'color:#1f2937;' +
+      'padding:12px 12px 12px 20px;' +
+      'border-radius:8px;' +
+      'box-shadow:0 4px 12px rgba(0,0,0,0.15);' +
+      'z-index:100001;' +
+      'font-size:14px;' +
+      'font-weight:500;' +
+      'display:flex;' +
+      'align-items:center;' +
+      'gap:10px;' +
+      'border-left:4px solid ' + (colors[type] || colors.info) + ';' +
+      'animation:slideIn 0.3s ease;' +
+      'max-width:350px;' +
+      'pointer-events:auto;';
+
+    var icon = icons[type] || icons.info;
+    notification.innerHTML =
+      icon +
+      '<span style="flex:1;">' + String(message || '') + '</span>' +
+      '<button type="button" class="bizos-notification-close" aria-label="Close notification">&times;</button>';
+
+    document.body.appendChild(notification);
+
+    var closeButton = notification.querySelector('.bizos-notification-close');
+    if (closeButton) {
+      closeButton.addEventListener('click', function () {
+        notification.remove();
+      });
+    }
+
+    /* Give the user 8 seconds to read it, or close it immediately. */
+    setTimeout(function () {
+      if (notification && notification.parentNode) notification.remove();
+    }, 8000);
+  };
+}, 0);
 </script>
