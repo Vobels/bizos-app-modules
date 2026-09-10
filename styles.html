@@ -106,7 +106,6 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
-    display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
@@ -233,7 +232,7 @@
     }
   }
 
-  /* Mobile-specific modal fixes */
+  /* Mobile-specific modal sizing. Visibility is controlled by ModalFix.html. */
 @media (max-width: 768px) {
   .modal {
     position: fixed;
@@ -254,10 +253,12 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
-  button, [onclick] {
+
+  button, 
+  .btn-primary, 
+  .btn-secondary {
     cursor: pointer;
-    min-height: 44px; /* Better touch targets */
+    min-height: 44px;
   }
 }
 
@@ -533,8 +534,8 @@
 /* Force proper stacking context */
 #dashboard-page,
 #landing-page,
-#cms-page 
-# profile-page{
+#cms-page,
+#profile-page{
   position: relative;
   z-index: 1;
 }
@@ -628,7 +629,6 @@ body:has(#profile-page:not(.hidden)) {
     height: 200px;
   }
 }
-
 
 
 /* Chart containers */
@@ -738,7 +738,7 @@ body:has(#profile-page:not(.hidden)) {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Fix upgrade modal visibility */
+/* Fix upgrade modal visibility: appearance only; visibility is controlled by modal JS. */
 #upgrade-modal {
   z-index: 9999999 !important;
   position: fixed !important;
@@ -747,11 +747,6 @@ body:has(#profile-page:not(.hidden)) {
   right: 0 !important;
   bottom: 0 !important;
   background-color: rgba(0, 0, 0, 0.8) !important;
-  display: none !important;
-}
-
-#upgrade-modal:not(.hidden) {
-  display: flex !important;
 }
 
 #upgrade-modal .modal-content {
@@ -781,10 +776,9 @@ body:has(#profile-page:not(.hidden)) {
   transform: translateY(-2px);
 }
 
-/* Ensure modal is above everything */
-#upgrade-modal,
-#upgrade-modal * {
-  z-index: 9999999;
+/* Keep upgrade modal content above its backdrop without changing visibility. */
+#upgrade-modal .modal-content {
+  z-index: 10000000 !important;
 }
 
 /* File upload styling */
@@ -814,7 +808,7 @@ body:has(#profile-page:not(.hidden)) {
 
 /* ==================== MOBILE MODAL FIXES ==================== */
 
-/* Fix modal positioning and sizing on mobile */
+/* Fix modal positioning and sizing on mobile. Visibility is controlled by ModalFix.html. */
 @media (max-width: 768px) {
   .modal {
     position: fixed !important;
@@ -823,7 +817,6 @@ body:has(#profile-page:not(.hidden)) {
     right: 0 !important;
     bottom: 0 !important;
     background: rgba(0, 0, 0, 0.7) !important;
-    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     z-index: 99999 !important;
@@ -951,11 +944,9 @@ body:has(#profile-page:not(.hidden)) {
   }
 }
 
-/* Prevent body scroll when modal is open */
+/* Modal page scrolling is controlled by ModalFix.html. */
 body.modal-open {
   overflow: hidden !important;
-  position: fixed !important;
-  width: 100% !important;
 }
 
 /* Modal close button touch target */
@@ -1033,11 +1024,9 @@ body.modal-open {
 @media (max-width: 768px) {
   button, 
   .btn-primary, 
-  .btn-secondary,
-  [onclick] {
+  .btn-secondary {
     min-height: 44px !important;
     padding: 12px 20px !important;
-    touch-action: manipulation !important;
   }
   
   /* Buttons inside modals */
@@ -1058,14 +1047,7 @@ body.modal-open {
   }
 }
 
-/* Fix the "hidden" class for modals on mobile */
-.modal.hidden {
-  display: none !important;
-}
-
-.modal:not(.hidden) {
-  display: flex !important;
-}
+/* Modal visibility is controlled by ModalFix.html. */
 
 /* Extra safety for modal z-index stacking */
 #login-modal,
@@ -1129,8 +1111,8 @@ body.modal-open {
   transform: translateX(100%);
 }
 .peer:focus ~ .peer-focus\:ring-2 {
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  --tw-ring-offset-shadow: var(--tw-ring-inset, 0 0 #0000);
+  --tw-ring-shadow: var(--tw-ring-inset, 0 0 #0000);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 .peer:focus ~ .peer-focus\:ring-purple-300 {
@@ -1176,9 +1158,3 @@ body.modal-open {
 </style>
 
 </style>
-
-
-
-
-
-
