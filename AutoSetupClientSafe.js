@@ -48,14 +48,14 @@ function autoSetupClientSafe(paymentData) {
       status:'provisioning',
       primaryColor:paymentData.primaryColor || '#2E7D32',
       logoUrl:paymentData.logoUrl || '',
-      provisioningVersion:'6.0'
+      provisioningVersion:'7.0'
     });
     if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) {
       return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
     }
 
-    console.log('SAFE STEP 2: Generating V6 client package with main dashboard parity');
-    var clientCode = generateClientCodeSafelyV6({
+    console.log('SAFE STEP 2: Generating V7 client package with team management');
+    var clientCode = generateClientCodeSafelyV7({
       clientId:clientId,
       clientName:businessName,
       primaryColor:paymentData.primaryColor || '#2E7D32',
@@ -73,7 +73,7 @@ function autoSetupClientSafe(paymentData) {
       return {success:false,code:packageCheck&&packageCheck.code?packageCheck.code:'PACKAGE_INVALID',message:packageCheck&&packageCheck.message?packageCheck.message:'Generated client package failed validation.',clientId:clientId,cleanedUp:true};
     }
 
-    console.log('SAFE STEP 3: Publishing exact V6 package');
+    console.log('SAFE STEP 3: Publishing exact V7 package');
     scriptResult = createAndDeployClientScriptSafe(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor || '#2E7D32',paymentData.logoUrl || '');
     if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) {
       var deploymentMessage = scriptResult && scriptResult.message ? scriptResult.message : 'The client application could not be deployed.';
@@ -93,7 +93,7 @@ function autoSetupClientSafe(paymentData) {
       webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,
       apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,
       deploymentId:scriptResult.deploymentId,businessId:businessId,
-      provisioningVersion:'6.0'
+      provisioningVersion:'7.0'
     });
     if (!saveResult || !saveResult.success) {
       cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
