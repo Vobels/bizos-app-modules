@@ -57,6 +57,13 @@
   cursor:pointer!important;
 }
 
+/* Business Name is no longer a login credential. Keep the legacy element
+   hidden so older login code can still find it without requiring user input. */
+#login-business-name{
+  display:none!important;
+}
+#login-business-name + *{ display:none!important; }
+
 @supports not (height:100dvh){
   #login-modal>div,#signup-modal>div,#forgot-modal>div,#demo-login-modal>div{
     max-height:calc(100vh - 32px)!important;
@@ -138,22 +145,18 @@
 
     closeAllExcept(id);
 
-    /* Remove any stale inline display left by the old modal implementation. */
     modal.style.display='';
     modal.classList.remove('hidden');
     modal.style.display='flex';
     modal.setAttribute('aria-hidden','false');
     lockPage();
 
-    /* Put focus into the first usable control without scrolling the page. */
     window.setTimeout(function(){
       var first=modal.querySelector('input:not([disabled]),button:not([disabled]),select:not([disabled]),textarea:not([disabled])');
       if(first && typeof first.focus==='function') first.focus({preventScroll:true});
     },30);
   }
 
-  /* These are the ONLY public modal functions. We deliberately do not call
-     the previous implementations, because they used independent display state. */
   window.closeLoginModal=function(){closeModal('login-modal');};
   window.closeSignupModal=function(){closeModal('signup-modal');};
   window.closeForgotModal=function(){closeModal('forgot-modal');};
@@ -174,7 +177,6 @@
     return null;
   }
 
-  /* Backdrop click: only the backdrop itself closes the modal. */
   document.addEventListener('click',function(e){
     var modal=modalFromTarget(e.target);
     if(modal && e.target===modal){
@@ -193,7 +195,6 @@
     }
   });
 
-  /* Keep aria state synchronized, but never hide a focused modal first. */
   function syncAria(){
     MODALS.forEach(function(id){
       var m=getModal(id);
@@ -206,6 +207,99 @@
     document.addEventListener('DOMContentLoaded',syncAria,{once:true});
   }else{
     syncAria();
+  }
+
+  /* Main BizOS login: Email + Password only. Business Name is retained
+     internally as an empty compatibility value but is never requested. */
+  window.handleLogin=function(event){
+    if(event && typeof event.preventDefault==='function') event.preventDefault();
+
+    var emailEl=document.getElementById('login-email');
+    var passwordEl=document.getElementById('login-password');
+    var email=emailEl ? String(emailEl.value || '').trim().toLowerCase() : '';
+    var password=passwordEl ? String(passwordEl.value || '') : '';
+
+    if(!email || !password){
+      if(typeof window.showNotification==='function'){
+        window.showNotification('Please enter your email and password.','error');
+      } else {
+        alert('Please enter your email and password.');
+      }
+      return false;
+    }
+
+    var submit=document.querySelector('#login-form button[type="submit"]');
+    if(submit){
+      submit.disabled=true;
+      submit.dataset.originalText=submit.textContent;
+      submit.textContent='Signing in...';
+    }
+
+    google.script.run
+      .withSuccessHandler(function(response){
+        if(submit){
+          submit.disabled=false;
+          submit.textContent=submit.dataset.originalText || 'Sign In';
+        }
+
+        if(!response || !response.success){
+          var message=(response && response.message) || 'Login failed. Please check your email and password.';
+          if(typeof window.showNotification==='function') window.showNotification(message,'error');
+
+          if(response && /pending verification|verification/i.test(message)){
+            var resend=document.getElementById('resend-verification-section');
+            if(resend) resend.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if(typeof window.saveSession==='function'){
+          window.saveSession(response.sessionId,response.user);
+        } else {
+          localStorage.setItem('bizos_session',response.sessionId || '');
+          localStorage.setItem('bizos_user',JSON.stringify(response.user || {}));
+        }
+
+        closeModal('login-modal');
+
+        var landing=document.getElementById('landing-page');
+        var dashboard=document.getElementById('dashboard-page');
+        if(landing) landing.style.display='none';
+        if(dashboard) dashboard.style.display='block';
+
+        if(typeof window.loadDashboard==='function'){
+          window.loadDashboard();
+        }
+        if(typeof window.loadEnhancedDashboard==='function'){
+          window.setTimeout(function(){ window.loadEnhancedDashboard(); },300);
+        }
+      })
+      .withFailureHandler(function(error){
+        if(submit){
+          submit.disabled=false;
+          submit.textContent=submit.dataset.originalText || 'Sign In';
+        }
+        var message=(error && error.message) || 'Login failed. Please try again.';
+        if(typeof window.showNotification==='function') window.showNotification(message,'error');
+        else alert(message);
+      })
+      .authenticateUser(email,password,'');
+
+    return false;
+  };
+
+  /* Hide the legacy Business Name row without changing signup fields. */
+  function hideLegacyLoginBusinessField(){
+    var input=document.getElementById('login-business-name');
+    if(!input) return;
+    var row=input.parentElement;
+    if(row) row.style.display='none';
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',hideLegacyLoginBusinessField,{once:true});
+  }else{
+    hideLegacyLoginBusinessField();
   }
 })();
 </script>
