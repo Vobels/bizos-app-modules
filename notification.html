@@ -93,10 +93,15 @@ setTimeout(function () {
       });
     }
 
-    /* Give the user 8 seconds to read it, or close it immediately. */
     setTimeout(function () {
       if (notification && notification.parentNode) notification.remove();
     }, 8000);
+  };
+
+  /* Replace native browser alerts with the same BizOS notification UI.
+     This prevents Apps Script/googleusercontent alert boxes from appearing. */
+  window.alert = function (message) {
+    window.showNotification(String(message || ''), 'error');
   };
 }, 0);
 </script>
