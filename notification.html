@@ -1,167 +1,119 @@
 <style>
 /* Keep notifications above modals and easy to dismiss. */
-.bizos-notification {
-  z-index: 100001 !important;
-  pointer-events: auto !important;
-}
-
-.bizos-notification-close {
-  margin-left: 8px;
-  padding: 2px 6px;
-  border: 0;
-  background: transparent;
-  color: #6b7280;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: 4px;
-  flex: 0 0 auto;
-}
-
-.bizos-notification-close:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-
-@media (max-width: 768px) {
-  .bizos-notification {
-    top: 16px !important;
-    right: 16px !important;
-    left: 16px !important;
-    max-width: none !important;
-  }
-}
-
-/* Business name is account data, not a login credential. */
-#login-business-name,
-label[for="login-business-name"] {
-  display: none !important;
-}
-
-#login-business-name {
-  display: none !important;
-}
+.bizos-notification { z-index:100001 !important; pointer-events:auto !important; }
+.bizos-notification-close { margin-left:8px; padding:2px 6px; border:0; background:transparent; color:#6b7280; font-size:20px; line-height:1; cursor:pointer; border-radius:4px; flex:0 0 auto; }
+.bizos-notification-close:hover { background:#f3f4f6; color:#111827; }
+@media (max-width:768px) { .bizos-notification { top:16px !important; right:16px !important; left:16px !important; max-width:none !important; } }
+#login-business-name, label[for="login-business-name"] { display:none !important; }
 </style>
-
 <script>
-/* Override the older notification function after scripts.html loads. */
 setTimeout(function () {
-  /* The normal BizOS login identifies the account by email + password.
-     Keep the legacy field in the DOM for compatibility, but hide it and
-     make sure browser validation can never require it. */
   var businessNameInput = document.getElementById('login-business-name');
   if (businessNameInput) {
-    businessNameInput.required = false;
+    businessNameInput.required=false;
     businessNameInput.removeAttribute('required');
-    businessNameInput.value = '';
-    var businessNameWrapper = businessNameInput.parentElement;
-    if (businessNameWrapper) businessNameWrapper.style.display = 'none';
+    businessNameInput.value='';
+    if (businessNameInput.parentElement) businessNameInput.parentElement.style.display='none';
   }
-
-  window.showNotification = function (message, type) {
-    type = type || 'info';
-
-    var existing = document.querySelector('.bizos-notification');
-    if (existing) existing.remove();
-
-    var colors = {
-      success: '#10b981',
-      error: '#ef4444',
-      warning: '#f59e0b',
-      info: '#5D2A86'
-    };
-
-    var icons = {
-      success: '<i class="fas fa-check-circle"></i>',
-      error: '<i class="fas fa-exclamation-circle"></i>',
-      warning: '<i class="fas fa-exclamation-triangle"></i>',
-      info: '<i class="fas fa-info-circle"></i>'
-    };
-
-    var notification = document.createElement('div');
-    notification.className = 'bizos-notification';
-    notification.style.cssText =
-      'position:fixed;' +
-      'top:20px;' +
-      'right:20px;' +
-      'background:white;' +
-      'color:#1f2937;' +
-      'padding:12px 12px 12px 20px;' +
-      'border-radius:8px;' +
-      'box-shadow:0 4px 12px rgba(0,0,0,0.15);' +
-      'z-index:100001;' +
-      'font-size:14px;' +
-      'font-weight:500;' +
-      'display:flex;' +
-      'align-items:center;' +
-      'gap:10px;' +
-      'border-left:4px solid ' + (colors[type] || colors.info) + ';' +
-      'animation:slideIn 0.3s ease;' +
-      'max-width:350px;' +
-      'pointer-events:auto;';
-
-    var icon = icons[type] || icons.info;
-    notification.innerHTML =
-      icon +
-      '<span style="flex:1;">' + String(message || '') + '</span>' +
-      '<button type="button" class="bizos-notification-close" aria-label="Close notification">&times;</button>';
-
+  window.showNotification=function(message,type){
+    type=type||'info';
+    var existing=document.querySelector('.bizos-notification');
+    if(existing) existing.remove();
+    var colors={success:'#10b981',error:'#ef4444',warning:'#f59e0b',info:'#5D2A86'};
+    var icons={success:'<i class="fas fa-check-circle"></i>',error:'<i class="fas fa-exclamation-circle"></i>',warning:'<i class="fas fa-exclamation-triangle"></i>',info:'<i class="fas fa-info-circle"></i>'};
+    var notification=document.createElement('div');
+    notification.className='bizos-notification';
+    notification.style.cssText='position:fixed;top:20px;right:20px;background:white;color:#1f2937;padding:12px 12px 12px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:100001;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;border-left:4px solid '+(colors[type]||colors.info)+';animation:slideIn 0.3s ease;max-width:350px;pointer-events:auto;';
+    notification.innerHTML=(icons[type]||icons.info)+'<span style="flex:1;">'+String(message||'')+'</span><button type="button" class="bizos-notification-close" aria-label="Close notification">&times;</button>';
     document.body.appendChild(notification);
-
-    var closeButton = notification.querySelector('.bizos-notification-close');
-    if (closeButton) {
-      closeButton.addEventListener('click', function () {
-        notification.remove();
-      });
-    }
-
-    setTimeout(function () {
-      if (notification && notification.parentNode) notification.remove();
-    }, 8000);
+    var closeButton=notification.querySelector('.bizos-notification-close');
+    if(closeButton) closeButton.addEventListener('click',function(){notification.remove();});
+    setTimeout(function(){if(notification&&notification.parentNode) notification.remove();},8000);
   };
-
-  /* Replace native browser alerts with BizOS notifications. */
-  window.alert = function (message) {
-    window.showNotification(String(message || ''), 'error');
-  };
-
-  /* The old login code uses confirm() specifically for the unverified-account
-     resend prompt. Handle that case in BizOS UI instead of an Apps Script
-     googleusercontent browser dialog. Other confirmation dialogs remain native. */
-  var nativeConfirm = window.confirm;
-  window.confirm = function (message) {
-    var text = String(message || '');
-
-    if (text.indexOf('Would you like to receive a new verification email?') !== -1) {
-      var emailInput = document.getElementById('login-email');
-      var email = emailInput ? String(emailInput.value || '').trim() : '';
-
-      if (!email) {
-        window.showNotification('Please enter your email address first.', 'warning');
-        return false;
-      }
-
-      window.showNotification('Sending a new verification email…', 'info');
-
-      google.script.run
-        .withSuccessHandler(function (response) {
-          if (response && response.success) {
-            window.showNotification(response.message || 'Verification email sent. Please check your inbox.', 'success');
-          } else {
-            window.showNotification((response && response.message) || 'Could not send the verification email.', 'error');
-          }
-        })
-        .withFailureHandler(function () {
-          window.showNotification('Could not send the verification email. Please try again.', 'error');
-        })
-        .resendVerificationEmail(email);
-
-      /* The resend has already been handled above. Return false so the old
-         handler does not send a second request. */
+  window.alert=function(message){window.showNotification(String(message||''),'error');};
+  var nativeConfirm=window.confirm;
+  window.confirm=function(message){
+    var text=String(message||'');
+    if(text.indexOf('Would you like to receive a new verification email?')!==-1){
+      var emailInput=document.getElementById('login-email');
+      var email=emailInput?String(emailInput.value||'').trim():'';
+      if(!email){window.showNotification('Please enter your email address first.','warning');return false;}
+      window.showNotification('Sending a new verification email…','info');
+      google.script.run.withSuccessHandler(function(response){
+        if(response&&response.success) window.showNotification(response.message||'Verification email sent. Please check your inbox.','success');
+        else window.showNotification((response&&response.message)||'Could not send the verification email.','error');
+      }).withFailureHandler(function(){window.showNotification('Could not send the verification email. Please try again.','error');}).resendVerificationEmail(email);
       return false;
     }
-
-    return nativeConfirm.call(window, message);
+    return nativeConfirm.call(window,message);
   };
-}, 0);
+},0);
+</script>
+
+<script>
+/* ============================================================
+   GLOBAL COUNTRY + SKELETON COMPATIBILITY
+   ============================================================ */
+(function(){
+  /* Prevent the existing frontend bootstrap from crashing when the optional
+     skeleton helper is not present in an older script bundle. */
+  if(typeof window.showSkeletonCards !== 'function'){
+    window.showSkeletonCards=function(container){
+      if(!container) return;
+      var el=typeof container==='string'?document.getElementById(container):container;
+      if(!el) return;
+      var count=el.dataset&&el.dataset.skeletonCount?parseInt(el.dataset.skeletonCount,10):3;
+      if(!count||count<1) count=3;
+      var html='';
+      for(var i=0;i<count;i++) html+='<div class="animate-pulse bg-gray-100 rounded-lg h-20 mb-3"></div>';
+      el.innerHTML=html;
+    };
+  }
+
+  /* ISO 3166-1 alpha-2 country codes. Names are generated by the browser's
+     Intl API, keeping the list maintainable and avoiding a second country map. */
+  var codes=('AF AL DZ AS AD AO AI AQ AG AR AM AW AU AT AZ BS BH BD BB BY BE BZ BJ BM BT BO BQ BA BW BV BR IO BN BG BF BI CV KH CM CA KY CF TD CL CN CX CC CO KM CG CD CK CR CI HR CU CW CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FK FO FJ FI FR GF PF TF GA GM GE DE GH GI GR GL GD GP GU GT GG GN GW GY HT HM VA HN HK HU IS IN ID IR IQ IE IM IL IT JM JP JE JO KZ KE KI KP KR KW KG LA LV LB LS LR LY LI LT LU MO MG MW MY MV ML MT MH MQ MR MU YT MX FM MD MC MN ME MS MA MZ MM NA NR NP NL NC NZ NI NE NG NU NF MK MP NO OM PK PW PS PA PG PY PE PH PN PL PT PR QA RE RO RU RW BL SH KN LC MF PM VC WS SM ST SA SN RS SC SL SG SX SK SI SB SO ZA GS SS ES LK SD SR SJ SE CH SY TW TJ TZ TH TL TG TK TO TT TN TR TM TC TV UG UA AE GB US UM UY UZ VU VE VN VG VI WF EH YE ZM ZW').split(' ');
+  var names;
+  try { names=new Intl.DisplayNames(['en'],{type:'region'}); } catch(e) { names=null; }
+
+  function populateCountrySelect(select){
+    if(!select||select.dataset.bizosCountries==='1') return;
+    var current=String(select.value||'');
+    var options=[];
+    codes.forEach(function(code){
+      var label=names?names.of(code):code;
+      if(label) options.push({code:code,label:label});
+    });
+    options.sort(function(a,b){return a.label.localeCompare(b.label);});
+    select.innerHTML='<option value="">Select country</option>';
+    options.forEach(function(item){
+      var opt=document.createElement('option');
+      opt.value=item.label;
+      opt.textContent=item.label;
+      select.appendChild(opt);
+    });
+    if(current) {
+      var match=options.find(function(item){return item.label===current||item.code===current;});
+      if(match) select.value=match.label;
+    }
+    select.dataset.bizosCountries='1';
+  }
+
+  function scanCountrySelectors(){
+    document.querySelectorAll('select').forEach(function(select){
+      var id=String(select.id||'').toLowerCase();
+      var name=String(select.name||'').toLowerCase();
+      var aria=String(select.getAttribute('aria-label')||'').toLowerCase();
+      if(id.indexOf('country')!==-1||name.indexOf('country')!==-1||aria.indexOf('country')!==-1) populateCountrySelect(select);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded',scanCountrySelectors);
+  window.addEventListener('load',scanCountrySelectors);
+  if(window.MutationObserver){
+    new MutationObserver(function(){scanCountrySelectors();}).observe(document.documentElement,{childList:true,subtree:true});
+  }
+  setTimeout(scanCountrySelectors,500);
+  setTimeout(scanCountrySelectors,1500);
+})();
 </script>
