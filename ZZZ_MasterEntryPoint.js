@@ -19,8 +19,8 @@ doGet = function(e) {
       ).setTitle('Authorization Complete');
     }
 
-    // Email verification links must be handled by the master backend,
-    // then return a normal BizOS-branded page instead of a raw Apps Script page.
+    // Email verification is handled here, but every user-facing destination
+    // remains on the public BizOS domain. Apps Script is backend-only.
     if (params.verify) {
       var verificationResult = verifyEmailToken(String(params.verify));
       var ok = verificationResult && verificationResult.success;
@@ -29,9 +29,10 @@ doGet = function(e) {
         : (ok ? 'Your email has been verified.' : 'We could not verify this email address.');
       var color = ok ? '#10B981' : '#EF4444';
       var title = ok ? 'Email Verified' : 'Verification Failed';
+      var publicUrl = getPublicBizOSUrl_();
       var action = ok
-        ? '<a href="' + getAppUrl() + '?page=login" style="display:inline-block;background:#5D2A86;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Sign in to BizOS</a>'
-        : '<a href="' + getAppUrl() + '" style="display:inline-block;background:#5D2A86;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Return to BizOS</a>';
+        ? '<a href="' + publicUrl + '/login" style="display:inline-block;background:#5D2A86;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Sign in to BizOS</a>'
+        : '<a href="' + publicUrl + '" style="display:inline-block;background:#5D2A86;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Return to BizOS</a>';
 
       return HtmlService.createHtmlOutput(
         '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -57,8 +58,7 @@ doGet = function(e) {
   } catch (error) {
     console.error('Master doGet error:', error);
     // Never leave a normal user on an Apps Script error/fallback page.
-    // Always return them to the public BizOS URL.
-    var publicUrl = getAppUrl();
+    var publicUrl = getPublicBizOSUrl_();
     return HtmlService.createHtmlOutput(
       '<!doctype html><html><head>' +
       '<meta http-equiv="refresh" content="0;url=' + publicUrl + '">' +
