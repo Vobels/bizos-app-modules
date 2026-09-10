@@ -51,7 +51,6 @@ sendVerificationEmail = function(email, businessName, businessId, token) {
     '<p>Welcome to BizOS, <strong>' + String(businessName || 'there') + '</strong>!</p>' +
     '<p>Please verify your email address to activate your account.</p>' +
     '<p>This link expires in <strong>24 hours</strong>.</p>' +
-    '<p style="background:#f9fafb;padding:12px;border-radius:8px;color:#4b5563;font-size:13px;">If you don\'t see this email in your inbox, please check your <strong>Spam</strong> or <strong>Junk</strong> folder and search for <strong>BizOS</strong>.</p>' +
     '<p style="background:#f3f4f6;padding:12px;border-radius:8px;color:#4b5563;font-size:13px;">To make sure you continue receiving BizOS messages, please mark this email as <strong>Not Spam</strong> and add BizOS to your trusted contacts or address book.</p>';
 
   return sendBrandedEmail(
@@ -146,7 +145,6 @@ registerBusiness = function(businessData) {
       return { success:false, message:'Missing required fields' };
     }
 
-    // Standard browser email validation. Gmail and company-domain emails are both valid.
     if (!/^\S+@\S+\.\S+$/.test(ownerEmail)) {
       return { success:false, message:'Please enter a valid email address.' };
     }
@@ -222,7 +220,6 @@ registerBusiness = function(businessData) {
 
     var emailSent = sendVerificationEmail(ownerEmail, businessName, businessId, token);
     if (!emailSent) {
-      // Registration is atomic from the user's perspective: do not leave a dead account behind.
       if (verificationRow > 1) verificationSheet.deleteRow(verificationRow);
       if (userRow > 1) userSheet.deleteRow(userRow);
       if (businessRow > 1) businessSheet.deleteRow(businessRow);
