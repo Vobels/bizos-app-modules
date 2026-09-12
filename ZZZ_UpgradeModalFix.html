@@ -1,136 +1,21 @@
 <style>
-/* BizOS — authoritative Upgrade modal controller */
-#upgrade-modal {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 100vh !important;
-  min-height: 100dvh !important;
-  z-index: 2147483646 !important;
-  padding: 16px !important;
-  box-sizing: border-box !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow-y: auto !important;
-  pointer-events: auto !important;
-}
-#upgrade-modal.hidden { display: none !important; }
-#upgrade-modal:not(.hidden) { display: flex !important; }
-#upgrade-modal > div {
-  position: relative !important;
-  z-index: 2147483647 !important;
-  pointer-events: auto !important;
-  max-width: 100% !important;
-  max-height: calc(100dvh - 32px) !important;
-  overflow-y: auto !important;
-  box-sizing: border-box !important;
-}
-#upgrade-modal button {
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
-}
+/* BizOS — upgrade modal presentation only. Never lock the document scroll. */
+#upgrade-modal{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-height:100vh!important;min-height:100dvh!important;z-index:2147483646!important;padding:16px!important;box-sizing:border-box!important;align-items:center!important;justify-content:center!important;overflow-y:auto!important;pointer-events:auto!important;}
+#upgrade-modal.hidden{display:none!important;}#upgrade-modal:not(.hidden){display:flex!important;}
+#upgrade-modal>div{position:relative!important;z-index:2147483647!important;pointer-events:auto!important;max-width:100%!important;max-height:calc(100dvh - 32px)!important;overflow-y:auto!important;box-sizing:border-box!important;}
+#upgrade-modal button{pointer-events:auto!important;touch-action:manipulation!important;}
 </style>
 <script>
-(function () {
-  'use strict';
-
-  function getUpgradeModal() {
-    return document.getElementById('upgrade-modal');
-  }
-
-  function closeUpgradeModalFixed() {
-    var modal = getUpgradeModal();
-    if (!modal) return;
-
-    if (document.activeElement && modal.contains(document.activeElement) && document.activeElement.blur) {
-      document.activeElement.blur();
-    }
-
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.right = '';
-    document.body.style.width = '';
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-  }
-
-  function normalizeUpgradeModal() {
-    var modal = getUpgradeModal();
-    if (!modal) return;
-    modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
-  }
-
-  window.closeUpgradeModal = closeUpgradeModalFixed;
-
-  document.addEventListener('click', function (event) {
-    var modal = getUpgradeModal();
-    if (!modal || modal.classList.contains('hidden')) return;
-
-    var target = event.target;
-    if (!target) return;
-
-    /* Close button: support any existing close button inside the upgrade modal. */
-    var closeButton = target.closest && target.closest(
-      '#upgrade-modal [onclick*="closeUpgradeModal"], #upgrade-modal [data-close-upgrade], #upgrade-modal .upgrade-modal-close'
-    );
-    if (closeButton) {
-      event.preventDefault();
-      event.stopPropagation();
-      closeUpgradeModalFixed();
-      return;
-    }
-
-    /* Clicking the dark backdrop closes the modal. */
-    if (target === modal) {
-      event.preventDefault();
-      closeUpgradeModalFixed();
-    }
-  }, true);
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key !== 'Escape') return;
-    var modal = getUpgradeModal();
-    if (modal && !modal.classList.contains('hidden')) {
-      event.preventDefault();
-      closeUpgradeModalFixed();
-    }
-  }, true);
-
-  /* Preserve the existing upgrade flow, but normalize the modal after it opens. */
-  var attempts = 0;
-  var timer = setInterval(function () {
-    attempts++;
-    if (typeof window.showUpgradeModal === 'function' && !window.__bizosUpgradeWrapped) {
-      var originalShowUpgradeModal = window.showUpgradeModal;
-      window.showUpgradeModal = function () {
-        var result = originalShowUpgradeModal.apply(this, arguments);
-        setTimeout(function () {
-          var modal = getUpgradeModal();
-          if (modal) {
-            modal.classList.remove('hidden');
-            modal.style.display = 'flex';
-            modal.setAttribute('aria-hidden', 'false');
-            document.body.style.overflow = 'hidden';
-          }
-        }, 0);
-        return result;
-      };
-      window.__bizosUpgradeWrapped = true;
-      clearInterval(timer);
-    }
-    if (attempts > 100) clearInterval(timer);
-  }, 100);
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', normalizeUpgradeModal, { once: true });
-  } else {
-    normalizeUpgradeModal();
-  }
+(function(){'use strict';
+function getModal(){return document.getElementById('upgrade-modal');}
+function normalizePageScroll(){if(!document.body||!document.documentElement)return;var b=document.body,h=document.documentElement;['position','top','left','right','width','height','minHeight','overflow','overflowY','overflowX','touchAction'].forEach(function(p){b.style[p]='';});['position','height','minHeight','overflow','overflowY','overflowX'].forEach(function(p){h.style[p]='';});}
+function closeUpgradeModalFixed(){var m=getModal();if(!m)return;if(document.activeElement&&m.contains(document.activeElement)&&document.activeElement.blur)document.activeElement.blur();m.classList.add('hidden');m.style.display='none';m.setAttribute('aria-hidden','true');normalizePageScroll();}
+function normalize(){var m=getModal();if(m)m.setAttribute('aria-hidden',m.classList.contains('hidden')?'true':'false');}
+window.closeUpgradeModal=closeUpgradeModalFixed;
+document.addEventListener('click',function(e){var m=getModal();if(!m||m.classList.contains('hidden'))return;var t=e.target;if(!t)return;var c=t.closest&&t.closest('#upgrade-modal [onclick*="closeUpgradeModal"],#upgrade-modal [data-close-upgrade],#upgrade-modal .upgrade-modal-close');if(c){e.preventDefault();e.stopPropagation();closeUpgradeModalFixed();return;}if(t===m){e.preventDefault();closeUpgradeModalFixed();}},true);
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;var m=getModal();if(m&&!m.classList.contains('hidden')){e.preventDefault();closeUpgradeModalFixed();}},true);
+/* Do not add another modal lock. Only normalize presentation after the existing opener runs. */
+var attempts=0,timer=setInterval(function(){attempts++;if(typeof window.showUpgradeModal==='function'&&!window.__bizosUpgradeWrapped){var original=window.showUpgradeModal;window.showUpgradeModal=function(){var r=original.apply(this,arguments);setTimeout(function(){var m=getModal();if(m){m.classList.remove('hidden');m.style.display='flex';m.setAttribute('aria-hidden','false');normalizePageScroll();}},0);return r;};window.__bizosUpgradeWrapped=true;clearInterval(timer);}if(attempts>100)clearInterval(timer);},100);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',normalize,{once:true});else normalize();
 })();
 </script>
