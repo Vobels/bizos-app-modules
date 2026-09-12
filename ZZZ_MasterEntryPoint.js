@@ -34,10 +34,12 @@ doGet = function(e) {
       ).setTitle('Authorization Complete');
     }
 
-    // Email verification is handled here, then the browser is immediately
-    // returned to the public BizOS landing page. Users must sign in manually.
-    if (params.verify) {
-      var verificationResult = verifyEmailToken(String(params.verify));
+    // Netlify publicly rewrites /verify?token=... to this endpoint without
+    // exposing the Apps Script URL in the browser address bar. Accept both
+    // the internal verify parameter and the public token parameter.
+    var verificationToken = params.verify || params.token;
+    if (verificationToken) {
+      var verificationResult = verifyEmailToken(String(verificationToken));
       var ok = verificationResult && verificationResult.success;
       var publicUrl = getPublicBizOSUrl_();
       var message = verificationResult && verificationResult.message
@@ -69,7 +71,6 @@ doGet = function(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (error) {
     console.error('Master doGet error:', error);
-    // Never leave a normal user on an Apps Script error/fallback page.
     var publicUrl = getPublicBizOSUrl_();
     return HtmlService.createHtmlOutput(
       '<!doctype html><html><head>' +
