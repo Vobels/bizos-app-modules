@@ -1,0 +1,64 @@
+<script>
+// ============================================================
+// ZZZ_PublicRouteSync.html
+// Keep the browser URL aligned with the active BizOS view.
+// User-facing routes stay on https://bizos.higroups.com.
+// ============================================================
+(function () {
+  const PUBLIC_BASE = 'https://bizos.higroups.com';
+
+  function currentPath() {
+    return window.location.pathname.replace(/\/+$/, '') || '/';
+  }
+
+  function setRoute(path, replace) {
+    const normalized = path === '/' ? '/' : '/' + String(path).replace(/^\/+|\/+$/g, '');
+    if (currentPath() === normalized) return;
+    const url = normalized === '/' ? PUBLIC_BASE + '/' : PUBLIC_BASE + normalized;
+    try {
+      (replace ? history.replaceState : history.pushState).call(history, {}, '', url);
+    } catch (e) {
+      console.warn('BizOS route sync failed:', e);
+    }
+  }
+
+  function dashboardVisible() {
+    const el = document.getElementById('dashboard-page');
+    return !!el && !el.classList.contains('hidden');
+  }
+
+  function syncRoute() {
+    if (dashboardVisible()) {
+      setRoute('/dashboard', false);
+    } else if (currentPath() === '/dashboard') {
+      setRoute('/', true);
+    }
+  }
+
+  function start() {
+    syncRoute();
+
+    const dashboard = document.getElementById('dashboard-page');
+    if (dashboard) {
+      new MutationObserver(syncRoute).observe(dashboard, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+      });
+    }
+
+    window.addEventListener('popstate', function () {
+      syncRoute();
+    });
+
+    window.addEventListener('pageshow', function () {
+      setTimeout(syncRoute, 0);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+})();
+</script>
