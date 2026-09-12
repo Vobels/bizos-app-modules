@@ -1,0 +1,209 @@
+<script>
+(function () {
+  'use strict';
+
+  /*
+   * BizOS scroll-state recovery.
+   *
+   * The dashboard can remain fully interactive while the document itself is
+   * accidentally left in a modal-style locked state. This controller does
+   * not create a new scroll container and does not change dashboard layout.
+   * It only releases a stale global page lock when no BizOS modal is open.
+   */
+
+  var MODAL_IDS = [
+    'login-modal',
+    'signup-modal',
+    'forgot-modal',
+    'demo-login-modal',
+    'upgrade-modal'
+  ];
+
+  var lastBadState = '';
+  var recoveryScheduled = false;
+
+  function element(id) {
+    return document.getElementById(id);
+  }
+
+  function modalIsOpen(id) {
+    var modal = element(id);
+    if (!modal) return false;
+
+    if (modal.classList.contains('hidden')) return false;
+
+    var style = window.getComputedStyle(modal);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  }
+
+  function anyModalOpen() {
+    for (var i = 0; i < MODAL_IDS.length; i++) {
+      if (modalIsOpen(MODAL_IDS[i])) return true;
+    }
+    return false;
+  }
+
+  function getState() {
+    var html = document.documentElement;
+    var body = document.body;
+    if (!html || !body) return null;
+
+    var htmlStyle = window.getComputedStyle(html);
+    var bodyStyle = window.getComputedStyle(body);
+
+    return {
+      htmlOverflow: htmlStyle.overflow,
+      htmlOverflowY: htmlStyle.overflowY,
+      bodyPosition: bodyStyle.position,
+      bodyOverflow: bodyStyle.overflow,
+      bodyOverflowY: bodyStyle.overflowY,
+      bodyTouchAction: bodyStyle.touchAction,
+      bodyHeight: bodyStyle.height,
+      bodyScrollHeight: body.scrollHeight,
+      bodyClientHeight: body.clientHeight,
+      docScrollHeight: html.scrollHeight,
+      docClientHeight: html.clientHeight,
+      scrollY: window.pageYOffset || window.scrollY || 0
+    };
+  }
+
+  function hasStaleGlobalLock(state) {
+    if (!state) return false;
+
+    return (
+      state.bodyPosition === 'fixed' ||
+      state.bodyOverflow === 'hidden' ||
+      state.bodyOverflowY === 'hidden' ||
+      state.htmlOverflow === 'hidden' ||
+      state.htmlOverflowY === 'hidden' ||
+      state.bodyTouchAction === 'none'
+    );
+  }
+
+  function releaseStaleLock(reason) {
+    if (!document.body || !document.documentElement) return;
+    if (anyModalOpen()) return;
+
+    var state = getState();
+    if (!hasStaleGlobalLock(state)) return;
+
+    var signature = [
+      state.bodyPosition,
+      state.bodyOverflow,
+      state.bodyOverflowY,
+      state.htmlOverflow,
+      state.htmlOverflowY,
+      state.bodyTouchAction
+    ].join('|');
+
+    if (signature === lastBadState && recoveryScheduled) return;
+    lastBadState = signature;
+
+    if (recoveryScheduled) return;
+    recoveryScheduled = true;
+
+    window.requestAnimationFrame(function () {
+      recoveryScheduled = false;
+
+      if (anyModalOpen()) return;
+
+      var html = document.documentElement;
+      var body = document.body;
+      var restoreY = window.pageYOffset || window.scrollY || html.scrollTop || 0;
+
+      /* Remove only stale global lock properties. Let the stylesheet regain
+         control of normal page scrolling. */
+      body.style.position = '';
+      body.style.top = '';
+      body.style.left = '';
+      body.style.right = '';
+      body.style.width = '';
+      body.style.height = '';
+      body.style.minHeight = '';
+      body.style.overflow = '';
+      body.style.overflowY = '';
+      body.style.overflowX = '';
+      body.style.touchAction = '';
+      html.style.overflow = '';
+      html.style.overflowY = '';
+      html.style.overflowX = '';
+      html.style.position = '';
+      html.style.height = '';
+      html.style.minHeight = '';
+
+      /* A fixed body can visually preserve its old offset. Restore the
+         document position after releasing the lock. */
+      window.setTimeout(function () {
+        if (!anyModalOpen()) {
+          window.scrollTo(0, restoreY);
+        }
+      }, 0);
+
+      console.info('[BizOS ScrollFix] released stale page scroll lock:', reason);
+    });
+  }
+
+  function check(reason) {
+    if (document.visibilityState === 'hidden' && reason !== 'pageshow') return;
+    releaseStaleLock(reason);
+  }
+
+  function install() {
+    check('install');
+
+    window.addEventListener('pageshow', function () {
+      lastBadState = '';
+      check('pageshow');
+    }, false);
+
+    window.addEventListener('focus', function () {
+      check('window-focus');
+    }, false);
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        lastBadState = '';
+        check('visibility-visible');
+      }
+    }, false);
+
+    window.addEventListener('resize', function () {
+      check('resize');
+    }, false);
+
+    window.addEventListener('orientationchange', function () {
+      check('orientationchange');
+    }, false);
+
+    /* Detect JS code that changes body/html inline styles after load. */
+    var observer = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].type === 'attributes' &&
+            (mutations[i].attributeName === 'style' || mutations[i].attributeName === 'class')) {
+          check('style/class mutation');
+          break;
+        }
+      }
+    });
+
+    if (document.documentElement) {
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+    if (document.body) {
+      observer.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+
+    /* Low-frequency watchdog for delayed modal/notification interactions.
+       It does nothing unless a stale global lock is actually detected. */
+    window.setInterval(function () {
+      check('watchdog');
+    }, 750);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', install, { once: true });
+  } else {
+    install();
+  }
+})();
+</script>
