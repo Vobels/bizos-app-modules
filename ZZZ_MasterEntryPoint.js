@@ -63,7 +63,14 @@ doGet = function(e) {
     }
 
     var template = HtmlService.createTemplateFromFile('index');
-    template.showLogin = String(params.page || '').toLowerCase() === 'login';
+    var requestedPage = String(params.page || '').toLowerCase();
+
+    // Authoritative public route modes:
+    //   /            -> landing page, regardless of existing session
+    //   /dashboard   -> dashboard app
+    //   ?page=login  -> landing page + login modal
+    template.routeMode = requestedPage === 'dashboard' ? 'dashboard' : 'landing';
+    template.showLogin = requestedPage === 'login';
 
     return template.evaluate()
       .setTitle('BizOS - Business Operating System')
