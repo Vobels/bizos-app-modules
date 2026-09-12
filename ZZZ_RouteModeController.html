@@ -1,7 +1,9 @@
 <script>
 (function () {
-  // The master entry point sets this from the requested public route.
   const mode = String(window.__BIZOS_ROUTE_MODE || 'landing').toLowerCase();
+  const PUBLIC_ORIGIN = 'https://bizos.higroups.com';
+  let initialLoad = true;
+  let originalLoadSession = null;
 
   function showOnly(id) {
     const pageIds = ['landing-page', 'dashboard-page', 'profile-page', 'cms-page'];
@@ -13,25 +15,71 @@
     });
   }
 
-  function applyRouteMode() {
+  function dashboardVisible() {
+    const el = document.getElementById('dashboard-page');
+    return !!el && !el.classList.contains('hidden');
+  }
+
+  function notifyParent(path) {
+    try {
+      window.parent.postMessage({ type: 'bizos-route', path: path }, PUBLIC_ORIGIN);
+    } catch (e) {}
+  }
+
+  function applyInitialMode() {
     if (mode === 'dashboard') {
       showOnly('dashboard-page');
     } else {
-      // Root is always the public landing page, even when a session exists.
+      // / must always start on the landing page, even if a session is stored.
       showOnly('landing-page');
     }
   }
 
-  // Apply immediately so the existing session loader cannot turn / into dashboard.
-  applyRouteMode();
+  // On the public root, prevent the existing auto-session loader from opening
+  // the dashboard during the initial page load. The original function is restored
+  // immediately after load so normal login/session behavior remains unchanged.
+  if (mode !== 'dashboard' && typeof window.loadSession === 'function') {
+    originalLoadSession = window.loadSession;
+    window.loadSession = function () {
+      if (initialLoad) return false;
+      return originalLoadSession.apply(this, arguments);
+    };
+  }
+
+  applyInitialMode();
+
+  const observer = new MutationObserver(function () {
+    if (initialLoad) return;
+    if (dashboardVisible()) notifyParent('/dashboard');
+  });
+
+  const dashboard = document.getElementById('dashboard-page');
+  if (dashboard) {
+    observer.observe(dashboard, {
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+  }
 
   window.addEventListener('load', function () {
-    applyRouteMode();
-    setTimeout(applyRouteMode, 0);
+    // Restore normal session loading after the root has safely rendered landing.
+    initialLoad = false;
+    if (originalLoadSession) {
+      window.loadSession = originalLoadSession;
+      originalLoadSession = null;
+    }
+
+    if (mode === 'dashboard') {
+      showOnly('dashboard-page');
+      notifyParent('/dashboard');
+    } else {
+      showOnly('landing-page');
+      notifyParent('/');
+    }
   });
 
   window.addEventListener('pageshow', function () {
-    applyRouteMode();
+    if (!initialLoad && mode === 'dashboard') showOnly('dashboard-page');
   });
 })();
 </script>
