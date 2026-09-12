@@ -24,8 +24,13 @@
   <?!= include('ModalFix') ?>
   <?!= include('ZZZ_UpgradeModalFix') ?>
   <?!= include('ZZZ_PublicRouteSync') ?>
+  <?!= include('ZZZ_RouteModeController') ?>
+  <?!= include('ZZZ_ProfilePageLayoutFix') ?>
   
   <script>
+    /* Public route mode is authoritative: / = landing, /dashboard = app. */
+    window.__BIZOS_ROUTE_MODE = <?= routeMode ? JSON.stringify(routeMode) : '"landing"' ?>;
+
     /* Login-page deep link uses the same authoritative modal controller
        as every other landing-page login button. */
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
