@@ -29,7 +29,6 @@
   function modalIsOpen(id) {
     var modal = element(id);
     if (!modal) return false;
-
     if (modal.classList.contains('hidden')) return false;
 
     var style = window.getComputedStyle(modal);
@@ -58,12 +57,12 @@
       bodyOverflow: bodyStyle.overflow,
       bodyOverflowY: bodyStyle.overflowY,
       bodyTouchAction: bodyStyle.touchAction,
-      bodyHeight: bodyStyle.height,
       bodyScrollHeight: body.scrollHeight,
       bodyClientHeight: body.clientHeight,
       docScrollHeight: html.scrollHeight,
       docClientHeight: html.clientHeight,
-      scrollY: window.pageYOffset || window.scrollY || 0
+      scrollY: window.pageYOffset || window.scrollY || 0,
+      bodyTop: body.style.top || ''
     };
   }
 
@@ -80,6 +79,23 @@
     );
   }
 
+  function getRestoreY(state) {
+    var y = state && state.scrollY || 0;
+
+    /* ModalFix preserves the previous document position in body.top when it
+       freezes the body. If the browser reports scrollY=0 while that frozen
+       offset is active, recover the position from the negative top value. */
+    if (state && state.bodyPosition === 'fixed' && state.bodyTop) {
+      var match = String(state.bodyTop).match(/^(-?\d+(?:\.\d+)?)px$/);
+      if (match) {
+        var fromTop = -parseFloat(match[1]);
+        if (isFinite(fromTop) && fromTop >= 0) y = fromTop;
+      }
+    }
+
+    return Math.max(0, y);
+  }
+
   function releaseStaleLock(reason) {
     if (!document.body || !document.documentElement) return;
     if (anyModalOpen()) return;
@@ -93,7 +109,8 @@
       state.bodyOverflowY,
       state.htmlOverflow,
       state.htmlOverflowY,
-      state.bodyTouchAction
+      state.bodyTouchAction,
+      state.bodyTop
     ].join('|');
 
     if (signature === lastBadState && recoveryScheduled) return;
@@ -109,9 +126,9 @@
 
       var html = document.documentElement;
       var body = document.body;
-      var restoreY = window.pageYOffset || window.scrollY || html.scrollTop || 0;
+      var restoreY = getRestoreY(state);
 
-      /* Remove only stale global lock properties. Let the stylesheet regain
+      /* Remove stale global lock properties. Let the stylesheet regain
          control of normal page scrolling. */
       body.style.position = '';
       body.style.top = '';
@@ -131,8 +148,6 @@
       html.style.height = '';
       html.style.minHeight = '';
 
-      /* A fixed body can visually preserve its old offset. Restore the
-         document position after releasing the lock. */
       window.setTimeout(function () {
         if (!anyModalOpen()) {
           window.scrollTo(0, restoreY);
@@ -187,14 +202,20 @@
     });
 
     if (document.documentElement) {
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
     }
     if (document.body) {
-      observer.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
     }
 
-    /* Low-frequency watchdog for delayed modal/notification interactions.
-       It does nothing unless a stale global lock is actually detected. */
+    /* Low-frequency watchdog for delayed modal/tab interactions. It does
+       nothing unless a stale global lock is actually detected. */
     window.setInterval(function () {
       check('watchdog');
     }, 750);
