@@ -10,8 +10,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <?!= include('styles') ?>
   <script>
-    /* Public route mode is authoritative: / = landing, /dashboard = app. */
+    /* Public route mode/target are authoritative. */
     window.__BIZOS_ROUTE_MODE = <?= routeMode ? JSON.stringify(routeMode) : '"landing"' ?>;
+    window.__BIZOS_ROUTE_TARGET = <?= routeTarget ? JSON.stringify(routeTarget) : '"landing"' ?>;
   </script>
 </head>
 <body class="bg-gray-50">
@@ -32,8 +33,6 @@
   <?!= include('ZZZ_ProfilePageLayoutFix') ?>
   
   <script>
-    /* Login-page deep link uses the same authoritative modal controller
-       as every other landing-page login button. */
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
 
     window.addEventListener('load', function () {
