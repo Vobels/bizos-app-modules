@@ -1,0 +1,7 @@
+<script>
+// Admin settings is already a tab inside admin.html. This helper only keeps
+// the public /admin/settings route explicit without changing admin business logic.
+(function () {
+  window.__BIZOS_ADMIN_ROUTE = String(window.__BIZOS_ADMIN_ROUTE || 'overview').toLowerCase();
+})();
+</script>
