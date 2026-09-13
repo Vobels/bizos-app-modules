@@ -1,13 +1,10 @@
 // ============================================================
 // ZZZ_MasterEntryPoint.js - AUTHORITATIVE MASTER WEB ENTRY POINT
 // ============================================================
-// This is the final master doGet assignment in the source set.
-// It serves index.html for the master BizOS application. Paid client
-// deployments have their own generated doGet and are not routed here.
+// Public route map for the master BizOS application.
+// Main application views stay in their existing Apps Script files.
 // ============================================================
 
-// Central public URL helper. Keep the public BizOS destination in CONFIG
-// so verification/login links can be changed in one place later.
 function getPublicBizOSUrl_() {
   var base = '';
   try {
@@ -24,6 +21,7 @@ function getAppUrl() {
 doGet = function(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
+    var requestedPage = String(params.page || '').toLowerCase();
 
     if (params.auth === '1') {
       return HtmlService.createHtmlOutput(
@@ -34,9 +32,7 @@ doGet = function(e) {
       ).setTitle('Authorization Complete');
     }
 
-    // Netlify publicly rewrites /verify?token=... to this endpoint without
-    // exposing the Apps Script URL in the browser address bar. Accept both
-    // the internal verify parameter and the public token parameter.
+    // Public email verification endpoint.
     var verificationToken = params.verify || params.token;
     if (verificationToken) {
       var verificationResult = verifyEmailToken(String(verificationToken));
@@ -62,14 +58,34 @@ doGet = function(e) {
       ).setTitle(title + ' - BizOS');
     }
 
-    var template = HtmlService.createTemplateFromFile('index');
-    var requestedPage = String(params.page || '').toLowerCase();
+    // Admin is a dedicated Apps Script page. Keep it separate from the
+    // customer-facing application shell and never mix admin UI into index.html.
+    if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
+      return HtmlService.createTemplateFromFile('admin').evaluate()
+        .setTitle(requestedPage === 'admin-settings' ? 'BizOS Admin Settings' : 'BizOS Admin Dashboard')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    }
 
-    // Authoritative public route modes:
-    //   /            -> landing page, regardless of existing session
-    //   /dashboard   -> dashboard app
-    //   ?page=login  -> landing page + login modal
-    template.routeMode = requestedPage === 'dashboard' ? 'dashboard' : 'landing';
+    var template = HtmlService.createTemplateFromFile('index');
+
+    // Authoritative public route modes/targets.
+    // /                    -> landing
+    // /dashboard           -> dashboard
+    // /profile             -> profile view
+    // /staff               -> HR/staff view
+    // /admin*              -> dedicated admin page above
+    // ?page=login          -> landing + login modal
+    var validRouteTargets = {
+      landing: true,
+      dashboard: true,
+      profile: true,
+      staff: true
+    };
+
+    var routeTarget = validRouteTargets[requestedPage] ? requestedPage : 'landing';
+
+    template.routeMode = routeTarget === 'dashboard' ? 'dashboard' : 'landing';
+    template.routeTarget = routeTarget;
     template.showLogin = requestedPage === 'login';
 
     return template.evaluate()
