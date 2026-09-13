@@ -1,6 +1,7 @@
 <script>
 (function () {
   const mode = String(window.__BIZOS_ROUTE_MODE || 'landing').toLowerCase();
+  const target = String(window.__BIZOS_ROUTE_TARGET || mode || 'landing').toLowerCase();
   const PUBLIC_ORIGIN = 'https://bizos.higroups.com';
   let initialLoad = true;
   let originalLoadSession = null;
@@ -22,22 +23,31 @@
 
   function notifyParent(path) {
     try {
-      window.parent.postMessage({ type: 'bizos-route', path: path }, PUBLIC_ORIGIN);
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'bizos-route', path: path }, PUBLIC_ORIGIN);
+      }
     } catch (e) {}
   }
 
   function applyInitialMode() {
-    if (mode === 'dashboard') {
+    if (target === 'profile') {
+      showOnly('dashboard-page');
+      return;
+    }
+
+    if (target === 'staff') {
+      showOnly('dashboard-page');
+      return;
+    }
+
+    if (mode === 'dashboard' || target === 'dashboard') {
       showOnly('dashboard-page');
     } else {
-      // / must always start on the landing page, even if a session is stored.
+      // / must always start on the landing page, even when a session exists.
       showOnly('landing-page');
     }
   }
 
-  // On the public root, prevent the existing auto-session loader from opening
-  // the dashboard during the initial page load. The original function is restored
-  // immediately after load so normal login/session behavior remains unchanged.
   if (mode !== 'dashboard' && typeof window.loadSession === 'function') {
     originalLoadSession = window.loadSession;
     window.loadSession = function () {
@@ -48,28 +58,39 @@
 
   applyInitialMode();
 
-  const observer = new MutationObserver(function () {
-    if (initialLoad) return;
-    if (dashboardVisible()) notifyParent('/dashboard');
-  });
-
-  const dashboard = document.getElementById('dashboard-page');
-  if (dashboard) {
-    observer.observe(dashboard, {
-      attributes: true,
-      attributeFilter: ['class', 'style']
-    });
-  }
-
   window.addEventListener('load', function () {
-    // Restore normal session loading after the root has safely rendered landing.
     initialLoad = false;
+
     if (originalLoadSession) {
       window.loadSession = originalLoadSession;
       originalLoadSession = null;
     }
 
-    if (mode === 'dashboard') {
+    if (target === 'profile') {
+      if (typeof window.showProfilePage === 'function') {
+        window.showProfilePage();
+      }
+      notifyParent('/profile');
+      return;
+    }
+
+    if (target === 'staff') {
+      // BizOS currently manages staff through the HR module. Keep the public
+      // route stable while reusing the existing module implementation.
+      if (typeof window.openModule === 'function') {
+        window.openModule('HR');
+      }
+      notifyParent('/staff');
+      return;
+    }
+
+    if (target === 'admin' || target === 'admin-settings') {
+      // Admin is a dedicated Apps Script page and is handled by doGet.
+      notifyParent(target === 'admin-settings' ? '/admin/settings' : '/admin');
+      return;
+    }
+
+    if (mode === 'dashboard' || target === 'dashboard') {
       showOnly('dashboard-page');
       notifyParent('/dashboard');
     } else {
@@ -79,7 +100,9 @@
   });
 
   window.addEventListener('pageshow', function () {
-    if (!initialLoad && mode === 'dashboard') showOnly('dashboard-page');
+    if (!initialLoad && (mode === 'dashboard' || target === 'dashboard')) {
+      showOnly('dashboard-page');
+    }
   });
 })();
 </script>
