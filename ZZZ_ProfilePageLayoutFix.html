@@ -1,67 +1,94 @@
 <style>
-/* =========================================================
-   PROFILE PAGE LAYOUT FIX
-   Keep Profile in normal document flow like Dashboard.
-   Do not alter the dashboard layout.
-   ========================================================= */
-
+/* PROFILE: same document-flow model as Dashboard. */
 #profile-page {
   position: relative !important;
   inset: auto !important;
+  display: none !important;
   width: 100% !important;
   height: auto !important;
   min-width: 0 !important;
   min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
   z-index: 1 !important;
   background: #f9fafb !important;
   overflow: visible !important;
 }
 
-#profile-page:not(.hidden) {
-  display: block !important;
-}
+#profile-page:not(.hidden) { display: block !important; }
 
-/* Profile uses the same 256px desktop sidebar spacing as Dashboard.
-   Override the generic .flex-1 rule and the md:ml-64 utility so the
-   content is not shifted twice. */
+/* Exactly the same content-column offset as Dashboard. */
+#profile-page > .flex { display: flex !important; min-height: 100vh !important; align-items: flex-start !important; }
 #profile-page > .flex > .flex-1 {
   margin-left: 256px !important;
-  min-width: 0;
+  min-width: 0 !important;
+  width: calc(100% - 256px) !important;
   padding-bottom: 72px !important;
 }
 
-#profile-page > .flex {
-  min-height: 100vh;
-  align-items: flex-start;
-}
-
-/* Header belongs to the profile content column and should not be
-   clipped by a fixed viewport. */
 #profile-page > .flex > .flex-1 > .sticky {
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
 }
 
-/* Allow the profile document to extend naturally to its full height. */
-#profile-page .max-w-4xl {
-  width: 100%;
-}
+#profile-page .max-w-4xl { width: 100% !important; max-width: 56rem !important; }
 
-/* Never lock the document when Profile is open. */
+/* The Profile source currently contains legacy inline fixed/overflow styles.
+   Normalize those values at runtime so they cannot fight the Dashboard model. */
+#profile-page[style] { position: relative !important; inset: auto !important; height: auto !important; overflow: visible !important; }
+
 body:has(#profile-page:not(.hidden)) {
   overflow-x: hidden !important;
   overflow-y: auto !important;
 }
 
 @media (max-width: 768px) {
+  #profile-page > .flex { min-height: 100vh !important; }
   #profile-page > .flex > .flex-1 {
     margin-left: 0 !important;
+    width: 100% !important;
     padding-bottom: 96px !important;
-  }
-
-  #profile-page > .flex {
-    min-height: 100vh;
   }
 }
 </style>
+
+<script>
+(function () {
+  function normalizeProfileSource() {
+    const page = document.getElementById('profile-page');
+    if (!page) return;
+
+    // Remove the legacy fixed-viewport inline layout from profile.html.
+    page.style.position = 'relative';
+    page.style.top = 'auto';
+    page.style.left = 'auto';
+    page.style.right = 'auto';
+    page.style.bottom = 'auto';
+    page.style.width = '100%';
+    page.style.height = 'auto';
+    page.style.overflow = 'visible';
+    page.style.zIndex = '1';
+
+    const content = page.querySelector(':scope > .flex > .flex-1');
+    if (content) {
+      content.classList.remove('md:ml-64');
+      content.classList.remove('ml-64');
+      content.classList.add('ml-0', 'md:ml-64');
+      content.style.marginLeft = '';
+      content.style.width = '';
+    }
+
+    document.body.style.overflowX = 'hidden';
+    document.body.style.overflowY = 'auto';
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', normalizeProfileSource, { once: true });
+  } else {
+    normalizeProfileSource();
+  }
+
+  window.addEventListener('pageshow', normalizeProfileSource);
+})();
+</script>
