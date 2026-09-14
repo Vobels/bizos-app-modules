@@ -21,6 +21,46 @@ function getAppUrl() {
   return getPublicBizOSUrl_();
 }
 
+function getInitialPublicRoute_(params) {
+  var requested = '';
+
+  if (params) {
+    requested = params.path || params.route || params.page || '';
+  }
+
+  requested = String(requested || '').trim().toLowerCase();
+  if (!requested) return '/';
+
+  var aliases = {
+    landing: '/',
+    dashboard: '/dashboard',
+    profile: '/profile',
+    staff: '/staff',
+    admin: '/admin',
+    'admin-settings': '/admin/settings',
+    settings: '/admin/settings'
+  };
+
+  if (aliases[requested]) return aliases[requested];
+
+  if (requested.charAt(0) !== '/') {
+    requested = '/' + requested;
+  }
+
+  requested = requested.replace(/\/+$/, '') || '/';
+
+  var allowed = {
+    '/': true,
+    '/dashboard': true,
+    '/profile': true,
+    '/staff': true,
+    '/admin': true,
+    '/admin/settings': true
+  };
+
+  return allowed[requested] ? requested : '/';
+}
+
 doGet = function(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
@@ -62,6 +102,7 @@ doGet = function(e) {
 
     var template = HtmlService.createTemplateFromFile('index');
     template.showLogin = String(params.page || '').toLowerCase() === 'login';
+    template.initialRoute = getInitialPublicRoute_(params);
 
     return template.evaluate()
       .setTitle('BizOS - Business Operating System')
