@@ -1,20 +1,15 @@
 <script>
 // Public route synchronisation for the outer BizOS shell.
-// The public shell owns the browser URL; GAS only reports the active route.
+// GAS reports the active route; the public shell owns the browser URL.
 (function () {
   const ROUTES = {
-    landing: '/',
-    dashboard: '/dashboard',
-    profile: '/profile',
-    staff: '/staff',
-    admin: '/admin',
-    adminSettings: '/admin/settings'
+    landing: '/', dashboard: '/dashboard', profile: '/profile',
+    staff: '/staff', admin: '/admin', adminSettings: '/admin/settings'
   };
 
   function notifyParent(path) {
     try {
       if (window.top !== window) {
-        // Let the public shell validate the sender and handle the URL.
         window.top.postMessage({ type: 'bizos-route', path: path }, '*');
       }
     } catch (e) {}
@@ -37,11 +32,9 @@
       showProfilePage: ROUTES.profile,
       showSettingsPage: ROUTES.adminSettings
     };
-
     Object.keys(mappings).forEach(function (name) {
       const original = window[name];
       if (typeof original !== 'function' || original.__bizosRouteWrapped) return;
-
       const wrapped = function () {
         const result = original.apply(this, arguments);
         setTimeout(function () { notifyParent(mappings[name]); }, 0);
@@ -66,26 +59,14 @@
   function start() {
     wrapNavigation();
     setTimeout(publishCurrentView, 0);
-
     const app = document.getElementById('app');
     if (app && window.MutationObserver) {
       new MutationObserver(function () {
-        setTimeout(function () {
-          wrapNavigation();
-          publishCurrentView();
-        }, 0);
-      }).observe(app, {
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class', 'style']
-      });
+        setTimeout(function () { wrapNavigation(); publishCurrentView(); }, 0);
+      }).observe(app, { subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     }
-
     window.addEventListener('pageshow', function () {
-      setTimeout(function () {
-        wrapNavigation();
-        publishCurrentView();
-      }, 0);
+      setTimeout(function () { wrapNavigation(); publishCurrentView(); }, 0);
     });
   }
 
