@@ -9,6 +9,11 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <?!= include('styles') ?>
+  <script>
+    window.__BIZOS_ROUTE_MODE = <?= routeMode ? JSON.stringify(routeMode) : '"landing"' ?>;
+    window.__BIZOS_ROUTE_TARGET = <?= routeTarget ? JSON.stringify(routeTarget) : '"landing"' ?>;
+    window.__BIZOS_INITIAL_ROUTE = <?= JSON.stringify(initialRoute || '/') ?>;
+  </script>
 </head>
 <body class="bg-gray-50">
   <div id="app">
@@ -17,39 +22,25 @@
     <?!= include('profile') ?>
     <?!= include('cms') ?>
   </div>
-  
   <?!= include('notification') ?>
   <?!= include('scripts') ?>
   <?!= include('forms') ?>
   <?!= include('ModalFix') ?>
   <?!= include('ZZZ_UpgradeModalFix') ?>
+  <?!= include('ZZZ_PublicRouteSync') ?>
   <?!= include('ZZZ_RouteModeController') ?>
-  
+  <?!= include('ZZZ_ProfilePageLayoutFix') ?>
   <script>
-    /* Public route supplied by the master Apps Script entry point. */
-    window.__BIZOS_INITIAL_ROUTE = <?= JSON.stringify(initialRoute || '/') ?>;
-
-    /* Login-page deep link uses the same authoritative modal controller
-       as every other landing-page login button. */
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
-
     window.addEventListener('load', function () {
       if (!shouldShowLogin) return;
-
-      console.log("🔁 showLogin detected from server");
       let attempts = 0;
       const interval = setInterval(function () {
         if (typeof window.openLoginModal === 'function' && document.getElementById('login-modal')) {
-          window.openLoginModal();
-          clearInterval(interval);
-          return;
+          window.openLoginModal(); clearInterval(interval); return;
         }
-
         attempts++;
-        if (attempts > 20) {
-          console.log("❌ Login modal controller never became available");
-          clearInterval(interval);
-        }
+        if (attempts > 20) clearInterval(interval);
       }, 200);
     });
   </script>
