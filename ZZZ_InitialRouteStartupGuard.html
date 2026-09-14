@@ -1,0 +1,46 @@
+<script>
+// INITIAL ROUTE STARTUP GUARD
+// Prevent the normal session bootstrap from forcing Dashboard when
+// Apps Script was explicitly opened with ?page=profile, ?page=staff,
+// ?page=settings, ?page=apps or ?page=login.
+(function () {
+  function explicitRoute() {
+    return String(window.__BIZOS_INITIAL_ROUTE || '').trim().toLowerCase();
+  }
+
+  function isNonDashboardRoute() {
+    const route = explicitRoute();
+    return route && route !== '/' && route !== '/dashboard';
+  }
+
+  function wrapDashboardFunction(name) {
+    const original = window[name];
+    if (typeof original !== 'function' || original.__bizOSRouteGuardWrapped) return;
+
+    function guardedDashboardFunction() {
+      if (isNonDashboardRoute()) {
+        console.log('BizOS route guard: skipped ' + name + ' for ' + explicitRoute());
+        return;
+      }
+      return original.apply(this, arguments);
+    }
+
+    guardedDashboardFunction.__bizOSRouteGuardWrapped = true;
+    guardedDashboardFunction.__bizOSOriginal = original;
+    window[name] = guardedDashboardFunction;
+  }
+
+  // scripts.html defines these functions before this file is included.
+  wrapDashboardFunction('loadDashboard');
+  wrapDashboardFunction('loadEnhancedDashboard');
+
+  // If scripts later replaces either function, re-apply the guard before load.
+  let attempts = 0;
+  const timer = setInterval(function () {
+    wrapDashboardFunction('loadDashboard');
+    wrapDashboardFunction('loadEnhancedDashboard');
+    attempts++;
+    if (attempts > 30) clearInterval(timer);
+  }, 100);
+})();
+</script>
