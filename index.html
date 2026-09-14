@@ -23,8 +23,12 @@
   <?!= include('forms') ?>
   <?!= include('ModalFix') ?>
   <?!= include('ZZZ_UpgradeModalFix') ?>
+  <?!= include('ZZZ_RouteModeController') ?>
   
   <script>
+    /* Public route supplied by the master Apps Script entry point. */
+    window.__BIZOS_INITIAL_ROUTE = <?= JSON.stringify(initialRoute || '/') ?>;
+
     /* Login-page deep link uses the same authoritative modal controller
        as every other landing-page login button. */
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
