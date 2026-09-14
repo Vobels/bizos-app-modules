@@ -1,12 +1,12 @@
 <script>
 // ============================================================
 // ZZZ_PublicRouteSync.html
-// Authoritative client-side public route synchronisation.
-// Keeps the browser URL aligned with the active BizOS view.
+// Public route synchronisation for the BizOS application shell.
+// The Apps Script app remains the navigation source of truth;
+// the outer Netlify shell receives the route through postMessage.
 // ============================================================
 (function () {
   const PUBLIC_ORIGIN = 'https://bizos.higroups.com';
-
   const ROUTES = {
     landing: '/',
     dashboard: '/dashboard',
@@ -16,21 +16,12 @@
     adminSettings: '/admin/settings'
   };
 
-  function currentPath() {
-    const path = window.location.pathname.replace(/\/+$/, '') || '/';
-    return path.toLowerCase();
-  }
-
-  function setRoute(path, replace) {
-    const normalized = path === '/' ? '/' : '/' + String(path).replace(/^\/+|\/+$/g, '');
-    if (currentPath() === normalized.toLowerCase()) return;
-
-    const url = PUBLIC_ORIGIN + normalized;
+  function notifyParent(path) {
     try {
-      (replace ? history.replaceState : history.pushState).call(history, {}, '', url);
-    } catch (e) {
-      console.warn('BizOS route sync failed:', e);
-    }
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'bizos-route', path: path }, PUBLIC_ORIGIN);
+      }
+    } catch (e) {}
   }
 
   function visible(id) {
@@ -38,39 +29,16 @@
     return !!el && !el.classList.contains('hidden') && el.style.display !== 'none';
   }
 
-  function activeAppRoute() {
+  function routeForVisibleView() {
     if (visible('profile-page')) return ROUTES.profile;
-    if (visible('settings-page')) return ROUTES.dashboard;
-    if (visible('apps-page')) return ROUTES.dashboard;
-    if (visible('module-view')) return currentPath();
     if (visible('dashboard-page')) return ROUTES.dashboard;
     if (visible('landing-page')) return ROUTES.landing;
     return null;
   }
 
-  function syncRoute() {
-    const mode = String(window.__BIZOS_ROUTE_MODE || '').toLowerCase();
-    const requested = currentPath();
-
-    // The public root is always landing. Never silently replace it with dashboard.
-    if (requested === '/' && mode !== 'dashboard') {
-      if (visible('landing-page')) return;
-    }
-
-    const route = activeAppRoute();
-    if (!route) return;
-
-    // Settings is an in-app settings screen, so keep it under the dashboard area
-    // unless the dedicated admin page is being served.
-    if (route === ROUTES.dashboard && requested === ROUTES.profile) return;
-
-    if (requested === '/') {
-      if (route === ROUTES.dashboard && mode === 'dashboard') setRoute(ROUTES.dashboard, false);
-      return;
-    }
-
-    if (route === ROUTES.profile) setRoute(ROUTES.profile, false);
-    else if (route === ROUTES.dashboard && requested !== ROUTES.dashboard) setRoute(ROUTES.dashboard, false);
+  function publishCurrentView() {
+    const route = routeForVisibleView();
+    if (route) notifyParent(route);
   }
 
   function wrapNavigation() {
@@ -86,10 +54,7 @@
 
       const wrapped = function () {
         const result = original.apply(this, arguments);
-        setTimeout(function () {
-          const route = mappings[name];
-          setRoute(route, false);
-        }, 0);
+        setTimeout(function () { notifyParent(mappings[name]); }, 0);
         return result;
       };
       wrapped.__bizosRouteWrapped = true;
@@ -100,11 +65,7 @@
     if (typeof originalOpenModule === 'function' && !originalOpenModule.__bizosRouteWrapped) {
       const wrappedOpenModule = function () {
         const result = originalOpenModule.apply(this, arguments);
-        setTimeout(function () {
-          // Modules remain inside the dashboard route; their module name is not
-          // exposed as a separate public URL yet.
-          setRoute(ROUTES.dashboard, false);
-        }, 0);
+        setTimeout(function () { notifyParent(ROUTES.dashboard); }, 0);
         return result;
       };
       wrappedOpenModule.__bizosRouteWrapped = true;
@@ -114,16 +75,26 @@
 
   function start() {
     wrapNavigation();
-    syncRoute();
+    setTimeout(publishCurrentView, 0);
 
-    window.addEventListener('popstate', function () {
-      syncRoute();
-    });
+    const app = document.getElementById('app');
+    if (app && window.MutationObserver) {
+      new MutationObserver(function () {
+        setTimeout(function () {
+          wrapNavigation();
+          publishCurrentView();
+        }, 0);
+      }).observe(app, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style']
+      });
+    }
 
     window.addEventListener('pageshow', function () {
       setTimeout(function () {
         wrapNavigation();
-        syncRoute();
+        publishCurrentView();
       }, 0);
     });
   }
