@@ -1,0 +1,84 @@
+<script>
+// ============================================================
+// ZZZ_RouteModeController.html - PUBLIC ROUTE BRIDGE
+// ============================================================
+// The Apps Script app remains the source of truth for the active
+// BizOS view. This bridge only tells the outer public shell which
+// browser route should be active.
+//
+// Supported public routes:
+//   /             -> landing
+//   /dashboard    -> dashboard
+//   /profile      -> profile
+//   /staff        -> staff
+//   /admin        -> admin
+//   /admin/settings -> admin-settings
+// ============================================================
+
+(function () {
+  const PUBLIC_ORIGIN = 'https://bizos.higroups.com';
+  const ROUTES = {
+    landing: '/',
+    dashboard: '/dashboard',
+    profile: '/profile',
+    staff: '/staff',
+    admin: '/admin',
+    'admin-settings': '/admin/settings'
+  };
+
+  function normalizeRoute(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '/';
+
+    if (raw === '/') return '/';
+    if (raw.charAt(0) !== '/') return ROUTES[raw] || '/';
+
+    const clean = raw.replace(/\/+$/, '') || '/';
+    return Object.values(ROUTES).indexOf(clean) !== -1 ? clean : '/';
+  }
+
+  function notifyPublicShell(path) {
+    const route = normalizeRoute(path);
+
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'bizos-route',
+          path: route
+        }, PUBLIC_ORIGIN);
+      }
+    } catch (error) {
+      console.warn('BizOS route bridge could not notify parent:', error);
+    }
+  }
+
+  // Expose one small API for the existing BizOS navigation code.
+  // It does not replace or duplicate the internal view controller.
+  window.bizOSPublicRoute = function (path) {
+    const route = normalizeRoute(path);
+    notifyPublicShell(route);
+    return route;
+  };
+
+  // Allow the public shell to tell the Apps Script app which route was
+  // requested by a direct browser visit. Internal BizOS navigation remains
+  // authoritative; this only exposes the requested route to the app.
+  window.addEventListener('message', function (event) {
+    if (event.origin !== PUBLIC_ORIGIN) return;
+    if (!event.data || event.data.type !== 'bizos-route-request') return;
+
+    const route = normalizeRoute(event.data.path);
+    window.__BIZOS_PUBLIC_ROUTE = route;
+
+    if (typeof window.handlePublicRouteRequest === 'function') {
+      window.handlePublicRouteRequest(route);
+    }
+  });
+
+  window.addEventListener('load', function () {
+    const initialRoute = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
+    window.__BIZOS_PUBLIC_ROUTE = initialRoute;
+    notifyPublicShell(initialRoute);
+  });
+})();
+</script>
