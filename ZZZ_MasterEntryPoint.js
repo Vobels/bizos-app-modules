@@ -2,7 +2,7 @@
 // ZZZ_MasterEntryPoint.js - AUTHORITATIVE MASTER WEB ENTRY POINT
 // ============================================================
 // Master BizOS web entry point. All public routes are resolved here.
-// Work is confined to erp-refractor-dev; main is not touched.
+// Work is confined to the routing fix branch; main is not touched.
 // ============================================================
 
 function getPublicBizOSUrl_() {
@@ -25,9 +25,11 @@ function getInitialPublicRoute_(params) {
     dashboard: '/dashboard',
     profile: '/profile',
     staff: '/staff',
+    apps: '/apps',
+    app: '/apps',
+    settings: '/settings',
     admin: '/admin',
-    'admin-settings': '/admin/settings',
-    settings: '/admin/settings'
+    'admin-settings': '/admin/settings'
   };
   if (aliases[requested]) return aliases[requested];
   if (requested.charAt(0) !== '/') requested = '/' + requested;
@@ -38,6 +40,8 @@ function getInitialPublicRoute_(params) {
     '/dashboard': true,
     '/profile': true,
     '/staff': true,
+    '/apps': true,
+    '/settings': true,
     '/admin': true,
     '/admin/settings': true
   };
