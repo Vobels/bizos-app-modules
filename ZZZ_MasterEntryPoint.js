@@ -6,64 +6,40 @@
 // deployments have their own generated doGet and are not routed here.
 // ============================================================
 
-// Central public URL helper. Keep the public BizOS destination in CONFIG
-// so verification/login links can be changed in one place later.
 function getPublicBizOSUrl_() {
   var base = '';
-  try {
-    base = CONFIG && CONFIG.URLS ? CONFIG.URLS.base : '';
-  } catch (e) {}
+  try { base = CONFIG && CONFIG.URLS ? CONFIG.URLS.base : ''; } catch (e) {}
   if (!base) base = 'https://bizos.higroups.com';
   return String(base).replace(/\/$/, '');
 }
 
-function getAppUrl() {
-  return getPublicBizOSUrl_();
-}
+function getAppUrl() { return getPublicBizOSUrl_(); }
 
 function getInitialPublicRoute_(params) {
   var requested = '';
-
-  if (params) {
-    requested = params.path || params.route || params.page || '';
-  }
-
+  if (params) requested = params.path || params.route || params.page || '';
   requested = String(requested || '').trim().toLowerCase();
   if (!requested) return '/';
 
   var aliases = {
-    landing: '/',
-    dashboard: '/dashboard',
-    profile: '/profile',
-    staff: '/staff',
-    admin: '/admin',
-    'admin-settings': '/admin/settings',
-    settings: '/admin/settings'
+    landing: '/', dashboard: '/dashboard', profile: '/profile', staff: '/staff',
+    admin: '/admin', 'admin-settings': '/admin/settings', settings: '/admin/settings'
   };
-
   if (aliases[requested]) return aliases[requested];
-
-  if (requested.charAt(0) !== '/') {
-    requested = '/' + requested;
-  }
-
+  if (requested.charAt(0) !== '/') requested = '/' + requested;
   requested = requested.replace(/\/+$/, '') || '/';
 
   var allowed = {
-    '/': true,
-    '/dashboard': true,
-    '/profile': true,
-    '/staff': true,
-    '/admin': true,
-    '/admin/settings': true
+    '/': true, '/dashboard': true, '/profile': true, '/staff': true,
+    '/admin': true, '/admin/settings': true
   };
-
   return allowed[requested] ? requested : '/';
 }
 
 doGet = function(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
+    var requestedPage = String(params.page || '').toLowerCase();
 
     if (params.auth === '1') {
       return HtmlService.createHtmlOutput(
@@ -74,10 +50,17 @@ doGet = function(e) {
       ).setTitle('Authorization Complete');
     }
 
-    // Email verification is handled here, then the browser is immediately
-    // returned to the public BizOS landing page. Users must sign in manually.
-    if (params.verify) {
-      var verificationResult = verifyEmailToken(String(params.verify));
+    // Preserve the reconstructed frontend's dedicated Admin entry while
+    // keeping the existing full admin.html implementation from this branch.
+    if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
+      return HtmlService.createTemplateFromFile('admin').evaluate()
+        .setTitle(requestedPage === 'admin-settings' ? 'BizOS Admin Settings' : 'BizOS Admin Dashboard')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    }
+
+    var verificationToken = params.verify || params.token;
+    if (verificationToken) {
+      var verificationResult = verifyEmailToken(String(verificationToken));
       var ok = verificationResult && verificationResult.success;
       var publicUrl = getPublicBizOSUrl_();
       var message = verificationResult && verificationResult.message
@@ -101,8 +84,10 @@ doGet = function(e) {
     }
 
     var template = HtmlService.createTemplateFromFile('index');
-    template.showLogin = String(params.page || '').toLowerCase() === 'login';
+    template.showLogin = requestedPage === 'login';
     template.initialRoute = getInitialPublicRoute_(params);
+    template.routeMode = template.initialRoute === '/dashboard' ? 'dashboard' : 'landing';
+    template.routeTarget = template.initialRoute === '/' ? 'landing' : template.initialRoute.substring(1);
 
     return template.evaluate()
       .setTitle('BizOS - Business Operating System')
@@ -110,7 +95,6 @@ doGet = function(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (error) {
     console.error('Master doGet error:', error);
-    // Never leave a normal user on an Apps Script error/fallback page.
     var publicUrl = getPublicBizOSUrl_();
     return HtmlService.createHtmlOutput(
       '<!doctype html><html><head>' +
