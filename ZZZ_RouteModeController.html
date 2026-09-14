@@ -1,32 +1,103 @@
 <script>
-// ============================================================
-// ZZZ_RouteModeController.html - PUBLIC ROUTE BRIDGE
-// ============================================================
+// PUBLIC ROUTE CONTROLLER
+// GAS owns the internal view; the outer public shell owns the browser URL.
 (function () {
-  const PUBLIC_ORIGIN = 'https://bizos.higroups.com';
-  const ROUTES = { landing:'/', dashboard:'/dashboard', profile:'/profile', staff:'/staff', admin:'/admin', 'admin-settings':'/admin/settings' };
+  const ROUTES = {
+    landing: '/',
+    dashboard: '/dashboard',
+    profile: '/profile',
+    staff: '/staff',
+    admin: '/admin',
+    'admin-settings': '/admin/settings'
+  };
+
   function normalizeRoute(value) {
     const raw = String(value || '').trim().toLowerCase();
-    if (!raw) return '/';
-    if (raw === '/') return '/';
-    if (raw.charAt(0) !== '/') return ROUTES[raw] || '/';
-    const clean = raw.replace(/\/+$/, '') || '/';
+    if (!raw || raw === '/') return '/';
+    if (ROUTES[raw]) return ROUTES[raw];
+    const clean = '/' + raw.replace(/^\/+|\/+$/g, '');
     return Object.values(ROUTES).indexOf(clean) !== -1 ? clean : '/';
   }
+
   function notifyPublicShell(path) {
     const route = normalizeRoute(path);
-    try { if (window.parent && window.parent !== window) window.parent.postMessage({type:'bizos-route',path:route}, PUBLIC_ORIGIN); } catch (error) { console.warn('BizOS route bridge could not notify parent:', error); }
+    try {
+      if (window.top !== window) {
+        // Do not hard-code the Netlify/custom-domain origin here. Apps Script
+        // can run inside googleusercontent.com and the parent validates origin.
+        window.top.postMessage({ type: 'bizos-route', path: route }, '*');
+      }
+    } catch (error) {
+      console.warn('BizOS route bridge notify failed:', error);
+    }
   }
-  window.bizOSPublicRoute = function(path) { const route=normalizeRoute(path); notifyPublicShell(route); return route; };
-  window.addEventListener('message', function(event) {
-    if (event.origin !== PUBLIC_ORIGIN) return;
+
+  function applyRoute(route) {
+    route = normalizeRoute(route);
+    window.__BIZOS_PUBLIC_ROUTE = route;
+
+    if (route === '/') {
+      if (typeof window.showLandingPage === 'function') window.showLandingPage();
+      return;
+    }
+
+    if (route === '/dashboard') {
+      if (typeof window.showDashboardHome === 'function') window.showDashboardHome();
+      return;
+    }
+
+    if (route === '/profile') {
+      if (typeof window.showProfilePage === 'function') window.showProfilePage();
+      return;
+    }
+
+    // There is no separate staff.html in this source set. The existing
+    // Team Members UI is the implemented staff-management view, so /staff
+    // opens that existing view rather than inventing a second staff system.
+    if (route === '/staff') {
+      if (typeof window.showProfilePage === 'function') {
+        window.showProfilePage();
+        setTimeout(function () {
+          if (typeof window.showProfileTab === 'function') window.showProfileTab('team');
+        }, 250);
+      }
+      return;
+    }
+  }
+
+  function waitForNavigationFunctions(route, attempts) {
+    attempts = attempts || 0;
+    if (
+      typeof window.showDashboardHome === 'function' ||
+      typeof window.showProfilePage === 'function' ||
+      route === '/'
+    ) {
+      applyRoute(route);
+      notifyPublicShell(route);
+      return;
+    }
+    if (attempts < 50) setTimeout(function () { waitForNavigationFunctions(route, attempts + 1); }, 100);
+  }
+
+  window.bizOSPublicRoute = function (path) {
+    const route = normalizeRoute(path);
+    applyRoute(route);
+    notifyPublicShell(route);
+    return route;
+  };
+
+  window.handlePublicRouteRequest = function (path) {
+    waitForNavigationFunctions(normalizeRoute(path), 0);
+  };
+
+  window.addEventListener('message', function (event) {
     if (!event.data || event.data.type !== 'bizos-route-request') return;
-    const route=normalizeRoute(event.data.path); window.__BIZOS_PUBLIC_ROUTE=route;
-    if (typeof window.handlePublicRouteRequest === 'function') window.handlePublicRouteRequest(route);
+    window.handlePublicRouteRequest(event.data.path);
   });
-  window.addEventListener('load', function() {
-    const initialRoute=normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
-    window.__BIZOS_PUBLIC_ROUTE=initialRoute; notifyPublicShell(initialRoute);
+
+  window.addEventListener('load', function () {
+    const initialRoute = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
+    waitForNavigationFunctions(initialRoute, 0);
   });
 })();
 </script>
