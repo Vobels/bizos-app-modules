@@ -1,21 +1,67 @@
 <style>
-/* Profile page layout recovery. Prevent fixed viewport clipping. */
+/* =========================================================
+   PROFILE PAGE LAYOUT FIX
+   Keep Profile in normal document flow like Dashboard.
+   Do not alter the dashboard layout.
+   ========================================================= */
+
 #profile-page {
   position: relative !important;
-  top: auto !important;
-  left: auto !important;
-  right: auto !important;
-  bottom: auto !important;
+  inset: auto !important;
   width: 100% !important;
   height: auto !important;
+  min-width: 0 !important;
   min-height: 100vh !important;
-  z-index: auto !important;
+  z-index: 1 !important;
+  background: #f9fafb !important;
   overflow: visible !important;
 }
-#dashboard-page > .flex > .flex-1,
-#profile-page > .flex > .flex-1 { padding-bottom: 72px !important; }
+
+#profile-page:not(.hidden) {
+  display: block !important;
+}
+
+/* Profile uses the same 256px desktop sidebar spacing as Dashboard.
+   Override the generic .flex-1 rule and the md:ml-64 utility so the
+   content is not shifted twice. */
+#profile-page > .flex > .flex-1 {
+  margin-left: 256px !important;
+  min-width: 0;
+  padding-bottom: 72px !important;
+}
+
+#profile-page > .flex {
+  min-height: 100vh;
+  align-items: flex-start;
+}
+
+/* Header belongs to the profile content column and should not be
+   clipped by a fixed viewport. */
+#profile-page > .flex > .flex-1 > .sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+}
+
+/* Allow the profile document to extend naturally to its full height. */
+#profile-page .max-w-4xl {
+  width: 100%;
+}
+
+/* Never lock the document when Profile is open. */
+body:has(#profile-page:not(.hidden)) {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
 @media (max-width: 768px) {
-  #dashboard-page > .flex > .flex-1,
-  #profile-page > .flex > .flex-1 { padding-bottom: 96px !important; }
+  #profile-page > .flex > .flex-1 {
+    margin-left: 0 !important;
+    padding-bottom: 96px !important;
+  }
+
+  #profile-page > .flex {
+    min-height: 100vh;
+  }
 }
 </style>
