@@ -33,6 +33,15 @@
     }
   }
 
+  function routeFunctionReady(route) {
+    if (route === '/') return true;
+    if (route === '/dashboard') return typeof window.showDashboardHome === 'function';
+    if (route === '/profile' || route === '/staff') return typeof window.showProfilePage === 'function';
+    if (route === '/apps') return typeof window.showAppsPage === 'function';
+    if (route === '/settings') return typeof window.showSettingsPage === 'function';
+    return true;
+  }
+
   function applyRoute(route) {
     route = normalizeRoute(route);
     window.__BIZOS_PUBLIC_ROUTE = route;
@@ -75,19 +84,20 @@
 
   function waitForNavigationFunctions(route, attempts) {
     attempts = attempts || 0;
-    const ready =
-      typeof window.showDashboardHome === 'function' ||
-      typeof window.showProfilePage === 'function' ||
-      typeof window.showSettingsPage === 'function' ||
-      typeof window.showAppsPage === 'function' ||
-      route === '/';
 
-    if (ready) {
+    if (routeFunctionReady(route)) {
       applyRoute(route);
       notifyPublicShell(route);
       return;
     }
-    if (attempts < 50) setTimeout(function () { waitForNavigationFunctions(route, attempts + 1); }, 100);
+
+    if (attempts < 100) {
+      setTimeout(function () {
+        waitForNavigationFunctions(route, attempts + 1);
+      }, 100);
+    } else {
+      console.warn('BizOS route controller: navigation function not ready for', route);
+    }
   }
 
   window.bizOSPublicRoute = function (path) {
@@ -106,9 +116,18 @@
     window.handlePublicRouteRequest(event.data.path);
   });
 
-  window.addEventListener('load', function () {
+  function initializeInitialRoute() {
     const initialRoute = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
+    console.log('BizOS route controller: initial route =', initialRoute);
     waitForNavigationFunctions(initialRoute, 0);
-  });
+  }
+
+  // Run as soon as the page is ready, rather than waiting only for window.load.
+  // This avoids racing the application's normal session bootstrap.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeInitialRoute, { once: true });
+  } else {
+    initializeInitialRoute();
+  }
 })();
 </script>
