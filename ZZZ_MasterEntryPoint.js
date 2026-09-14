@@ -1,9 +1,8 @@
 // ============================================================
 // ZZZ_MasterEntryPoint.js - AUTHORITATIVE MASTER WEB ENTRY POINT
 // ============================================================
-// This is the final master doGet assignment in the source set.
-// It serves index.html for the master BizOS application. Paid client
-// deployments have their own generated doGet and are not routed here.
+// Master BizOS web entry point. All public routes are resolved here.
+// Work is confined to erp-refractor-dev; main is not touched.
 // ============================================================
 
 function getPublicBizOSUrl_() {
@@ -22,16 +21,25 @@ function getInitialPublicRoute_(params) {
   if (!requested) return '/';
 
   var aliases = {
-    landing: '/', dashboard: '/dashboard', profile: '/profile', staff: '/staff',
-    admin: '/admin', 'admin-settings': '/admin/settings', settings: '/admin/settings'
+    landing: '/',
+    dashboard: '/dashboard',
+    profile: '/profile',
+    staff: '/staff',
+    admin: '/admin',
+    'admin-settings': '/admin/settings',
+    settings: '/admin/settings'
   };
   if (aliases[requested]) return aliases[requested];
   if (requested.charAt(0) !== '/') requested = '/' + requested;
   requested = requested.replace(/\/+$/, '') || '/';
 
   var allowed = {
-    '/': true, '/dashboard': true, '/profile': true, '/staff': true,
-    '/admin': true, '/admin/settings': true
+    '/': true,
+    '/dashboard': true,
+    '/profile': true,
+    '/staff': true,
+    '/admin': true,
+    '/admin/settings': true
   };
   return allowed[requested] ? requested : '/';
 }
@@ -50,12 +58,20 @@ doGet = function(e) {
       ).setTitle('Authorization Complete');
     }
 
-    // Preserve the reconstructed frontend's dedicated Admin entry while
-    // keeping the existing full admin.html implementation from this branch.
+    // Admin is a dedicated existing frontend. Admin Settings is an existing
+    // tab inside that same frontend, so open the page and select Settings.
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
-      return HtmlService.createTemplateFromFile('admin').evaluate()
+      var adminTemplate = HtmlService.createTemplateFromFile('admin');
+      adminTemplate.initialAdminTab = requestedPage === 'admin-settings' ? 'settings' : 'overview';
+      var adminOutput = adminTemplate.evaluate()
         .setTitle(requestedPage === 'admin-settings' ? 'BizOS Admin Settings' : 'BizOS Admin Dashboard')
-        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      if (requestedPage === 'admin-settings') {
+        adminOutput.append('<script>window.addEventListener("load",function(){if(typeof switchTab==="function")switchTab("settings");});</script>');
+      }
+      return adminOutput;
     }
 
     var verificationToken = params.verify || params.token;
@@ -86,7 +102,7 @@ doGet = function(e) {
     var template = HtmlService.createTemplateFromFile('index');
     template.showLogin = requestedPage === 'login';
     template.initialRoute = getInitialPublicRoute_(params);
-    template.routeMode = template.initialRoute === '/dashboard' ? 'dashboard' : 'landing';
+    template.routeMode = 'public';
     template.routeTarget = template.initialRoute === '/' ? 'landing' : template.initialRoute.substring(1);
 
     return template.evaluate()
