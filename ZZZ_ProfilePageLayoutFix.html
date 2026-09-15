@@ -19,6 +19,26 @@
 
 #profile-page:not(.hidden) { display: block !important; }
 
+/* Settings uses the same authenticated application shell as Profile.
+   Keep the real Dashboard sidebar visible instead of covering it. */
+#settings-page {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 256px !important;
+  width: calc(100% - 256px) !important;
+  height: 100vh !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  z-index: 20 !important;
+  background: #f9fafb !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
 /* Profile's own header is the only header shown for the Profile view. */
 #profile-page > main {
   display: block !important;
@@ -38,8 +58,9 @@
   margin: 0 !important;
 }
 
-/* Do not show the Dashboard header underneath Profile. */
-body:has(#profile-page:not(.hidden)) #dashboard-header {
+/* Do not show the Dashboard header underneath Profile or Settings. */
+body:has(#profile-page:not(.hidden)) #dashboard-header,
+body:has(#settings-page:not(.hidden)) #dashboard-header {
   display: none !important;
 }
 
@@ -49,7 +70,8 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
 }
 
 @media (max-width: 768px) {
-  #profile-page {
+  #profile-page,
+  #settings-page {
     left: 0 !important;
     width: 100% !important;
   }
@@ -91,6 +113,26 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
     document.body.style.overflowX = 'hidden';
   }
 
+  function normalizeSettingsSource() {
+    const page = document.getElementById('settings-page');
+    if (!page) return;
+
+    page.style.position = 'fixed';
+    page.style.top = '0';
+    page.style.left = window.innerWidth <= 768 ? '0' : '256px';
+    page.style.right = '0';
+    page.style.bottom = '0';
+    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 256px)';
+    page.style.height = '100vh';
+    page.style.minHeight = '0';
+    page.style.margin = '0';
+    page.style.padding = '24px';
+    page.style.zIndex = '20';
+    page.style.overflowY = 'auto';
+    page.style.overflowX = 'hidden';
+    page.style.boxSizing = 'border-box';
+  }
+
   function fixStaffSidebarLink() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -116,11 +158,16 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
           var profilePage = document.getElementById('profile-page');
           var dashboardPage = document.getElementById('dashboard-page');
 
-          /* Remember that Billing was opened from Profile. */
-          window.__bizosBillingReturnView = 'profile';
+          /* Remember that Billing was opened from the current authenticated view. */
+          var currentView = 'dashboard';
+          if (profilePage && !profilePage.classList.contains('hidden')) currentView = 'profile';
+          else if (document.getElementById('settings-page') && !document.getElementById('settings-page').classList.contains('hidden')) currentView = 'settings';
+          window.__bizosBillingReturnView = currentView;
 
-          /* Leave the Profile viewport before opening Billing. */
+          /* Leave the current full-page view before opening Billing. */
           if (profilePage) profilePage.classList.add('hidden');
+          var settingsPage = document.getElementById('settings-page');
+          if (settingsPage) settingsPage.classList.add('hidden');
           if (dashboardPage) dashboardPage.classList.remove('hidden');
 
           if (typeof window.showUpgradeModal === 'function') {
@@ -140,14 +187,23 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
       var returnView = window.__bizosBillingReturnView;
       var result = originalCloseUpgradeModal.apply(this, arguments);
 
-      if (returnView === 'profile') {
+      if (returnView === 'profile' || returnView === 'settings') {
         var dashboardPage = document.getElementById('dashboard-page');
         var profilePage = document.getElementById('profile-page');
+        var settingsPage = document.getElementById('settings-page');
 
-        if (dashboardPage) dashboardPage.classList.add('hidden');
-        if (profilePage) profilePage.classList.remove('hidden');
+        if (dashboardPage) dashboardPage.classList.remove('hidden');
+        if (profilePage) profilePage.classList.add('hidden');
+        if (settingsPage) settingsPage.classList.add('hidden');
 
-        normalizeProfileSource();
+        if (returnView === 'profile' && profilePage) {
+          profilePage.classList.remove('hidden');
+          normalizeProfileSource();
+        }
+        if (returnView === 'settings' && settingsPage) {
+          settingsPage.classList.remove('hidden');
+          normalizeSettingsSource();
+        }
         window.__bizosBillingReturnView = null;
       }
 
@@ -158,6 +214,7 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
 
   function initializeNavigationFixes() {
     normalizeProfileSource();
+    normalizeSettingsSource();
     fixStaffSidebarLink();
     fixBillingSidebarLink();
     fixBillingCloseReturn();
@@ -170,6 +227,9 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
   }
 
   window.addEventListener('pageshow', initializeNavigationFixes);
-  window.addEventListener('resize', normalizeProfileSource);
+  window.addEventListener('resize', function () {
+    normalizeProfileSource();
+    normalizeSettingsSource();
+  });
 })();
 </script>
