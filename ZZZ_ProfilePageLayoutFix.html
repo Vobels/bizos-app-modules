@@ -83,12 +83,31 @@ body:has(#profile-page:not(.hidden)) {
     document.body.style.overflowY = 'auto';
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', normalizeProfileSource, { once: true });
-  } else {
-    normalizeProfileSource();
+  function fixStaffSidebarLink() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    sidebar.querySelectorAll('nav button').forEach(function (button) {
+      const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (label === 'staff') {
+        button.onclick = function () {
+          if (typeof window.showStaffPage === 'function') window.showStaffPage();
+        };
+      }
+    });
   }
 
-  window.addEventListener('pageshow', normalizeProfileSource);
+  function initializeNavigationFixes() {
+    normalizeProfileSource();
+    fixStaffSidebarLink();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeNavigationFixes, { once: true });
+  } else {
+    initializeNavigationFixes();
+  }
+
+  window.addEventListener('pageshow', initializeNavigationFixes);
 })();
 </script>
