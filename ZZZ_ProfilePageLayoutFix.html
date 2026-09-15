@@ -105,9 +105,33 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
     });
   }
 
+  function fixBillingSidebarLink() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    sidebar.querySelectorAll('nav button').forEach(function (button) {
+      const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (label === 'billing') {
+        button.onclick = function () {
+          var profilePage = document.getElementById('profile-page');
+          var dashboardPage = document.getElementById('dashboard-page');
+
+          /* Leave the Profile viewport before opening Billing. */
+          if (profilePage) profilePage.classList.add('hidden');
+          if (dashboardPage) dashboardPage.classList.remove('hidden');
+
+          if (typeof window.showUpgradeModal === 'function') {
+            window.showUpgradeModal();
+          }
+        };
+      }
+    });
+  }
+
   function initializeNavigationFixes() {
     normalizeProfileSource();
     fixStaffSidebarLink();
+    fixBillingSidebarLink();
   }
 
   if (document.readyState === 'loading') {
