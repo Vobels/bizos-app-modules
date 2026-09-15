@@ -82,14 +82,14 @@
     if (closeButton) {
       event.preventDefault();
       event.stopPropagation();
-      closeUpgradeModalFixed();
+      window.closeUpgradeModal();
       return;
     }
 
     /* Clicking the dark backdrop closes the modal. */
     if (target === modal) {
       event.preventDefault();
-      closeUpgradeModalFixed();
+      window.closeUpgradeModal();
     }
   }, true);
 
@@ -98,7 +98,7 @@
     var modal = getUpgradeModal();
     if (modal && !modal.classList.contains('hidden')) {
       event.preventDefault();
-      closeUpgradeModalFixed();
+      window.closeUpgradeModal();
     }
   }, true);
 
