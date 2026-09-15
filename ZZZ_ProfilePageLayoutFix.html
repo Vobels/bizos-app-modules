@@ -1,5 +1,5 @@
 <style>
-/* PROFILE: same document-flow model as Dashboard. */
+/* PROFILE: keep the page in normal document flow, aligned with Dashboard. */
 #profile-page {
   position: relative !important;
   inset: auto !important;
@@ -17,26 +17,42 @@
 
 #profile-page:not(.hidden) { display: block !important; }
 
-/* Exactly the same content-column offset as Dashboard. */
-#profile-page > .flex { display: flex !important; min-height: 100vh !important; align-items: flex-start !important; }
-#profile-page > .flex > .flex-1 {
-  margin-left: 256px !important;
-  min-width: 0 !important;
-  width: calc(100% - 256px) !important;
-  padding-bottom: 72px !important;
+/* profile.html has a simple main/header/content structure, not a Dashboard flex shell. */
+#profile-page > main {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
 }
 
-#profile-page > .flex > .flex-1 > .sticky {
+/* Header is the first element: keep it directly at the top. */
+#profile-page > main > header {
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
+  margin: 0 !important;
 }
 
-#profile-page .max-w-4xl { width: 100% !important; max-width: 56rem !important; }
+/* The body container follows the header immediately. */
+#profile-page > main > div {
+  margin: 0 !important;
+  padding-top: 24px !important;
+}
 
-/* The Profile source currently contains legacy inline fixed/overflow styles.
-   Normalize those values at runtime so they cannot fight the Dashboard model. */
-#profile-page[style] { position: relative !important; inset: auto !important; height: auto !important; overflow: visible !important; }
+#profile-page .max-w-4xl {
+  width: 100% !important;
+  max-width: 56rem !important;
+}
+
+#profile-page[style] {
+  position: relative !important;
+  inset: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+}
 
 body:has(#profile-page:not(.hidden)) {
   overflow-x: hidden !important;
@@ -44,11 +60,8 @@ body:has(#profile-page:not(.hidden)) {
 }
 
 @media (max-width: 768px) {
-  #profile-page > .flex { min-height: 100vh !important; }
-  #profile-page > .flex > .flex-1 {
-    margin-left: 0 !important;
-    width: 100% !important;
-    padding-bottom: 96px !important;
+  #profile-page > main > div {
+    padding-top: 16px !important;
   }
 }
 </style>
@@ -59,7 +72,6 @@ body:has(#profile-page:not(.hidden)) {
     const page = document.getElementById('profile-page');
     if (!page) return;
 
-    // Remove the legacy fixed-viewport inline layout from profile.html.
     page.style.position = 'relative';
     page.style.top = 'auto';
     page.style.left = 'auto';
@@ -70,13 +82,23 @@ body:has(#profile-page:not(.hidden)) {
     page.style.overflow = 'visible';
     page.style.zIndex = '1';
 
-    const content = page.querySelector(':scope > .flex > .flex-1');
-    if (content) {
-      content.classList.remove('md:ml-64');
-      content.classList.remove('ml-64');
-      content.classList.add('ml-0', 'md:ml-64');
-      content.style.marginLeft = '';
-      content.style.width = '';
+    const main = page.querySelector(':scope > main');
+    if (main) {
+      main.style.height = 'auto';
+      main.style.minHeight = '100vh';
+      main.style.overflow = 'visible';
+      main.style.margin = '0';
+      main.style.padding = '0';
+    }
+
+    const header = main && main.querySelector(':scope > header');
+    if (header) {
+      header.style.margin = '0';
+    }
+
+    const body = main && main.querySelector(':scope > div');
+    if (body) {
+      body.style.margin = '0';
     }
 
     document.body.style.overflowX = 'hidden';
