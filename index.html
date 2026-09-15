@@ -29,6 +29,7 @@
   <?!= include('ModalFix') ?>
   <?!= include('ZZZ_UpgradeModalFix') ?>
   <?!= include('ZZZ_ProfilePageLayoutFix') ?>
+  <?!= include('UpgradeReviewFlow') ?>
 
   <!-- ============================================================
        SINGLE CLIENT ROUTE STATE
@@ -61,17 +62,11 @@
     function publishRoute(path, replace) {
       const route = normalizeRoute(path);
       window.__BIZOS_PUBLIC_ROUTE = route;
-
       try {
         if (window.top !== window) {
-          window.top.postMessage({
-            type: 'bizos-route',
-            path: route,
-            replace: !!replace
-          }, '*');
+          window.top.postMessage({type: 'bizos-route', path: route, replace: !!replace}, '*');
         }
       } catch (e) {}
-
       return route;
     }
 
@@ -99,25 +94,9 @@
     function applyRoute(path) {
       const route = normalizeRoute(path);
       window.__BIZOS_PUBLIC_ROUTE = route;
-
-      if (route === '/') {
-        showLanding();
-        publishRoute('/');
-        return;
-      }
-
-      if (route === '/login') {
-        openLogin();
-        publishRoute('/login');
-        return;
-      }
-
-      if (!authenticated()) {
-        openLogin();
-        publishRoute('/login', true);
-        return;
-      }
-
+      if (route === '/') { showLanding(); publishRoute('/'); return; }
+      if (route === '/login') { openLogin(); publishRoute('/login'); return; }
+      if (!authenticated()) { openLogin(); publishRoute('/login', true); return; }
       if (route === '/dashboard') {
         if (typeof window.showDashboardHome === 'function') window.showDashboardHome();
       } else if (route === '/profile') {
@@ -125,22 +104,16 @@
       } else if (route === '/staff') {
         if (typeof window.showProfilePage === 'function') {
           window.showProfilePage();
-          setTimeout(function () {
-            if (typeof window.showProfileTab === 'function') window.showProfileTab('team');
-          }, 50);
+          setTimeout(function () { if (typeof window.showProfileTab === 'function') window.showProfileTab('team'); }, 50);
         }
       } else if (route === '/settings') {
         if (typeof window.showSettingsPage === 'function') window.showSettingsPage();
       }
-
       publishRoute(route);
     }
 
     function initialRouteFromIframe() {
       let route = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
-
-      // Apps Script exposes the iframe URL fragment through google.script.url.
-      // This avoids the query-string path that was producing intermittent 404s.
       if (window.google && google.script && google.script.url && typeof google.script.url.getLocation === 'function') {
         google.script.url.getLocation(function (location) {
           const hashRoute = normalizeRoute(location && location.hash);
@@ -154,25 +127,15 @@
       }
     }
 
-    // Netlify history navigation changes only the browser URL. It never
-    // reloads the GAS iframe; this handler changes the visible page in place.
     window.addEventListener('message', function (event) {
       if (!event || !event.data || event.data.type !== 'bizos-shell-route') return;
       applyRoute(event.data.path || '/');
     });
+    window.addEventListener('hashchange', function () { applyRoute(window.location.hash || '/'); });
 
-    // A direct GAS hash navigation should work as well.
-    window.addEventListener('hashchange', function () {
-      applyRoute(window.location.hash || '/');
-    });
-
-    // Existing startup code automatically loads the dashboard when a session
-    // exists. Protect that bootstrap only while a different explicit route is
-    // being opened, so the existing navigation functions remain authoritative.
     function protectExplicitRouteStartup() {
       const requested = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || window.location.hash || '/');
       if (requested === '/' || requested === '/dashboard') return;
-
       ['loadDashboard', 'loadEnhancedDashboard'].forEach(function (name) {
         const fn = window[name];
         if (typeof fn !== 'function' || fn.__bizosRouteStartupGuard) return;
@@ -183,16 +146,9 @@
       });
     }
 
-    function startRouteState() {
-      protectExplicitRouteStartup();
-      initialRouteFromIframe();
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', startRouteState, { once: true });
-    } else {
-      startRouteState();
-    }
+    function startRouteState() { protectExplicitRouteStartup(); initialRouteFromIframe(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startRouteState, { once: true });
+    else startRouteState();
   })();
   </script>
 
