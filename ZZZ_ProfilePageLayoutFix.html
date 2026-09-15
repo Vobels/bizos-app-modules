@@ -65,11 +65,50 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
   max-width: 56rem !important;
 }
 
+/* Keep Profile content on the same 24px gutter used by Dashboard/Apps. */
+#profile-page .max-w-4xl {
+  width: auto !important;
+  max-width: none !important;
+  margin-left: 24px !important;
+  margin-right: 24px !important;
+}
+
+/* Staff has its own 256px sidebar. Remove the centered max-width so its
+   content begins at the same 24px gutter as Dashboard content. */
+#staff-page main > div > section {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Billing review/upgrade surfaces should align with the active sidebar
+   content area instead of appearing unnecessarily detached from it. */
+#bizos-upgrade-review-card {
+  margin-left: 256px !important;
+  margin-right: 24px !important;
+}
+
+#upgrade-modal > div {
+  margin-left: 256px !important;
+  margin-right: 24px !important;
+}
+
 @media (max-width: 768px) {
   #profile-page,
   #settings-page {
     left: 0 !important;
     width: 100% !important;
+  }
+
+  #profile-page .max-w-4xl {
+    margin-left: 24px !important;
+    margin-right: 24px !important;
+  }
+
+  #bizos-upgrade-review-card,
+  #upgrade-modal > div {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 }
 </style>
