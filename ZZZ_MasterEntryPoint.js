@@ -1,8 +1,8 @@
 // ============================================================
-// ZZZ_MasterEntryPoint.js - AUTHORITATIVE MASTER WEB ENTRY POINT
+// ZZZ_MasterEntryPoint.js - MASTER WEB ENTRY POINT
 // ============================================================
-// Master BizOS web entry point. All public routes are resolved here.
-// Work is confined to the routing fix branch; main is not touched.
+// Keep one authoritative public web entry point for the master BizOS app.
+// This branch only; main is untouched.
 // ============================================================
 
 function getPublicBizOSUrl_() {
@@ -12,7 +12,9 @@ function getPublicBizOSUrl_() {
   return String(base).replace(/\/$/, '');
 }
 
-function getAppUrl() { return getPublicBizOSUrl_(); }
+function getAppUrl() {
+  return getPublicBizOSUrl_();
+}
 
 function getInitialPublicRoute_(params) {
   var requested = '';
@@ -30,7 +32,9 @@ function getInitialPublicRoute_(params) {
     admin: '/admin',
     'admin-settings': '/admin/settings'
   };
+
   if (aliases[requested]) return aliases[requested];
+
   if (requested.charAt(0) !== '/') requested = '/' + requested;
   requested = requested.replace(/\/+$/, '') || '/';
 
@@ -44,10 +48,15 @@ function getInitialPublicRoute_(params) {
     '/admin': true,
     '/admin/settings': true
   };
+
   return allowed[requested] ? requested : '/';
 }
 
-doGet = function(e) {
+// IMPORTANT: this is a real Apps Script entry-point declaration, not a
+// runtime assignment to doGet. The project previously contained the legacy
+// Code.js doGet plus a runtime assignment here, which made the web entry
+// point ambiguous. Keep this declaration as the final master entry point.
+function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
     var requestedPage = String(params.page || '').toLowerCase();
@@ -61,8 +70,6 @@ doGet = function(e) {
       ).setTitle('Authorization Complete');
     }
 
-    // Admin is a dedicated existing frontend. Admin Settings is an existing
-    // tab inside that same frontend, so open the page and select Settings.
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
       var adminTemplate = HtmlService.createTemplateFromFile('admin');
       adminTemplate.initialAdminTab = requestedPage === 'admin-settings' ? 'settings' : 'overview';
@@ -123,4 +130,4 @@ doGet = function(e) {
       '<p>Returning to BizOS...</p></body></html>'
     );
   }
-};
+}
