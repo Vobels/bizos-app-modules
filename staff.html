@@ -5,19 +5,19 @@
       <div class="p-6">
         <div class="text-2xl font-bold text-[#5D2A86] mb-8">BizOS</div>
         <nav class="space-y-2">
-          <button onclick="showDashboardHome()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-home text-gray-500"></i><span>Dashboard</span></button>
-          <button onclick="showAppsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-th-large text-gray-500"></i><span>Apps</span></button>
-          <button onclick="showUpgradeModal()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-credit-card text-gray-500"></i><span>Billing</span></button>
-          <button onclick="showProfilePage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-user-circle text-gray-500"></i><span>Profile</span></button>
+          <button onclick="leaveStaffPage('dashboard')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-home text-gray-500"></i><span>Dashboard</span></button>
+          <button onclick="leaveStaffPage('apps')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-th-large text-gray-500"></i><span>Apps</span></button>
+          <button onclick="leaveStaffPage('billing')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-credit-card text-gray-500"></i><span>Billing</span></button>
+          <button onclick="leaveStaffPage('profile')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-user-circle text-gray-500"></i><span>Profile</span></button>
           <button class="w-full text-left px-4 py-2 rounded-lg bg-purple-50 text-purple-700 flex items-center space-x-3"><i class="fas fa-users text-purple-600"></i><span>Staff</span></button>
-          <button onclick="showSettingsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-cog text-gray-500"></i><span>Settings</span></button>
+          <button onclick="leaveStaffPage('settings')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-cog text-gray-500"></i><span>Settings</span></button>
         </nav>
       </div>
     </aside>
     <main class="flex-1 min-w-0 overflow-y-auto">
       <header class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
         <div><h1 id="staff-page-title" class="text-xl font-semibold text-gray-900">Staff</h1><p id="staff-page-subtitle" class="text-sm text-gray-500 mt-1"></p></div>
-        <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+        <button onclick="leaveStaffPage('dashboard')" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
       </header>
       <div class="p-6">
         <section id="staff-management-view" class="hidden max-w-6xl mx-auto">
@@ -42,6 +42,38 @@
 (function(){
   function currentUser(){ try{return JSON.parse(localStorage.getItem('bizos_user')||'null')||{};}catch(e){return {};}}
   function isOwnerAdmin(user){var role=String(user.Role||user.role||'').toLowerCase();return ['admin','owner','business_owner','super_admin'].indexOf(role)>=0 || user.Is_Client===true || user.isClient===true;}
+
+  window.leaveStaffPage=function(target){
+    var staffPage=document.getElementById('staff-page');
+    if(staffPage)staffPage.classList.add('hidden');
+
+    if(target==='billing'){
+      if(typeof window.showDashboardHome==='function')window.showDashboardHome();
+      if(typeof window.showUpgradeModal==='function')window.showUpgradeModal();
+      return;
+    }
+
+    if(target==='dashboard' && typeof window.showDashboardHome==='function'){
+      window.showDashboardHome();
+      return;
+    }
+    if(target==='apps' && typeof window.showAppsPage==='function'){
+      window.showAppsPage();
+      return;
+    }
+    if(target==='profile' && typeof window.showProfilePage==='function'){
+      window.showProfilePage();
+      return;
+    }
+    if(target==='settings' && typeof window.showSettingsPage==='function'){
+      window.showSettingsPage();
+      return;
+    }
+
+    var dashboard=document.getElementById('dashboard-page');
+    if(dashboard)dashboard.classList.remove('hidden');
+  };
+
   window.showStaffPage=function(){
     ['landing-page','dashboard-page','profile-page','settings-page','staff-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
     var page=document.getElementById('staff-page');if(!page)return;page.classList.remove('hidden');
