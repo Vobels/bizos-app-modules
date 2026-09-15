@@ -19,8 +19,6 @@
 
 #profile-page:not(.hidden) { display: block !important; }
 
-/* Settings uses the same authenticated application shell as Profile.
-   Keep the real Dashboard sidebar visible instead of covering it. */
 #settings-page {
   position: fixed !important;
   top: 0 !important;
@@ -39,7 +37,6 @@
   box-sizing: border-box !important;
 }
 
-/* Profile's own header is the only header shown for the Profile view. */
 #profile-page > main {
   display: block !important;
   width: 100% !important;
@@ -58,7 +55,6 @@
   margin: 0 !important;
 }
 
-/* Do not show the Dashboard header underneath Profile or Settings. */
 body:has(#profile-page:not(.hidden)) #dashboard-header,
 body:has(#settings-page:not(.hidden)) #dashboard-header {
   display: none !important;
@@ -186,26 +182,38 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
       var result = originalCloseUpgradeModal.apply(this, arguments);
 
       if (returnView === 'profile') {
-        /* Re-enter Profile through its real existing function so its
-           profile data is loaded again instead of showing an empty shell. */
-        if (typeof window.showProfilePage === 'function') {
-          window.showProfilePage();
-        } else {
-          var dashboardPage = document.getElementById('dashboard-page');
-          var profilePage = document.getElementById('profile-page');
-          if (dashboardPage) dashboardPage.classList.add('hidden');
-          if (profilePage) profilePage.classList.remove('hidden');
-        }
-        normalizeProfileSource();
-        window.__bizosBillingReturnView = null;
-      } else if (returnView === 'settings') {
         var dashboardPage = document.getElementById('dashboard-page');
         var profilePage = document.getElementById('profile-page');
         var settingsPage = document.getElementById('settings-page');
 
+        /* Restore the Profile DOM directly. Do not call showProfilePage(),
+           because that function resets the Profile view/tab and can leave
+           the existing Profile content looking empty after Billing closes. */
         if (dashboardPage) dashboardPage.classList.remove('hidden');
-        if (profilePage) profilePage.classList.add('hidden');
-        if (settingsPage) settingsPage.classList.remove('hidden');
+        if (settingsPage) settingsPage.classList.add('hidden');
+        if (profilePage) {
+          profilePage.classList.remove('hidden');
+          profilePage.style.display = 'block';
+        }
+
+        normalizeProfileSource();
+
+        /* Refresh the same data functions Profile normally uses, without
+           rebuilding or replacing the Profile page itself. */
+        setTimeout(function () {
+          if (typeof window.loadProfileData === 'function') window.loadProfileData();
+          if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers();
+        }, 0);
+
+        window.__bizosBillingReturnView = null;
+      } else if (returnView === 'settings') {
+        var dashboardPage2 = document.getElementById('dashboard-page');
+        var profilePage2 = document.getElementById('profile-page');
+        var settingsPage2 = document.getElementById('settings-page');
+
+        if (dashboardPage2) dashboardPage2.classList.remove('hidden');
+        if (profilePage2) profilePage2.classList.add('hidden');
+        if (settingsPage2) settingsPage2.classList.remove('hidden');
 
         normalizeSettingsSource();
         window.__bizosBillingReturnView = null;
