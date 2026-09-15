@@ -1,301 +1,34 @@
 <!-- Profile Page -->
-<div id="profile-page" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 999999; background: #f9fafb; overflow: hidden;">
-  
-  <!-- Sidebar Overlay -->
-  <div id="profile-sidebar-overlay" class="sidebar-overlay"></div>
-  
-  <div class="flex">
-    <div id="profile-sidebar" class="sidebar bg-white border-r border-gray-200 h-screen fixed overflow-y-auto" style="width: 256px; z-index: 1000;">
-      <div class="p-6">
-        <div class="text-2xl font-bold text-[#5D2A86] mb-8">BizOS</div>
-        
-        <nav class="space-y-2">
-          <button onclick="showDashboardHome()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
-            <i class="fas fa-home text-gray-500"></i>
-            <span>Dashboard</span>
-          </button>
-          <button onclick="showAppsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
-            <i class="fas fa-th-large text-gray-500"></i>
-            <span>Apps</span>
-          </button>
-          <button onclick="showProfilePage()" class="w-full text-left px-4 py-2 rounded-lg bg-purple-50 text-purple-700 transition flex items-center space-x-3">
-            <i class="fas fa-user-circle text-purple-600"></i>
-            <span>Profile</span>
-          </button>
-          <button onclick="showSettingsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
-            <i class="fas fa-cog text-gray-500"></i>
-            <span>Settings</span>
-          </button>
-          
-          <div class="pt-4">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Applications</p>
-            <div id="profile-module-list" class="space-y-2"></div>
+<div id="profile-page" class="hidden fixed inset-0 z-[999998] bg-gray-50 overflow-hidden">
+  <main class="w-full h-full overflow-y-auto">
+    <header class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div><h1 class="text-xl font-semibold text-gray-900">Profile Settings</h1><p class="text-sm text-gray-500 mt-1">Manage your account and business information</p></div>
+        <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+      </div>
+    </header>
+    <div class="p-6">
+      <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+            <div class="text-center"><div class="relative"><div id="profile-photo-container" class="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-4xl font-bold mx-auto shadow-lg"><span id="profile-photo-initial"></span></div><button onclick="triggerPhotoUpload()" class="absolute bottom-0 right-0 bg-purple-600 text-white p-2 rounded-full shadow-lg hover:bg-purple-700 transition"><i class="fas fa-camera text-sm"></i></button></div><input type="file" id="profile-photo-input" accept="image/*" class="hidden" onchange="uploadProfilePhoto(this)"><p class="text-xs text-gray-500 mt-2">Click camera to upload</p></div>
+            <div class="flex-1 text-center md:text-left"><h2 id="profile-display-name" class="text-2xl font-bold text-gray-900"></h2><p id="profile-role" class="text-purple-600 font-medium mt-1"></p><div class="flex flex-wrap gap-2 mt-3 justify-center md:justify-start"><span id="profile-tier-badge" class="px-3 py-1 rounded-full text-sm font-medium"></span><span id="profile-status-badge" class="px-3 py-1 rounded-full text-sm font-medium"></span></div></div>
           </div>
-        </nav>
-        
-        <div class="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200">
-          <button onclick="handleLogout()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-red-600">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Sign Out</span>
-          </button>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="border-b border-gray-200"><nav class="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
+            <button onclick="showProfileTab('account')" id="tab-account" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab active-tab whitespace-nowrap"><i class="fas fa-user mr-2"></i>Account Info</button>
+            <button onclick="showProfileTab('business')" id="tab-business" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab whitespace-nowrap"><i class="fas fa-building mr-2"></i>Business Details</button>
+            <button onclick="showProfileTab('team')" id="tab-team" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab whitespace-nowrap"><i class="fas fa-users mr-2"></i>Team Members</button>
+            <button onclick="showProfileTab('security')" id="tab-security" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab whitespace-nowrap"><i class="fas fa-shield-alt mr-2"></i>Security</button>
+          </nav></div>
+          <div id="account-tab" class="p-6"><form id="profile-account-form" onsubmit="updateAccountInfo(event)"><div class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label><input type="text" id="profile-name" class="input-field w-full border rounded-lg p-2" required></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label><input type="email" id="profile-email" class="input-field w-full border rounded-lg p-2 bg-gray-50" readonly><p class="text-xs text-gray-500 mt-1">Contact support to change email address</p></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label><input type="tel" id="profile-phone" class="input-field w-full border rounded-lg p-2"></div><button type="submit" class="btn-primary bg-purple-600 text-white px-6 py-2 rounded-lg">Update Profile</button></div></form></div>
+          <div id="business-tab" class="p-6 hidden"><div class="space-y-6"><div class="bg-gray-50 rounded-lg p-4"><h3 class="font-semibold text-gray-900 mb-3">Business Information</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-gray-700">Business Name</label><p id="profile-business-name" class="mt-1 text-gray-900"></p></div><div><label class="block text-sm font-medium text-gray-700">Business ID</label><p id="profile-business-id" class="mt-1 text-gray-900 font-mono text-sm"></p></div><div><label class="block text-sm font-medium text-gray-700">Subscription Tier</label><p id="profile-business-tier" class="mt-1"></p></div><div><label class="block text-sm font-medium text-gray-700">Verification Status</label><p id="profile-verification-status" class="mt-1"></p></div></div></div><div id="verification-docs-section" class="hidden bg-yellow-50 rounded-lg p-4 border border-yellow-200"><h3 class="font-semibold text-yellow-800 mb-2">⚠️ Verification Required</h3><p class="text-sm text-yellow-700 mb-3">Your business is pending verification. Please submit the following documents:</p><ul class="list-disc list-inside text-sm text-yellow-700 space-y-1 mb-4"><li>Business Registration Certificate</li><li>Tax Identification Number (TIN)</li><li>Government-issued ID of Business Owner</li><li>Proof of Business Address</li></ul><button onclick="resubmitVerification()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm">Submit Documents</button></div><div class="bg-blue-50 rounded-lg p-4"><h3 class="font-semibold text-blue-900 mb-2">Workspace Access</h3><p class="text-sm text-blue-700 mb-2">Your isolated workspace URL:</p><code id="workspace-url" class="text-xs bg-white p-2 rounded block break-all"></code><button onclick="copyWorkspaceUrl()" class="mt-2 text-blue-600 text-sm hover:underline"><i class="fas fa-copy mr-1"></i>Copy URL</button></div></div></div>
+          <div id="team-tab" class="p-6 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-gray-900">Team Members</h3><button onclick="showStaffPage()" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fas fa-users mr-2"></i>Manage Staff</button></div><div id="team-members-list" class="space-y-3"><p class="text-gray-500 text-center py-8">Loading team members...</p></div></div>
+          <div id="security-tab" class="p-6 hidden"><div class="space-y-6"><div class="bg-gray-50 rounded-lg p-4"><h3 class="font-semibold text-gray-900 mb-3">Change Password</h3><form id="change-password-form" onsubmit="changePassword(event)"><div class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-2">Current Password</label><input type="password" id="current-password" class="input-field w-full border rounded-lg p-2" required></div><div><label class="block text-sm font-medium text-gray-700 mb-2">New Password</label><input type="password" id="new-password" class="input-field w-full border rounded-lg p-2" required></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label><input type="password" id="confirm-password" class="input-field w-full border rounded-lg p-2" required></div><button type="submit" class="bg-purple-600 text-white px-6 py-2 rounded-lg">Update Password</button></div></form></div></div></div>
         </div>
       </div>
     </div>
-    
-    <div class="flex-1 ml-0 md:ml-64">
-      <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <button id="profile-menu-toggle" class="md:hidden text-gray-600 mr-4" onclick="toggleProfileSidebar()">
-              <i class="fas fa-bars text-xl"></i>
-            </button>
-            <h1 class="text-xl font-semibold text-gray-900">Profile Settings</h1>
-          </div>
-          <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-      </div>
-      
-      <div class="p-6">
-        <!-- Profile Content -->
-        <div class="max-w-4xl mx-auto">
-          <!-- Profile Header with Photo -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
-              <!-- Photo Upload -->
-              <div class="text-center">
-                <div class="relative">
-                  <div id="profile-photo-container" class="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-4xl font-bold mx-auto shadow-lg">
-                    <span id="profile-photo-initial"></span>
-                  </div>
-                  <button onclick="triggerPhotoUpload()" class="absolute bottom-0 right-0 bg-purple-600 text-white p-2 rounded-full shadow-lg hover:bg-purple-700 transition">
-                    <i class="fas fa-camera text-sm"></i>
-                  </button>
-                </div>
-                <input type="file" id="profile-photo-input" accept="image/*" class="hidden" onchange="uploadProfilePhoto(this)">
-                <p class="text-xs text-gray-500 mt-2">Click camera to upload</p>
-              </div>
-              
-              <!-- Basic Info -->
-              <div class="flex-1 text-center md:text-left">
-                <h2 id="profile-display-name" class="text-2xl font-bold text-gray-900"></h2>
-                <p id="profile-role" class="text-purple-600 font-medium mt-1"></p>
-                <div class="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
-                  <span id="profile-tier-badge" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-                  <span id="profile-status-badge" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Tabs -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div class="border-b border-gray-200">
-              <nav class="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
-                <button onclick="showProfileTab('account')" id="tab-account" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab active-tab whitespace-nowrap">
-                  <i class="fas fa-user mr-2"></i>Account Info
-                </button>
-                <button onclick="showProfileTab('business')" id="tab-business" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab whitespace-nowrap">
-                  <i class="fas fa-building mr-2"></i>Business Details
-                </button>
-                <button onclick="showProfileTab('team')" id="tab-team" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab whitespace-nowrap">
-                  <i class="fas fa-users mr-2"></i>Team Members
-                </button>
-                <button onclick="showProfileTab('security')" id="tab-security" class="py-4 px-1 border-b-2 font-medium text-sm transition profile-tab whitespace-nowrap">
-                  <i class="fas fa-shield-alt mr-2"></i>Security
-                </button>
-              </nav>
-            </div>
-            
-            <!-- Tab: Account Info -->
-            <div id="account-tab" class="p-6">
-              <form id="profile-account-form" onsubmit="updateAccountInfo(event)">
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                    <input type="text" id="profile-name" class="input-field w-full border rounded-lg p-2" required>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                    <input type="email" id="profile-email" class="input-field w-full border rounded-lg p-2 bg-gray-50" readonly>
-                    <p class="text-xs text-gray-500 mt-1">Contact support to change email address</p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                    <input type="tel" id="profile-phone" class="input-field w-full border rounded-lg p-2">
-                  </div>
-                  <button type="submit" class="btn-primary bg-purple-600 text-white px-6 py-2 rounded-lg">Update Profile</button>
-                </div>
-              </form>
-            </div>
-            
-            <!-- Tab: Business Details -->
-            <div id="business-tab" class="p-6 hidden">
-              <div class="space-y-6">
-                <div class="bg-gray-50 rounded-lg p-4">
-                  <h3 class="font-semibold text-gray-900 mb-3">Business Information</h3>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Business Name</label>
-                      <p id="profile-business-name" class="mt-1 text-gray-900"></p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Business ID</label>
-                      <p id="profile-business-id" class="mt-1 text-gray-900 font-mono text-sm"></p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Subscription Tier</label>
-                      <p id="profile-business-tier" class="mt-1"></p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Verification Status</label>
-                      <p id="profile-verification-status" class="mt-1"></p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div id="verification-docs-section" class="hidden bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                  <h3 class="font-semibold text-yellow-800 mb-2">⚠️ Verification Required</h3>
-                  <p class="text-sm text-yellow-700 mb-3">Your business is pending verification. Please submit the following documents:</p>
-                  <ul class="list-disc list-inside text-sm text-yellow-700 space-y-1 mb-4">
-                    <li>Business Registration Certificate</li>
-                    <li>Tax Identification Number (TIN)</li>
-                    <li>Government-issued ID of Business Owner</li>
-                    <li>Proof of Business Address</li>
-                  </ul>
-                  <button onclick="resubmitVerification()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm">Submit Documents</button>
-                </div>
-                
-                <div class="bg-blue-50 rounded-lg p-4">
-                  <h3 class="font-semibold text-blue-900 mb-2">Workspace Access</h3>
-                  <p class="text-sm text-blue-700 mb-2">Your isolated workspace URL:</p>
-                  <code id="workspace-url" class="text-xs bg-white p-2 rounded block break-all"></code>
-                  <button onclick="copyWorkspaceUrl()" class="mt-2 text-blue-600 text-sm hover:underline">
-                    <i class="fas fa-copy mr-1"></i>Copy URL
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Tab: Team Members -->
-            <div id="team-tab" class="p-6 hidden">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold text-gray-900">Team Members</h3>
-                <button onclick="showInviteModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm">
-                  <i class="fas fa-user-plus mr-2"></i>Invite Member
-                </button>
-              </div>
-              <div id="team-members-list" class="space-y-3">
-                <p class="text-gray-500 text-center py-8">Loading team members...</p>
-              </div>
-            </div>
-            
-            <!-- Tab: Security -->
-            <div id="security-tab" class="p-6 hidden">
-              <div class="space-y-6">
-                <div class="bg-gray-50 rounded-lg p-4">
-                  <h3 class="font-semibold text-gray-900 mb-3">Change Password</h3>
-                  <form id="change-password-form" onsubmit="changePassword(event)">
-                    <div class="space-y-4">
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
-                        <div class="relative">
-                          <input type="password" id="current-password" class="input-field w-full border rounded-lg p-2 pr-10" required>
-                          <button type="button" onclick="togglePassword('current-password')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                            <i class="fas fa-eye"></i>
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-                        <div class="relative">
-                          <input type="password" id="new-password" class="input-field w-full border rounded-lg p-2 pr-10" required>
-                          <button type="button" onclick="togglePassword('new-password')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                            <i class="fas fa-eye"></i>
-                          </button>
-                        </div>
-                        <div id="password-strength-indicator" class="mt-1"></div>
-                      </div>
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-                        <div class="relative">
-                          <input type="password" id="confirm-password" class="input-field w-full border rounded-lg p-2 pr-10" required>
-                          <button type="button" onclick="togglePassword('confirm-password')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                            <i class="fas fa-eye"></i>
-                          </button>
-                        </div>
-                      </div>
-                      <button type="submit" class="bg-purple-600 text-white px-6 py-2 rounded-lg">Update Password</button>
-                    </div>
-                  </form>
-                </div>
-                
-                <div class="bg-red-50 rounded-lg p-4">
-                  <h3 class="font-semibold text-red-900 mb-2">Danger Zone</h3>
-                  <p class="text-sm text-red-700 mb-3">Request account deletion or data export</p>
-                  <div class="flex space-x-3">
-                    <button onclick="requestDataExport()" class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">
-                      <i class="fas fa-download mr-2"></i>Export My Data
-                    </button>
-                    <button onclick="requestAccountDeletion()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm">
-                      <i class="fas fa-trash mr-2"></i>Delete Account
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  </main>
 </div>
-
-<style>
-.profile-tab {
-  border-color: transparent;
-  color: #6b7280;
-}
-.profile-tab:hover {
-  color: #5D2A86;
-  border-color: #e9d5ff;
-}
-.active-tab {
-  border-color: #5D2A86;
-  color: #5D2A86;
-}
-
-@media (max-width: 768px) {
-  #profile-sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
-  
-  #profile-sidebar.open {
-    transform: translateX(0);
-  }
-  
-  #profile-sidebar-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    display: none;
-  }
-  
-  #profile-sidebar-overlay.active {
-    display: block;
-  }
-  
-  .flex-1 {
-    margin-left: 0 !important;
-  }
-}
-</style>
-
-
-
+<style>.profile-tab{border-color:transparent;color:#6b7280}.profile-tab:hover{color:#5D2A86;border-color:#e9d5ff}.active-tab{border-color:#5D2A86;color:#5D2A86}</style>
