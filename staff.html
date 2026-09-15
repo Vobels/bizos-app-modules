@@ -1,0 +1,58 @@
+<!-- BizOS Staff Page: role-aware staff workspace and staff management -->
+<div id="staff-page" class="hidden fixed inset-0 z-[999998] bg-gray-50 overflow-hidden">
+  <div class="flex h-full">
+    <aside class="w-64 shrink-0 bg-white border-r border-gray-200 h-full overflow-y-auto">
+      <div class="p-6">
+        <div class="text-2xl font-bold text-[#5D2A86] mb-8">BizOS</div>
+        <nav class="space-y-2">
+          <button onclick="showDashboardHome()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-home text-gray-500"></i><span>Dashboard</span></button>
+          <button onclick="showAppsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-th-large text-gray-500"></i><span>Apps</span></button>
+          <button onclick="showUpgradeModal()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-credit-card text-gray-500"></i><span>Billing</span></button>
+          <button onclick="showProfilePage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-user-circle text-gray-500"></i><span>Profile</span></button>
+          <button class="w-full text-left px-4 py-2 rounded-lg bg-purple-50 text-purple-700 flex items-center space-x-3"><i class="fas fa-users text-purple-600"></i><span>Staff</span></button>
+          <button onclick="showSettingsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 flex items-center space-x-3"><i class="fas fa-cog text-gray-500"></i><span>Settings</span></button>
+        </nav>
+      </div>
+    </aside>
+    <main class="flex-1 min-w-0 overflow-y-auto">
+      <header class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
+        <div><h1 id="staff-page-title" class="text-xl font-semibold text-gray-900">Staff</h1><p id="staff-page-subtitle" class="text-sm text-gray-500 mt-1"></p></div>
+        <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+      </header>
+      <div class="p-6">
+        <section id="staff-management-view" class="hidden max-w-6xl mx-auto">
+          <div class="flex items-center justify-between mb-6"><div><h2 class="text-2xl font-bold">Staff Management</h2><p class="text-gray-500">Manage the people who have access to your business.</p></div><button onclick="showInviteModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg"><i class="fas fa-user-plus mr-2"></i>Invite Staff</button></div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Total Staff</p><p id="staff-total-count" class="text-2xl font-bold mt-1">—</p></div>
+            <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Active</p><p id="staff-active-count" class="text-2xl font-bold mt-1">—</p></div>
+            <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Pending Invitations</p><p id="staff-pending-count" class="text-2xl font-bold mt-1">—</p></div>
+          </div>
+          <div class="bg-white border rounded-lg overflow-hidden"><div class="px-6 py-4 border-b"><h3 class="font-semibold">All Staff</h3></div><div id="staff-management-list" class="divide-y"><p class="p-8 text-center text-gray-500">Loading staff...</p></div></div>
+        </section>
+        <section id="staff-member-view" class="hidden max-w-4xl mx-auto">
+          <div class="mb-6"><h2 class="text-2xl font-bold">My Staff Workspace</h2><p class="text-gray-500">Your assigned work and access within this business.</p></div>
+          <div class="bg-white border rounded-lg p-6"><h3 class="font-semibold mb-4">My Staff Profile</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><p class="text-xs text-gray-500">Name</p><p id="staff-member-name" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Email</p><p id="staff-member-email" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Role</p><p id="staff-member-role" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Business</p><p id="staff-member-business" class="font-medium mt-1">—</p></div></div></div>
+          <div class="bg-white border rounded-lg p-6 mt-6"><h3 class="font-semibold mb-2">My Access</h3><p class="text-sm text-gray-500">Your available business applications and permissions will appear here based on your assigned role.</p><div id="staff-member-access" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3"></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script>
+(function(){
+  function currentUser(){ try{return JSON.parse(localStorage.getItem('bizos_user')||'null')||{};}catch(e){return {};}}
+  function isOwnerAdmin(user){var role=String(user.Role||user.role||'').toLowerCase();return ['admin','owner','business_owner','super_admin'].indexOf(role)>=0 || user.Is_Client===true || user.isClient===true;}
+  window.showStaffPage=function(){
+    ['landing-page','dashboard-page','profile-page','settings-page','staff-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
+    var page=document.getElementById('staff-page');if(!page)return;page.classList.remove('hidden');
+    var user=currentUser(), admin=isOwnerAdmin(user);
+    var management=document.getElementById('staff-management-view'), member=document.getElementById('staff-member-view');
+    if(management)management.classList.toggle('hidden',!admin);if(member)member.classList.toggle('hidden',admin);
+    document.getElementById('staff-page-title').textContent=admin?'Staff Management':'My Staff Workspace';
+    document.getElementById('staff-page-subtitle').textContent=admin?'Manage staff, invitations and access.':'Your work and access within this business.';
+    if(!admin){document.getElementById('staff-member-name').textContent=user.Name||user.name||'—';document.getElementById('staff-member-email').textContent=user.Email||user.email||'—';document.getElementById('staff-member-role').textContent=user.Role||user.role||'Staff';document.getElementById('staff-member-business').textContent=user.Business_Name||user.businessName||'—';}
+    if(admin && typeof window.loadTeamMembers==='function'){try{window.loadTeamMembers();}catch(e){}}
+    if(typeof window.publishBizOSRoute==='function')window.publishBizOSRoute('/staff');
+  };
+})();
+</script>
