@@ -52,19 +52,12 @@ function getInitialPublicRoute_(params) {
 // ============================================================
 // SINGLE WEB ENTRY DISPATCHER
 // ============================================================
-// Public client routes all render the same index.html application.
-// The actual page state is handled inside index.html by the existing
-// navigation functions. Admin remains a separate entry point, and
-// verification remains a query-parameter flow.
-// ============================================================
 function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
     var pathInfo = (e && e.pathInfo) ? String(e.pathInfo) : '';
     var pathRoute = pathInfo.replace(/^\/+|\/+$/g, '').toLowerCase();
 
-    // Apps Script pathInfo is retained for direct /exec/admin calls.
-    // Netlify client routes do not become separate GAS pages.
     var requestedPage = String(params.page || pathRoute || '').toLowerCase();
     if (requestedPage === 'admin/settings') requestedPage = 'admin-settings';
 
@@ -76,6 +69,18 @@ function doGet(e) {
         '<p>You can now close this tab and return to BizOS.</p>' +
         '</body></html>'
       ).setTitle('Authorization Complete');
+    }
+
+    // Dedicated payment page. This is intentionally query-based and does
+    // not alter the public Netlify route architecture.
+    if (requestedPage === 'paystack-int' || requestedPage === 'payment') {
+      var requestId = String(params.requestId || '').trim();
+      var paymentTemplate = HtmlService.createTemplateFromFile('paystack-payment');
+      paymentTemplate.requestId = requestId;
+      return paymentTemplate.evaluate()
+        .setTitle('Complete Payment - BizOS')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
     // Admin is intentionally a separate application entry point.
@@ -120,9 +125,6 @@ function doGet(e) {
     }
 
     // Every public client route gets the same application document.
-    // The route itself is carried by the iframe hash, so doGet does not
-    // need to decide whether the user is on Dashboard, Profile, Staff,
-    // or Settings.
     var template = HtmlService.createTemplateFromFile('index');
     template.showLogin = false;
     template.initialRoute = '/';
