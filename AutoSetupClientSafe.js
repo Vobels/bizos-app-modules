@@ -1,10 +1,12 @@
 // ============================================================
 // AutoSetupClientSafe.js - SAFE + IDEMPOTENT PAID CLIENT PROVISIONING
 // ============================================================
-// Explicit production entry point. Does not override legacy functions.
+// Public entry point keeps its own lock for direct callers.
+// The confirmed-upgrade flow passes skipLock=true because its
+// parent function already owns the single provisioning lock.
 // ============================================================
 
-function autoSetupClientSafe(paymentData) {
+function autoSetupClientSafe(paymentData, skipLock) {
   var lock = null;
   var clientId = '', sheetResult = null, scriptResult = null;
   var existingBusiness = null, businessId = null, businessName = '';
@@ -13,8 +15,12 @@ function autoSetupClientSafe(paymentData) {
     paymentData = paymentData || {};
     if (!paymentData.email) return {success:false,code:'INVALID_PAYMENT_DATA',message:'Client email is required.'};
     businessName = paymentData.businessName || paymentData.name || 'My Business';
-    lock = LockService.getScriptLock();
-    if (!lock.tryLock(30000)) return {success:false,code:'PROVISIONING_BUSY',message:'Client provisioning is already in progress. Please retry shortly.'};
+
+    if (!skipLock) {
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(30000)) return {success:false,code:'PROVISIONING_BUSY',message:'Client provisioning is already in progress. Please retry shortly.'};
+    }
+
     console.log('SAFE PROVISIONING START:', paymentData.email, businessName);
     var existingClient = getExistingActiveClientDeployment_(paymentData.email, businessName);
     if (existingClient) {
@@ -51,7 +57,7 @@ function autoSetupClientSafe(paymentData) {
     committed=true;
     if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
     try { sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
-    return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,message:'Client setup complete.'};
+    return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
   } catch(error) {
     console.error('SAFE CLIENT SETUP ERROR:',error);
     if(!committed){if(sheetResult&&sheetResult.success)cleanupFailedClientProvisioningSafe_(sheetResult,clientId);if(scriptResult&&scriptResult.scriptId)cleanupFailedClientDeploymentSafe_(scriptResult);}
