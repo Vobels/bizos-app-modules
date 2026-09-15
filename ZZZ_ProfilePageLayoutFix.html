@@ -12,13 +12,16 @@
   min-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
-  z-index: 20 !important;
+  z-index: 999999 !important;
   background: #f9fafb !important;
   overflow: hidden !important;
+  pointer-events: auto !important;
 }
 
 #profile-page:not(.hidden) { display: block !important; }
 
+/* SETTINGS: keep the Settings page above the Dashboard shell so its
+   controls receive mouse/touch events reliably. */
 #settings-page {
   position: fixed !important;
   top: 0 !important;
@@ -30,11 +33,61 @@
   min-height: 0 !important;
   margin: 0 !important;
   padding: 24px !important;
-  z-index: 20 !important;
+  z-index: 999999 !important;
   background: #f9fafb !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   box-sizing: border-box !important;
+  pointer-events: auto !important;
+}
+
+#settings-page:not(.hidden) {
+  display: block !important;
+}
+
+#settings-page,
+#settings-page * {
+  pointer-events: auto;
+}
+
+/* Explicit notification switch styling. The checkbox remains the real
+   control used by saveNotificationPreferences(); the label is the visible
+   and clickable switch surface. */
+#settings-page label.relative.inline-flex {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: 44px !important;
+  height: 24px !important;
+  flex: 0 0 44px !important;
+  cursor: pointer !important;
+  z-index: 2 !important;
+}
+
+#settings-page label.relative.inline-flex > input[type="checkbox"] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#settings-page label.relative.inline-flex > div {
+  position: relative !important;
+  display: block !important;
+  width: 44px !important;
+  height: 24px !important;
+  flex: 0 0 44px !important;
+  border-radius: 9999px !important;
+  cursor: pointer !important;
+  pointer-events: none !important;
+}
+
+#settings-page > div,
+#settings-page button,
+#settings-page label {
+  position: relative;
+  z-index: 1;
 }
 
 #profile-page > main {
@@ -129,7 +182,7 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
     page.style.minHeight = '0';
     page.style.margin = '0';
     page.style.padding = '0';
-    page.style.zIndex = '20';
+    page.style.zIndex = '999999';
     page.style.overflow = 'hidden';
 
     const main = page.querySelector(':scope > main');
@@ -162,10 +215,11 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
     page.style.minHeight = '0';
     page.style.margin = '0';
     page.style.padding = '24px';
-    page.style.zIndex = '20';
+    page.style.zIndex = '999999';
     page.style.overflowY = 'auto';
     page.style.overflowX = 'hidden';
     page.style.boxSizing = 'border-box';
+    page.style.pointerEvents = 'auto';
   }
 
   function fixStaffSidebarLink() {
@@ -225,9 +279,6 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
         var profilePage = document.getElementById('profile-page');
         var settingsPage = document.getElementById('settings-page');
 
-        /* Restore the Profile DOM directly. Do not call showProfilePage(),
-           because that function resets the Profile view/tab and can leave
-           the existing Profile content looking empty after Billing closes. */
         if (dashboardPage) dashboardPage.classList.remove('hidden');
         if (settingsPage) settingsPage.classList.add('hidden');
         if (profilePage) {
@@ -237,8 +288,6 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
 
         normalizeProfileSource();
 
-        /* Refresh the same data functions Profile normally uses, without
-           rebuilding or replacing the Profile page itself. */
         setTimeout(function () {
           if (typeof window.loadProfileData === 'function') window.loadProfileData();
           if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers();
