@@ -158,13 +158,11 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
           var profilePage = document.getElementById('profile-page');
           var dashboardPage = document.getElementById('dashboard-page');
 
-          /* Remember that Billing was opened from the current authenticated view. */
           var currentView = 'dashboard';
           if (profilePage && !profilePage.classList.contains('hidden')) currentView = 'profile';
           else if (document.getElementById('settings-page') && !document.getElementById('settings-page').classList.contains('hidden')) currentView = 'settings';
           window.__bizosBillingReturnView = currentView;
 
-          /* Leave the current full-page view before opening Billing. */
           if (profilePage) profilePage.classList.add('hidden');
           var settingsPage = document.getElementById('settings-page');
           if (settingsPage) settingsPage.classList.add('hidden');
@@ -187,23 +185,29 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
       var returnView = window.__bizosBillingReturnView;
       var result = originalCloseUpgradeModal.apply(this, arguments);
 
-      if (returnView === 'profile' || returnView === 'settings') {
+      if (returnView === 'profile') {
+        /* Re-enter Profile through its real existing function so its
+           profile data is loaded again instead of showing an empty shell. */
+        if (typeof window.showProfilePage === 'function') {
+          window.showProfilePage();
+        } else {
+          var dashboardPage = document.getElementById('dashboard-page');
+          var profilePage = document.getElementById('profile-page');
+          if (dashboardPage) dashboardPage.classList.add('hidden');
+          if (profilePage) profilePage.classList.remove('hidden');
+        }
+        normalizeProfileSource();
+        window.__bizosBillingReturnView = null;
+      } else if (returnView === 'settings') {
         var dashboardPage = document.getElementById('dashboard-page');
         var profilePage = document.getElementById('profile-page');
         var settingsPage = document.getElementById('settings-page');
 
         if (dashboardPage) dashboardPage.classList.remove('hidden');
         if (profilePage) profilePage.classList.add('hidden');
-        if (settingsPage) settingsPage.classList.add('hidden');
+        if (settingsPage) settingsPage.classList.remove('hidden');
 
-        if (returnView === 'profile' && profilePage) {
-          profilePage.classList.remove('hidden');
-          normalizeProfileSource();
-        }
-        if (returnView === 'settings' && settingsPage) {
-          settingsPage.classList.remove('hidden');
-          normalizeSettingsSource();
-        }
+        normalizeSettingsSource();
         window.__bizosBillingReturnView = null;
       }
 
