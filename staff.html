@@ -20,7 +20,7 @@
         <button onclick="leaveStaffPage('dashboard')" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
       </header>
       <div class="p-6">
-        <section id="staff-management-view" class="hidden max-w-6xl mx-auto">
+        <section id="staff-management-view" class="hidden w-full">
           <div class="flex items-center justify-between mb-6"><div><h2 class="text-2xl font-bold">Staff Management</h2><p class="text-gray-500">Manage the people who have access to your business.</p></div><button onclick="showInviteModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg"><i class="fas fa-user-plus mr-2"></i>Invite Staff</button></div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Total Staff</p><p id="staff-total-count" class="text-2xl font-bold mt-1">—</p></div>
@@ -29,7 +29,7 @@
           </div>
           <div class="bg-white border rounded-lg overflow-hidden"><div class="px-6 py-4 border-b"><h3 class="font-semibold">All Staff</h3></div><div id="staff-management-list" class="divide-y"><p class="p-8 text-center text-gray-500">Loading staff...</p></div></div>
         </section>
-        <section id="staff-member-view" class="hidden max-w-4xl mx-auto">
+        <section id="staff-member-view" class="hidden w-full">
           <div class="mb-6"><h2 class="text-2xl font-bold">My Staff Workspace</h2><p class="text-gray-500">Your assigned work and access within this business.</p></div>
           <div class="bg-white border rounded-lg p-6"><h3 class="font-semibold mb-4">My Staff Profile</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><p class="text-xs text-gray-500">Name</p><p id="staff-member-name" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Email</p><p id="staff-member-email" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Role</p><p id="staff-member-role" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Business</p><p id="staff-member-business" class="font-medium mt-1">—</p></div></div></div>
           <div class="bg-white border rounded-lg p-6 mt-6"><h3 class="font-semibold mb-2">My Access</h3><p class="text-sm text-gray-500">Your available business applications and permissions will appear here based on your assigned role.</p><div id="staff-member-access" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3"></div></div>
