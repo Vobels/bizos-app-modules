@@ -116,6 +116,9 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
           var profilePage = document.getElementById('profile-page');
           var dashboardPage = document.getElementById('dashboard-page');
 
+          /* Remember that Billing was opened from Profile. */
+          window.__bizosBillingReturnView = 'profile';
+
           /* Leave the Profile viewport before opening Billing. */
           if (profilePage) profilePage.classList.add('hidden');
           if (dashboardPage) dashboardPage.classList.remove('hidden');
@@ -128,10 +131,36 @@ body:has(#profile-page:not(.hidden)) #dashboard-header {
     });
   }
 
+  function fixBillingCloseReturn() {
+    if (window.__bizosBillingCloseWrapped) return;
+    if (typeof window.closeUpgradeModal !== 'function') return;
+
+    var originalCloseUpgradeModal = window.closeUpgradeModal;
+    window.closeUpgradeModal = function () {
+      var returnView = window.__bizosBillingReturnView;
+      var result = originalCloseUpgradeModal.apply(this, arguments);
+
+      if (returnView === 'profile') {
+        var dashboardPage = document.getElementById('dashboard-page');
+        var profilePage = document.getElementById('profile-page');
+
+        if (dashboardPage) dashboardPage.classList.add('hidden');
+        if (profilePage) profilePage.classList.remove('hidden');
+
+        normalizeProfileSource();
+        window.__bizosBillingReturnView = null;
+      }
+
+      return result;
+    };
+    window.__bizosBillingCloseWrapped = true;
+  }
+
   function initializeNavigationFixes() {
     normalizeProfileSource();
     fixStaffSidebarLink();
     fixBillingSidebarLink();
+    fixBillingCloseReturn();
   }
 
   if (document.readyState === 'loading') {
