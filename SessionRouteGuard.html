@@ -1,0 +1,96 @@
+<script>
+(function () {
+  'use strict';
+
+  function hideAuthenticatedPages() {
+    ['dashboard-page', 'profile-page', 'settings-page'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    var landing = document.getElementById('landing-page');
+    if (landing) landing.classList.remove('hidden');
+  }
+
+  function closeLoginOrAppModals() {
+    document.querySelectorAll('[id$="-modal"]').forEach(function (el) {
+      if (el.id !== 'login-modal') {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  function forceLanding() {
+    hideAuthenticatedPages();
+    closeLoginOrAppModals();
+    try {
+      if (typeof window.__bizosCloseUpgradeReview === 'function') window.__bizosCloseUpgradeReview();
+    } catch (e) {}
+    try {
+      window.__BIZOS_PUBLIC_ROUTE = '/';
+      if (typeof window.publishRoute === 'function') window.publishRoute('/', true);
+      else if (window.top !== window) window.top.postMessage({type: 'bizos-route', path: '/', replace: true}, '*');
+    } catch (e) {}
+  }
+
+  function clearAndLand() {
+    try {
+      if (typeof window.clearSession === 'function') window.clearSession();
+      else {
+        localStorage.removeItem('bizos_session');
+        localStorage.removeItem('bizos_user');
+      }
+    } catch (e) {
+      try {
+        localStorage.removeItem('bizos_session');
+        localStorage.removeItem('bizos_user');
+      } catch (ignore) {}
+    }
+    forceLanding();
+  }
+
+  function installLogoutGuard() {
+    if (typeof window.handleLogout !== 'function' || window.handleLogout.__bizosLogoutGuard) return;
+    var originalLogout = window.handleLogout;
+    var guardedLogout = function () {
+      // Clear the browser session immediately so the UI cannot remain authenticated.
+      clearAndLand();
+      try {
+        var sessionId = currentSessionId;
+        if (sessionId && typeof window.callGoogleScript === 'function') {
+          window.callGoogleScript('logout', [sessionId], function () {}, function () {});
+        }
+      } catch (e) {}
+      // Keep the existing logout function available for any additional cleanup it performs.
+      try { originalLogout.apply(this, arguments); } catch (e) {}
+      clearAndLand();
+    };
+    guardedLogout.__bizosLogoutGuard = true;
+    guardedLogout.__bizosOriginal = originalLogout;
+    window.handleLogout = guardedLogout;
+  }
+
+  function enforceNoSession() {
+    var sessionId = null;
+    try { sessionId = localStorage.getItem('bizos_session'); } catch (e) {}
+    var userJson = null;
+    try { userJson = localStorage.getItem('bizos_user'); } catch (e) {}
+
+    if (!sessionId || !userJson) {
+      var route = String(window.__BIZOS_PUBLIC_ROUTE || '/').toLowerCase();
+      if (route !== '/' && route !== '/login') forceLanding();
+      var dashboard = document.getElementById('dashboard-page');
+      if (dashboard && !dashboard.classList.contains('hidden')) forceLanding();
+    }
+  }
+
+  function boot() {
+    installLogoutGuard();
+    enforceNoSession();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once: true});
+  else boot();
+  setInterval(boot, 500);
+})();
+</script>
