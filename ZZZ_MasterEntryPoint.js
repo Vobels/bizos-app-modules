@@ -1,8 +1,10 @@
 // ============================================================
 // ZZZ_MasterEntryPoint.js - MASTER WEB ENTRY POINT
 // ============================================================
-// Keep one authoritative public web entry point for the master BizOS app.
-// This branch only; main is untouched.
+// One web entry point for the master BizOS application.
+// Internal client navigation is owned by index.html + the existing
+// show...Page() functions. Netlify supplies the public URL shell.
+// main is untouched.
 // ============================================================
 
 function getPublicBizOSUrl_() {
@@ -20,7 +22,6 @@ function getInitialPublicRoute_(params) {
   var requested = '';
   if (params) requested = params.path || params.route || params.page || '';
   requested = String(requested || '').trim().toLowerCase();
-  if (!requested) return '/';
 
   var aliases = {
     landing: '/',
@@ -28,9 +29,7 @@ function getInitialPublicRoute_(params) {
     dashboard: '/dashboard',
     profile: '/profile',
     staff: '/staff',
-    settings: '/settings',
-    admin: '/admin',
-    'admin-settings': '/admin/settings'
+    settings: '/settings'
   };
 
   if (aliases[requested]) return aliases[requested];
@@ -44,30 +43,32 @@ function getInitialPublicRoute_(params) {
     '/dashboard': true,
     '/profile': true,
     '/staff': true,
-    '/settings': true,
-    '/admin': true,
-    '/admin/settings': true
+    '/settings': true
   };
 
   return allowed[requested] ? requested : '/';
 }
 
-// IMPORTANT: this is a real Apps Script entry-point declaration, not a
-// runtime assignment to doGet. The project previously contained the legacy
-// Code.js doGet plus a runtime assignment here, which made the web entry
-// point ambiguous. Keep this declaration as the final master entry point.
+// ============================================================
+// SINGLE WEB ENTRY DISPATCHER
+// ============================================================
+// Public client routes all render the same index.html application.
+// The actual page state is handled inside index.html by the existing
+// navigation functions. Admin remains a separate entry point, and
+// verification remains a query-parameter flow.
+// ============================================================
 function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
     var pathInfo = (e && e.pathInfo) ? String(e.pathInfo) : '';
-    var pathRoute = pathInfo.replace(/^\/+|\/+$/g, '');
+    var pathRoute = pathInfo.replace(/^\/+|\/+$/g, '').toLowerCase();
 
-    // Apps Script exposes the path after /exec through e.pathInfo. Prefer it
-    // for public routing so Netlify never needs to append ?page=... to the
-    // GAS URL. Query parameters remain supported for legacy callers.
+    // Apps Script pathInfo is retained for direct /exec/admin calls.
+    // Netlify client routes do not become separate GAS pages.
     var requestedPage = String(params.page || pathRoute || '').toLowerCase();
     if (requestedPage === 'admin/settings') requestedPage = 'admin-settings';
 
+    // Authorization callback is not application navigation.
     if (params.auth === '1') {
       return HtmlService.createHtmlOutput(
         '<html><body style="font-family:Arial;text-align:center;padding:50px">' +
@@ -77,6 +78,7 @@ function doGet(e) {
       ).setTitle('Authorization Complete');
     }
 
+    // Admin is intentionally a separate application entry point.
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
       var adminTemplate = HtmlService.createTemplateFromFile('admin');
       adminTemplate.initialAdminTab = requestedPage === 'admin-settings' ? 'settings' : 'overview';
@@ -91,6 +93,7 @@ function doGet(e) {
       return adminOutput;
     }
 
+    // Email verification is a query-param flow, not a client page route.
     var verificationToken = params.verify || params.token;
     if (verificationToken) {
       var verificationResult = verifyEmailToken(String(verificationToken));
@@ -116,11 +119,15 @@ function doGet(e) {
       ).setTitle(title + ' - BizOS');
     }
 
+    // Every public client route gets the same application document.
+    // The route itself is carried by the iframe hash, so doGet does not
+    // need to decide whether the user is on Dashboard, Profile, Staff,
+    // or Settings.
     var template = HtmlService.createTemplateFromFile('index');
-    template.showLogin = requestedPage === 'login';
-    template.initialRoute = getInitialPublicRoute_(requestedPage);
+    template.showLogin = false;
+    template.initialRoute = '/';
     template.routeMode = 'public';
-    template.routeTarget = template.initialRoute === '/' ? 'landing' : template.initialRoute.substring(1);
+    template.routeTarget = 'landing';
 
     return template.evaluate()
       .setTitle('BizOS - Business Operating System')
@@ -128,13 +135,6 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (error) {
     console.error('Master doGet error:', error);
-    var publicUrl = getPublicBizOSUrl_();
-    return HtmlService.createHtmlOutput(
-      '<!doctype html><html><head>' +
-      '<meta http-equiv="refresh" content="0;url=' + publicUrl + '">' +
-      '<script>window.top.location.replace(' + JSON.stringify(publicUrl) + ');</script>' +
-      '</head><body style="font-family:Arial;text-align:center;padding:50px">' +
-      '<p>Returning to BizOS...</p></body></html>'
-    );
+    return HtmlService.createHtmlOutput('<h1>BizOS</h1><p>Unable to load BizOS.</p>');
   }
 }
