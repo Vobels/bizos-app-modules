@@ -66,6 +66,7 @@ function doGet(e) {
     // for public routing so Netlify never needs to append ?page=... to the
     // GAS URL. Query parameters remain supported for legacy callers.
     var requestedPage = String(params.page || pathRoute || '').toLowerCase();
+    if (requestedPage === 'admin/settings') requestedPage = 'admin-settings';
 
     if (params.auth === '1') {
       return HtmlService.createHtmlOutput(
