@@ -1,2 +1,60 @@
 <!DOCTYPE html>
-<html><body>RECOVERY PENDING</body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>BizOS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <?!= include('styles') ?>
+  <script>
+    window.__BIZOS_ROUTE_MODE = <?= routeMode ? JSON.stringify(routeMode) : '"landing"' ?>;
+    window.__BIZOS_ROUTE_TARGET = <?= routeTarget ? JSON.stringify(routeTarget) : '"landing"' ?>;
+    window.__BIZOS_INITIAL_ROUTE = <?= JSON.stringify(initialRoute || '/') ?>;
+  </script>
+</head>
+<body class="bg-gray-50">
+  <div id="app">
+    <?!= include('landing') ?>
+    <?!= include('dashboard') ?>
+    <?!= include('profile') ?>
+    <?!= include('settings') ?>
+    <?!= include('staff') ?>
+    <?!= include('cms') ?>
+  </div>
+  <?!= include('notification') ?>
+  <?!= include('scripts') ?>
+  <?!= include('forms') ?>
+  <?!= include('ModalFix') ?>
+  <?!= include('ZZZ_UpgradeModalFix') ?>
+  <?!= include('ZZZ_ProfilePageLayoutFix') ?>
+  <?!= include('UpgradeReviewFlow') ?>
+  <?!= include('SessionRouteGuard') ?>
+
+  <script>
+  (function () {
+    const ROUTES = {'/':true,'/login':true,'/dashboard':true,'/profile':true,'/staff':true,'/settings':true};
+    function normalizeRoute(value){let raw=String(value||'').trim().toLowerCase();if(!raw||raw==='#')return '/';if(raw.charAt(0)==='#')raw=raw.substring(1);if(raw.charAt(0)!=='/')raw='/'+raw;raw=raw.replace(/\/+$/,'')||'/';if(raw==='/landing')return '/';return ROUTES[raw]?raw:'/';}
+    function publishRoute(path,replace){const route=normalizeRoute(path);window.__BIZOS_PUBLIC_ROUTE=route;try{if(window.top!==window)window.top.postMessage({type:'bizos-route',path:route,replace:!!replace},'*');}catch(e){}return route;}
+    window.publishBizOSRoute=publishRoute;
+    function showOnly(id){['landing-page','dashboard-page','profile-page','settings-page','staff-page'].forEach(function(x){var el=document.getElementById(x);if(el)el.classList.toggle('hidden',x!==id);});}
+    function showLanding(){showOnly('landing-page');}
+    function openLogin(){showLanding();if(typeof window.showLoginModal==='function')window.showLoginModal();else if(typeof window.openLoginModal==='function')window.openLoginModal();}
+    function authenticated(){return typeof window.loadSession!=='function'||window.loadSession();}
+    function applyRoute(path){const route=normalizeRoute(path);window.__BIZOS_PUBLIC_ROUTE=route;if(route==='/'){showLanding();publishRoute('/');return;}if(route==='/login'){openLogin();publishRoute('/login');return;}if(!authenticated()){openLogin();publishRoute('/login',true);return;}showOnly(route==='/dashboard'?'dashboard-page':route==='/profile'?'profile-page':route==='/staff'?'staff-page':route==='/settings'?'settings-page':null);if(route==='/dashboard'&&typeof window.showDashboardHome==='function')window.showDashboardHome();else if(route==='/profile'&&typeof window.showProfilePage==='function')window.showProfilePage();else if(route==='/staff'&&typeof window.showStaffPage==='function')window.showStaffPage();else if(route==='/settings'&&typeof window.showSettingsPage==='function')window.showSettingsPage();publishRoute(route);}
+    function initialRouteFromIframe(){let route=normalizeRoute(window.__BIZOS_INITIAL_ROUTE||'/');if(window.google&&google.script&&google.script.url&&typeof google.script.url.getLocation==='function'){google.script.url.getLocation(function(location){const hashRoute=normalizeRoute(location&&location.hash);if(hashRoute!=='/')route=hashRoute;applyRoute(route);});}else{const hashRoute=normalizeRoute(window.location.hash);if(hashRoute!=='/')route=hashRoute;applyRoute(route);}}
+    window.addEventListener('message',function(event){if(!event||!event.data||event.data.type!=='bizos-shell-route')return;applyRoute(event.data.path||'/');});
+    window.addEventListener('hashchange',function(){applyRoute(window.location.hash||'/');});
+    function protectExplicitRouteStartup(){const requested=normalizeRoute(window.__BIZOS_INITIAL_ROUTE||window.location.hash||'/');if(requested==='/'||requested==='/dashboard')return;['loadDashboard','loadEnhancedDashboard'].forEach(function(name){const fn=window[name];if(typeof fn!=='function'||fn.__bizosRouteStartupGuard)return;const guarded=function(){return undefined;};guarded.__bizosRouteStartupGuard=true;guarded.__bizosOriginal=fn;window[name]=guarded;});}
+    function startRouteState(){protectExplicitRouteStartup();initialRouteFromIframe();}
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startRouteState,{once:true});else startRouteState();
+  })();
+  </script>
+  <script>
+    const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
+    window.addEventListener('load', function () { if (!shouldShowLogin) return; let attempts=0; const interval=setInterval(function(){if(typeof window.showLoginModal==='function'&&document.getElementById('login-modal')){window.showLoginModal();clearInterval(interval);return;}if(typeof window.openLoginModal==='function'&&document.getElementById('login-modal')){window.openLoginModal();clearInterval(interval);return;}attempts++;if(attempts>20)clearInterval(interval);},200); });
+  </script>
+</body>
+</html>
