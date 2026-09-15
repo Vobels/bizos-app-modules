@@ -59,7 +59,13 @@ function getInitialPublicRoute_(params) {
 function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
-    var requestedPage = String(params.page || '').toLowerCase();
+    var pathInfo = (e && e.pathInfo) ? String(e.pathInfo) : '';
+    var pathRoute = pathInfo.replace(/^\/+|\/+$/g, '');
+
+    // Apps Script exposes the path after /exec through e.pathInfo. Prefer it
+    // for public routing so Netlify never needs to append ?page=... to the
+    // GAS URL. Query parameters remain supported for legacy callers.
+    var requestedPage = String(params.page || pathRoute || '').toLowerCase();
 
     if (params.auth === '1') {
       return HtmlService.createHtmlOutput(
@@ -111,7 +117,7 @@ function doGet(e) {
 
     var template = HtmlService.createTemplateFromFile('index');
     template.showLogin = requestedPage === 'login';
-    template.initialRoute = getInitialPublicRoute_(params);
+    template.initialRoute = getInitialPublicRoute_(requestedPage);
     template.routeMode = 'public';
     template.routeTarget = template.initialRoute === '/' ? 'landing' : template.initialRoute.substring(1);
 
