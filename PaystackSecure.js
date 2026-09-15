@@ -73,17 +73,14 @@ function savePaystackReference_(requestId, reference) {
 }
 
 function verifyPaystackPaymentAndProvisionSecure(reference, requestId) {
-  var lock = null;
   try {
     if (!reference || !requestId) {
       return {success:false,code:'INVALID_PAYMENT_COMPLETION',message:'Payment reference and request ID are required.'};
     }
 
-    lock = LockService.getScriptLock();
-    if (!lock.tryLock(30000)) {
-      return {success:false,code:'PAYMENT_BUSY',message:'Payment verification is already in progress.'};
-    }
-
+    // Do not hold a Script Lock while calling Paystack. Provisioning owns the
+    // single lock, which prevents duplicate client work without blocking the
+    // payment verification network request.
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
 
@@ -130,7 +127,7 @@ function verifyPaystackPaymentAndProvisionSecure(reference, requestId) {
         success:false,
         code:'PROVISIONING_FAILED_AFTER_PAYMENT',
         paymentVerified:true,
-        message:'Payment was verified, but client provisioning could not be completed. The request remains retryable.',
+        message:'Payment was verified, but your BizOS workspace could not be finished yet. You can continue setup without paying again.',
         provisioning:provisioning
       };
     }
@@ -145,13 +142,11 @@ function verifyPaystackPaymentAndProvisionSecure(reference, requestId) {
       webAppUrl:provisioning.webAppUrl,
       landingUrl:provisioning.landingUrl,
       deploymentId:provisioning.deploymentId,
-      message:provisioning.message || 'Payment confirmed and client provisioned successfully.'
+      message:provisioning.message || 'Your BizOS workspace is ready.'
     };
   } catch (error) {
     console.error('verifyPaystackPaymentAndProvisionSecure error:', error);
     return {success:false,code:'PAYMENT_PROVISIONING_ERROR',message:error.message || 'Payment completion failed.'};
-  } finally {
-    if (lock) { try { lock.releaseLock(); } catch (ignore) {} }
   }
 }
 
