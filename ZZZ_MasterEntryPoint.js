@@ -22,11 +22,10 @@ function getInitialPublicRoute_(params) {
 
   var aliases = {
     landing: '/',
+    login: '/login',
     dashboard: '/dashboard',
     profile: '/profile',
     staff: '/staff',
-    apps: '/apps',
-    app: '/apps',
     settings: '/settings',
     admin: '/admin',
     'admin-settings': '/admin/settings'
@@ -37,10 +36,10 @@ function getInitialPublicRoute_(params) {
 
   var allowed = {
     '/': true,
+    '/login': true,
     '/dashboard': true,
     '/profile': true,
     '/staff': true,
-    '/apps': true,
     '/settings': true,
     '/admin': true,
     '/admin/settings': true
