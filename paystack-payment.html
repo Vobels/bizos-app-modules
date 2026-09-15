@@ -6,25 +6,7 @@
   <title>Complete Payment - BizOS</title>
   <script src="https://js.paystack.co/v2/inline.js"></script>
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f7fb;color:#17202a;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .shell{width:100%;max-width:520px}
-    .brand{font-weight:800;color:#5D2A86;font-size:22px;margin-bottom:18px;text-align:center}
-    .card{background:#fff;border:1px solid #e8eaf0;border-radius:20px;padding:30px;box-shadow:0 18px 45px rgba(17,24,39,.08)}
-    .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#667085;margin-bottom:8px}
-    h1{font-size:28px;margin:0 0 8px;color:#111827}
-    .muted{color:#667085;line-height:1.55}
-    .summary{margin:22px 0;padding:18px;border-radius:14px;background:#faf8fc;border:1px solid #eee7f5}
-    .row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;font-size:14px}
-    .row strong{color:#111827;text-align:right}
-    .total{border-top:1px solid #e5e7eb;margin-top:8px;padding-top:15px;font-size:20px;font-weight:800}
-    button{width:100%;border:0;border-radius:11px;padding:15px 18px;background:#5D2A86;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .status{margin-top:16px;padding:13px 15px;border-radius:10px;display:none;font-size:14px;line-height:1.45}
-    .status.show{display:block}.status.error{background:#fff1f2;color:#b42318}.status.success{background:#ecfdf3;color:#027a48}.status.info{background:#eff6ff;color:#175cd3}
-    .small{font-size:12px;color:#98a2b3;text-align:center;margin-top:16px;line-height:1.5}
-    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:spin .7s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f7fb;color:#17202a;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.shell{width:100%;max-width:520px}.brand{font-weight:800;color:#5D2A86;font-size:22px;margin-bottom:18px;text-align:center}.card{background:#fff;border:1px solid #e8eaf0;border-radius:20px;padding:30px;box-shadow:0 18px 45px rgba(17,24,39,.08)}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#667085;margin-bottom:8px}h1{font-size:28px;margin:0 0 8px;color:#111827}.muted{color:#667085;line-height:1.55}.summary{margin:22px 0;padding:18px;border-radius:14px;background:#faf8fc;border:1px solid #eee7f5}.row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;font-size:14px}.row strong{color:#111827;text-align:right}.total{border-top:1px solid #e5e7eb;margin-top:8px;padding-top:15px;font-size:20px;font-weight:800}button{width:100%;border:0;border-radius:11px;padding:15px 18px;background:#5D2A86;color:#fff;font-weight:700;font-size:15px;cursor:pointer}button:disabled{opacity:.6;cursor:not-allowed}.status{margin-top:16px;padding:13px 15px;border-radius:10px;display:none;font-size:14px;line-height:1.45}.status.show{display:block}.status.error{background:#fff1f2;color:#b42318}.status.success{background:#ecfdf3;color:#027a48}.status.info{background:#eff6ff;color:#175cd3}.small{font-size:12px;color:#98a2b3;text-align:center;margin-top:16px;line-height:1.5}.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
@@ -34,109 +16,47 @@
       <div class="eyebrow">Secure checkout</div>
       <h1>Complete your payment</h1>
       <p class="muted">Your upgrade request has been received. Complete payment below to activate your BizOS workspace.</p>
-
       <div id="summary" class="summary">
         <div class="row"><span>Business</span><strong id="business">Loading...</strong></div>
         <div class="row"><span>Plan</span><strong id="plan">Loading...</strong></div>
         <div class="row total"><span>Total</span><strong id="amount">Loading...</strong></div>
       </div>
-
       <button id="pay" type="button" disabled>Loading payment...</button>
       <div id="status" class="status"></div>
       <div class="small">Payments are securely processed by Paystack. Your card or bank details are handled by Paystack and are not stored by BizOS.</div>
     </section>
   </main>
-
   <script>
     (function(){
       'use strict';
-      var requestId = <?!= JSON.stringify(requestId || '') ?>;
-      var businessEl = document.getElementById('business');
-      var planEl = document.getElementById('plan');
-      var amountEl = document.getElementById('amount');
-      var payBtn = document.getElementById('pay');
-      var statusEl = document.getElementById('status');
-      var checkout = null;
-
-      function status(message,type){
-        statusEl.textContent=message;
-        statusEl.className='status show '+(type||'info');
-      }
-
-      function money(amount,currency){
-        try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}
-        catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}
-      }
-
+      var requestId=<?!= JSON.stringify(requestId || '') ?>,businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),amountEl=document.getElementById('amount'),payBtn=document.getElementById('pay'),statusEl=document.getElementById('status'),checkout=null;
+      function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
+      function money(amount,currency){try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}}
       function setButton(text,disabled){payBtn.innerHTML=text;payBtn.disabled=!!disabled;}
-
       function loadCheckout(){
         if(!requestId){status('Payment request is missing. Please return to BizOS and submit the upgrade again.','error');setButton('Payment unavailable',true);return;}
         google.script.run.withSuccessHandler(function(r){
           if(!r||!r.success){status(r&&r.message||'Unable to prepare payment.','error');setButton('Payment unavailable',true);return;}
-          checkout=r;
-          businessEl.textContent=r.businessName||'Your Business';
-          planEl.textContent='Sovereign';
-          amountEl.textContent=money(r.displayAmount,r.currency);
-          setButton('Pay '+money(r.displayAmount,r.currency),false);
-          status('Your payment request is ready.','info');
-        }).withFailureHandler(function(){
-          status('Unable to connect to BizOS. Please try again.','error');
-          setButton('Payment unavailable',true);
-        }).getPaystackCheckoutDetails(requestId);
+          checkout=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);setButton('Pay '+money(r.displayAmount,r.currency),false);status('Your payment request is ready.','info');
+        }).withFailureHandler(function(){status('Unable to connect to BizOS. Please try again.','error');setButton('Payment unavailable',true);}).getPaystackCheckoutDetails(requestId);
       }
-
       function verify(reference){
-        status('Payment received. Verifying your transaction securely...','info');
-        setButton('<span class="spinner"></span>Verifying payment...',true);
+        status('Payment received. Verifying your transaction securely...','info');setButton('<span class="spinner"></span>Verifying payment...',true);
         google.script.run.withSuccessHandler(function(r){
-          if(r&&r.success){
-            status('Payment confirmed. Your BizOS workspace has been provisioned successfully.','success');
-            setButton('Payment completed',true);
-            if(r.landingUrl||r.webAppUrl){
-              var url=r.landingUrl||r.webAppUrl;
-              setTimeout(function(){window.location.href=url;},1800);
-            }
-          }else if(r&&r.paymentVerified){
-            status('Payment was verified, but workspace provisioning needs attention. Your payment is recorded and the request remains retryable.','error');
-            setButton('Payment verified',true);
-          }else{
-            status(r&&r.message||'We could not verify this payment. Please contact BizOS support.','error');
-            setButton('Try payment again',false);
-          }
-        }).withFailureHandler(function(){
-          status('Payment verification could not be completed. Please contact BizOS support before paying again.','error');
-          setButton('Payment verification failed',true);
-        }).verifyPaystackPaymentAndProvisionSecure(reference,requestId);
+          if(r&&r.success){status('Payment confirmed. Your BizOS workspace has been provisioned successfully.','success');setButton('Payment completed',true);if(r.landingUrl||r.webAppUrl){var url=r.landingUrl||r.webAppUrl;setTimeout(function(){window.location.href=url;},1800);}}
+          else if(r&&r.paymentVerified){status('Payment was verified, but workspace provisioning needs attention. Your payment is recorded and the request remains retryable.','error');setButton('Payment verified',true);}
+          else{status(r&&r.message||'We could not verify this payment. Please contact BizOS support.','error');setButton('Try payment again',false);}
+        }).withFailureHandler(function(){status('Payment verification could not be completed. Please contact BizOS support before paying again.','error');setButton('Payment verification failed',true);}).verifyPaystackPaymentAndProvisionSecure(reference,requestId);
       }
-
       payBtn.addEventListener('click',function(){
         if(!checkout)return;
-        if(typeof PaystackPop==='undefined'){
-          status('Paystack checkout could not load. Please refresh and try again.','error');
-          return;
-        }
+        if(typeof PaystackPop==='undefined'){status('Paystack checkout could not load. Please refresh and try again.','error');return;}
         setButton('<span class="spinner"></span>Opening secure checkout...',true);
         try{
           var popup=new PaystackPop();
-          popup.resumeTransaction(checkout.reference);
-        }catch(e){
-          try{
-            popup=new PaystackPop();
-            popup.newTransaction({
-              key:checkout.publicKey,
-              email:checkout.email,
-              amount:checkout.amount,
-              currency:checkout.currency,
-              reference:checkout.reference,
-              metadata:{requestId:checkout.requestId,businessName:checkout.businessName},
-              onSuccess:function(transaction){verify(transaction.reference);},
-              onCancel:function(){status('Payment was cancelled. You can try again when you are ready.','info');setButton('Pay '+money(checkout.displayAmount,checkout.currency),false);}
-            });
-          }catch(err){status('Unable to open Paystack checkout. Please refresh and try again.','error');setButton('Pay '+money(checkout.displayAmount,checkout.currency),false);}
-        }
+          popup.newTransaction({key:checkout.publicKey,email:checkout.email,amount:checkout.amount,currency:checkout.currency,reference:checkout.reference,metadata:{requestId:checkout.requestId,businessName:checkout.businessName},onSuccess:function(transaction){verify(transaction.reference);},onCancel:function(){status('Payment was cancelled. You can try again when you are ready.','info');setButton('Pay '+money(checkout.displayAmount,checkout.currency),false);}});
+        }catch(err){status('Unable to open Paystack checkout. Please refresh and try again.','error');setButton('Pay '+money(checkout.displayAmount,checkout.currency),false);}
       });
-
       loadCheckout();
     })();
   </script>
