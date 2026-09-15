@@ -28,10 +28,186 @@
   <?!= include('forms') ?>
   <?!= include('ModalFix') ?>
   <?!= include('ZZZ_UpgradeModalFix') ?>
-  <?!= include('ZZZ_InitialRouteStartupGuard') ?>
-  <?!= include('ZZZ_PublicRouteSync') ?>
-  <?!= include('ZZZ_RouteModeController') ?>
   <?!= include('ZZZ_ProfilePageLayoutFix') ?>
+
+  <!-- ============================================================
+       AUTHORITATIVE CLIENT ROUTE STATE
+       doGet() supplies __BIZOS_INITIAL_ROUTE. The existing page
+       functions are the navigation API; this block only connects
+       those functions to that one route state and the outer shell.
+       ============================================================ -->
+  <script>
+  (function () {
+    const ROUTES = {
+      landing: '/',
+      login: '/login',
+      dashboard: '/dashboard',
+      profile: '/profile',
+      staff: '/staff',
+      settings: '/settings'
+    };
+
+    function normalizeRoute(value) {
+      const raw = String(value || '').trim().toLowerCase();
+      if (!raw || raw === '/') return '/';
+      if (ROUTES[raw]) return ROUTES[raw];
+      const clean = '/' + raw.replace(/^\/+|\/+$/g, '');
+      return Object.values(ROUTES).indexOf(clean) !== -1 ? clean : '/';
+    }
+
+    function setRoute(path, replace) {
+      const route = normalizeRoute(path);
+      window.__BIZOS_PUBLIC_ROUTE = route;
+
+      // The GAS iframe cannot own the public hostname/path. Report the
+      // authoritative route to the Netlify shell, which owns that URL.
+      try {
+        if (window.top !== window) {
+          window.top.postMessage({ type: 'bizos-route', path: route }, '*');
+        }
+      } catch (e) {}
+
+      return route;
+    }
+
+    function authenticatedRoute(route) {
+      return route === '/dashboard' || route === '/profile' ||
+             route === '/staff' || route === '/settings';
+    }
+
+    function applyInitialRoute() {
+      const route = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
+      window.__BIZOS_PUBLIC_ROUTE = route;
+
+      if (route === '/') {
+        if (typeof window.showLandingPage === 'function') window.showLandingPage();
+        setRoute('/');
+        return;
+      }
+
+      if (route === '/login') {
+        setRoute('/login');
+        if (typeof window.openLoginModal === 'function') window.openLoginModal();
+        return;
+      }
+
+      // Authenticated routes are UI destinations, not a substitute for
+      // backend authorization. Existing callGoogleScript/session checks
+      // remain responsible for protecting data and operations.
+      if (authenticatedRoute(route) && typeof window.loadSession === 'function' && !window.loadSession()) {
+        setRoute('/login');
+        if (typeof window.openLoginModal === 'function') window.openLoginModal();
+        return;
+      }
+
+      if (route === '/dashboard') {
+        if (typeof window.showDashboardHome === 'function') window.showDashboardHome();
+      } else if (route === '/profile') {
+        if (typeof window.showProfilePage === 'function') window.showProfilePage();
+      } else if (route === '/staff') {
+        if (typeof window.showProfilePage === 'function') {
+          window.showProfilePage();
+          setTimeout(function () {
+            if (typeof window.showProfileTab === 'function') window.showProfileTab('team');
+          }, 250);
+        }
+      } else if (route === '/settings') {
+        if (typeof window.showSettingsPage === 'function') window.showSettingsPage();
+      }
+
+      setRoute(route);
+    }
+
+    function wrapNavigationFunction(name, route) {
+      const original = window[name];
+      if (typeof original !== 'function' || original.__bizosRouteStateWrapped) return;
+
+      const wrapped = function () {
+        const result = original.apply(this, arguments);
+        setRoute(route);
+        return result;
+      };
+      wrapped.__bizosRouteStateWrapped = true;
+      wrapped.__bizosOriginal = original;
+      window[name] = wrapped;
+    }
+
+    // scripts.html's normal startup calls these functions on window.load.
+    // Keep that bootstrap from overriding an explicit non-dashboard route.
+    function protectDashboardBootstrap() {
+      const route = normalizeRoute(window.__BIZOS_INITIAL_ROUTE || '/');
+      if (route === '/' || route === '/dashboard') return;
+
+      ['loadDashboard', 'loadEnhancedDashboard'].forEach(function (name) {
+        const original = window[name];
+        if (typeof original !== 'function' || original.__bizosRouteBootstrapProtected) return;
+        const protectedFn = function () {
+          return undefined;
+        };
+        protectedFn.__bizosRouteBootstrapProtected = true;
+        protectedFn.__bizosOriginal = original;
+        window[name] = protectedFn;
+      });
+    }
+
+    function install() {
+      protectDashboardBootstrap();
+      wrapNavigationFunction('showDashboardHome', '/dashboard');
+      wrapNavigationFunction('showProfilePage', '/profile');
+      wrapNavigationFunction('showSettingsPage', '/settings');
+
+      // Apps/modules are deliberately not a public route. Opening a module
+      // is part of dashboard/data management and therefore remains /dashboard.
+      const originalOpenModule = window.openModule;
+      if (typeof originalOpenModule === 'function' && !originalOpenModule.__bizosRouteStateWrapped) {
+        const wrappedOpenModule = function () {
+          const result = originalOpenModule.apply(this, arguments);
+          setRoute('/dashboard');
+          return result;
+        };
+        wrappedOpenModule.__bizosRouteStateWrapped = true;
+        wrappedOpenModule.__bizosOriginal = originalOpenModule;
+        window.openModule = wrappedOpenModule;
+      }
+    }
+
+    window.bizOSNavigate = function (path) {
+      const route = normalizeRoute(path);
+      if (route === '/') {
+        if (typeof window.showLandingPage === 'function') window.showLandingPage();
+      } else if (route === '/dashboard') {
+        if (typeof window.showDashboardHome === 'function') window.showDashboardHome();
+      } else if (route === '/profile') {
+        if (typeof window.showProfilePage === 'function') window.showProfilePage();
+      } else if (route === '/staff') {
+        if (typeof window.showProfilePage === 'function') {
+          window.showProfilePage();
+          setTimeout(function () {
+            if (typeof window.showProfileTab === 'function') window.showProfileTab('team');
+          }, 250);
+        }
+      } else if (route === '/settings') {
+        if (typeof window.showSettingsPage === 'function') window.showSettingsPage();
+      } else if (route === '/login') {
+        if (typeof window.openLoginModal === 'function') window.openLoginModal();
+      }
+      setRoute(route);
+      return route;
+    };
+
+    function start() {
+      install();
+      applyInitialRoute();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else {
+      start();
+    }
+  })();
+  </script>
+
   <script>
     const shouldShowLogin = <?= showLogin ? 'true' : 'false' ?>;
     window.addEventListener('load', function () {
