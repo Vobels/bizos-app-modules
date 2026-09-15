@@ -1,34 +1,36 @@
 <style>
-/* PROFILE: keep the page in normal document flow, aligned with Dashboard. */
+/* PROFILE ONLY: use the existing Dashboard sidebar and give Profile its own clean content viewport. */
 #profile-page {
-  position: relative !important;
-  inset: auto !important;
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 256px !important;
   display: none !important;
-  width: 100% !important;
-  height: auto !important;
-  min-width: 0 !important;
-  min-height: 100vh !important;
+  width: calc(100% - 256px) !important;
+  height: 100vh !important;
+  min-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
-  z-index: 1 !important;
+  z-index: 20 !important;
   background: #f9fafb !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 #profile-page:not(.hidden) { display: block !important; }
 
-/* profile.html has a simple main/header/content structure, not a Dashboard flex shell. */
+/* Profile's own header is the only header shown for the Profile view. */
 #profile-page > main {
   display: block !important;
   width: 100% !important;
-  height: auto !important;
-  min-height: 100vh !important;
+  height: 100% !important;
+  min-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
-  overflow: visible !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
-/* Header is the first element: keep it directly at the top. */
 #profile-page > main > header {
   position: sticky !important;
   top: 0 !important;
@@ -36,10 +38,9 @@
   margin: 0 !important;
 }
 
-/* The body container follows the header immediately. */
-#profile-page > main > div {
-  margin: 0 !important;
-  padding-top: 24px !important;
+/* Do not show the Dashboard header underneath Profile. */
+body:has(#profile-page:not(.hidden)) #dashboard-header {
+  display: none !important;
 }
 
 #profile-page .max-w-4xl {
@@ -47,21 +48,10 @@
   max-width: 56rem !important;
 }
 
-#profile-page[style] {
-  position: relative !important;
-  inset: auto !important;
-  height: auto !important;
-  overflow: visible !important;
-}
-
-body:has(#profile-page:not(.hidden)) {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-
 @media (max-width: 768px) {
-  #profile-page > main > div {
-    padding-top: 16px !important;
+  #profile-page {
+    left: 0 !important;
+    width: 100% !important;
   }
 }
 </style>
@@ -72,37 +62,33 @@ body:has(#profile-page:not(.hidden)) {
     const page = document.getElementById('profile-page');
     if (!page) return;
 
-    page.style.position = 'relative';
-    page.style.top = 'auto';
-    page.style.left = 'auto';
-    page.style.right = 'auto';
-    page.style.bottom = 'auto';
-    page.style.width = '100%';
-    page.style.height = 'auto';
-    page.style.overflow = 'visible';
-    page.style.zIndex = '1';
+    page.style.position = 'fixed';
+    page.style.top = '0';
+    page.style.left = window.innerWidth <= 768 ? '0' : '256px';
+    page.style.right = '0';
+    page.style.bottom = '0';
+    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 256px)';
+    page.style.height = '100vh';
+    page.style.minHeight = '0';
+    page.style.margin = '0';
+    page.style.padding = '0';
+    page.style.zIndex = '20';
+    page.style.overflow = 'hidden';
 
     const main = page.querySelector(':scope > main');
     if (main) {
-      main.style.height = 'auto';
-      main.style.minHeight = '100vh';
-      main.style.overflow = 'visible';
+      main.style.height = '100%';
+      main.style.minHeight = '0';
       main.style.margin = '0';
       main.style.padding = '0';
+      main.style.overflowY = 'auto';
+      main.style.overflowX = 'hidden';
     }
 
     const header = main && main.querySelector(':scope > header');
-    if (header) {
-      header.style.margin = '0';
-    }
-
-    const body = main && main.querySelector(':scope > div');
-    if (body) {
-      body.style.margin = '0';
-    }
+    if (header) header.style.margin = '0';
 
     document.body.style.overflowX = 'hidden';
-    document.body.style.overflowY = 'auto';
   }
 
   function fixStaffSidebarLink() {
@@ -131,5 +117,6 @@ body:has(#profile-page:not(.hidden)) {
   }
 
   window.addEventListener('pageshow', initializeNavigationFixes);
+  window.addEventListener('resize', normalizeProfileSource);
 })();
 </script>
