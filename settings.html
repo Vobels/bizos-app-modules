@@ -50,8 +50,6 @@
     color: #6b7280 !important;
   }
 
-  /* Robust visual control: the real checkbox stays in the DOM for the
-     existing save logic, while the button is the visible switch surface. */
   #settings-page .settings-notification-toggle {
     position: relative !important;
     display: inline-flex !important;
@@ -211,42 +209,42 @@
       <div class="space-y-2">
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Feature Updates</span><p class="settings-notification-description">New features and improvements</p></div>
-          <label class="settings-notification-toggle" aria-label="Feature Updates">
+          <div class="settings-notification-toggle">
             <input type="checkbox" id="notif-features" checked>
-            <button type="button" class="settings-preference-switch" data-target="notif-features" aria-pressed="true"><span class="sr-only">Toggle Feature Updates</span></button>
-          </label>
+            <button type="button" class="settings-preference-switch" data-target="notif-features" aria-pressed="true" aria-label="Turn off"><span class="sr-only">Toggle Feature Updates</span></button>
+          </div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">System Alerts</span><p class="settings-notification-description">Important system notifications</p></div>
-          <label class="settings-notification-toggle" aria-label="System Alerts">
+          <div class="settings-notification-toggle">
             <input type="checkbox" id="notif-system" checked>
-            <button type="button" class="settings-preference-switch" data-target="notif-system" aria-pressed="true"><span class="sr-only">Toggle System Alerts</span></button>
-          </label>
+            <button type="button" class="settings-preference-switch" data-target="notif-system" aria-pressed="true" aria-label="Turn off"><span class="sr-only">Toggle System Alerts</span></button>
+          </div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Weekly Reports</span><p class="settings-notification-description">Weekly business summary via email</p></div>
-          <label class="settings-notification-toggle" aria-label="Weekly Reports">
+          <div class="settings-notification-toggle">
             <input type="checkbox" id="notif-weekly">
-            <button type="button" class="settings-preference-switch" data-target="notif-weekly" aria-pressed="false"><span class="sr-only">Toggle Weekly Reports</span></button>
-          </label>
+            <button type="button" class="settings-preference-switch" data-target="notif-weekly" aria-pressed="false" aria-label="Turn on"><span class="sr-only">Toggle Weekly Reports</span></button>
+          </div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Security Alerts</span><p class="settings-notification-description">Login alerts and security events</p></div>
-          <label class="settings-notification-toggle" aria-label="Security Alerts">
+          <div class="settings-notification-toggle">
             <input type="checkbox" id="notif-security" checked>
-            <button type="button" class="settings-preference-switch" data-target="notif-security" aria-pressed="true"><span class="sr-only">Toggle Security Alerts</span></button>
-          </label>
+            <button type="button" class="settings-preference-switch" data-target="notif-security" aria-pressed="true" aria-label="Turn off"><span class="sr-only">Toggle Security Alerts</span></button>
+          </div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Marketing Updates</span><p class="settings-notification-description">Tips, offers, and product news</p></div>
-          <label class="settings-notification-toggle" aria-label="Marketing Updates">
+          <div class="settings-notification-toggle">
             <input type="checkbox" id="notif-marketing">
-            <button type="button" class="settings-preference-switch" data-target="notif-marketing" aria-pressed="false"><span class="sr-only">Toggle Marketing Updates</span></button>
-          </label>
+            <button type="button" class="settings-preference-switch" data-target="notif-marketing" aria-pressed="false" aria-label="Turn on"><span class="sr-only">Toggle Marketing Updates</span></button>
+          </div>
         </div>
       </div>
 
@@ -276,36 +274,6 @@
 
 <script>
 (function () {
-  function syncSettingsSwitches() {
-    document.querySelectorAll('#settings-page .settings-preference-switch').forEach(function (button) {
-      var targetId = button.getAttribute('data-target');
-      var input = document.getElementById(targetId);
-      if (!input) return;
-      var on = !!input.checked;
-      button.classList.toggle('is-on', on);
-      button.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
-  }
-
-  document.addEventListener('click', function (event) {
-    var button = event.target.closest('#settings-page .settings-preference-switch');
-    if (!button) return;
-    event.preventDefault();
-    var input = document.getElementById(button.getAttribute('data-target'));
-    if (!input) return;
-    input.checked = !input.checked;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    syncSettingsSwitches();
-  });
-
-  document.addEventListener('change', function (event) {
-    if (event.target && event.target.matches('#settings-page .settings-notification-toggle input[type="checkbox"]')) {
-      syncSettingsSwitches();
-    }
-  });
-
-  window.syncSettingsSwitches = syncSettingsSwitches;
-
   window.toggleSettingsSidebar = function () {
     var sidebar = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebar-overlay');
@@ -313,11 +281,5 @@
     sidebar.classList.toggle('open');
     if (overlay) overlay.classList.toggle('active', sidebar.classList.contains('open'));
   };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', syncSettingsSwitches, { once: true });
-  } else {
-    syncSettingsSwitches();
-  }
 })();
 </script>
