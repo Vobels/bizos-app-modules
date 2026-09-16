@@ -1,10 +1,29 @@
 <!-- ===== SETTINGS PAGE ===== -->
 <style>
-  /* Settings notification switches: use a real, explicit click target.
-     Do not depend on Tailwind peer/sr-only rendering for these controls. */
+  /* Settings lives inside the authenticated Dashboard shell. */
+  #settings-page {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: calc(100vh - 73px) !important;
+    overflow: visible !important;
+    background: #f9fafb !important;
+    z-index: 1 !important;
+  }
+
+  #settings-page .settings-notification-row {
+    position: relative !important;
+    z-index: 1 !important;
+    gap: 12px !important;
+  }
+
+  /* Use the checkbox itself as the visible switch. This avoids the
+     invisible-input + pseudo-element rendering problem. */
   #settings-page .settings-notification-toggle {
     position: relative !important;
-    display: inline-flex !important;
+    display: inline-block !important;
     flex: 0 0 44px !important;
     width: 44px !important;
     height: 24px !important;
@@ -12,35 +31,35 @@
     min-height: 24px !important;
     cursor: pointer !important;
     pointer-events: auto !important;
-    z-index: 1000 !important;
+    z-index: 2 !important;
     isolation: isolate !important;
   }
 
-  #settings-page .settings-notification-toggle input {
-    position: absolute !important;
-    width: 44px !important;
-    height: 24px !important;
-    margin: 0 !important;
-    opacity: 0 !important;
-    cursor: pointer !important;
-    pointer-events: auto !important;
-    z-index: 3 !important;
-  }
-
-  #settings-page .settings-notification-toggle .settings-switch-track {
+  #settings-page .settings-notification-toggle input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
     position: absolute !important;
     inset: 0 !important;
     display: block !important;
     width: 44px !important;
     height: 24px !important;
+    min-width: 44px !important;
+    min-height: 24px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
     background: #d1d5db !important;
+    border: 0 !important;
     border-radius: 9999px !important;
-    pointer-events: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
     transition: background-color .2s ease !important;
-    z-index: 1 !important;
   }
 
-  #settings-page .settings-notification-toggle .settings-switch-track::after {
+  #settings-page .settings-notification-toggle input[type="checkbox"]::after {
     content: '' !important;
     position: absolute !important;
     top: 2px !important;
@@ -51,39 +70,97 @@
     border: 1px solid #d1d5db !important;
     border-radius: 50% !important;
     box-sizing: border-box !important;
+    transform: translateX(0) !important;
     transition: transform .2s ease !important;
   }
 
-  #settings-page .settings-notification-toggle input:checked + .settings-switch-track {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked {
     background: #9333ea !important;
   }
 
-  #settings-page .settings-notification-toggle input:checked + .settings-switch-track::after {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked::after {
     transform: translateX(20px) !important;
     border-color: #fff !important;
   }
 
-  #settings-page .settings-notification-row {
-    position: relative !important;
-    z-index: 1 !important;
+  #settings-page .settings-notification-toggle .settings-switch-track {
+    display: none !important;
+  }
+
+  /* Keep long settings text from forcing horizontal overflow. */
+  #settings-page .settings-notification-row > div:first-child {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  @media (max-width: 768px) {
+    #settings-page {
+      min-height: calc(100vh - 64px) !important;
+      overflow-x: hidden !important;
+    }
+
+    #settings-page > div {
+      padding: 16px !important;
+    }
+
+    #settings-page .settings-page-heading {
+      gap: 12px !important;
+    }
+
+    #settings-page .settings-mobile-menu {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px !important;
+      border: 0 !important;
+      background: transparent !important;
+      color: #4b5563 !important;
+      border-radius: 8px !important;
+    }
+
+    #settings-page .settings-card {
+      padding: 16px !important;
+    }
+
+    #settings-page .settings-notification-row {
+      align-items: flex-start !important;
+      padding: 12px !important;
+    }
+
+    #settings-page .settings-notification-toggle {
+      margin-top: 2px !important;
+    }
+  }
+
+  @media (min-width: 769px) {
+    #settings-page .settings-mobile-menu {
+      display: none !important;
+    }
   }
 </style>
 
-<div id="settings-page" class="hidden p-6" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 999998; background: #f9fafb; overflow-y: auto;">
+<div id="settings-page" class="hidden p-6">
   <div class="mb-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
-        <p class="text-sm text-gray-500 mt-1">Manage your preferences and notifications</p>
+    <div class="settings-page-heading flex items-center justify-between">
+      <div class="flex items-center min-w-0">
+        <button type="button" class="settings-mobile-menu mr-2" aria-label="Open navigation" onclick="toggleSettingsSidebar()">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+        <div class="min-w-0">
+          <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
+          <p class="text-sm text-gray-500 mt-1">Manage your preferences and notifications</p>
+        </div>
       </div>
-      <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700">
+      <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700 flex-shrink-0" aria-label="Close settings">
         <i class="fas fa-times text-xl"></i>
       </button>
     </div>
   </div>
 
   <div class="max-w-3xl space-y-6">
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-bell mr-2 text-purple-600"></i>Notification Preferences</h2>
       <p class="text-sm text-gray-500 mb-4">Choose which notifications you want to receive</p>
       <div class="space-y-4">
@@ -97,7 +174,7 @@
       <span id="notif-save-status" class="ml-3 text-sm text-green-600 hidden">Saved!</span>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-shield-alt mr-2 text-purple-600"></i>Password & Security</h2>
       <p class="text-sm text-gray-500 mb-4">Change your password or manage security settings</p>
       <div class="flex flex-wrap gap-3">
@@ -107,10 +184,23 @@
       <p class="text-xs text-gray-400 mt-3">Password management is available in the Profile → Security tab</p>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-plug mr-2 text-purple-600"></i>API & Integrations</h2>
       <p class="text-sm text-gray-500 mb-4">Manage API keys and third-party integrations</p>
       <div class="bg-gray-50 rounded-lg p-4"><div class="flex items-center justify-between"><div><span class="font-medium text-gray-900">API Key</span><p class="text-xs text-gray-500">For developers and external apps</p></div><div class="flex items-center space-x-2"><code id="api-key-display" class="text-xs bg-white px-3 py-1 rounded border border-gray-200 font-mono">••••••••••••••••</code><button onclick="toggleApiKey()" class="text-purple-600 hover:text-purple-800 text-sm"><i class="fas fa-eye"></i></button><button onclick="regenerateApiKey()" class="text-gray-500 hover:text-gray-700 text-sm"><i class="fas fa-sync-alt"></i></button></div></div></div>
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  window.toggleSettingsSidebar = function () {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    if (!sidebar) return;
+
+    sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('active', sidebar.classList.contains('open'));
+  };
+})();
+</script>
