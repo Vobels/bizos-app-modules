@@ -50,87 +50,77 @@
     color: #6b7280 !important;
   }
 
+  /* The checkbox itself is the only source of truth for notification state. */
   #settings-page .settings-notification-toggle {
     position: relative !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
-    flex: 0 0 72px !important;
-    width: 72px !important;
-    min-width: 72px !important;
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
   }
 
   #settings-page .settings-notification-toggle input[type="checkbox"] {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    margin: -1px !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-  }
-
-  #settings-page .settings-preference-switch {
+    appearance: none !important;
+    -webkit-appearance: none !important;
     position: relative !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
+    display: block !important;
     width: 68px !important;
     height: 30px !important;
-    padding: 3px !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: 0 !important;
     border-radius: 9999px !important;
     background: #e5e7eb !important;
-    color: #6b7280 !important;
     cursor: pointer !important;
     box-sizing: border-box !important;
-    transition: background .18s ease, color .18s ease !important;
+    transition: background .18s ease !important;
+    outline: none !important;
   }
 
-  #settings-page .settings-preference-switch::before {
+  #settings-page .settings-notification-toggle input[type="checkbox"]::before {
     content: '' !important;
-    display: block !important;
+    position: absolute !important;
+    top: 3px !important;
+    left: 3px !important;
     width: 24px !important;
     height: 24px !important;
-    flex: 0 0 24px !important;
     border-radius: 50% !important;
     background: #fff !important;
     box-shadow: 0 1px 3px rgba(0,0,0,.16) !important;
-    transform: translateX(0) !important;
     transition: transform .18s ease !important;
   }
 
-  #settings-page .settings-preference-switch::after {
+  #settings-page .settings-notification-toggle input[type="checkbox"]::after {
     content: 'OFF' !important;
     position: absolute !important;
     right: 9px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
+    color: #6b7280 !important;
     font-size: 9px !important;
     font-weight: 700 !important;
     letter-spacing: .04em !important;
     line-height: 1 !important;
   }
 
-  #settings-page .settings-preference-switch.is-on {
-    justify-content: flex-start !important;
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked {
     background: #9333ea !important;
-    color: #fff !important;
   }
 
-  #settings-page .settings-preference-switch.is-on::before {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked::before {
     transform: translateX(38px) !important;
   }
 
-  #settings-page .settings-preference-switch.is-on::after {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked::after {
     content: 'ON' !important;
     left: 9px !important;
     right: auto !important;
+    color: #fff !important;
   }
 
-  #settings-page .settings-preference-switch:focus-visible {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:focus-visible {
     outline: 3px solid rgba(147,51,234,.22) !important;
     outline-offset: 2px !important;
   }
@@ -209,42 +199,27 @@
       <div class="space-y-2">
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Feature Updates</span><p class="settings-notification-description">New features and improvements</p></div>
-          <div class="settings-notification-toggle">
-            <input type="checkbox" id="notif-features" checked>
-            <button type="button" class="settings-preference-switch" data-target="notif-features" aria-pressed="true" aria-label="Turn off"><span class="sr-only">Toggle Feature Updates</span></button>
-          </div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-features" checked aria-label="Feature Updates"></div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">System Alerts</span><p class="settings-notification-description">Important system notifications</p></div>
-          <div class="settings-notification-toggle">
-            <input type="checkbox" id="notif-system" checked>
-            <button type="button" class="settings-preference-switch" data-target="notif-system" aria-pressed="true" aria-label="Turn off"><span class="sr-only">Toggle System Alerts</span></button>
-          </div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-system" checked aria-label="System Alerts"></div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Weekly Reports</span><p class="settings-notification-description">Weekly business summary via email</p></div>
-          <div class="settings-notification-toggle">
-            <input type="checkbox" id="notif-weekly">
-            <button type="button" class="settings-preference-switch" data-target="notif-weekly" aria-pressed="false" aria-label="Turn on"><span class="sr-only">Toggle Weekly Reports</span></button>
-          </div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-weekly" aria-label="Weekly Reports"></div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Security Alerts</span><p class="settings-notification-description">Login alerts and security events</p></div>
-          <div class="settings-notification-toggle">
-            <input type="checkbox" id="notif-security" checked>
-            <button type="button" class="settings-preference-switch" data-target="notif-security" aria-pressed="true" aria-label="Turn off"><span class="sr-only">Toggle Security Alerts</span></button>
-          </div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-security" checked aria-label="Security Alerts"></div>
         </div>
 
         <div class="settings-notification-row">
           <div class="settings-notification-copy"><span class="settings-notification-title">Marketing Updates</span><p class="settings-notification-description">Tips, offers, and product news</p></div>
-          <div class="settings-notification-toggle">
-            <input type="checkbox" id="notif-marketing">
-            <button type="button" class="settings-preference-switch" data-target="notif-marketing" aria-pressed="false" aria-label="Turn on"><span class="sr-only">Toggle Marketing Updates</span></button>
-          </div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-marketing" aria-label="Marketing Updates"></div>
         </div>
       </div>
 
