@@ -1,5 +1,5 @@
 <style>
-/* PROFILE ONLY: use the existing Dashboard sidebar and give Profile its own clean content viewport. */
+/* PROFILE: reserve the real desktop sidebar and keep the page content inside the remaining viewport. */
 #profile-page {
   position: fixed !important;
   top: 0 !important;
@@ -21,7 +21,7 @@
 
 #profile-page:not(.hidden) { display: block !important; }
 
-/* SETTINGS: align with the actual 280px Dashboard sidebar. */
+/* Keep Settings aligned with the same dashboard content viewport. */
 #settings-page {
   position: fixed !important;
   top: 0 !important;
@@ -69,30 +69,105 @@
 #settings-page > div, #settings-page button, #settings-page label { position: relative; z-index: 1; }
 
 #profile-page > main {
-  display: block !important; width: 100% !important; height: 100% !important;
-  min-height: 0 !important; margin: 0 !important; padding: 0 !important;
-  overflow-y: auto !important; overflow-x: hidden !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   box-sizing: border-box !important;
 }
-#profile-page > main > header { position: sticky !important; top: 0 !important; z-index: 100 !important; margin: 0 !important; }
 
-body:has(#profile-page:not(.hidden)) #dashboard-header,
-body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !important; }
+#profile-page > main > header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
 
-/* Keep profile content inside the available viewport instead of allowing a
-   full-width child to overflow past the right edge. */
+#profile-page > main > header > div {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+#profile-page > main > header > div > div:first-child {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+#profile-page > main > header button {
+  flex: 0 0 auto !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Restore the intended max-width instead of making the profile card wider than its content viewport. */
+#profile-page > main > div {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
 #profile-page .max-w-4xl {
-  width: auto !important;
-  max-width: none !important;
-  margin-left: 24px !important;
-  margin-right: 24px !important;
+  width: 100% !important;
+  max-width: 56rem !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  min-width: 0 !important;
   box-sizing: border-box !important;
 }
-#staff-page main > div > section { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+
+#profile-page .max-w-4xl > *,
+#profile-page .max-w-4xl .grid,
+#profile-page .max-w-4xl .flex-1 {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#profile-page p,
+#profile-page h1,
+#profile-page h2,
+#profile-page h3,
+#profile-page code,
+#profile-page label {
+  overflow-wrap: anywhere;
+}
+
+#profile-page input,
+#profile-page button,
+#profile-page textarea,
+#profile-page select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#profile-page nav[aria-label="Tabs"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+#staff-page main > div > section {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
 #bizos-upgrade-review-card { margin-left: 280px !important; margin-right: 24px !important; }
 #upgrade-modal > div { margin-left: 280px !important; margin-right: 24px !important; }
 
-/* Staff is an overlay view. When it is hidden, force it completely out of the rendering and hit-test layers. */
+/* Staff is an overlay view. When hidden, remove it from rendering and hit-testing. */
 #staff-page.hidden {
   display: none !important;
   visibility: hidden !important;
@@ -104,9 +179,23 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
 }
 
 @media (max-width: 768px) {
-  #profile-page, #settings-page { left: 0 !important; width: 100% !important; }
-  #profile-page .max-w-4xl { margin-left: 24px !important; margin-right: 24px !important; }
-  #bizos-upgrade-review-card, #upgrade-modal > div { margin-left: 0 !important; margin-right: 0 !important; }
+  #profile-page, #settings-page {
+    left: 0 !important;
+    width: 100% !important;
+  }
+
+  #profile-page .max-w-4xl {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  #bizos-upgrade-review-card, #upgrade-modal > div {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
   #sidebar.open { z-index: 1000001 !important; }
   #sidebar-overlay.active { z-index: 1000000 !important; }
   #staff-page { left: 0 !important; width: 100% !important; }
@@ -118,26 +207,49 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
   function normalizeProfileSource() {
     const page = document.getElementById('profile-page');
     if (!page) return;
-    page.style.position = 'fixed'; page.style.top = '0';
-    page.style.left = window.innerWidth <= 768 ? '0' : '280px';
-    page.style.right = '0'; page.style.bottom = '0';
-    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 280px)';
-    page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '0';
-    page.style.zIndex = '999999'; page.style.overflow = 'hidden';
+    const mobile = window.innerWidth <= 768;
+    page.style.position = 'fixed';
+    page.style.top = '0';
+    page.style.left = mobile ? '0' : '280px';
+    page.style.right = '0';
+    page.style.bottom = '0';
+    page.style.width = mobile ? '100%' : 'calc(100% - 280px)';
+    page.style.height = '100vh';
+    page.style.minHeight = '0';
+    page.style.margin = '0';
+    page.style.padding = '0';
+    page.style.zIndex = '999999';
+    page.style.overflow = 'hidden';
+    page.style.boxSizing = 'border-box';
     const main = page.querySelector(':scope > main');
-    if (main) { main.style.width = '100%'; main.style.height = '100%'; main.style.minHeight = '0'; main.style.margin = '0'; main.style.padding = '0'; main.style.overflowY = 'auto'; main.style.overflowX = 'hidden'; main.style.boxSizing = 'border-box'; }
+    if (main) {
+      main.style.width = '100%';
+      main.style.height = '100%';
+      main.style.minWidth = '0';
+      main.style.minHeight = '0';
+      main.style.margin = '0';
+      main.style.padding = '0';
+      main.style.overflowY = 'auto';
+      main.style.overflowX = 'hidden';
+      main.style.boxSizing = 'border-box';
+    }
     const header = main && main.querySelector(':scope > header');
-    if (header) header.style.margin = '0';
+    if (header) {
+      header.style.width = '100%';
+      header.style.margin = '0';
+      header.style.boxSizing = 'border-box';
+    }
     document.body.style.overflowX = 'hidden';
   }
 
   function normalizeSettingsSource() {
     const page = document.getElementById('settings-page');
     if (!page) return;
+    const mobile = window.innerWidth <= 768;
     page.style.position = 'fixed'; page.style.top = '0';
-    page.style.left = window.innerWidth <= 768 ? '0' : '280px';
+    page.style.left = mobile ? '0' : '280px';
     page.style.right = '0'; page.style.bottom = '0';
-    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 280px)';
+    page.style.width = mobile ? '100%' : 'calc(100% - 280px)';
     page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '24px';
     page.style.zIndex = '999999'; page.style.overflowY = 'auto'; page.style.overflowX = 'hidden'; page.style.boxSizing = 'border-box'; page.style.pointerEvents = 'auto';
   }
@@ -160,13 +272,10 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
     document.addEventListener('click', function (event) {
       var staffPage = document.getElementById('staff-page');
       if (!staffPage || staffPage.classList.contains('hidden')) return;
-
       var button = event.target && event.target.closest ? event.target.closest('#sidebar nav button') : null;
       if (!button) return;
-
       var label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
       if (label === 'staff') return;
-
       hideStaffPage();
     }, true);
 
@@ -255,6 +364,7 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
     fixBillingCloseReturn();
     installStaffNavigationGuard();
   }
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeNavigationFixes, { once: true }); else initializeNavigationFixes();
   window.addEventListener('pageshow', initializeNavigationFixes);
   window.addEventListener('resize', function () { normalizeProfileSource(); normalizeSettingsSource(); });
