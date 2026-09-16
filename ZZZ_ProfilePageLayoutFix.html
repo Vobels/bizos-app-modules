@@ -147,15 +147,8 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
     margin-right: 0 !important;
   }
 
-  /* Settings normally sits above the Dashboard shell. When its mobile
-     navigation opens, let the sidebar and overlay rise above Settings. */
-  #sidebar.open {
-    z-index: 1000001 !important;
-  }
-
-  #sidebar-overlay.active {
-    z-index: 1000000 !important;
-  }
+  #sidebar.open { z-index: 1000001 !important; }
+  #sidebar-overlay.active { z-index: 1000000 !important; }
 }
 </style>
 
@@ -164,88 +157,64 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
   function normalizeProfileSource() {
     const page = document.getElementById('profile-page');
     if (!page) return;
-
-    page.style.position = 'fixed';
-    page.style.top = '0';
+    page.style.position = 'fixed'; page.style.top = '0';
     page.style.left = window.innerWidth <= 768 ? '0' : '256px';
-    page.style.right = '0';
-    page.style.bottom = '0';
+    page.style.right = '0'; page.style.bottom = '0';
     page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 256px)';
-    page.style.height = '100vh';
-    page.style.minHeight = '0';
-    page.style.margin = '0';
-    page.style.padding = '0';
-    page.style.zIndex = '999999';
-    page.style.overflow = 'hidden';
-
+    page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '0';
+    page.style.zIndex = '999999'; page.style.overflow = 'hidden';
     const main = page.querySelector(':scope > main');
-    if (main) {
-      main.style.height = '100%';
-      main.style.minHeight = '0';
-      main.style.margin = '0';
-      main.style.padding = '0';
-      main.style.overflowY = 'auto';
-      main.style.overflowX = 'hidden';
-    }
-
+    if (main) { main.style.height = '100%'; main.style.minHeight = '0'; main.style.margin = '0'; main.style.padding = '0'; main.style.overflowY = 'auto'; main.style.overflowX = 'hidden'; }
     const header = main && main.querySelector(':scope > header');
     if (header) header.style.margin = '0';
-
     document.body.style.overflowX = 'hidden';
   }
 
   function normalizeSettingsSource() {
     const page = document.getElementById('settings-page');
     if (!page) return;
-
-    page.style.position = 'fixed';
-    page.style.top = '0';
+    page.style.position = 'fixed'; page.style.top = '0';
     page.style.left = window.innerWidth <= 768 ? '0' : '256px';
-    page.style.right = '0';
-    page.style.bottom = '0';
+    page.style.right = '0'; page.style.bottom = '0';
     page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 256px)';
-    page.style.height = '100vh';
-    page.style.minHeight = '0';
-    page.style.margin = '0';
-    page.style.padding = '24px';
-    page.style.zIndex = '999999';
-    page.style.overflowY = 'auto';
-    page.style.overflowX = 'hidden';
-    page.style.boxSizing = 'border-box';
-    page.style.pointerEvents = 'auto';
+    page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '24px';
+    page.style.zIndex = '999999'; page.style.overflowY = 'auto'; page.style.overflowX = 'hidden'; page.style.boxSizing = 'border-box'; page.style.pointerEvents = 'auto';
+  }
+
+  function hideStaffPage() {
+    var staffPage = document.getElementById('staff-page');
+    if (staffPage) staffPage.classList.add('hidden');
+    if (typeof window.setStaffSidebarState === 'function') window.setStaffSidebarState(false);
   }
 
   function fixStaffSidebarLink() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-
     sidebar.querySelectorAll('nav button').forEach(function (button) {
       const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
-      if (label === 'staff') {
-        button.onclick = function () {
-          if (typeof window.showStaffPage === 'function') window.showStaffPage();
-        };
-      }
+      if (label === 'staff') button.onclick = function () { if (typeof window.showStaffPage === 'function') window.showStaffPage(); };
     });
   }
 
   function fixBillingSidebarLink() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-
     sidebar.querySelectorAll('nav button').forEach(function (button) {
       const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
       if (label === 'billing') {
         button.onclick = function () {
           var profilePage = document.getElementById('profile-page');
+          var settingsPage = document.getElementById('settings-page');
+          var staffPage = document.getElementById('staff-page');
           var dashboardPage = document.getElementById('dashboard-page');
           var currentView = 'dashboard';
           if (profilePage && !profilePage.classList.contains('hidden')) currentView = 'profile';
-          else if (document.getElementById('settings-page') && !document.getElementById('settings-page').classList.contains('hidden')) currentView = 'settings';
+          else if (settingsPage && !settingsPage.classList.contains('hidden')) currentView = 'settings';
+          else if (staffPage && !staffPage.classList.contains('hidden')) currentView = 'staff';
           window.__bizosBillingReturnView = currentView;
           if (profilePage) profilePage.classList.add('hidden');
-          var settingsPage = document.getElementById('settings-page');
           if (settingsPage) settingsPage.classList.add('hidden');
+          hideStaffPage();
           if (dashboardPage) dashboardPage.classList.remove('hidden');
           if (typeof window.showUpgradeModal === 'function') window.showUpgradeModal();
         };
@@ -256,62 +225,35 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
   function fixBillingCloseReturn() {
     if (window.__bizosBillingCloseWrapped) return;
     if (typeof window.closeUpgradeModal !== 'function') return;
-
     var originalCloseUpgradeModal = window.closeUpgradeModal;
     window.closeUpgradeModal = function () {
       var returnView = window.__bizosBillingReturnView;
       var result = originalCloseUpgradeModal.apply(this, arguments);
-
       if (returnView === 'profile') {
-        var dashboardPage = document.getElementById('dashboard-page');
-        var profilePage = document.getElementById('profile-page');
-        var settingsPage = document.getElementById('settings-page');
-        if (dashboardPage) dashboardPage.classList.remove('hidden');
-        if (settingsPage) settingsPage.classList.add('hidden');
-        if (profilePage) {
-          profilePage.classList.remove('hidden');
-          profilePage.style.display = 'block';
-        }
+        var dashboardPage = document.getElementById('dashboard-page'), profilePage = document.getElementById('profile-page'), settingsPage = document.getElementById('settings-page');
+        if (dashboardPage) dashboardPage.classList.remove('hidden'); if (settingsPage) settingsPage.classList.add('hidden');
+        if (profilePage) { profilePage.classList.remove('hidden'); profilePage.style.display = 'block'; }
         normalizeProfileSource();
-        setTimeout(function () {
-          if (typeof window.loadProfileData === 'function') window.loadProfileData();
-          if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers();
-        }, 0);
+        setTimeout(function () { if (typeof window.loadProfileData === 'function') window.loadProfileData(); if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers(); }, 0);
         window.__bizosBillingReturnView = null;
       } else if (returnView === 'settings') {
-        var dashboardPage2 = document.getElementById('dashboard-page');
-        var profilePage2 = document.getElementById('profile-page');
-        var settingsPage2 = document.getElementById('settings-page');
-        if (dashboardPage2) dashboardPage2.classList.remove('hidden');
-        if (profilePage2) profilePage2.classList.add('hidden');
-        if (settingsPage2) settingsPage2.classList.remove('hidden');
-        normalizeSettingsSource();
+        var dashboardPage2 = document.getElementById('dashboard-page'), profilePage2 = document.getElementById('profile-page'), settingsPage2 = document.getElementById('settings-page');
+        if (dashboardPage2) dashboardPage2.classList.remove('hidden'); if (profilePage2) profilePage2.classList.add('hidden'); if (settingsPage2) settingsPage2.classList.remove('hidden');
+        normalizeSettingsSource(); window.__bizosBillingReturnView = null;
+      } else if (returnView === 'staff') {
+        var dashboardPage3 = document.getElementById('dashboard-page'), staffPage3 = document.getElementById('staff-page');
+        if (dashboardPage3) dashboardPage3.classList.remove('hidden');
+        if (staffPage3 && typeof window.showStaffPage === 'function') window.showStaffPage();
         window.__bizosBillingReturnView = null;
       }
-
       return result;
     };
     window.__bizosBillingCloseWrapped = true;
   }
 
-  function initializeNavigationFixes() {
-    normalizeProfileSource();
-    normalizeSettingsSource();
-    fixStaffSidebarLink();
-    fixBillingSidebarLink();
-    fixBillingCloseReturn();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeNavigationFixes, { once: true });
-  } else {
-    initializeNavigationFixes();
-  }
-
+  function initializeNavigationFixes() { normalizeProfileSource(); normalizeSettingsSource(); fixStaffSidebarLink(); fixBillingSidebarLink(); fixBillingCloseReturn(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeNavigationFixes, { once: true }); else initializeNavigationFixes();
   window.addEventListener('pageshow', initializeNavigationFixes);
-  window.addEventListener('resize', function () {
-    normalizeProfileSource();
-    normalizeSettingsSource();
-  });
+  window.addEventListener('resize', function () { normalizeProfileSource(); normalizeSettingsSource(); });
 })();
 </script>
