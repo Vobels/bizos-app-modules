@@ -199,13 +199,27 @@ function getBusinessStaffV2(businessId, sessionId) {
           const col = zzzStaffCol_(headers, header);
           return col === -1 ? '' : row[col];
         };
-        const rawStatus = String(get('Invitation_Status') || '').toLowerCase();
-        const verified = String(get('Is_Verified') || '').toUpperCase() === 'YES';
-        const status = rawStatus === 'pending' ? 'pending' : (verified || rawStatus === 'accepted' || rawStatus === 'active' ? 'active' : rawStatus || 'active');
+        const rawStatus = String(get('Invitation_Status') || '').trim().toLowerCase();
+        const role = String(get('Role') || 'staff').trim().toLowerCase();
+        const verified = String(get('Is_Verified') || '').trim().toUpperCase() === 'YES';
+
+        // Owners are existing business accounts, not invitation records.
+        // A stale/missing invitation status must never make the owner appear pending.
+        const status = role === 'owner'
+          ? 'active'
+          : (verified || rawStatus === 'accepted' || rawStatus === 'active'
+              ? 'active'
+              : rawStatus || 'active');
+
+        const email = String(get('Email') || '').trim();
+        // Name is authoritative when present; email is the safe fallback so the
+        // staff card can never render an undefined name.
+        const name = String(get('Name') || '').trim() || email || 'Team member';
+
         return {
-          email: get('Email'),
-          name: get('Name'),
-          role: get('Role') || 'staff',
+          email: email,
+          name: name,
+          role: role || 'staff',
           status: status,
           invitationExpiresAt: get('Invitation_Expires_At'),
           isVerified: verified,
