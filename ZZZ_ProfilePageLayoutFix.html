@@ -20,8 +20,7 @@
 
 #profile-page:not(.hidden) { display: block !important; }
 
-/* SETTINGS: keep the Settings page above the Dashboard shell so its
-   controls receive mouse/touch events reliably. */
+/* SETTINGS: keep the Settings page above the Dashboard shell so its controls receive mouse/touch events reliably. */
 #settings-page {
   position: fixed !important;
   top: 0 !important;
@@ -41,18 +40,12 @@
   pointer-events: auto !important;
 }
 
-#settings-page:not(.hidden) {
-  display: block !important;
-}
+#settings-page:not(.hidden) { display: block !important; }
 
 #settings-page,
-#settings-page * {
-  pointer-events: auto;
-}
+#settings-page * { pointer-events: auto; }
 
-/* Explicit notification switch styling. The checkbox remains the real
-   control used by saveNotificationPreferences(); the label is the visible
-   and clickable switch surface. */
+/* Legacy switch selectors retained for compatibility with older Settings markup. */
 #settings-page label.relative.inline-flex {
   position: relative !important;
   display: inline-flex !important;
@@ -85,10 +78,7 @@
 
 #settings-page > div,
 #settings-page button,
-#settings-page label {
-  position: relative;
-  z-index: 1;
-}
+#settings-page label { position: relative; z-index: 1; }
 
 #profile-page > main {
   display: block !important;
@@ -109,16 +99,13 @@
 }
 
 body:has(#profile-page:not(.hidden)) #dashboard-header,
-body:has(#settings-page:not(.hidden)) #dashboard-header {
-  display: none !important;
-}
+body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !important; }
 
 #profile-page .max-w-4xl {
   width: 100% !important;
   max-width: 56rem !important;
 }
 
-/* Keep Profile content on the same 24px gutter used by Dashboard/Apps. */
 #profile-page .max-w-4xl {
   width: auto !important;
   max-width: none !important;
@@ -126,16 +113,12 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
   margin-right: 24px !important;
 }
 
-/* Staff has its own 256px sidebar. Remove the centered max-width so its
-   content begins at the same 24px gutter as Dashboard content. */
 #staff-page main > div > section {
   max-width: none !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
 
-/* Billing review/upgrade surfaces should align with the active sidebar
-   content area instead of appearing unnecessarily detached from it. */
 #bizos-upgrade-review-card {
   margin-left: 256px !important;
   margin-right: 24px !important;
@@ -162,6 +145,16 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
   #upgrade-modal > div {
     margin-left: 0 !important;
     margin-right: 0 !important;
+  }
+
+  /* Settings normally sits above the Dashboard shell. When its mobile
+     navigation opens, let the sidebar and overlay rise above Settings. */
+  #sidebar.open {
+    z-index: 1000001 !important;
+  }
+
+  #sidebar-overlay.active {
+    z-index: 1000000 !important;
   }
 }
 </style>
@@ -246,20 +239,15 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
         button.onclick = function () {
           var profilePage = document.getElementById('profile-page');
           var dashboardPage = document.getElementById('dashboard-page');
-
           var currentView = 'dashboard';
           if (profilePage && !profilePage.classList.contains('hidden')) currentView = 'profile';
           else if (document.getElementById('settings-page') && !document.getElementById('settings-page').classList.contains('hidden')) currentView = 'settings';
           window.__bizosBillingReturnView = currentView;
-
           if (profilePage) profilePage.classList.add('hidden');
           var settingsPage = document.getElementById('settings-page');
           if (settingsPage) settingsPage.classList.add('hidden');
           if (dashboardPage) dashboardPage.classList.remove('hidden');
-
-          if (typeof window.showUpgradeModal === 'function') {
-            window.showUpgradeModal();
-          }
+          if (typeof window.showUpgradeModal === 'function') window.showUpgradeModal();
         };
       }
     });
@@ -278,31 +266,25 @@ body:has(#settings-page:not(.hidden)) #dashboard-header {
         var dashboardPage = document.getElementById('dashboard-page');
         var profilePage = document.getElementById('profile-page');
         var settingsPage = document.getElementById('settings-page');
-
         if (dashboardPage) dashboardPage.classList.remove('hidden');
         if (settingsPage) settingsPage.classList.add('hidden');
         if (profilePage) {
           profilePage.classList.remove('hidden');
           profilePage.style.display = 'block';
         }
-
         normalizeProfileSource();
-
         setTimeout(function () {
           if (typeof window.loadProfileData === 'function') window.loadProfileData();
           if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers();
         }, 0);
-
         window.__bizosBillingReturnView = null;
       } else if (returnView === 'settings') {
         var dashboardPage2 = document.getElementById('dashboard-page');
         var profilePage2 = document.getElementById('profile-page');
         var settingsPage2 = document.getElementById('settings-page');
-
         if (dashboardPage2) dashboardPage2.classList.remove('hidden');
         if (profilePage2) profilePage2.classList.add('hidden');
         if (settingsPage2) settingsPage2.classList.remove('hidden');
-
         normalizeSettingsSource();
         window.__bizosBillingReturnView = null;
       }
