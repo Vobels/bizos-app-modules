@@ -1,6 +1,5 @@
 <!-- ===== SETTINGS PAGE ===== -->
 <style>
-  /* Settings lives inside the authenticated Dashboard shell. */
   #settings-page {
     position: relative !important;
     inset: auto !important;
@@ -15,109 +14,127 @@
 
   #settings-page .settings-notification-row {
     position: relative !important;
-    z-index: 1 !important;
-    gap: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+    padding: 16px !important;
+    background: #f9fafb !important;
+    border: 1px solid #f3f4f6 !important;
+    border-radius: 12px !important;
+    transition: background .18s ease, border-color .18s ease !important;
   }
 
-  /* Dedicated switch surface. The checkbox stays the real form control;
-     the track/thumb are explicit elements so rendering does not depend on
-     checkbox pseudo-elements. */
+  #settings-page .settings-notification-row:hover {
+    background: #fff !important;
+    border-color: #e5e7eb !important;
+  }
+
+  #settings-page .settings-notification-copy {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  #settings-page .settings-notification-title {
+    display: block !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 20px !important;
+    color: #111827 !important;
+  }
+
+  #settings-page .settings-notification-description {
+    margin-top: 3px !important;
+    font-size: 13px !important;
+    line-height: 19px !important;
+    color: #6b7280 !important;
+  }
+
+  /* Robust visual control: the real checkbox stays in the DOM for the
+     existing save logic, while the button is the visible switch surface. */
   #settings-page .settings-notification-toggle {
     position: relative !important;
     display: inline-flex !important;
-    flex: 0 0 44px !important;
-    width: 44px !important;
-    height: 24px !important;
-    min-width: 44px !important;
-    min-height: 24px !important;
-    cursor: pointer !important;
-    pointer-events: auto !important;
-    z-index: 2 !important;
-    isolation: isolate !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex: 0 0 72px !important;
+    width: 72px !important;
+    min-width: 72px !important;
   }
 
   #settings-page .settings-notification-toggle input[type="checkbox"] {
-    appearance: none !important;
-    -webkit-appearance: none !important;
     position: absolute !important;
-    inset: 0 !important;
-    display: block !important;
-    width: 44px !important;
-    height: 24px !important;
-    min-width: 44px !important;
-    min-height: 24px !important;
-    margin: 0 !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
     padding: 0 !important;
-    opacity: 0 !important;
-    visibility: visible !important;
-    background: transparent !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
     border: 0 !important;
-    box-shadow: none !important;
-    cursor: pointer !important;
-    pointer-events: auto !important;
-    z-index: 3 !important;
   }
 
-  #settings-page .settings-notification-toggle .settings-switch-track {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    display: block !important;
-    width: 44px !important;
-    height: 24px !important;
-    min-width: 44px !important;
-    min-height: 24px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #d1d5db !important;
+  #settings-page .settings-preference-switch {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 68px !important;
+    height: 30px !important;
+    padding: 3px !important;
+    border: 0 !important;
     border-radius: 9999px !important;
+    background: #e5e7eb !important;
+    color: #6b7280 !important;
+    cursor: pointer !important;
     box-sizing: border-box !important;
-    pointer-events: none !important;
-    z-index: 1 !important;
+    transition: background .18s ease, color .18s ease !important;
   }
 
-  #settings-page .settings-notification-toggle .settings-switch-thumb {
-    position: absolute !important;
-    top: 2px !important;
-    left: 2px !important;
+  #settings-page .settings-preference-switch::before {
+    content: '' !important;
     display: block !important;
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    border: 1px solid #d1d5db !important;
+    width: 24px !important;
+    height: 24px !important;
+    flex: 0 0 24px !important;
     border-radius: 50% !important;
-    box-sizing: border-box !important;
+    background: #fff !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.16) !important;
     transform: translateX(0) !important;
-    pointer-events: none !important;
-    z-index: 2 !important;
+    transition: transform .18s ease !important;
   }
 
-  #settings-page .settings-notification-toggle.is-on .settings-switch-track {
+  #settings-page .settings-preference-switch::after {
+    content: 'OFF' !important;
+    position: absolute !important;
+    right: 9px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    letter-spacing: .04em !important;
+    line-height: 1 !important;
+  }
+
+  #settings-page .settings-preference-switch.is-on {
+    justify-content: flex-start !important;
     background: #9333ea !important;
+    color: #fff !important;
   }
 
-  #settings-page .settings-notification-toggle.is-on .settings-switch-thumb {
-    transform: translateX(20px) !important;
-    border-color: #fff !important;
+  #settings-page .settings-preference-switch.is-on::before {
+    transform: translateX(38px) !important;
   }
 
-  #settings-page .settings-notification-toggle.is-off .settings-switch-track {
-    background: #d1d5db !important;
+  #settings-page .settings-preference-switch.is-on::after {
+    content: 'ON' !important;
+    left: 9px !important;
+    right: auto !important;
   }
 
-  #settings-page .settings-notification-toggle.is-off .settings-switch-thumb {
-    transform: translateX(0) !important;
-    border-color: #d1d5db !important;
-  }
-
-  /* Keep long settings text from forcing horizontal overflow. */
-  #settings-page .settings-notification-row > div:first-child {
-    min-width: 0 !important;
-    flex: 1 1 auto !important;
+  #settings-page .settings-preference-switch:focus-visible {
+    outline: 3px solid rgba(147,51,234,.22) !important;
+    outline-offset: 2px !important;
   }
 
   @media (max-width: 768px) {
@@ -152,12 +169,8 @@
     }
 
     #settings-page .settings-notification-row {
-      align-items: flex-start !important;
-      padding: 12px !important;
-    }
-
-    #settings-page .settings-notification-toggle {
-      margin-top: 2px !important;
+      padding: 14px !important;
+      gap: 12px !important;
     }
   }
 
@@ -188,17 +201,59 @@
 
   <div class="max-w-3xl space-y-6">
     <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-bell mr-2 text-purple-600"></i>Notification Preferences</h2>
-      <p class="text-sm text-gray-500 mb-4">Choose which notifications you want to receive</p>
-      <div class="space-y-4">
-        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Feature Updates</span><p class="text-sm text-gray-500">New features and improvements</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-features" checked><span class="settings-switch-track"><span class="settings-switch-thumb"></span></span></label></div>
-        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">System Alerts</span><p class="text-sm text-gray-500">Important system notifications</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-system" checked><span class="settings-switch-track"><span class="settings-switch-thumb"></span></span></label></div>
-        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Weekly Reports</span><p class="text-sm text-gray-500">Weekly business summary via email</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-weekly"><span class="settings-switch-track"><span class="settings-switch-thumb"></span></span></label></div>
-        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Security Alerts</span><p class="text-sm text-gray-500">Login alerts and security events</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-security" checked><span class="settings-switch-track"><span class="settings-switch-thumb"></span></span></label></div>
-        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Marketing Updates</span><p class="text-sm text-gray-500">Tips, offers, and product news</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-marketing"><span class="settings-switch-track"><span class="settings-switch-thumb"></span></span></label></div>
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-bell mr-2 text-purple-600"></i>Notification Preferences</h2>
+          <p class="text-sm text-gray-500 mt-1">Control the updates and alerts you want to receive.</p>
+        </div>
       </div>
-      <button onclick="saveNotificationPreferences()" class="mt-6 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition"><i class="fas fa-save mr-2"></i>Save Preferences</button>
-      <span id="notif-save-status" class="ml-3 text-sm text-green-600 hidden">Saved!</span>
+
+      <div class="space-y-2">
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Feature Updates</span><p class="settings-notification-description">New features and improvements</p></div>
+          <label class="settings-notification-toggle" aria-label="Feature Updates">
+            <input type="checkbox" id="notif-features" checked>
+            <button type="button" class="settings-preference-switch" data-target="notif-features" aria-pressed="true"><span class="sr-only">Toggle Feature Updates</span></button>
+          </label>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">System Alerts</span><p class="settings-notification-description">Important system notifications</p></div>
+          <label class="settings-notification-toggle" aria-label="System Alerts">
+            <input type="checkbox" id="notif-system" checked>
+            <button type="button" class="settings-preference-switch" data-target="notif-system" aria-pressed="true"><span class="sr-only">Toggle System Alerts</span></button>
+          </label>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Weekly Reports</span><p class="settings-notification-description">Weekly business summary via email</p></div>
+          <label class="settings-notification-toggle" aria-label="Weekly Reports">
+            <input type="checkbox" id="notif-weekly">
+            <button type="button" class="settings-preference-switch" data-target="notif-weekly" aria-pressed="false"><span class="sr-only">Toggle Weekly Reports</span></button>
+          </label>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Security Alerts</span><p class="settings-notification-description">Login alerts and security events</p></div>
+          <label class="settings-notification-toggle" aria-label="Security Alerts">
+            <input type="checkbox" id="notif-security" checked>
+            <button type="button" class="settings-preference-switch" data-target="notif-security" aria-pressed="true"><span class="sr-only">Toggle Security Alerts</span></button>
+          </label>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Marketing Updates</span><p class="settings-notification-description">Tips, offers, and product news</p></div>
+          <label class="settings-notification-toggle" aria-label="Marketing Updates">
+            <input type="checkbox" id="notif-marketing">
+            <button type="button" class="settings-preference-switch" data-target="notif-marketing" aria-pressed="false"><span class="sr-only">Toggle Marketing Updates</span></button>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 mt-5 pt-5 border-t border-gray-100">
+        <button onclick="saveNotificationPreferences()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition"><i class="fas fa-save mr-2"></i>Save Preferences</button>
+        <span id="notif-save-status" class="text-sm text-green-600 hidden">Saved!</span>
+      </div>
     </div>
 
     <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -222,13 +277,26 @@
 <script>
 (function () {
   function syncSettingsSwitches() {
-    document.querySelectorAll('#settings-page .settings-notification-toggle').forEach(function (toggle) {
-      var input = toggle.querySelector('input[type="checkbox"]');
+    document.querySelectorAll('#settings-page .settings-preference-switch').forEach(function (button) {
+      var targetId = button.getAttribute('data-target');
+      var input = document.getElementById(targetId);
       if (!input) return;
-      toggle.classList.toggle('is-on', input.checked);
-      toggle.classList.toggle('is-off', !input.checked);
+      var on = !!input.checked;
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
   }
+
+  document.addEventListener('click', function (event) {
+    var button = event.target.closest('#settings-page .settings-preference-switch');
+    if (!button) return;
+    event.preventDefault();
+    var input = document.getElementById(button.getAttribute('data-target'));
+    if (!input) return;
+    input.checked = !input.checked;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    syncSettingsSwitches();
+  });
 
   document.addEventListener('change', function (event) {
     if (event.target && event.target.matches('#settings-page .settings-notification-toggle input[type="checkbox"]')) {
@@ -242,7 +310,6 @@
     var sidebar = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebar-overlay');
     if (!sidebar) return;
-
     sidebar.classList.toggle('open');
     if (overlay) overlay.classList.toggle('active', sidebar.classList.contains('open'));
   };
