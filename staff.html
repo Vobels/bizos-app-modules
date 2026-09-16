@@ -32,8 +32,8 @@
   top: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  left: 256px !important;
-  width: calc(100% - 256px) !important;
+  left: 280px !important;
+  width: calc(100% - 280px) !important;
   height: 100vh !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -87,7 +87,12 @@
 
   window.leaveStaffPage=function(target){
     var staffPage=document.getElementById('staff-page');
-    if(staffPage)staffPage.classList.add('hidden');
+    if(staffPage){
+      staffPage.classList.add('hidden');
+      staffPage.style.display='none';
+      staffPage.style.visibility='hidden';
+      staffPage.style.pointerEvents='none';
+    }
     setStaffSidebarState(false);
 
     if(target==='billing'){
@@ -119,11 +124,20 @@
 
   window.showStaffPage=function(){
     ['landing-page','profile-page','settings-page','staff-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
-    /* Keep the Dashboard shell visible so its existing 256px sidebar remains in place. */
+    /* Keep the Dashboard shell visible so its existing sidebar remains in place. */
     var dashboard=document.getElementById('dashboard-page');
     if(dashboard)dashboard.classList.remove('hidden');
 
-    var page=document.getElementById('staff-page');if(!page)return;page.classList.remove('hidden');
+    var page=document.getElementById('staff-page');if(!page)return;
+    /* hideStaffPage() intentionally sets inline display/visibility/pointer-events.
+       Clear those values here so Staff can be reopened after leaving it. */
+    page.classList.remove('hidden');
+    page.style.display='';
+    page.style.visibility='visible';
+    page.style.pointerEvents='auto';
+    page.style.left=window.innerWidth<=768?'0':'280px';
+    page.style.width=window.innerWidth<=768?'100%':'calc(100% - 280px)';
+
     setStaffSidebarState(true);
     var user=currentUser(), admin=isOwnerAdmin(user);
     var management=document.getElementById('staff-management-view'), member=document.getElementById('staff-member-view');
