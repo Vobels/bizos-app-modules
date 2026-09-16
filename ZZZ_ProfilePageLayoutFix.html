@@ -71,13 +71,13 @@
 #profile-page > main > header > div > div:first-child { min-width: 0 !important; overflow: hidden !important; }
 #profile-page > main > header button { flex: 0 0 auto !important; width: 40px !important; min-width: 40px !important; height: 40px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
 
-/* Body: align the cards with the sidebar instead of centering the 56rem wrapper in the viewport. */
+/* Keep the body close to the sidebar without letting it expand past the viewport. */
 #profile-page > main > div { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
 #profile-page > main > div > .max-w-4xl {
   width: 100% !important;
-  max-width: none !important;
+  max-width: 56rem !important;
   margin-left: 0 !important;
-  margin-right: 0 !important;
+  margin-right: auto !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
 }
@@ -128,9 +128,29 @@
   }
   function fixStaffSidebarLink() { const sidebar = document.getElementById('sidebar'); if (!sidebar) return; sidebar.querySelectorAll('nav button').forEach(function (button) { const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); if (label === 'staff') button.onclick = function () { if (typeof window.showStaffPage === 'function') window.showStaffPage(); }; }); }
   function fixBillingSidebarLink() { const sidebar = document.getElementById('sidebar'); if (!sidebar) return; sidebar.querySelectorAll('nav button').forEach(function (button) { const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); if (label === 'billing') button.onclick = function () { var profilePage = document.getElementById('profile-page'), settingsPage = document.getElementById('settings-page'), staffPage = document.getElementById('staff-page'), dashboardPage = document.getElementById('dashboard-page'), currentView = 'dashboard'; if (profilePage && !profilePage.classList.contains('hidden')) currentView = 'profile'; else if (settingsPage && !settingsPage.classList.contains('hidden')) currentView = 'settings'; else if (staffPage && !staffPage.classList.contains('hidden')) currentView = 'staff'; window.__bizosBillingReturnView = currentView; if (profilePage) profilePage.classList.add('hidden'); if (settingsPage) settingsPage.classList.add('hidden'); hideStaffPage(); if (dashboardPage) dashboardPage.classList.remove('hidden'); if (typeof window.showUpgradeModal === 'function') window.showUpgradeModal(); }; }); }
-  function fixBillingCloseReturn() { if (window.__bizosBillingCloseWrapped) return; if (typeof window.closeUpgradeModal !== 'function') return; var originalCloseUpgradeModal = window.closeUpgradeModal; window.closeUpgradeModal = function () { var returnView = window.__bizosBillingReturnView; var result = originalCloseUpgradeModal.apply(this, arguments); if (returnView === 'profile') { var dashboardPage = document.getElementById('dashboard-page'), profilePage = document.getElementById('profile-page'), settingsPage = document.getElementById('settings-page'); if (dashboardPage) dashboardPage.classList.remove('hidden'); if (settingsPage) settingsPage.classList.add('hidden'); if (profilePage) { profilePage.classList.remove('hidden'); profilePage.style.display = 'block'; } normalizeProfileSource(); setTimeout(function () { if (typeof window.loadProfileData === 'function') window.loadProfileData(); if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers(); }, 0); window.__bizosBillingReturnView = null; } else if (returnView === 'settings') { var dashboardPage2 = document.getElementById('dashboard-page'), profilePage2 = document.getElementById('profile-page'), settingsPage2 = document.getElementById('settings-page'); if (dashboardPage2) dashboardPage2.classList.remove('hidden'); if (profilePage2) profilePage2.classList.add('hidden'); if (settingsPage2) settingsPage2.classList.remove('hidden'); normalizeSettingsSource(); window.__bizosBillingReturnView = null; } else if (returnView === 'staff') { var dashboardPage3 = document.getElementById('dashboard-page'), staffPage3 = document.getElementById('staff-page'); if (dashboardPage3) dashboardPage3.classList.remove('hidden'); if (staffPage3 && typeof window.showStaffPage === 'function') window.showStaffPage(); window.__bizosBillingReturnView = null; } return result; }; window.__bizosBillingCloseWrapped = true; }
+  function fixBillingCloseReturn() {
+    if (window.__bizosBillingCloseWrapped) return; if (typeof window.closeUpgradeModal !== 'function') return; var originalCloseUpgradeModal = window.closeUpgradeModal;
+    window.closeUpgradeModal = function () {
+      var returnView = window.__bizosBillingReturnView; var result = originalCloseUpgradeModal.apply(this, arguments);
+      if (returnView === 'profile') {
+        var dashboardPage = document.getElementById('dashboard-page'), profilePage = document.getElementById('profile-page'), settingsPage = document.getElementById('settings-page');
+        if (dashboardPage) dashboardPage.classList.remove('hidden'); if (settingsPage) settingsPage.classList.add('hidden');
+        if (profilePage) { profilePage.classList.remove('hidden'); profilePage.style.display = 'block'; }
+        normalizeProfileSource(); setTimeout(function () { if (typeof window.loadProfileData === 'function') window.loadProfileData(); if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers(); }, 0); window.__bizosBillingReturnView = null;
+      } else if (returnView === 'settings') {
+        var dashboardPage2 = document.getElementById('dashboard-page'), profilePage2 = document.getElementById('profile-page'), settingsPage2 = document.getElementById('settings-page');
+        if (dashboardPage2) dashboardPage2.classList.remove('hidden'); if (profilePage2) profilePage2.classList.add('hidden'); if (settingsPage2) settingsPage2.classList.remove('hidden'); normalizeSettingsSource(); window.__bizosBillingReturnView = null;
+      } else if (returnView === 'staff') {
+        var dashboardPage3 = document.getElementById('dashboard-page'), staffPage3 = document.getElementById('staff-page');
+        if (dashboardPage3) dashboardPage3.classList.remove('hidden'); if (staffPage3 && typeof window.showStaffPage === 'function') window.showStaffPage(); window.__bizosBillingReturnView = null;
+      }
+      return result;
+    };
+    window.__bizosBillingCloseWrapped = true;
+  }
   function initializeNavigationFixes() { normalizeProfileSource(); normalizeSettingsSource(); fixStaffSidebarLink(); fixBillingSidebarLink(); fixBillingCloseReturn(); installStaffNavigationGuard(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeNavigationFixes, { once: true }); else initializeNavigationFixes();
-  window.addEventListener('pageshow', initializeNavigationFixes); window.addEventListener('resize', function () { normalizeProfileSource(); normalizeSettingsSource(); });
+  window.addEventListener('pageshow', initializeNavigationFixes);
+  window.addEventListener('resize', function () { normalizeProfileSource(); normalizeSettingsSource(); });
 })();
 </script>
