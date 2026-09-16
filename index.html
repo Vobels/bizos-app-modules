@@ -9,6 +9,24 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <?!= include('styles') ?>
+  <style>
+    /* Global mobile bottom breathing room.
+       Keeps the last controls/content clear of the browser edge and
+       also respects devices with a bottom safe-area inset. */
+    @media (max-width: 768px) {
+      #app {
+        padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+      }
+
+      #app > * {
+        padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px)) !important;
+      }
+
+      body {
+        padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+  </style>
   <script>
     window.__BIZOS_ROUTE_MODE = <?= routeMode ? JSON.stringify(routeMode) : '"landing"' ?>;
     window.__BIZOS_ROUTE_TARGET = <?= routeTarget ? JSON.stringify(routeTarget) : '"landing"' ?>;
