@@ -1,0 +1,110 @@
+<!-- BizOS Staff Page: role-aware staff workspace and staff management -->
+<div id="staff-page" class="hidden fixed inset-0 z-[999998] bg-gray-50 overflow-hidden">
+  <main class="w-full h-full overflow-y-auto">
+    <header class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div><h1 id="staff-page-title" class="text-xl font-semibold text-gray-900">Staff</h1><p id="staff-page-subtitle" class="text-sm text-gray-500 mt-1"></p></div>
+        <button onclick="leaveStaffPage('dashboard')" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+      </div>
+    </header>
+    <div class="p-6">
+      <section id="staff-management-view" class="hidden w-full">
+        <div class="flex items-center justify-between mb-6"><div><h2 class="text-2xl font-bold">Staff Management</h2><p class="text-gray-500">Manage the people who have access to your business.</p></div><button onclick="showStaffInviteModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg"><i class="fas fa-user-plus mr-2"></i>Invite Staff</button></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Total Staff</p><p id="staff-total-count" class="text-2xl font-bold mt-1">—</p></div>
+          <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Active</p><p id="staff-active-count" class="text-2xl font-bold mt-1">—</p></div>
+          <div class="bg-white border rounded-lg p-5"><p class="text-sm text-gray-500">Pending Invitations</p><p id="staff-pending-count" class="text-2xl font-bold mt-1">—</p></div>
+        </div>
+        <div class="bg-white border rounded-lg overflow-hidden"><div class="px-6 py-4 border-b"><h3 class="font-semibold">All Staff</h3></div><div id="staff-management-list" class="divide-y"><p class="p-8 text-center text-gray-500">Loading staff...</p></div></div>
+      </section>
+      <section id="staff-member-view" class="hidden w-full">
+        <div class="mb-6"><h2 class="text-2xl font-bold">My Staff Workspace</h2><p class="text-gray-500">Your assigned work and access within this business.</p></div>
+        <div class="bg-white border rounded-lg p-6"><h3 class="font-semibold mb-4">My Staff Profile</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><p class="text-xs text-gray-500">Name</p><p id="staff-member-name" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Email</p><p id="staff-member-email" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Role</p><p id="staff-member-role" class="font-medium mt-1">—</p></div><div><p class="text-xs text-gray-500">Business</p><p id="staff-member-business" class="font-medium mt-1">—</p></div></div></div>
+        <div class="bg-white border rounded-lg p-6 mt-6"><h3 class="font-semibold mb-2">My Access</h3><p class="text-sm text-gray-500">Your available business applications and permissions will appear here based on your assigned role.</p><div id="staff-member-access" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3"></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Staff invitation modal -->
+<div id="staff-invite-modal" class="hidden fixed inset-0 z-[2147483640] bg-black/50 p-4 flex items-center justify-center">
+  <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="px-6 py-5 border-b flex items-center justify-between">
+      <div><h2 class="text-xl font-bold text-gray-900">Invite Team Member</h2><p class="text-sm text-gray-500 mt-1">Give someone access to this business workspace.</p></div>
+      <button type="button" onclick="closeStaffInviteModal()" class="w-10 h-10 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="staff-invite-form" onsubmit="handleStaffInviteSubmit(event)" class="p-6">
+      <div class="space-y-4">
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label><input type="text" id="staff-invite-name" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="Jane Doe" required></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Email Address *</label><input type="email" id="staff-invite-email" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="jane@company.com" required></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Role *</label><select id="staff-invite-role" onchange="toggleStaffModulePicker()" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" required><option value="staff">Staff</option><option value="admin">Administrator</option></select></div>
+        <div id="staff-module-picker" class="border border-gray-200 rounded-xl p-4 bg-gray-50"><div class="flex items-center justify-between mb-3"><div><p class="text-sm font-semibold text-gray-900">Module access</p><p class="text-xs text-gray-500">Choose what this staff member can use.</p></div><button type="button" onclick="selectAllStaffModules()" class="text-xs text-purple-600 hover:underline">Select all</button></div><div id="staff-module-options" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div></div>
+      </div>
+      <div class="flex justify-end gap-3 mt-6 pt-4 border-t"><button type="button" onclick="closeStaffInviteModal()" class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button><button id="staff-invite-submit" type="submit" class="px-5 py-2.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"><i class="fas fa-paper-plane mr-2"></i>Send Invitation</button></div>
+    </form>
+  </div>
+</div>
+
+<style>
+#staff-page { position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 280px !important; width: calc(100% - 280px) !important; height: 100vh !important; margin: 0 !important; padding: 0 !important; background: #f9fafb !important; overflow: hidden !important; box-sizing: border-box !important; }
+#staff-page > main { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; overflow-y: auto !important; overflow-x: hidden !important; }
+#staff-page > main > header { margin: 0 !important; }
+#staff-invite-modal { display: flex; }
+#staff-invite-modal.hidden { display: none !important; }
+#staff-invite-modal input, #staff-invite-modal select { box-sizing: border-box; max-width: 100%; }
+#staff-module-options label { cursor: pointer; }
+@media (max-width: 768px) { #staff-page { left: 0 !important; width: 100% !important; } }
+</style>
+
+<script>
+(function(){
+  const STAFF_MODULES = ['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+  function getStaffCurrentUser(){ try { return JSON.parse(localStorage.getItem('bizos_user') || 'null') || {}; } catch(e){ return {}; } }
+  function getStaffBusinessId(){ const user=getStaffCurrentUser(); return user.businessId || user.Business_ID || ''; }
+  function staffEscape(value){ return String(value == null ? '' : value).replace(/[&<>\"']/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]; }); }
+  function staffInitials(name,email){ const value=String(name||email||'?').trim(); const parts=value.split(/\s+/).filter(Boolean); return ((parts[0]||'?')[0]+(parts[1]||'')[0]).toUpperCase(); }
+
+  function renderModuleOptions(){
+    const container=document.getElementById('staff-module-options'); if(!container || container.dataset.ready==='1') return;
+    container.dataset.ready='1';
+    container.innerHTML=STAFF_MODULES.map(function(module){ const id='staff-module-'+module.toLowerCase(); return '<label for="'+id+'" class="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 hover:border-purple-300"><input id="'+id+'" type="checkbox" value="'+staffEscape(module)+'" class="staff-module-checkbox h-4 w-4 text-purple-600 rounded border-gray-300"><span class="text-xs font-medium text-gray-700">'+staffEscape(module)+'</span></label>'; }).join('');
+    const finance=document.getElementById('staff-module-finance'); if(finance) finance.checked=true;
+  }
+  window.toggleStaffModulePicker=function(){ const role=document.getElementById('staff-invite-role'); const picker=document.getElementById('staff-module-picker'); if(picker) picker.classList.toggle('hidden',role&&role.value==='admin'); };
+  window.selectAllStaffModules=function(){ document.querySelectorAll('.staff-module-checkbox').forEach(function(box){ box.checked=true; }); };
+  window.showStaffInviteModal=function(){ const modal=document.getElementById('staff-invite-modal'); if(!modal)return; renderModuleOptions(); const form=document.getElementById('staff-invite-form'); if(form)form.reset(); const finance=document.getElementById('staff-module-finance'); if(finance)finance.checked=true; modal.classList.remove('hidden'); document.body.style.overflow='hidden'; window.toggleStaffModulePicker(); setTimeout(function(){const input=document.getElementById('staff-invite-name');if(input)input.focus();},50); };
+  window.closeStaffInviteModal=function(){ const modal=document.getElementById('staff-invite-modal'); if(modal)modal.classList.add('hidden'); document.body.style.overflow=''; };
+
+  window.handleStaffInviteSubmit=function(event){
+    event.preventDefault();
+    const businessId=getStaffBusinessId(); const name=String(document.getElementById('staff-invite-name').value||'').trim(); const email=String(document.getElementById('staff-invite-email').value||'').trim().toLowerCase(); const role=String(document.getElementById('staff-invite-role').value||'staff').toLowerCase(); const modules=role==='admin'?[]:Array.from(document.querySelectorAll('.staff-module-checkbox:checked')).map(function(box){return box.value;}); const button=document.getElementById('staff-invite-submit');
+    if(!businessId){showNotification('Business information is missing. Please login again.','error');return;} if(!name||!email){showNotification('Please complete the required fields.','warning');return;} if(role==='staff'&&!modules.length){showNotification('Select at least one module.','warning');return;}
+    const original=button?button.innerHTML:''; if(button){button.disabled=true;button.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';}
+    callGoogleScript('inviteStaffMemberV2',[businessId,email,name,role,modules],function(response){ if(button){button.disabled=false;button.innerHTML=original;} if(response&&response.success){closeStaffInviteModal();showNotification(response.message||'Invitation sent successfully.','success');loadStaffManagement();}else{showNotification((response&&response.message)||'Failed to send invitation.','error');}},function(error){if(button){button.disabled=false;button.innerHTML=original;}showNotification((error&&error.message)||'Failed to send invitation.','error');});
+  };
+
+  window.loadStaffManagement=function(){
+    const businessId=getStaffBusinessId(); const list=document.getElementById('staff-management-list'); if(!businessId||!list||typeof callGoogleScript!=='function')return; list.innerHTML='<p class="p-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading staff...</p>';
+    callGoogleScript('getBusinessStaffV2',[businessId],function(response){
+      if(!response||!response.success){list.innerHTML='<p class="p-8 text-center text-red-500">'+staffEscape((response&&response.message)||'Failed to load staff.')+'</p>';return;}
+      const members=Array.isArray(response.members)?response.members:[]; const active=members.filter(function(m){return m.status==='active';}).length; const pending=members.filter(function(m){return m.status==='pending';}).length; const total=members.length;
+      const totalEl=document.getElementById('staff-total-count');if(totalEl)totalEl.textContent=total; const activeEl=document.getElementById('staff-active-count');if(activeEl)activeEl.textContent=active; const pendingEl=document.getElementById('staff-pending-count');if(pendingEl)pendingEl.textContent=pending;
+      if(!members.length){list.innerHTML='<div class="p-10 text-center"><div class="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3"><i class="fas fa-users"></i></div><p class="font-medium text-gray-900">No team members yet</p><p class="text-sm text-gray-500 mt-1">Invite your first team member to get started.</p></div>';return;}
+      list.innerHTML=members.map(function(member){
+        const isOwner=String(member.role||'').toLowerCase()==='owner'; const isPending=member.status==='pending'; const roleLower=String(member.role||'staff').toLowerCase(); const roleLabel=roleLower==='admin'?'Administrator':(isOwner?'Owner':'Staff'); const modules=Array.isArray(member.assignedModules)?member.assignedModules:[]; const moduleText=modules.length?modules.join(', '):(roleLabel==='Administrator'||roleLabel==='Owner'?'Full business access':'No modules assigned'); const statusClass=isPending?'bg-yellow-50 text-yellow-700':'bg-green-50 text-green-700'; const statusText=isPending?'Pending':'Active'; const safeEmail=staffEscape(member.email); const safeName=staffEscape(member.name||member.email||'Team member');
+        const action=isOwner?'':(isPending?'<button type="button" onclick="resendStaffInvite(\''+safeEmail+'\')" class="text-purple-600 hover:text-purple-800 text-sm font-medium mr-4">Resend</button>':'')+'<button type="button" onclick="removeStaffFromManagement(\''+safeEmail+'\', \''+staffEscape(member.name||member.email)+'\')" class="text-red-600 hover:text-red-700 text-sm font-medium">Remove</button>';
+        return '<div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div class="flex items-center gap-3 min-w-0"><div class="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-semibold flex-shrink-0">'+staffEscape(staffInitials(member.name,member.email))+'</div><div class="min-w-0"><p class="font-medium text-gray-900 truncate">'+safeName+'</p><p class="text-sm text-gray-500 truncate">'+safeEmail+'</p><p class="text-xs text-gray-400 mt-1">'+staffEscape(roleLabel)+' · '+staffEscape(moduleText)+'</p></div></div><div class="flex items-center sm:justify-end flex-shrink-0"><span class="px-2.5 py-1 rounded-full text-xs font-medium '+statusClass+'">'+statusText+'</span><div class="ml-4">'+action+'</div></div></div>';
+      }).join('');
+    },function(error){list.innerHTML='<p class="p-8 text-center text-red-500">'+staffEscape((error&&error.message)||'Failed to load staff.')+'</p>';});
+  };
+
+  window.removeStaffFromManagement=function(email,name){ if(!confirm('Remove '+(name||email)+' from this business?'))return; const businessId=getStaffBusinessId(); callGoogleScript('removeTeamMemberV2',[businessId,email],function(response){if(response&&response.success){showNotification(response.message||'Team member removed.','success');loadStaffManagement();}else showNotification((response&&response.message)||'Failed to remove team member.','error');},function(error){showNotification((error&&error.message)||'Failed to remove team member.','error');}); };
+  window.resendStaffInvite=function(email){ const businessId=getStaffBusinessId(); callGoogleScript('resendStaffInvitationV2',[businessId,email],function(response){if(response&&response.success){showNotification(response.message||'Invitation resent.','success');loadStaffManagement();}else showNotification((response&&response.message)||'Failed to resend invitation.','error');},function(error){showNotification((error&&error.message)||'Failed to resend invitation.','error');}); };
+  window.addEventListener('keydown',function(event){if(event.key==='Escape'){const modal=document.getElementById('staff-invite-modal');if(modal&&!modal.classList.contains('hidden'))window.closeStaffInviteModal();}});
+  window.addEventListener('click',function(event){const modal=document.getElementById('staff-invite-modal');if(modal&&event.target===modal)window.closeStaffInviteModal();});
+
+  function setStaffSidebarState(active){var sidebar=document.getElementById('sidebar');if(!sidebar)return;sidebar.querySelectorAll('nav button').forEach(function(button){var label=(button.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();if(label!=='staff')return;if(active){button.classList.add('bg-purple-50','text-purple-700');var icon=button.querySelector('i');if(icon){icon.classList.remove('text-gray-500');icon.classList.add('text-purple-600');}}else{button.classList.remove('bg-purple-50','text-purple-700');var icon=button.querySelector('i');if(icon){icon.classList.remove('text-purple-600');icon.classList.add('text-gray-500');}}});}
+  window.leaveStaffPage=function(target){var staffPage=document.getElementById('staff-page');if(staffPage){staffPage.classList.add('hidden');staffPage.style.display='none';staffPage.style.visibility='hidden';staffPage.style.pointerEvents='none';}setStaffSidebarState(false);if(target==='billing'){if(typeof window.showDashboardHome==='function')window.showDashboardHome();if(typeof window.showUpgradeModal==='function')window.showUpgradeModal();return;}if(target==='dashboard'&&typeof window.showDashboardHome==='function'){window.showDashboardHome();return;}if(target==='apps'&&typeof window.showAppsPage==='function'){window.showAppsPage();return;}if(target==='profile'&&typeof window.showProfilePage==='function'){window.showProfilePage();return;}if(target==='settings'&&typeof window.showSettingsPage==='function'){window.showSettingsPage();return;}var dashboard=document.getElementById('dashboard-page');if(dashboard)dashboard.classList.remove('hidden');};
+  window.showStaffPage=function(){['landing-page','profile-page','settings-page','staff-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});var dashboard=document.getElementById('dashboard-page');if(dashboard)dashboard.classList.remove('hidden');var page=document.getElementById('staff-page');if(!page)return;page.classList.remove('hidden');page.style.display='';page.style.visibility='visible';page.style.pointerEvents='auto';page.style.left=window.innerWidth<=768?'0':'280px';page.style.width=window.innerWidth<=768?'100%':'calc(100% - 280px)';setStaffSidebarState(true);var user=getStaffCurrentUser(), role=String(user.Role||user.role||'').toLowerCase(), admin=role==='owner'||role==='admin'||user.Is_Client===true||user.isClient===true;var management=document.getElementById('staff-management-view'),member=document.getElementById('staff-member-view');if(management)management.classList.toggle('hidden',!admin);if(member)member.classList.toggle('hidden',admin);document.getElementById('staff-page-title').textContent=admin?'Staff Management':'My Staff Workspace';document.getElementById('staff-page-subtitle').textContent=admin?'Manage staff, invitations and access.':'Your work and access within this business.';if(!admin){document.getElementById('staff-member-name').textContent=user.Name||user.name||'—';document.getElementById('staff-member-email').textContent=user.Email||user.email||'—';document.getElementById('staff-member-role').textContent=user.Role||user.role||'Staff';document.getElementById('staff-member-business').textContent=user.Business_Name||user.businessName||'—';}if(admin){renderModuleOptions();loadStaffManagement();}if(typeof window.publishBizOSRoute==='function')window.publishBizOSRoute('/staff');};
+})();
+</script>

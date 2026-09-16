@@ -1,135 +1,260 @@
 <!-- ===== SETTINGS PAGE ===== -->
-<div id="settings-page" class="hidden p-6" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 999998; background: #f9fafb; overflow-y: auto;">
+<style>
+  #settings-page {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: calc(100vh - 73px) !important;
+    overflow: visible !important;
+    background: #f9fafb !important;
+    z-index: 1 !important;
+  }
+
+  #settings-page .settings-notification-row {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+    padding: 16px !important;
+    background: #f9fafb !important;
+    border: 1px solid #f3f4f6 !important;
+    border-radius: 12px !important;
+    transition: background .18s ease, border-color .18s ease !important;
+  }
+
+  #settings-page .settings-notification-row:hover {
+    background: #fff !important;
+    border-color: #e5e7eb !important;
+  }
+
+  #settings-page .settings-notification-copy {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  #settings-page .settings-notification-title {
+    display: block !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 20px !important;
+    color: #111827 !important;
+  }
+
+  #settings-page .settings-notification-description {
+    margin-top: 3px !important;
+    font-size: 13px !important;
+    line-height: 19px !important;
+    color: #6b7280 !important;
+  }
+
+  /* The checkbox itself is the only source of truth for notification state. */
+  #settings-page .settings-notification-toggle {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    position: relative !important;
+    display: block !important;
+    width: 68px !important;
+    height: 30px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 9999px !important;
+    background: #e5e7eb !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    transition: background .18s ease !important;
+    outline: none !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"]::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 3px !important;
+    left: 3px !important;
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.16) !important;
+    transition: transform .18s ease !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"]::after {
+    content: 'OFF' !important;
+    position: absolute !important;
+    right: 9px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: #6b7280 !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    letter-spacing: .04em !important;
+    line-height: 1 !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked {
+    background: #9333ea !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked::before {
+    transform: translateX(38px) !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked::after {
+    content: 'ON' !important;
+    left: 9px !important;
+    right: auto !important;
+    color: #fff !important;
+  }
+
+  #settings-page .settings-notification-toggle input[type="checkbox"]:focus-visible {
+    outline: 3px solid rgba(147,51,234,.22) !important;
+    outline-offset: 2px !important;
+  }
+
+  @media (max-width: 768px) {
+    #settings-page {
+      min-height: calc(100vh - 64px) !important;
+      overflow-x: hidden !important;
+    }
+
+    #settings-page > div {
+      padding: 16px !important;
+    }
+
+    #settings-page .settings-page-heading {
+      gap: 12px !important;
+    }
+
+    #settings-page .settings-mobile-menu {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px !important;
+      border: 0 !important;
+      background: transparent !important;
+      color: #4b5563 !important;
+      border-radius: 8px !important;
+    }
+
+    #settings-page .settings-card {
+      padding: 16px !important;
+    }
+
+    #settings-page .settings-notification-row {
+      padding: 14px !important;
+      gap: 12px !important;
+    }
+  }
+
+  @media (min-width: 769px) {
+    #settings-page .settings-mobile-menu {
+      display: none !important;
+    }
+  }
+</style>
+
+<div id="settings-page" class="hidden p-6">
   <div class="mb-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
-        <p class="text-sm text-gray-500 mt-1">Manage your preferences and notifications</p>
+    <div class="settings-page-heading flex items-center justify-between">
+      <div class="flex items-center min-w-0">
+        <button type="button" class="settings-mobile-menu mr-2" aria-label="Open navigation" onclick="toggleSettingsSidebar()">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+        <div class="min-w-0">
+          <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
+          <p class="text-sm text-gray-500 mt-1">Manage your preferences and notifications</p>
+        </div>
       </div>
-      <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700">
+      <button onclick="showDashboardHome()" class="text-gray-500 hover:text-gray-700 flex-shrink-0" aria-label="Close settings">
         <i class="fas fa-times text-xl"></i>
       </button>
     </div>
   </div>
 
   <div class="max-w-3xl space-y-6">
-    <!-- ===== NOTIFICATION PREFERENCES ===== -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">
-        <i class="fas fa-bell mr-2 text-purple-600"></i>Notification Preferences
-      </h2>
-      <p class="text-sm text-gray-500 mb-4">Choose which notifications you want to receive</p>
-      
-      <div class="space-y-4">
-        <!-- Feature Updates -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div>
-            <span class="font-medium text-gray-900">Feature Updates</span>
-            <p class="text-sm text-gray-500">New features and improvements</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="notif-features" class="sr-only peer" checked>
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-          </label>
-        </div>
-        
-        <!-- System Alerts -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div>
-            <span class="font-medium text-gray-900">System Alerts</span>
-            <p class="text-sm text-gray-500">Important system notifications</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="notif-system" class="sr-only peer" checked>
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-          </label>
-        </div>
-        
-        <!-- Weekly Reports -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div>
-            <span class="font-medium text-gray-900">Weekly Reports</span>
-            <p class="text-sm text-gray-500">Weekly business summary via email</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="notif-weekly" class="sr-only peer">
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-          </label>
-        </div>
-        
-        <!-- Security Alerts -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div>
-            <span class="font-medium text-gray-900">Security Alerts</span>
-            <p class="text-sm text-gray-500">Login alerts and security events</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="notif-security" class="sr-only peer" checked>
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-          </label>
-        </div>
-        
-        <!-- Marketing Updates -->
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div>
-            <span class="font-medium text-gray-900">Marketing Updates</span>
-            <p class="text-sm text-gray-500">Tips, offers, and product news</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="notif-marketing" class="sr-only peer">
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-          </label>
+    <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div class="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-bell mr-2 text-purple-600"></i>Notification Preferences</h2>
+          <p class="text-sm text-gray-500 mt-1">Control the updates and alerts you want to receive.</p>
         </div>
       </div>
-      
-      <button onclick="saveNotificationPreferences()" class="mt-6 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition">
-        <i class="fas fa-save mr-2"></i>Save Preferences
-      </button>
-      <span id="notif-save-status" class="ml-3 text-sm text-green-600 hidden">Saved!</span>
+
+      <div class="space-y-2">
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Feature Updates</span><p class="settings-notification-description">New features and improvements</p></div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-features" checked aria-label="Feature Updates"></div>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">System Alerts</span><p class="settings-notification-description">Important system notifications</p></div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-system" checked aria-label="System Alerts"></div>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Weekly Reports</span><p class="settings-notification-description">Weekly business summary via email</p></div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-weekly" aria-label="Weekly Reports"></div>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Security Alerts</span><p class="settings-notification-description">Login alerts and security events</p></div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-security" checked aria-label="Security Alerts"></div>
+        </div>
+
+        <div class="settings-notification-row">
+          <div class="settings-notification-copy"><span class="settings-notification-title">Marketing Updates</span><p class="settings-notification-description">Tips, offers, and product news</p></div>
+          <div class="settings-notification-toggle"><input type="checkbox" id="notif-marketing" aria-label="Marketing Updates"></div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 mt-5 pt-5 border-t border-gray-100">
+        <button onclick="saveNotificationPreferences()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition"><i class="fas fa-save mr-2"></i>Save Preferences</button>
+        <span id="notif-save-status" class="text-sm text-green-600 hidden">Saved!</span>
+      </div>
     </div>
 
-    <!-- ===== PASSWORD & SECURITY ===== -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">
-        <i class="fas fa-shield-alt mr-2 text-purple-600"></i>Password & Security
-      </h2>
+    <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-shield-alt mr-2 text-purple-600"></i>Password & Security</h2>
       <p class="text-sm text-gray-500 mb-4">Change your password or manage security settings</p>
-      
       <div class="flex flex-wrap gap-3">
-        <button onclick="goToSecurityTab()" class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
-          <i class="fas fa-key mr-2"></i>Change Password
-        </button>
-        <button onclick="goToSecurityTab()" class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
-          <i class="fas fa-shield-alt mr-2"></i>Security Settings
-        </button>
+        <button onclick="goToSecurityTab()" class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition"><i class="fas fa-key mr-2"></i>Change Password</button>
+        <button onclick="goToSecurityTab()" class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition"><i class="fas fa-shield-alt mr-2"></i>Security Settings</button>
       </div>
       <p class="text-xs text-gray-400 mt-3">Password management is available in the Profile → Security tab</p>
     </div>
 
-    <!-- ===== API & INTEGRATIONS ===== -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">
-        <i class="fas fa-plug mr-2 text-purple-600"></i>API & Integrations
-      </h2>
+    <div class="settings-card bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-plug mr-2 text-purple-600"></i>API & Integrations</h2>
       <p class="text-sm text-gray-500 mb-4">Manage API keys and third-party integrations</p>
-      
-      <div class="bg-gray-50 rounded-lg p-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <span class="font-medium text-gray-900">API Key</span>
-            <p class="text-xs text-gray-500">For developers and external apps</p>
-          </div>
-          <div class="flex items-center space-x-2">
-            <code id="api-key-display" class="text-xs bg-white px-3 py-1 rounded border border-gray-200 font-mono">••••••••••••••••</code>
-            <button onclick="toggleApiKey()" class="text-purple-600 hover:text-purple-800 text-sm">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button onclick="regenerateApiKey()" class="text-gray-500 hover:text-gray-700 text-sm">
-              <i class="fas fa-sync-alt"></i>
-            </button>
-          </div>
-        </div>
-      </div>
+      <div class="bg-gray-50 rounded-lg p-4"><div class="flex items-center justify-between"><div><span class="font-medium text-gray-900">API Key</span><p class="text-xs text-gray-500">For developers and external apps</p></div><div class="flex items-center space-x-2"><code id="api-key-display" class="text-xs bg-white px-3 py-1 rounded border border-gray-200 font-mono">••••••••••••••••</code><button onclick="toggleApiKey()" class="text-purple-600 hover:text-purple-800 text-sm"><i class="fas fa-eye"></i></button><button onclick="regenerateApiKey()" class="text-gray-500 hover:text-gray-700 text-sm"><i class="fas fa-sync-alt"></i></button></div></div></div>
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  window.toggleSettingsSidebar = function () {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    if (!sidebar) return;
+    sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('active', sidebar.classList.contains('open'));
+  };
+})();
+</script>

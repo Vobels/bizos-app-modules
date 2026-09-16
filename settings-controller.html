@@ -1,0 +1,129 @@
+<!-- ===== SETTINGS CONTROLLER =====
+     Single source of truth for Settings page state and behavior.
+     Notification controls use native checkboxes styled as switches.
+     Loaded after scripts.html so these Settings functions are authoritative. -->
+<script>
+(function () {
+  'use strict';
+
+  const NOTIFICATION_KEYS = ['features', 'system', 'weekly', 'security', 'marketing'];
+
+  const DEFAULTS = {
+    features: true,
+    system: true,
+    weekly: false,
+    security: true,
+    marketing: false
+  };
+
+  function getNotificationPreferences() {
+    try {
+      const stored = JSON.parse(localStorage.getItem('bizos_notification_prefs') || '{}');
+      return {
+        features: stored.features !== undefined ? stored.features === true : DEFAULTS.features,
+        system: stored.system !== undefined ? stored.system === true : DEFAULTS.system,
+        weekly: stored.weekly !== undefined ? stored.weekly === true : DEFAULTS.weekly,
+        security: stored.security !== undefined ? stored.security === true : DEFAULTS.security,
+        marketing: stored.marketing !== undefined ? stored.marketing === true : DEFAULTS.marketing
+      };
+    } catch (error) {
+      console.warn('Settings: invalid notification preferences; using defaults.', error);
+      return { ...DEFAULTS };
+    }
+  }
+
+  function loadNotificationPreferences() {
+    const prefs = getNotificationPreferences();
+
+    NOTIFICATION_KEYS.forEach(function (key) {
+      const input = document.getElementById('notif-' + key);
+      if (input) input.checked = prefs[key];
+    });
+  }
+
+  function saveNotificationPreferences() {
+    const prefs = {};
+
+    NOTIFICATION_KEYS.forEach(function (key) {
+      const input = document.getElementById('notif-' + key);
+      prefs[key] = !!(input && input.checked);
+    });
+
+    localStorage.setItem('bizos_notification_prefs', JSON.stringify(prefs));
+
+    const status = document.getElementById('notif-save-status');
+    if (status) {
+      status.textContent = 'Saved!';
+      status.classList.remove('hidden');
+      window.setTimeout(function () {
+        status.classList.add('hidden');
+      }, 3000);
+    }
+
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Preferences saved!', 'success');
+    }
+  }
+
+  function showSettingsPage() {
+    const pageIds = [
+      'dashboard-home',
+      'module-view',
+      'profile-page',
+      'apps-page',
+      'settings-page'
+    ];
+
+    pageIds.forEach(function (id) {
+      const page = document.getElementById(id);
+      if (!page) return;
+
+      const active = id === 'settings-page';
+      page.classList.toggle('hidden', !active);
+      page.style.display = active ? 'block' : 'none';
+    });
+
+    const dashboardPage = document.getElementById('dashboard-page');
+    if (dashboardPage) {
+      dashboardPage.classList.remove('hidden');
+      dashboardPage.style.display = 'block';
+    }
+
+    const pageTitle = document.getElementById('page-title');
+    if (pageTitle) pageTitle.textContent = 'Settings';
+
+    loadNotificationPreferences();
+
+    if (typeof window.loadApiKey === 'function') {
+      window.loadApiKey();
+    }
+
+    document.querySelectorAll('.sidebar nav button').forEach(function (button) {
+      button.classList.remove('bg-purple-50', 'text-purple-700');
+    });
+
+    const settingsButton = document.querySelector('.sidebar nav button[onclick="showSettingsPage()"]');
+    if (settingsButton) {
+      settingsButton.classList.add('bg-purple-50', 'text-purple-700');
+    }
+
+    window.scrollTo(0, 0);
+  }
+
+  window.loadNotificationPreferences = loadNotificationPreferences;
+  window.saveNotificationPreferences = saveNotificationPreferences;
+  window.showSettingsPage = showSettingsPage;
+
+  function initialize() {
+    const settingsPage = document.getElementById('settings-page');
+    if (!settingsPage) return;
+    loadNotificationPreferences();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  } else {
+    initialize();
+  }
+})();
+</script>

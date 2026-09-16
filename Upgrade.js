@@ -9,8 +9,6 @@ function getLegacyPaystackSecretKey_() {
 }
 
 function verifyPaystackPayment(reference, requestId) {
-  // Keep the legacy function name for compatibility, but route it through
-  // the secure production verification + provisioning flow.
   return verifyPaystackPaymentAndProvisionSecure(reference, requestId);
 }
 
@@ -35,6 +33,8 @@ function getBankDetails() {
 
 /**
  * Handle upgrade request submission from frontend.
+ * Account email remains the authenticated login identity.
+ * Workspace_Email is the Google/Workspace destination used for provisioning.
  */
 function handleUpgradeRequest(upgradeData, sessionId) {
   try {
@@ -51,8 +51,10 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var tier = upgradeData.tier || 'sovereign';
     var certificateBase64 = upgradeData.certificateBase64;
     var certificateName = upgradeData.certificateName;
+    var workspaceEmail = String(upgradeData.workspaceEmail || user.email || '').trim().toLowerCase();
 
     if (!country) return {success:false, message:'Please select your business country'};
+    if (!/^\S+@\S+\.\S+$/.test(workspaceEmail)) return {success:false, message:'Please provide a valid workspace email.'};
 
     var countryConfig = getCountryRequirements(country);
     if (countryConfig.success && countryConfig.requiredFields) {
@@ -67,9 +69,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var certificateUrl = '';
     var uploadedCertificateName = '';
     if (certificateBase64 && certificateName) {
-      var uploadResult = uploadBusinessCertificate(
-        certificateBase64, certificateName, country, user.businessId, user.businessName
-      );
+      var uploadResult = uploadBusinessCertificate(certificateBase64, certificateName, country, user.businessId, user.businessName);
       if (uploadResult.success) {
         certificateUrl = uploadResult.fileUrl;
         uploadedCertificateName = uploadResult.fileName;
@@ -91,13 +91,13 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     if (!upgradeSheet) {
       upgradeSheet = ss.insertSheet('Upgrade_Requests');
       upgradeSheet.appendRow([
-        'Request_ID','Email','Name','Business_Name','Country','Business_Details','Tier','Payment_ID',
+        'Request_ID','Email','Workspace_Email','Name','Business_Name','Country','Business_Details','Tier','Payment_ID',
         'Amount','Currency','Status','Certificate_URL','Certificate_Name','Created_At','Updated_At'
       ]);
     }
 
     upgradeSheet.appendRow([
-      requestId, user.email, user.name || user.email, user.businessName || '', country,
+      requestId, user.email, workspaceEmail, user.name || user.email, user.businessName || '', country,
       JSON.stringify(businessDetails), tier, paymentId, amount, currency, 'pending_payment',
       certificateUrl, uploadedCertificateName, timestamp.toISOString(), ''
     ]);
@@ -106,18 +106,20 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     if (!paymentSheet) {
       paymentSheet = ss.insertSheet('Payments');
       paymentSheet.appendRow([
-        'Payment_ID','Request_ID','Email','Amount','Currency','Status','Transaction_Ref','Created_At','Completed_At'
+        'Payment_ID','Request_ID','Email','Workspace_Email','Amount','Currency','Status','Transaction_Ref','Created_At','Completed_At'
       ]);
     }
     paymentSheet.appendRow([
-      paymentId, requestId, user.email, amount, currency, 'pending', '', timestamp.toISOString(), ''
+      paymentId, requestId, user.email, workspaceEmail, amount, currency, 'pending', '', timestamp.toISOString(), ''
     ]);
 
     sendUpgradeRequestEmail(user.email, user.name, requestId, country, tier, amount, symbol);
     sendAdminUpgradeNotification(user.email, user.name, requestId, country, businessDetails, certificateUrl);
 
-    var baseUrl = ScriptApp.getService().getUrl();
-    var paymentPageUrl = baseUrl + '?page=paystack-int&requestId=' + requestId +
+    // Payment stays on the public BizOS domain. Netlify /payment preserves
+    // requestId and loads the Apps Script checkout inside the public shell.
+    var publicUrl = getPublicBizOSUrl_();
+    var paymentPageUrl = publicUrl + '/payment?requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
 
     return {
@@ -162,16 +164,37 @@ function getUpgradeRequest(requestId) {
     var data = sheet.getDataRange().getValues();
     if (!data.length) return null;
     var headers = data[0];
-    var requestIdCol = headers.indexOf('Request_ID');
-    if (requestIdCol === -1) return null;
+    var col = {
+      requestId:headers.indexOf('Request_ID'), email:headers.indexOf('Email'), workspaceEmail:headers.indexOf('Workspace_Email'),
+      name:headers.indexOf('Name'), businessName:headers.indexOf('Business_Name'), country:headers.indexOf('Country'),
+      businessDetails:headers.indexOf('Business_Details'), tier:headers.indexOf('Tier'), paymentId:headers.indexOf('Payment_ID'),
+      amount:headers.indexOf('Amount'), currency:headers.indexOf('Currency'), status:headers.indexOf('Status'),
+      certificateUrl:headers.indexOf('Certificate_URL'), certificateName:headers.indexOf('Certificate_Name'), createdAt:headers.indexOf('Created_At')
+    };
+    if (col.requestId === -1) return null;
 
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][requestIdCol]) === String(requestId)) {
+      if (String(data[i][col.requestId]) === String(requestId)) {
+        var details = {};
+        if (col.businessDetails !== -1 && data[i][col.businessDetails]) {
+          try { details = JSON.parse(data[i][col.businessDetails]); } catch (ignore) { details = {}; }
+        }
         return {
-          requestId:data[i][0], email:data[i][1], name:data[i][2], businessName:data[i][3],
-          country:data[i][4], businessDetails:data[i][5] ? JSON.parse(data[i][5]) : {}, tier:data[i][6],
-          paymentId:data[i][7], amount:data[i][8], currency:data[i][9], status:data[i][10],
-          certificateUrl:data[i][11], certificateName:data[i][12], createdAt:data[i][13]
+          requestId:col.requestId !== -1 ? data[i][col.requestId] : '',
+          email:col.email !== -1 ? data[i][col.email] : '',
+          workspaceEmail:col.workspaceEmail !== -1 ? data[i][col.workspaceEmail] : '',
+          name:col.name !== -1 ? data[i][col.name] : '',
+          businessName:col.businessName !== -1 ? data[i][col.businessName] : '',
+          country:col.country !== -1 ? data[i][col.country] : '',
+          businessDetails:details,
+          tier:col.tier !== -1 ? data[i][col.tier] : 'sovereign',
+          paymentId:col.paymentId !== -1 ? data[i][col.paymentId] : '',
+          amount:col.amount !== -1 ? data[i][col.amount] : '',
+          currency:col.currency !== -1 ? data[i][col.currency] : '',
+          status:col.status !== -1 ? data[i][col.status] : '',
+          certificateUrl:col.certificateUrl !== -1 ? data[i][col.certificateUrl] : '',
+          certificateName:col.certificateName !== -1 ? data[i][col.certificateName] : '',
+          createdAt:col.createdAt !== -1 ? data[i][col.createdAt] : ''
         };
       }
     }

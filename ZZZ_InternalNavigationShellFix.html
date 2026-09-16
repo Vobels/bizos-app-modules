@@ -1,0 +1,130 @@
+<style>
+/* BizOS internal navigation: keep one authenticated shell. */
+#profile-page,
+#staff-page,
+#settings-page {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 100% !important;
+  overflow: visible !important;
+  z-index: 1 !important;
+}
+
+/* The Dashboard owns the authenticated sidebar/header. */
+#profile-page > main,
+#staff-page > div,
+#settings-page > div {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#profile-page > main > header,
+#staff-page aside,
+#staff-page > div > header,
+#settings-page aside,
+#settings-page > div > header {
+  display: none !important;
+}
+
+/* Internal content occupies the Dashboard content column. */
+body:has(#profile-page:not(.hidden)),
+body:has(#staff-page:not(.hidden)),
+body:has(#settings-page:not(.hidden)) {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+@media (min-width: 769px) {
+  #profile-page,
+  #staff-page,
+  #settings-page {
+    margin-left: 256px !important;
+    width: calc(100% - 256px) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #profile-page,
+  #staff-page,
+  #settings-page {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+</style>
+
+<script>
+(function () {
+  function hideOtherViews() {
+    ['landing-page', 'profile-page', 'settings-page', 'staff-page'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+  }
+
+  function openInternalPage(page) {
+    var dashboard = document.getElementById('dashboard-page');
+    if (!dashboard) return false;
+
+    hideOtherViews();
+    dashboard.classList.remove('hidden');
+
+    if (page === 'profile' && typeof window.showProfilePage === 'function') {
+      window.showProfilePage();
+      return true;
+    }
+    if (page === 'staff' && typeof window.showStaffPage === 'function') {
+      window.showStaffPage();
+      return true;
+    }
+    return false;
+  }
+
+  /* Staff must be a real Staff view, never Profile > Team. */
+  document.addEventListener('click', function (event) {
+    var button = event.target.closest && event.target.closest('button');
+    if (!button) return;
+
+    var label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (label !== 'staff') return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+
+    openInternalPage('staff');
+  }, true);
+
+  function normalizeInternalShell() {
+    var dashboard = document.getElementById('dashboard-page');
+    if (!dashboard) return;
+
+    var profile = document.getElementById('profile-page');
+    var staff = document.getElementById('staff-page');
+    var settings = document.getElementById('settings-page');
+
+    [profile, staff, settings].forEach(function (page) {
+      if (!page) return;
+      page.style.position = 'relative';
+      page.style.top = 'auto';
+      page.style.left = 'auto';
+      page.style.right = 'auto';
+      page.style.bottom = 'auto';
+      page.style.height = 'auto';
+      page.style.overflow = 'visible';
+      page.style.zIndex = '1';
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', normalizeInternalShell, { once: true });
+  } else {
+    normalizeInternalShell();
+  }
+
+  window.addEventListener('pageshow', normalizeInternalShell);
+})();
+</script>

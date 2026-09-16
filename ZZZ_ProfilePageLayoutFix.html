@@ -1,0 +1,156 @@
+<style>
+/* PROFILE: reserve the real desktop sidebar and keep the page content inside the remaining viewport. */
+#profile-page {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 280px !important;
+  display: none !important;
+  width: calc(100% - 280px) !important;
+  height: 100vh !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 999999 !important;
+  background: #f9fafb !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
+  box-sizing: border-box !important;
+}
+#profile-page:not(.hidden) { display: block !important; }
+
+#settings-page {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 280px !important;
+  width: calc(100% - 280px) !important;
+  height: 100vh !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  z-index: 999999 !important;
+  background: #f9fafb !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+}
+#settings-page:not(.hidden) { display: block !important; }
+#settings-page, #settings-page * { pointer-events: auto; }
+#settings-page label.relative.inline-flex { position: relative !important; display: inline-flex !important; align-items: center !important; width: 44px !important; height: 24px !important; flex: 0 0 44px !important; cursor: pointer !important; z-index: 2 !important; }
+#settings-page label.relative.inline-flex > input[type="checkbox"] { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; }
+#settings-page label.relative.inline-flex > div { position: relative !important; display: block !important; width: 44px !important; height: 24px !important; flex: 0 0 44px !important; border-radius: 9999px !important; cursor: pointer !important; pointer-events: none !important; }
+#settings-page label.relative.inline-flex > div:first-of-type { position: absolute !important; inset: 0 !important; width: 44px !important; height: 24px !important; flex: 0 0 44px !important; }
+#settings-page label.relative.inline-flex > div:last-of-type { position: absolute !important; left: 4px !important; top: 4px !important; width: 16px !important; height: 16px !important; flex: 0 0 16px !important; }
+#settings-page > div, #settings-page button, #settings-page label { position: relative; z-index: 1; }
+
+#profile-page > main {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+#profile-page > main > header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+#profile-page > main > header > div { min-width: 0 !important; width: 100% !important; }
+#profile-page > main > header > div > div:first-child { min-width: 0 !important; overflow: hidden !important; }
+#profile-page > main > header button { flex: 0 0 auto !important; width: 40px !important; min-width: 40px !important; height: 40px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+
+/* Keep the body close to the sidebar without letting it expand past the viewport. */
+#profile-page > main > div { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+#profile-page > main > div > .max-w-4xl {
+  width: 100% !important;
+  max-width: 56rem !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+#profile-page .max-w-4xl > *, #profile-page .max-w-4xl .grid, #profile-page .max-w-4xl .flex-1 { min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+#profile-page p, #profile-page h1, #profile-page h2, #profile-page h3, #profile-page code, #profile-page label { overflow-wrap: anywhere; }
+#profile-page input, #profile-page button, #profile-page textarea, #profile-page select { max-width: 100%; box-sizing: border-box; }
+#profile-page nav[aria-label="Tabs"] { min-width: 0 !important; max-width: 100% !important; overflow-x: auto !important; overflow-y: hidden !important; }
+
+#staff-page main > div > section { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+#bizos-upgrade-review-card { margin-left: 280px !important; margin-right: 24px !important; }
+#upgrade-modal > div { margin-left: 280px !important; margin-right: 24px !important; }
+#staff-page.hidden { display: none !important; visibility: hidden !important; pointer-events: none !important; }
+#staff-page:not(.hidden) { visibility: visible !important; pointer-events: auto !important; }
+
+@media (max-width: 768px) {
+  #profile-page, #settings-page { left: 0 !important; width: 100% !important; }
+  #profile-page .max-w-4xl { width: 100% !important; max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+  #bizos-upgrade-review-card, #upgrade-modal > div { margin-left: 0 !important; margin-right: 0 !important; }
+  #sidebar.open { z-index: 1000001 !important; }
+  #sidebar-overlay.active { z-index: 1000000 !important; }
+  #staff-page { left: 0 !important; width: 100% !important; }
+}
+</style>
+
+<script>
+(function () {
+  function normalizeProfileSource() {
+    const page = document.getElementById('profile-page');
+    if (!page) return;
+    const mobile = window.innerWidth <= 768;
+    page.style.position = 'fixed'; page.style.top = '0'; page.style.left = mobile ? '0' : '280px'; page.style.right = '0'; page.style.bottom = '0';
+    page.style.width = mobile ? '100%' : 'calc(100% - 280px)'; page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '0'; page.style.zIndex = '999999'; page.style.overflow = 'hidden'; page.style.boxSizing = 'border-box';
+    const main = page.querySelector(':scope > main');
+    if (main) { main.style.width = '100%'; main.style.height = '100%'; main.style.minWidth = '0'; main.style.minHeight = '0'; main.style.margin = '0'; main.style.padding = '0'; main.style.overflowY = 'auto'; main.style.overflowX = 'hidden'; main.style.boxSizing = 'border-box'; }
+    const header = main && main.querySelector(':scope > header');
+    if (header) { header.style.width = '100%'; header.style.margin = '0'; header.style.boxSizing = 'border-box'; }
+    document.body.style.overflowX = 'hidden';
+  }
+  function normalizeSettingsSource() {
+    const page = document.getElementById('settings-page'); if (!page) return; const mobile = window.innerWidth <= 768;
+    page.style.position = 'fixed'; page.style.top = '0'; page.style.left = mobile ? '0' : '280px'; page.style.right = '0'; page.style.bottom = '0'; page.style.width = mobile ? '100%' : 'calc(100% - 280px)'; page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '24px'; page.style.zIndex = '999999'; page.style.overflowY = 'auto'; page.style.overflowX = 'hidden'; page.style.boxSizing = 'border-box'; page.style.pointerEvents = 'auto';
+  }
+  function hideStaffPage() { var staffPage = document.getElementById('staff-page'); if (staffPage) { staffPage.classList.add('hidden'); staffPage.style.display = 'none'; staffPage.style.visibility = 'hidden'; staffPage.style.pointerEvents = 'none'; } if (typeof window.setStaffSidebarState === 'function') window.setStaffSidebarState(false); }
+  function installStaffNavigationGuard() {
+    if (window.__bizosStaffNavigationGuardInstalled) return; window.__bizosStaffNavigationGuardInstalled = true;
+    document.addEventListener('click', function (event) { var staffPage = document.getElementById('staff-page'); if (!staffPage || staffPage.classList.contains('hidden')) return; var button = event.target && event.target.closest ? event.target.closest('#sidebar nav button') : null; if (!button) return; var label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); if (label === 'staff') return; hideStaffPage(); }, true);
+    ['showDashboardHome', 'showAppsPage', 'showProfilePage', 'showSettingsPage'].forEach(function (name) { var fn = window[name]; if (typeof fn !== 'function' || fn.__bizosStaffGuardWrapped) return; var wrapped = function () { hideStaffPage(); return fn.apply(this, arguments); }; wrapped.__bizosStaffGuardWrapped = true; wrapped.__bizosOriginal = fn; window[name] = wrapped; });
+  }
+  function fixStaffSidebarLink() { const sidebar = document.getElementById('sidebar'); if (!sidebar) return; sidebar.querySelectorAll('nav button').forEach(function (button) { const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); if (label === 'staff') button.onclick = function () { if (typeof window.showStaffPage === 'function') window.showStaffPage(); }; }); }
+  function fixBillingSidebarLink() { const sidebar = document.getElementById('sidebar'); if (!sidebar) return; sidebar.querySelectorAll('nav button').forEach(function (button) { const label = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); if (label === 'billing') button.onclick = function () { var profilePage = document.getElementById('profile-page'), settingsPage = document.getElementById('settings-page'), staffPage = document.getElementById('staff-page'), dashboardPage = document.getElementById('dashboard-page'), currentView = 'dashboard'; if (profilePage && !profilePage.classList.contains('hidden')) currentView = 'profile'; else if (settingsPage && !settingsPage.classList.contains('hidden')) currentView = 'settings'; else if (staffPage && !staffPage.classList.contains('hidden')) currentView = 'staff'; window.__bizosBillingReturnView = currentView; if (profilePage) profilePage.classList.add('hidden'); if (settingsPage) settingsPage.classList.add('hidden'); hideStaffPage(); if (dashboardPage) dashboardPage.classList.remove('hidden'); if (typeof window.showUpgradeModal === 'function') window.showUpgradeModal(); }; }); }
+  function fixBillingCloseReturn() {
+    if (window.__bizosBillingCloseWrapped) return; if (typeof window.closeUpgradeModal !== 'function') return; var originalCloseUpgradeModal = window.closeUpgradeModal;
+    window.closeUpgradeModal = function () {
+      var returnView = window.__bizosBillingReturnView; var result = originalCloseUpgradeModal.apply(this, arguments);
+      if (returnView === 'profile') {
+        var dashboardPage = document.getElementById('dashboard-page'), profilePage = document.getElementById('profile-page'), settingsPage = document.getElementById('settings-page');
+        if (dashboardPage) dashboardPage.classList.remove('hidden'); if (settingsPage) settingsPage.classList.add('hidden');
+        if (profilePage) { profilePage.classList.remove('hidden'); profilePage.style.display = 'block'; }
+        normalizeProfileSource(); setTimeout(function () { if (typeof window.loadProfileData === 'function') window.loadProfileData(); if (typeof window.loadTeamMembers === 'function') window.loadTeamMembers(); }, 0); window.__bizosBillingReturnView = null;
+      } else if (returnView === 'settings') {
+        var dashboardPage2 = document.getElementById('dashboard-page'), profilePage2 = document.getElementById('profile-page'), settingsPage2 = document.getElementById('settings-page');
+        if (dashboardPage2) dashboardPage2.classList.remove('hidden'); if (profilePage2) profilePage2.classList.add('hidden'); if (settingsPage2) settingsPage2.classList.remove('hidden'); normalizeSettingsSource(); window.__bizosBillingReturnView = null;
+      } else if (returnView === 'staff') {
+        var dashboardPage3 = document.getElementById('dashboard-page'), staffPage3 = document.getElementById('staff-page');
+        if (dashboardPage3) dashboardPage3.classList.remove('hidden'); if (staffPage3 && typeof window.showStaffPage === 'function') window.showStaffPage(); window.__bizosBillingReturnView = null;
+      }
+      return result;
+    };
+    window.__bizosBillingCloseWrapped = true;
+  }
+  function initializeNavigationFixes() { normalizeProfileSource(); normalizeSettingsSource(); fixStaffSidebarLink(); fixBillingSidebarLink(); fixBillingCloseReturn(); installStaffNavigationGuard(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeNavigationFixes, { once: true }); else initializeNavigationFixes();
+  window.addEventListener('pageshow', initializeNavigationFixes);
+  window.addEventListener('resize', function () { normalizeProfileSource(); normalizeSettingsSource(); });
+})();
+</script>

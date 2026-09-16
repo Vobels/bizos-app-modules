@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join BizOS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #f7f5fa; color: #111827; }
+    .page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 28px 16px; }
+    .card { width: 100%; max-width: 520px; background: #fff; border: 1px solid #e5e7eb; border-radius: 22px; box-shadow: 0 20px 60px rgba(38, 20, 52, .10); overflow: hidden; }
+    .brand { background: linear-gradient(135deg, #5D2A86, #7b3db0); color: #fff; padding: 28px 30px; }
+    .field { width: 100%; padding: 12px 13px; border: 1px solid #d1d5db; border-radius: 10px; outline: none; background: #fff; }
+    .field:focus { border-color: #5D2A86; box-shadow: 0 0 0 3px rgba(93,42,134,.10); }
+    .readonly { background: #f9fafb; color: #4b5563; }
+    .btn { width: 100%; border: 0; border-radius: 10px; padding: 13px 16px; background: #5D2A86; color: #fff; font-weight: 700; cursor: pointer; }
+    .btn:disabled { opacity: .6; cursor: wait; }
+    .error { display: none; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 10px; padding: 12px; font-size: 13px; line-height: 1.5; }
+    .success { display: none; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px; font-size: 13px; line-height: 1.5; }
+    .loading { text-align: center; padding: 45px 25px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <div class="brand">
+        <div style="font-size:24px;font-weight:800;letter-spacing:-.03em;">BizOS</div>
+        <div style="font-size:13px;color:#eadcff;margin-top:5px;">Business Operating System</div>
+      </div>
+
+      <div id="loading" class="loading">Loading your invitation...</div>
+
+      <div id="content" style="display:none;padding:28px 30px 30px;">
+        <div style="margin-bottom:22px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#7c3aed;">You're invited</div>
+          <h1 style="font-size:25px;line-height:1.2;margin:7px 0 7px;font-weight:800;color:#111827;">Join <span id="business-name">the business</span></h1>
+          <p style="margin:0;color:#6b7280;font-size:14px;line-height:1.6;">Complete your account setup to join the team on BizOS.</p>
+        </div>
+
+        <div id="error" class="error" style="margin-bottom:16px;"></div>
+        <div id="success" class="success" style="margin-bottom:16px;"></div>
+
+        <div style="display:grid;gap:15px;">
+          <div>
+            <label for="invite-name" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151;">Full name</label>
+            <input id="invite-name" class="field" type="text" autocomplete="name">
+          </div>
+
+          <div>
+            <label for="invite-email" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151;">Email address</label>
+            <input id="invite-email" class="field readonly" type="email" readonly>
+          </div>
+
+          <div>
+            <label for="invite-role" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151;">Role</label>
+            <input id="invite-role" class="field readonly" type="text" readonly>
+          </div>
+
+          <div>
+            <label for="invite-phone" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151;">Phone number <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+            <input id="invite-phone" class="field" type="tel" autocomplete="tel" placeholder="Your phone number">
+          </div>
+
+          <div>
+            <label for="invite-password" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151;">Create password</label>
+            <input id="invite-password" class="field" type="password" minlength="6" autocomplete="new-password" placeholder="At least 6 characters">
+          </div>
+
+          <div>
+            <label for="invite-confirm" style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151;">Confirm password</label>
+            <input id="invite-confirm" class="field" type="password" minlength="6" autocomplete="new-password" placeholder="Enter the password again">
+          </div>
+        </div>
+
+        <button id="accept-button" class="btn" type="button" style="margin-top:22px;">Accept Invitation &amp; Create Account</button>
+
+        <div style="text-align:center;margin-top:18px;font-size:13px;color:#6b7280;">
+          Already have a BizOS account?
+          <a href="?page=login" style="color:#5D2A86;font-weight:700;text-decoration:none;">Sign in</a>
+        </div>
+      </div>
+
+      <div id="invalid" style="display:none;padding:38px 30px;text-align:center;">
+        <div style="width:54px;height:54px;margin:0 auto 16px;border-radius:50%;background:#fef2f2;color:#b91c1c;display:flex;align-items:center;justify-content:center;font-size:24px;">!</div>
+        <h1 style="font-size:22px;font-weight:800;margin:0 0 8px;">Invitation unavailable</h1>
+        <p id="invalid-message" style="margin:0;color:#6b7280;font-size:14px;line-height:1.6;"></p>
+        <a href="?page=login" style="display:inline-block;margin-top:20px;color:#5D2A86;font-weight:700;text-decoration:none;">Go to BizOS sign in</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search || '');
+      var code = String(params.get('invite') || '').trim().toUpperCase();
+      var loading = document.getElementById('loading');
+      var content = document.getElementById('content');
+      var invalid = document.getElementById('invalid');
+      var invalidMessage = document.getElementById('invalid-message');
+      var errorBox = document.getElementById('error');
+      var successBox = document.getElementById('success');
+      var button = document.getElementById('accept-button');
+
+      function showInvalid(message) {
+        loading.style.display = 'none';
+        content.style.display = 'none';
+        invalid.style.display = 'block';
+        invalidMessage.textContent = message || 'This invitation link is no longer valid.';
+      }
+
+      function showError(message) {
+        successBox.style.display = 'none';
+        errorBox.textContent = message || 'Something went wrong. Please try again.';
+        errorBox.style.display = 'block';
+      }
+
+      if (!code) {
+        showInvalid('No invitation code was provided. Please use the invitation link sent to your email.');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function (response) {
+          if (!response || !response.success || !response.invitation) {
+            showInvalid((response && response.message) || 'This invitation link is invalid or has expired.');
+            return;
+          }
+
+          var invitation = response.invitation;
+          document.getElementById('business-name').textContent = invitation.businessName || 'your business';
+          document.getElementById('invite-name').value = invitation.name || '';
+          document.getElementById('invite-email').value = invitation.email || '';
+          document.getElementById('invite-role').value = invitation.role ? invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1) : 'Staff';
+          loading.style.display = 'none';
+          content.style.display = 'block';
+        })
+        .withFailureHandler(function (error) {
+          showInvalid((error && error.message) || 'Unable to load this invitation. Please try again.');
+        })
+        .getInvitationDetailsV2(code);
+
+      button.addEventListener('click', function () {
+        errorBox.style.display = 'none';
+        var name = document.getElementById('invite-name').value.trim();
+        var phone = document.getElementById('invite-phone').value.trim();
+        var password = document.getElementById('invite-password').value;
+        var confirm = document.getElementById('invite-confirm').value;
+
+        if (!name) return showError('Please enter your full name.');
+        if (password.length < 6) return showError('Password must be at least 6 characters.');
+        if (password !== confirm) return showError('Passwords do not match.');
+
+        button.disabled = true;
+        button.textContent = 'Creating your account...';
+
+        google.script.run
+          .withSuccessHandler(function (response) {
+            if (!response || !response.success) {
+              button.disabled = false;
+              button.textContent = 'Accept Invitation & Create Account';
+              showError((response && response.message) || 'Unable to accept this invitation.');
+              return;
+            }
+
+            successBox.textContent = 'Your account has been created successfully. Redirecting you to sign in...';
+            successBox.style.display = 'block';
+            button.style.display = 'none';
+            setTimeout(function () {
+              window.location.href = '?page=login';
+            }, 900);
+          })
+          .withFailureHandler(function (error) {
+            button.disabled = false;
+            button.textContent = 'Accept Invitation & Create Account';
+            showError((error && error.message) || 'Unable to accept this invitation.');
+          })
+          .acceptInvitationV2(code, password, name, phone);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,10 +1,12 @@
 // ============================================================
 // AutoSetupClientSafe.js - SAFE + IDEMPOTENT PAID CLIENT PROVISIONING
 // ============================================================
-// Explicit production entry point. Does not override legacy functions.
+// Public entry point keeps its own lock for direct callers.
+// The confirmed-upgrade flow passes skipLock=true because its
+// parent function already owns the single provisioning lock.
 // ============================================================
 
-function autoSetupClientSafe(paymentData) {
+function autoSetupClientSafe(paymentData, skipLock) {
   var lock = null;
   var clientId = '', sheetResult = null, scriptResult = null;
   var existingBusiness = null, businessId = null, businessName = '';
@@ -13,8 +15,12 @@ function autoSetupClientSafe(paymentData) {
     paymentData = paymentData || {};
     if (!paymentData.email) return {success:false,code:'INVALID_PAYMENT_DATA',message:'Client email is required.'};
     businessName = paymentData.businessName || paymentData.name || 'My Business';
-    lock = LockService.getScriptLock();
-    if (!lock.tryLock(30000)) return {success:false,code:'PROVISIONING_BUSY',message:'Client provisioning is already in progress. Please retry shortly.'};
+
+    if (!skipLock) {
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(30000)) return {success:false,code:'PROVISIONING_BUSY',message:'Client provisioning is already in progress. Please retry shortly.'};
+    }
+
     console.log('SAFE PROVISIONING START:', paymentData.email, businessName);
     var existingClient = getExistingActiveClientDeployment_(paymentData.email, businessName);
     if (existingClient) {
@@ -37,6 +43,18 @@ function autoSetupClientSafe(paymentData) {
     console.log('SAFE STEP 1: Creating workspace:', clientId);
     sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:'7.0'});
     if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
+
+    // The workspace creator establishes the initial sheets. Run the canonical
+    // guard immediately afterward so provisioning cannot leave a workspace
+    // with missing/out-of-order headings, and so future schema additions can
+    // be repaired without attaching data to the wrong field.
+    console.log('SAFE STEP 1B: Verifying canonical workspace database schema');
+    var schemaResult = ensureBizOSClientWorkspace(sheetResult.sheetId,clientId,businessId,businessName,paymentData.email);
+    if (!schemaResult || !schemaResult.success) {
+      cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
+      return {success:false,code:'WORKSPACE_SCHEMA_FAILED',message:'Client workspace was created, but its database schema could not be verified: '+((schemaResult&&schemaResult.message)||'Unknown schema error'),clientId:clientId,cleanedUp:true};
+    }
+
     console.log('SAFE STEP 2: Generating V7 client package with client-scoped team management');
     var clientCode = generateClientCodeSafelyV7({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
     if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
@@ -51,7 +69,7 @@ function autoSetupClientSafe(paymentData) {
     committed=true;
     if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
     try { sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
-    return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,message:'Client setup complete.'};
+    return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
   } catch(error) {
     console.error('SAFE CLIENT SETUP ERROR:',error);
     if(!committed){if(sheetResult&&sheetResult.success)cleanupFailedClientProvisioningSafe_(sheetResult,clientId);if(scriptResult&&scriptResult.scriptId)cleanupFailedClientDeploymentSafe_(scriptResult);}

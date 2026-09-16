@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Complete Payment - BizOS</title>
+  <script src="https://js.paystack.co/v2/inline.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#f7f4fa 0%,#f6f7fb 100%);color:#17202a;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .shell{width:100%;max-width:560px}
+    .brand{font-weight:800;color:#5D2A86;font-size:24px;margin-bottom:18px;text-align:center;letter-spacing:-.02em}
+    .card{background:#fff;border:1px solid #e8eaf0;border-radius:22px;padding:32px;box-shadow:0 20px 55px rgba(17,24,39,.09)}
+    .eyebrow{font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#667085;margin-bottom:9px}
+    h1{font-size:30px;line-height:1.15;margin:0 0 10px;color:#111827;letter-spacing:-.025em}
+    .muted{color:#667085;line-height:1.6;margin:0}
+    .summary{margin:22px 0;padding:18px;border-radius:15px;background:#faf8fc;border:1px solid #eee7f5}
+    .row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;font-size:14px}.row strong{color:#111827;text-align:right;word-break:break-word}.total{border-top:1px solid #e5e7eb;margin-top:8px;padding-top:15px;font-size:20px;font-weight:800}
+    button{width:100%;border:0;border-radius:12px;padding:15px 18px;background:#5D2A86;color:#fff;font-weight:750;font-size:15px;cursor:pointer;transition:transform .15s,opacity .15s,background .15s}button:hover:not(:disabled){transform:translateY(-1px)}button:disabled{opacity:.6;cursor:not-allowed}
+    .secondary{background:#fff;color:#5D2A86;border:1px solid #d9cce5;margin-top:10px}.secondary:hover:not(:disabled){background:#faf8fc}
+    .status{margin-top:18px;padding:16px;border-radius:13px;display:none;font-size:14px;line-height:1.55}.status.show{display:block}.status.error{background:#fff1f2;color:#b42318;border:1px solid #fecdd3}.status.success{background:#ecfdf3;color:#027a48;border:1px solid #abefc6}.status.info{background:#eff6ff;color:#175cd3;border:1px solid #bfdbfe}
+    .result{display:none;margin-top:20px;padding:22px;border-radius:16px;border:1px solid #d9f2e2;background:#f7fffa}.result.show{display:block}.result h2{font-size:22px;margin:0 0 7px;color:#101828}.result p{margin:0;color:#475467;line-height:1.55}.check{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dcfae6;color:#087443;font-size:22px;font-weight:800;margin-bottom:14px}
+    .steps{display:grid;gap:9px;margin:17px 0 20px}.step{display:flex;gap:10px;align-items:flex-start;color:#475467;font-size:13px;line-height:1.45}.step b{color:#101828}.num{flex:0 0 22px;height:22px;border-radius:50%;background:#eee7f5;color:#5D2A86;font-weight:800;text-align:center;line-height:22px;font-size:12px}
+    .small{font-size:12px;color:#98a2b3;text-align:center;margin-top:16px;line-height:1.5}.email-note{margin-top:14px;font-size:13px;color:#475467;background:#fff;border:1px solid #e4e7ec;border-radius:11px;padding:12px 13px}
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:520px){body{padding:14px}.card{padding:24px 19px;border-radius:18px}h1{font-size:26px}.row{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">BizOS</div>
+    <section class="card">
+      <div id="checkoutView">
+        <div class="eyebrow">Secure checkout</div>
+        <h1>Complete your payment</h1>
+        <p class="muted">Once payment is confirmed, we'll prepare your BizOS workspace and give you a link to launch it.</p>
+        <div id="summary" class="summary">
+          <div class="row"><span>Business</span><strong id="business">Loading...</strong></div>
+          <div class="row"><span>Plan</span><strong id="plan">Loading...</strong></div>
+          <div class="row total"><span>Total</span><strong id="amount">Loading...</strong></div>
+        </div>
+        <button id="pay" type="button" disabled>Loading payment...</button>
+      </div>
+
+      <div id="result" class="result">
+        <div class="check">✓</div>
+        <h2 id="resultTitle">Your BizOS workspace is ready</h2>
+        <p id="resultText">Your payment has been confirmed and your workspace is ready to use.</p>
+        <div class="steps">
+          <div class="step"><span class="num">1</span><span><b>Payment confirmed</b><br>Your payment has been safely recorded.</span></div>
+          <div class="step"><span class="num">2</span><span><b>Workspace ready</b><br>Your BizOS business workspace has been prepared.</span></div>
+          <div class="step"><span class="num">3</span><span><b>Launch BizOS</b><br>Use the button below to open your workspace.</span></div>
+        </div>
+        <button id="launch" type="button">Launch My BizOS</button>
+        <div class="email-note">📧 Your BizOS workspace link will also be sent to the email address used for this payment.</div>
+      </div>
+
+      <div id="status" class="status"></div>
+      <div class="small">Payments are securely processed by Paystack. Your card or bank details are handled by Paystack and are not stored by BizOS.</div>
+    </section>
+  </main>
+  <script>
+    (function(){
+      'use strict';
+      var requestId=<?!= JSON.stringify(requestId || '') ?>;
+      var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),amountEl=document.getElementById('amount');
+      var payBtn=document.getElementById('pay'),statusEl=document.getElementById('status'),checkoutView=document.getElementById('checkoutView');
+      var resultEl=document.getElementById('result'),resultTitle=document.getElementById('resultTitle'),resultText=document.getElementById('resultText'),launchBtn=document.getElementById('launch');
+      var checkout=null,launchUrl='';
+
+      function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
+      function clearStatus(){statusEl.textContent='';statusEl.className='status';}
+      function money(amount,currency){try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}}
+      function setButton(text,disabled){payBtn.innerHTML=text;payBtn.disabled=!!disabled;}
+      function showReady(url,idempotent){
+        launchUrl=url||'';
+        checkoutView.style.display='none';
+        resultEl.classList.add('show');
+        resultTitle.textContent='Your BizOS workspace is ready';
+        resultText.textContent=idempotent?'Your payment was already confirmed and your BizOS workspace is ready to use.':'Your payment has been confirmed and your BizOS workspace is ready to use.';
+        launchBtn.disabled=!launchUrl;
+        if(!launchUrl){launchBtn.textContent='Launch link unavailable';}
+        clearStatus();
+      }
+      function launch(){if(launchUrl)window.location.href=launchUrl;}
+      function showPaidButNotReady(){
+        checkoutView.style.display='none';
+        resultEl.classList.add('show');
+        resultTitle.textContent='Your payment was successful';
+        resultText.textContent='We received your payment, but your BizOS workspace needs a little more time to finish setting up.';
+        document.querySelector('.check').textContent='✓';
+        document.querySelector('.check').style.background='#fff4e5';
+        document.querySelector('.check').style.color='#b54708';
+        document.querySelector('.steps').innerHTML='<div class="step"><span class="num">1</span><span><b>Your payment is safe</b><br>You do not need to pay again.</span></div><div class="step"><span class="num">2</span><span><b>Continue setup</b><br>We will check your payment and finish preparing your workspace.</span></div><div class="step"><span class="num">3</span><span><b>Launch BizOS</b><br>When setup is complete, we will give you your launch link here.</span></div>';
+        launchBtn.textContent='Continue Setup';
+        launchBtn.disabled=false;
+        launchBtn.onclick=continueSetup;
+        status('Your payment is confirmed. No second payment is needed.','info');
+      }
+      function loadCheckout(){
+        if(!requestId){status('This payment page is missing your setup request. Please return to BizOS and start the upgrade again.','error');setButton('Payment unavailable',true);return;}
+        google.script.run.withSuccessHandler(function(r){
+          if(!r||!r.success){status(r&&r.message||'We could not prepare your payment. Please return to BizOS and try again.','error');setButton('Payment unavailable',true);return;}
+          checkout=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);setButton('Pay '+money(r.displayAmount,r.currency),false);status('Your payment is ready.','info');
+        }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh this page and try again.','error');setButton('Payment unavailable',true);}).getPaystackCheckoutDetails(requestId);
+      }
+      function verify(reference){
+        status('Payment received. We are confirming it and preparing your workspace...','info');setButton('<span class="spinner"></span>Confirming payment...',true);
+        google.script.run.withSuccessHandler(function(r){
+          if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);}
+          else if(r&&r.paymentVerified){showPaidButNotReady();}
+          else{status(r&&r.message||'We could not confirm this payment. Please do not pay again until we know what happened.','error');setButton('Payment could not be confirmed',true);}
+        }).withFailureHandler(function(){status('We could not complete the payment check. Please do not pay again. Refresh the page or contact BizOS support so we can check the payment for you.','error');setButton('Payment check needs attention',true);}).verifyPaystackPaymentAndProvisionSecure(reference,requestId);
+      }
+      function continueSetup(){
+        launchBtn.disabled=true;launchBtn.innerHTML='<span class="spinner"></span>Finishing setup...';
+        status('Checking your payment and finishing your BizOS workspace setup. You do not need to pay again.','info');
+        google.script.run.withSuccessHandler(function(r){
+          if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);}
+          else{launchBtn.disabled=false;launchBtn.textContent='Continue Setup';status(r&&r.message||'We could not finish setup yet. Your payment is safe. Please try Continue Setup again in a moment.','error');}
+        }).withFailureHandler(function(){launchBtn.disabled=false;launchBtn.textContent='Continue Setup';status('We could not finish setup right now. Your payment is safe. Please try Continue Setup again in a moment.','error');}).continueConfirmedUpgradeSetup(requestId);
+      }
+      launchBtn.addEventListener('click',launch);
+      payBtn.addEventListener('click',function(){
+        if(!checkout)return;
+        if(typeof PaystackPop==='undefined'){status('Secure payment checkout could not load. Please refresh and try again.','error');return;}
+        setButton('<span class="spinner"></span>Opening secure checkout...',true);
+        try{
+          var popup=new PaystackPop();
+          popup.newTransaction({key:checkout.publicKey,email:checkout.email,amount:checkout.amount,currency:checkout.currency,reference:checkout.reference,metadata:{requestId:checkout.requestId,businessName:checkout.businessName},onSuccess:function(transaction){verify(transaction.reference);},onCancel:function(){status('Payment was cancelled. No payment was taken. You can try again when you are ready.','info');setButton('Pay '+money(checkout.displayAmount,checkout.currency),false);}});
+        }catch(err){status('Secure checkout could not open. Please refresh and try again.','error');setButton('Pay '+money(checkout.displayAmount,checkout.currency),false);}
+      });
+      loadCheckout();
+    })();
+  </script>
+</body>
+</html>
