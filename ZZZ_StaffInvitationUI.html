@@ -1,0 +1,71 @@
+<!-- BizOS — Staff invitation acceptance UI -->
+<script>
+(function(){
+  'use strict';
+
+  function showStaffInvitationAcceptance(inviteCode){
+    var existing=document.getElementById('staff-accept-invite-modal');
+    if(existing) existing.remove();
+
+    var modal=document.createElement('div');
+    modal.id='staff-accept-invite-modal';
+    modal.style.cssText='position:fixed;inset:0;z-index:2147483645;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+    modal.innerHTML=''
+      +'<div style="width:100%;max-width:460px;max-height:90vh;overflow-y:auto;background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.2);">'
+      +'<div style="padding:22px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">'
+      +'<div><h2 style="margin:0;font-size:20px;font-weight:700;color:#111827;">Join BizOS</h2><p style="margin:5px 0 0;font-size:13px;color:#6b7280;">Complete your account to join the business team.</p></div>'
+      +'<button type="button" id="staff-accept-close" style="width:40px;height:40px;border:0;background:transparent;border-radius:8px;color:#6b7280;cursor:pointer;font-size:18px;">&times;</button>'
+      +'</div>'
+      +'<form id="staff-accept-form" style="padding:24px;">'
+      +'<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Invitation Code</label>'
+      +'<input id="staff-accept-code" value="'+String(inviteCode||'').replace(/"/g,'&quot;')+'" readonly style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d1d5db;border-radius:9px;background:#f9fafb;margin-bottom:15px;">'
+      +'<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Full Name *</label>'
+      +'<input id="staff-accept-name" required placeholder="Your full name" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d1d5db;border-radius:9px;margin-bottom:15px;">'
+      +'<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Phone Number</label>'
+      +'<input id="staff-accept-phone" type="tel" placeholder="Optional" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d1d5db;border-radius:9px;margin-bottom:15px;">'
+      +'<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Password *</label>'
+      +'<input id="staff-accept-password" type="password" minlength="6" required placeholder="At least 6 characters" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d1d5db;border-radius:9px;margin-bottom:15px;">'
+      +'<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Confirm Password *</label>'
+      +'<input id="staff-accept-confirm" type="password" minlength="6" required placeholder="Repeat your password" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d1d5db;border-radius:9px;">'
+      +'<button id="staff-accept-submit" type="submit" style="width:100%;margin-top:20px;padding:12px;border:0;border-radius:9px;background:#5D2A86;color:#fff;font-weight:600;cursor:pointer;">Accept Invitation</button>'
+      +'</form></div>';
+
+    document.body.appendChild(modal);
+    document.body.style.overflow='hidden';
+
+    function close(){ modal.remove(); document.body.style.overflow=''; }
+    document.getElementById('staff-accept-close').onclick=close;
+    modal.addEventListener('click',function(e){if(e.target===modal)close();});
+
+    document.getElementById('staff-accept-form').onsubmit=function(event){
+      event.preventDefault();
+      var code=document.getElementById('staff-accept-code').value.trim().toUpperCase();
+      var name=document.getElementById('staff-accept-name').value.trim();
+      var phone=document.getElementById('staff-accept-phone').value.trim();
+      var password=document.getElementById('staff-accept-password').value;
+      var confirm=document.getElementById('staff-accept-confirm').value;
+      var submit=document.getElementById('staff-accept-submit');
+      if(password!==confirm){showNotification('Passwords do not match.','warning');return;}
+      if(password.length<6){showNotification('Password must be at least 6 characters.','warning');return;}
+      submit.disabled=true;submit.textContent='Accepting...';submit.style.opacity='.6';
+      google.script.run.withSuccessHandler(function(response){
+        submit.disabled=false;submit.textContent='Accept Invitation';submit.style.opacity='1';
+        if(response&&response.success){close();showNotification(response.message||'Invitation accepted.','success');setTimeout(function(){if(typeof showLoginModal==='function')showLoginModal();},700);}
+        else showNotification((response&&response.message)||'Failed to accept invitation.','error');
+      }).withFailureHandler(function(error){
+        submit.disabled=false;submit.textContent='Accept Invitation';submit.style.opacity='1';
+        showNotification((error&&error.message)||'Failed to accept invitation.','error');
+      }).acceptInvitationV2(code,password,name,phone);
+    };
+  }
+
+  window.addEventListener('load',function(){
+    var params=new URLSearchParams(window.location.search||'');
+    var code=params.get('invite');
+    if(!code)return;
+    showStaffInvitationAcceptance(code);
+  });
+
+  window.showStaffInvitationAcceptance=showStaffInvitationAcceptance;
+})();
+</script>
