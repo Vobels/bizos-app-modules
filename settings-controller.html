@@ -1,17 +1,12 @@
 <!-- ===== SETTINGS CONTROLLER =====
      Single source of truth for Settings page state and behavior.
-     Loaded after scripts.html so it can safely own the Settings UI. -->
+     Notification controls use native checkboxes styled as switches.
+     Loaded after scripts.html so these Settings functions are authoritative. -->
 <script>
 (function () {
   'use strict';
 
-  const NOTIFICATION_IDS = [
-    'notif-features',
-    'notif-system',
-    'notif-weekly',
-    'notif-security',
-    'notif-marketing'
-  ];
+  const NOTIFICATION_KEYS = ['features', 'system', 'weekly', 'security', 'marketing'];
 
   const DEFAULTS = {
     features: true,
@@ -32,47 +27,29 @@
         marketing: stored.marketing !== undefined ? stored.marketing === true : DEFAULTS.marketing
       };
     } catch (error) {
-      console.warn('Settings: invalid notification preferences, using defaults.', error);
+      console.warn('Settings: invalid notification preferences; using defaults.', error);
       return { ...DEFAULTS };
     }
-  }
-
-  function syncNotificationSwitches() {
-    NOTIFICATION_IDS.forEach(function (id) {
-      const input = document.getElementById(id);
-      const button = document.querySelector('#settings-page .settings-preference-switch[data-target="' + id + '"]');
-      if (!input || !button) return;
-
-      const enabled = input.checked === true;
-      button.classList.toggle('is-on', enabled);
-      button.classList.toggle('is-off', !enabled);
-      button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-      button.setAttribute('aria-label', enabled ? 'Turn off' : 'Turn on');
-    });
   }
 
   function loadNotificationPreferences() {
     const prefs = getNotificationPreferences();
 
-    Object.keys(prefs).forEach(function (key) {
+    NOTIFICATION_KEYS.forEach(function (key) {
       const input = document.getElementById('notif-' + key);
       if (input) input.checked = prefs[key];
     });
-
-    syncNotificationSwitches();
   }
 
   function saveNotificationPreferences() {
     const prefs = {};
 
-    NOTIFICATION_IDS.forEach(function (id) {
-      const input = document.getElementById(id);
-      const key = id.replace('notif-', '');
+    NOTIFICATION_KEYS.forEach(function (key) {
+      const input = document.getElementById('notif-' + key);
       prefs[key] = !!(input && input.checked);
     });
 
     localStorage.setItem('bizos_notification_prefs', JSON.stringify(prefs));
-    syncNotificationSwitches();
 
     const status = document.getElementById('notif-save-status');
     if (status) {
@@ -86,15 +63,6 @@
     if (typeof window.showNotification === 'function') {
       window.showNotification('Preferences saved!', 'success');
     }
-  }
-
-  function toggleNotification(id) {
-    const input = document.getElementById(id);
-    if (!input) return;
-
-    input.checked = !input.checked;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    syncNotificationSwitches();
   }
 
   function showSettingsPage() {
@@ -142,28 +110,10 @@
     window.scrollTo(0, 0);
   }
 
-  // Replace the old Settings functions from scripts.html with the canonical versions.
   window.loadNotificationPreferences = loadNotificationPreferences;
   window.saveNotificationPreferences = saveNotificationPreferences;
-  window.syncSettingsSwitches = syncNotificationSwitches;
   window.showSettingsPage = showSettingsPage;
 
-  // One delegated handler: the visible switch is the only click target that changes state.
-  document.addEventListener('click', function (event) {
-    const button = event.target.closest('#settings-page .settings-preference-switch');
-    if (!button) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    toggleNotification(button.getAttribute('data-target'));
-  });
-
-  document.addEventListener('change', function (event) {
-    if (!event.target.matches('#settings-page .settings-notification-toggle input[type="checkbox"]')) return;
-    syncNotificationSwitches();
-  });
-
-  // Initial sync for direct /settings routes and page refreshes.
   function initialize() {
     const settingsPage = document.getElementById('settings-page');
     if (!settingsPage) return;
