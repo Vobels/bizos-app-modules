@@ -1,4 +1,74 @@
 <!-- ===== SETTINGS PAGE ===== -->
+<style>
+  /* Settings notification switches: use a real, explicit click target.
+     Do not depend on Tailwind peer/sr-only rendering for these controls. */
+  #settings-page .settings-notification-toggle {
+    position: relative !important;
+    display: inline-flex !important;
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    height: 24px !important;
+    min-width: 44px !important;
+    min-height: 24px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 1000 !important;
+    isolation: isolate !important;
+  }
+
+  #settings-page .settings-notification-toggle input {
+    position: absolute !important;
+    width: 44px !important;
+    height: 24px !important;
+    margin: 0 !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
+  }
+
+  #settings-page .settings-notification-toggle .settings-switch-track {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 44px !important;
+    height: 24px !important;
+    background: #d1d5db !important;
+    border-radius: 9999px !important;
+    pointer-events: none !important;
+    transition: background-color .2s ease !important;
+    z-index: 1 !important;
+  }
+
+  #settings-page .settings-notification-toggle .settings-switch-track::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 2px !important;
+    left: 2px !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: #fff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 50% !important;
+    box-sizing: border-box !important;
+    transition: transform .2s ease !important;
+  }
+
+  #settings-page .settings-notification-toggle input:checked + .settings-switch-track {
+    background: #9333ea !important;
+  }
+
+  #settings-page .settings-notification-toggle input:checked + .settings-switch-track::after {
+    transform: translateX(20px) !important;
+    border-color: #fff !important;
+  }
+
+  #settings-page .settings-notification-row {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+</style>
+
 <div id="settings-page" class="hidden p-6" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 999998; background: #f9fafb; overflow-y: auto;">
   <div class="mb-6">
     <div class="flex items-center justify-between">
@@ -17,11 +87,11 @@
       <h2 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-bell mr-2 text-purple-600"></i>Notification Preferences</h2>
       <p class="text-sm text-gray-500 mb-4">Choose which notifications you want to receive</p>
       <div class="space-y-4">
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Feature Updates</span><p class="text-sm text-gray-500">New features and improvements</p></div><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="notif-features" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div></label></div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">System Alerts</span><p class="text-sm text-gray-500">Important system notifications</p></div><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="notif-system" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div></label></div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Weekly Reports</span><p class="text-sm text-gray-500">Weekly business summary via email</p></div><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="notif-weekly" class="sr-only peer"><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div></label></div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Security Alerts</span><p class="text-sm text-gray-500">Login alerts and security events</p></div><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="notif-security" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div></label></div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Marketing Updates</span><p class="text-sm text-gray-500">Tips, offers, and product news</p></div><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" id="notif-marketing" class="sr-only peer"><div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div></label></div>
+        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Feature Updates</span><p class="text-sm text-gray-500">New features and improvements</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-features" checked><span class="settings-switch-track"></span></label></div>
+        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">System Alerts</span><p class="text-sm text-gray-500">Important system notifications</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-system" checked><span class="settings-switch-track"></span></label></div>
+        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Weekly Reports</span><p class="text-sm text-gray-500">Weekly business summary via email</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-weekly"><span class="settings-switch-track"></span></label></div>
+        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Security Alerts</span><p class="text-sm text-gray-500">Login alerts and security events</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-security" checked><span class="settings-switch-track"></span></label></div>
+        <div class="settings-notification-row flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div><span class="font-medium text-gray-900">Marketing Updates</span><p class="text-sm text-gray-500">Tips, offers, and product news</p></div><label class="settings-notification-toggle"><input type="checkbox" id="notif-marketing"><span class="settings-switch-track"></span></label></div>
       </div>
       <button onclick="saveNotificationPreferences()" class="mt-6 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition"><i class="fas fa-save mr-2"></i>Save Preferences</button>
       <span id="notif-save-status" class="ml-3 text-sm text-green-600 hidden">Saved!</span>
