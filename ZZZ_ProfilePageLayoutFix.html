@@ -76,6 +76,24 @@
   pointer-events: none !important;
 }
 
+/* Current Settings markup has a track and a separate thumb. Keep both inside the 44x24 switch. */
+#settings-page label.relative.inline-flex > div:first-of-type {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 44px !important;
+  height: 24px !important;
+  flex: 0 0 44px !important;
+}
+
+#settings-page label.relative.inline-flex > div:last-of-type {
+  position: absolute !important;
+  left: 4px !important;
+  top: 4px !important;
+  width: 16px !important;
+  height: 16px !important;
+  flex: 0 0 16px !important;
+}
+
 #settings-page > div,
 #settings-page button,
 #settings-page label { position: relative; z-index: 1; }
