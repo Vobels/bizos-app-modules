@@ -25,14 +25,70 @@
     </div>
   </main>
 </div>
+<style>
+/* Staff uses the same content viewport as Profile and Settings. The existing Dashboard sidebar remains visible on the left. */
+#staff-page {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 256px !important;
+  width: calc(100% - 256px) !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #f9fafb !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+#staff-page > main {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+#staff-page > main > header {
+  margin: 0 !important;
+}
+
+@media (max-width: 768px) {
+  #staff-page {
+    left: 0 !important;
+    width: 100% !important;
+  }
+}
+</style>
 <script>
 (function(){
   function currentUser(){ try{return JSON.parse(localStorage.getItem('bizos_user')||'null')||{};}catch(e){return {};}}
   function isOwnerAdmin(user){var role=String(user.Role||user.role||'').toLowerCase();return ['admin','owner','business_owner','super_admin'].indexOf(role)>=0 || user.Is_Client===true || user.isClient===true;}
 
+  function setStaffSidebarState(active){
+    var sidebar=document.getElementById('sidebar');
+    if(!sidebar)return;
+    sidebar.querySelectorAll('nav button').forEach(function(button){
+      var label=(button.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+      if(label!=='staff')return;
+      if(active){
+        button.classList.add('bg-purple-50','text-purple-700');
+        var icon=button.querySelector('i');
+        if(icon){icon.classList.remove('text-gray-500');icon.classList.add('text-purple-600');}
+      }else{
+        button.classList.remove('bg-purple-50','text-purple-700');
+        var icon=button.querySelector('i');
+        if(icon){icon.classList.remove('text-purple-600');icon.classList.add('text-gray-500');}
+      }
+    });
+  }
+
   window.leaveStaffPage=function(target){
     var staffPage=document.getElementById('staff-page');
     if(staffPage)staffPage.classList.add('hidden');
+    setStaffSidebarState(false);
 
     if(target==='billing'){
       if(typeof window.showDashboardHome==='function')window.showDashboardHome();
@@ -62,8 +118,13 @@
   };
 
   window.showStaffPage=function(){
-    ['landing-page','dashboard-page','profile-page','settings-page','staff-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
+    ['landing-page','profile-page','settings-page','staff-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
+    /* Keep the Dashboard shell visible so its existing 256px sidebar remains in place. */
+    var dashboard=document.getElementById('dashboard-page');
+    if(dashboard)dashboard.classList.remove('hidden');
+
     var page=document.getElementById('staff-page');if(!page)return;page.classList.remove('hidden');
+    setStaffSidebarState(true);
     var user=currentUser(), admin=isOwnerAdmin(user);
     var management=document.getElementById('staff-management-view'), member=document.getElementById('staff-member-view');
     if(management)management.classList.toggle('hidden',!admin);if(member)member.classList.toggle('hidden',admin);
