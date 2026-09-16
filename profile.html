@@ -253,6 +253,13 @@
 </div>
 
 <style>
+/* The profile page uses an inline display style when opened. Because inline
+   styles can override the shared .hidden utility, explicitly give the hidden
+   profile state priority so this full-screen layer cannot remain over other pages. */
+#profile-page.hidden {
+  display: none !important;
+}
+
 .profile-tab {
   border-color: transparent;
   color: #6b7280;
