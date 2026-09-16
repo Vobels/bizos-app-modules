@@ -13,4 +13,55 @@
     </div></div>
   </main>
 </div>
-<style>.profile-tab{border-color:transparent;color:#6b7280}.profile-tab:hover{color:#5D2A86;border-color:#e9d5ff}.active-tab{border-color:#5D2A86;color:#5D2A86}</style>
+<style>
+.profile-tab{border-color:transparent;color:#6b7280}.profile-tab:hover{color:#5D2A86;border-color:#e9d5ff}.active-tab{border-color:#5D2A86;color:#5D2A86}
+
+/* Keep Profile controls inside the actual content viewport. */
+#profile-page > main > header { position: sticky !important; overflow: visible !important; }
+#profile-page > main > header > div { position: relative !important; min-width: 0 !important; padding-right: 52px !important; }
+#profile-page > main > header > div > button {
+  position: absolute !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  flex: 0 0 40px !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 110 !important;
+}
+#profile-page #team-tab { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+#profile-page #team-tab > div:first-child {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+#profile-page #team-tab > div:first-child h3 { flex: 1 1 auto !important; min-width: 0 !important; }
+#profile-page #team-tab > div:first-child button {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  max-width: none !important;
+  width: auto !important;
+  min-width: max-content !important;
+}
+#profile-page #team-members-list { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+#profile-page #team-members-list > * { min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+@media (max-width: 768px) {
+  #profile-page > main > header > div { padding-right: 48px !important; }
+  #profile-page #team-tab > div:first-child { align-items: flex-start !important; }
+  #profile-page #team-tab > div:first-child button { flex-shrink: 0 !important; }
+}
+</style>
