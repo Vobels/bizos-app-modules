@@ -5,9 +5,9 @@
   top: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  left: 256px !important;
+  left: 280px !important;
   display: none !important;
-  width: calc(100% - 256px) !important;
+  width: calc(100% - 280px) !important;
   height: 100vh !important;
   min-height: 0 !important;
   margin: 0 !important;
@@ -16,18 +16,19 @@
   background: #f9fafb !important;
   overflow: hidden !important;
   pointer-events: auto !important;
+  box-sizing: border-box !important;
 }
 
 #profile-page:not(.hidden) { display: block !important; }
 
-/* SETTINGS: keep the Settings page above the Dashboard shell so its controls receive mouse/touch events reliably. */
+/* SETTINGS: align with the actual 280px Dashboard sidebar. */
 #settings-page {
   position: fixed !important;
   top: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  left: 256px !important;
-  width: calc(100% - 256px) !important;
+  left: 280px !important;
+  width: calc(100% - 280px) !important;
   height: 100vh !important;
   min-height: 0 !important;
   margin: 0 !important;
@@ -71,16 +72,25 @@
   display: block !important; width: 100% !important; height: 100% !important;
   min-height: 0 !important; margin: 0 !important; padding: 0 !important;
   overflow-y: auto !important; overflow-x: hidden !important;
+  box-sizing: border-box !important;
 }
 #profile-page > main > header { position: sticky !important; top: 0 !important; z-index: 100 !important; margin: 0 !important; }
 
 body:has(#profile-page:not(.hidden)) #dashboard-header,
 body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !important; }
 
-#profile-page .max-w-4xl { width: auto !important; max-width: none !important; margin-left: 24px !important; margin-right: 24px !important; }
+/* Keep profile content inside the available viewport instead of allowing a
+   full-width child to overflow past the right edge. */
+#profile-page .max-w-4xl {
+  width: auto !important;
+  max-width: none !important;
+  margin-left: 24px !important;
+  margin-right: 24px !important;
+  box-sizing: border-box !important;
+}
 #staff-page main > div > section { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
-#bizos-upgrade-review-card { margin-left: 256px !important; margin-right: 24px !important; }
-#upgrade-modal > div { margin-left: 256px !important; margin-right: 24px !important; }
+#bizos-upgrade-review-card { margin-left: 280px !important; margin-right: 24px !important; }
+#upgrade-modal > div { margin-left: 280px !important; margin-right: 24px !important; }
 
 /* Staff is an overlay view. When it is hidden, force it completely out of the rendering and hit-test layers. */
 #staff-page.hidden {
@@ -109,13 +119,13 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
     const page = document.getElementById('profile-page');
     if (!page) return;
     page.style.position = 'fixed'; page.style.top = '0';
-    page.style.left = window.innerWidth <= 768 ? '0' : '256px';
+    page.style.left = window.innerWidth <= 768 ? '0' : '280px';
     page.style.right = '0'; page.style.bottom = '0';
-    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 256px)';
+    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 280px)';
     page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '0';
     page.style.zIndex = '999999'; page.style.overflow = 'hidden';
     const main = page.querySelector(':scope > main');
-    if (main) { main.style.height = '100%'; main.style.minHeight = '0'; main.style.margin = '0'; main.style.padding = '0'; main.style.overflowY = 'auto'; main.style.overflowX = 'hidden'; }
+    if (main) { main.style.width = '100%'; main.style.height = '100%'; main.style.minHeight = '0'; main.style.margin = '0'; main.style.padding = '0'; main.style.overflowY = 'auto'; main.style.overflowX = 'hidden'; main.style.boxSizing = 'border-box'; }
     const header = main && main.querySelector(':scope > header');
     if (header) header.style.margin = '0';
     document.body.style.overflowX = 'hidden';
@@ -125,9 +135,9 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
     const page = document.getElementById('settings-page');
     if (!page) return;
     page.style.position = 'fixed'; page.style.top = '0';
-    page.style.left = window.innerWidth <= 768 ? '0' : '256px';
+    page.style.left = window.innerWidth <= 768 ? '0' : '280px';
     page.style.right = '0'; page.style.bottom = '0';
-    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 256px)';
+    page.style.width = window.innerWidth <= 768 ? '100%' : 'calc(100% - 280px)';
     page.style.height = '100vh'; page.style.minHeight = '0'; page.style.margin = '0'; page.style.padding = '24px';
     page.style.zIndex = '999999'; page.style.overflowY = 'auto'; page.style.overflowX = 'hidden'; page.style.boxSizing = 'border-box'; page.style.pointerEvents = 'auto';
   }
@@ -143,11 +153,6 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
     if (typeof window.setStaffSidebarState === 'function') window.setStaffSidebarState(false);
   }
 
-  /*
-   * IMPORTANT: Staff is a fixed overlay. Some legacy navigation functions only
-   * change their own page's visibility and therefore leave Staff mounted above it.
-   * Hide Staff in the CAPTURE phase, before any sidebar onclick handler runs.
-   */
   function installStaffNavigationGuard() {
     if (window.__bizosStaffNavigationGuardInstalled) return;
     window.__bizosStaffNavigationGuardInstalled = true;
@@ -165,7 +170,6 @@ body:has(#settings-page:not(.hidden)) #dashboard-header { display: none !importa
       hideStaffPage();
     }, true);
 
-    /* Also guard programmatic navigation used by route handling and legacy code. */
     ['showDashboardHome', 'showAppsPage', 'showProfilePage', 'showSettingsPage'].forEach(function (name) {
       var fn = window[name];
       if (typeof fn !== 'function' || fn.__bizosStaffGuardWrapped) return;
