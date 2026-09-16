@@ -34,6 +34,16 @@ function doGet(e) {
 
     if (params.auth === '1') return HtmlService.createHtmlOutput('<html><body style="font-family:Arial;text-align:center;padding:50px"><h2 style="color:#5D2A86">Authorization Successful</h2><p>You can now close this tab and return to BizOS.</p></body></html>').setTitle('Authorization Complete');
 
+    // Staff invitations must never fall through to the normal landing/login UI.
+    // The existing email format is ?invite=CODE, so both old and new links
+    // are supported without requiring previously sent invitations to be resent.
+    var invitationCode = String(params.invite || '').trim();
+    if (invitationCode || requestedPage === 'invite' || requestedPage === 'invitation') {
+      var invitationTemplate = HtmlService.createTemplateFromFile('staff-invitation');
+      invitationTemplate.invitationCode = invitationCode;
+      return invitationTemplate.evaluate().setTitle('Join BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
     if (requestedPage === 'paystack-int' || requestedPage === 'payment') {
       var requestId = String(params.requestId || '').trim();
       var paymentTemplate = HtmlService.createTemplateFromFile('paystack-payment');
