@@ -19,11 +19,11 @@
     gap: 12px !important;
   }
 
-  /* Use the checkbox itself as the visible switch. This avoids the
-     invisible-input + pseudo-element rendering problem. */
+  /* Keep the current Settings layout, but use a dedicated visible track
+     for reliable switch rendering. The checkbox remains the click target. */
   #settings-page .settings-notification-toggle {
     position: relative !important;
-    display: inline-block !important;
+    display: inline-flex !important;
     flex: 0 0 44px !important;
     width: 44px !important;
     height: 24px !important;
@@ -47,19 +47,30 @@
     min-height: 24px !important;
     margin: 0 !important;
     padding: 0 !important;
-    opacity: 1 !important;
+    opacity: 0 !important;
     visibility: visible !important;
-    background: #d1d5db !important;
+    background: transparent !important;
     border: 0 !important;
-    border-radius: 9999px !important;
     box-shadow: none !important;
     cursor: pointer !important;
     pointer-events: auto !important;
     z-index: 3 !important;
-    transition: background-color .2s ease !important;
   }
 
-  #settings-page .settings-notification-toggle input[type="checkbox"]::after {
+  #settings-page .settings-notification-toggle .settings-switch-track {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 44px !important;
+    height: 24px !important;
+    background: #d1d5db !important;
+    border-radius: 9999px !important;
+    pointer-events: none !important;
+    transition: background-color .2s ease !important;
+    z-index: 1 !important;
+  }
+
+  #settings-page .settings-notification-toggle .settings-switch-track::after {
     content: '' !important;
     position: absolute !important;
     top: 2px !important;
@@ -74,17 +85,13 @@
     transition: transform .2s ease !important;
   }
 
-  #settings-page .settings-notification-toggle input[type="checkbox"]:checked {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked + .settings-switch-track {
     background: #9333ea !important;
   }
 
-  #settings-page .settings-notification-toggle input[type="checkbox"]:checked::after {
+  #settings-page .settings-notification-toggle input[type="checkbox"]:checked + .settings-switch-track::after {
     transform: translateX(20px) !important;
     border-color: #fff !important;
-  }
-
-  #settings-page .settings-notification-toggle .settings-switch-track {
-    display: none !important;
   }
 
   /* Keep long settings text from forcing horizontal overflow. */
