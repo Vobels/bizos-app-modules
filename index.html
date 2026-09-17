@@ -55,18 +55,11 @@
     function applyRoute(path){
       const route=normalizeRoute(path);
       window.__BIZOS_PUBLIC_ROUTE=route;
-      // A bare root is the landing route only when there is no active browser session.
-      // This is what makes a normal browser refresh restore the authenticated dashboard.
+      // The public root URL is always the landing/login entry point.
+      // Authenticated users use the explicit /dashboard route after signing in.
       if(route==='/'){
-        if(authenticated()){
-          showOnly('dashboard-page');
-          if(typeof window.showDashboardHome==='function')window.showDashboardHome();
-          if(typeof window.loadDashboard==='function')window.loadDashboard();
-          publishRoute('/dashboard');
-        }else{
-          showLanding();
-          publishRoute('/');
-        }
+        showLanding();
+        publishRoute('/');
         return;
       }
       if(route==='/login'){openLogin();publishRoute('/login');return;}
