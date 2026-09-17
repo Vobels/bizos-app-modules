@@ -10,21 +10,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <?!= include('styles') ?>
   <style>
-    /* Global mobile bottom breathing room.
-       Keeps the last controls/content clear of the browser edge and
-       also respects devices with a bottom safe-area inset. */
     @media (max-width: 768px) {
-      #app {
-        padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
-      }
-
-      #app > * {
-        padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px)) !important;
-      }
-
-      body {
-        padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
-      }
+      #app { padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px)); }
+      #app > * { padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px)) !important; }
+      body { padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px)); }
     }
   </style>
   <script>
@@ -63,7 +52,29 @@
     function showLanding(){showOnly('landing-page');}
     function openLogin(){showLanding();if(typeof window.showLoginModal==='function')window.showLoginModal();else if(typeof window.openLoginModal==='function')window.openLoginModal();}
     function authenticated(){return typeof window.loadSession!=='function'||window.loadSession();}
-    function applyRoute(path){const route=normalizeRoute(path);window.__BIZOS_PUBLIC_ROUTE=route;if(route==='/'){showLanding();publishRoute('/');return;}if(route==='/login'){openLogin();publishRoute('/login');return;}if(!authenticated()){openLogin();publishRoute('/login',true);return;}showOnly(route==='/dashboard'?'dashboard-page':route==='/profile'?'profile-page':route==='/staff'?'staff-page':route==='/settings'?'settings-page':null);if(route==='/dashboard'&&typeof window.showDashboardHome==='function')window.showDashboardHome();else if(route==='/profile'&&typeof window.showProfilePage==='function')window.showProfilePage();else if(route==='/staff'&&typeof window.showStaffPage==='function')window.showStaffPage();else if(route==='/settings'&&typeof window.showSettingsPage==='function')window.showSettingsPage();publishRoute(route);}
+    function applyRoute(path){
+      const route=normalizeRoute(path);
+      window.__BIZOS_PUBLIC_ROUTE=route;
+      // A bare root is the landing route only when there is no active browser session.
+      // This is what makes a normal browser refresh restore the authenticated dashboard.
+      if(route==='/'){
+        if(authenticated()){
+          showOnly('dashboard-page');
+          if(typeof window.showDashboardHome==='function')window.showDashboardHome();
+          if(typeof window.loadDashboard==='function')window.loadDashboard();
+          publishRoute('/dashboard');
+        }else{
+          showLanding();
+          publishRoute('/');
+        }
+        return;
+      }
+      if(route==='/login'){openLogin();publishRoute('/login');return;}
+      if(!authenticated()){openLogin();publishRoute('/login',true);return;}
+      showOnly(route==='/dashboard'?'dashboard-page':route==='/profile'?'profile-page':route==='/staff'?'staff-page':route==='/settings'?'settings-page':null);
+      if(route==='/dashboard'&&typeof window.showDashboardHome==='function')window.showDashboardHome();else if(route==='/profile'&&typeof window.showProfilePage==='function')window.showProfilePage();else if(route==='/staff'&&typeof window.showStaffPage==='function')window.showStaffPage();else if(route==='/settings'&&typeof window.showSettingsPage==='function')window.showSettingsPage();
+      publishRoute(route);
+    }
     function initialRouteFromIframe(){let route=normalizeRoute(window.__BIZOS_INITIAL_ROUTE||'/');if(window.google&&google.script&&google.script.url&&typeof google.script.url.getLocation==='function'){google.script.url.getLocation(function(location){const hashRoute=normalizeRoute(location&&location.hash);if(hashRoute!=='/')route=hashRoute;applyRoute(route);});}else{const hashRoute=normalizeRoute(window.location.hash);if(hashRoute!=='/')route=hashRoute;applyRoute(route);}}
     window.addEventListener('message',function(event){if(!event||!event.data||event.data.type!=='bizos-shell-route')return;applyRoute(event.data.path||'/');});
     window.addEventListener('hashchange',function(){applyRoute(window.location.hash||'/');});
