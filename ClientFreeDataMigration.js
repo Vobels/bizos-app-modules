@@ -62,7 +62,7 @@ function migrateFreeModuleSheet_(source, target, moduleName) {
 
   var rowsToAppend = [];
   var skipped = 0;
-  sourceValues.slice(1).forEach(function(sourceRow) {
+  sourceValues.slice(1).forEach(function(sourceRow, sourceIndex) {
     var targetRow = targetHeaders.map(function(header) {
       var col = sourceHeaders.indexOf(header);
       return col === -1 ? '' : sourceRow[col];
@@ -70,18 +70,23 @@ function migrateFreeModuleSheet_(source, target, moduleName) {
 
     var sourceIdCol = sourceHeaders.indexOf(targetIdHeader);
     var sourceId = sourceIdCol === -1 ? '' : String(sourceRow[sourceIdCol]||'').trim();
+
+    // Legacy rows without IDs get a deterministic ID based on their stable
+    // source location. Retrying the migration therefore produces the same ID,
+    // while identical but separate source rows still receive different IDs.
+    if (!sourceId && targetIdCol !== -1) {
+      var migrationId = generateDeterministicMigrationId_(source.getId(), moduleName, sourceIndex + 2, targetIdHeader);
+      if (existing['ID:'+migrationId]) {
+        skipped++;
+        return;
+      }
+      targetRow[targetIdCol] = migrationId;
+    }
+
     var fingerprint = migrationRowFingerprint_(targetHeaders,targetRow);
     if ((sourceId && existing['ID:'+sourceId]) || existing['FP:'+fingerprint]) {
       skipped++;
       return;
-    }
-
-    // Preserve existing IDs/relationships when present. If legacy data has no
-    // ID, generate one once during migration so future retries can identify it.
-    if (!sourceId && targetIdCol !== -1) {
-      targetRow[targetIdCol] = moduleName === 'Finance'
-        ? 'TXN-MIGRATED-'+Utilities.getUuid().substring(0,12).toUpperCase()
-        : 'ORD-MIGRATED-'+Utilities.getUuid().substring(0,12).toUpperCase();
     }
 
     rowsToAppend.push(targetRow);
@@ -94,6 +99,17 @@ function migrateFreeModuleSheet_(source, target, moduleName) {
   }
 
   return {copied:rowsToAppend.length,skipped:skipped,sourceRows:sourceValues.length-1};
+}
+
+function generateDeterministicMigrationId_(sourceWorkspaceId, moduleName, sourceRowNumber, idHeader) {
+  var seed = [String(sourceWorkspaceId||''),String(moduleName||''),String(sourceRowNumber||'')].join('|');
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed);
+  var hex = digest.map(function(byte) {
+    var value = byte < 0 ? byte + 256 : byte;
+    return ('0' + value.toString(16)).slice(-2);
+  }).join('').substring(0,12).toUpperCase();
+
+  return (idHeader === 'Transaction_ID' ? 'TXN-MIGRATED-' : 'ORD-MIGRATED-') + hex;
 }
 
 function migrationRowFingerprint_(headers,row) {
