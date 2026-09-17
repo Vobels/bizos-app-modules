@@ -1,34 +1,177 @@
 <style>
-#bizos-upgrade-review-overlay{position:fixed;inset:0;z-index:2147483645;background:rgba(15,23,42,.72);display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
-#bizos-upgrade-review-overlay.bizos-open{display:flex}
-#bizos-upgrade-review-card{width:min(100%,980px);max-height:calc(100dvh - 32px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
-.bizos-review-row{display:flex;justify-content:space-between;gap:20px;padding:12px 0;border-bottom:1px solid #f1f5f9}.bizos-review-row:last-child{border-bottom:0}.bizos-review-label{color:#64748b;font-size:13px}.bizos-review-value{font-weight:600;color:#0f172a;text-align:right;word-break:break-word}@media(max-width:700px){.bizos-review-row{display:block}.bizos-review-value{text-align:left;margin-top:4px}}
+/* BizOS — single-page upgrade review + confirmation */
+#upgrade-form [data-bizos-workspace-email],
+#upgrade-form [data-bizos-confirmation] { box-sizing: border-box; }
+#upgrade-form [data-bizos-confirmation] { margin-top: 20px; padding: 16px; border: 1px solid #e9d5ff; background: #faf5ff; border-radius: 12px; }
+#upgrade-form [data-bizos-confirmation] label { display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+#upgrade-form [data-bizos-confirmation] input { margin-top:3px; width:16px; height:16px; flex:0 0 auto; }
 </style>
-<div id="bizos-upgrade-review-overlay" aria-hidden="true"><div id="bizos-upgrade-review-card"><div id="bizos-upgrade-review-content"></div></div></div>
 <script>
-(function(){
-'use strict';
-var originalShowUpgradeModal=null,originalCallGoogleScript=null;
-var workspaceEmail='',reviewState=null,installed=false,allowRealUpgradeSubmit=false;
-function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
-function overlay(){return document.getElementById('bizos-upgrade-review-overlay');}
-function content(){return document.getElementById('bizos-upgrade-review-content');}
-function openOverlay(){var o=overlay();if(!o)return;o.classList.add('bizos-open');o.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
-function closeOverlay(){var o=overlay();if(!o)return;o.classList.remove('bizos-open');o.setAttribute('aria-hidden','true');document.body.style.overflow='';}
-function notify(m,t){if(typeof window.showNotification==='function')window.showNotification(m,t||'info');else alert(m);}
-function currentEmail(){if(window.currentUser&&window.currentUser.email)return String(window.currentUser.email).trim();try{var u=JSON.parse(localStorage.getItem('bizos_user')||'{}');return String(u.email||'').trim();}catch(e){return '';}}
-function emailStep(){if(!workspaceEmail)workspaceEmail=currentEmail();content().innerHTML=`
-<div class="p-6 md:p-8"><div class="flex items-start justify-between gap-4 mb-6"><div><div class="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mb-3"><i class="fas fa-building"></i></div><h2 class="text-2xl font-bold text-gray-900">Prepare Your BizOS Workspace</h2><p class="text-sm text-gray-500 mt-1">Before payment, confirm where your BizOS workspace details should be sent.</p></div><button type="button" onclick="window.__bizosCloseUpgradeReview()" class="text-gray-400 hover:text-gray-700 p-2"><i class="fas fa-times text-lg"></i></button></div>
-<div class="bg-purple-50 border border-purple-100 rounded-xl p-5 mb-6"><label class="block text-sm font-semibold text-gray-800 mb-2">Workspace Email</label><input id="bizos-workspace-email" type="email" value="${esc(workspaceEmail)}" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="you@company.com" autocomplete="email"><p class="text-xs text-gray-600 mt-2"><i class="fas fa-info-circle mr-1"></i>Use a Gmail address or a business/domain email connected to a Google Account or Google Workspace. This email will receive your workspace access details.</p><p class="text-xs text-gray-500 mt-2">Need a business email? You can get one through <a href="https://hostsuite.vobels.com.ng" target="_blank" rel="noopener" class="text-purple-700 font-semibold hover:underline">Vobels HostSuite</a>.</p></div>
-<div class="flex justify-end gap-3"><button type="button" onclick="window.__bizosCloseUpgradeReview()" class="px-5 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button><button type="button" onclick="window.__bizosContinueToUpgradeForm()" class="px-6 py-3 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700">Continue to Information Review <i class="fas fa-arrow-right ml-2"></i></button></div></div>`;openOverlay();}
-function showExistingUpgradeForm(){closeOverlay();if(typeof originalShowUpgradeModal==='function')originalShowUpgradeModal.apply(window,arguments);setTimeout(function(){var modal=document.getElementById('upgrade-modal'),form=document.getElementById('upgrade-form');if(!modal||!form)return;var title=modal.querySelector('h2');if(title)title.textContent='Review Your Business Information';var submit=form.querySelector('button[type="submit"]');if(submit)submit.innerHTML='Review Information <i class="fas fa-arrow-right ml-2"></i>';var note=form.querySelector('.bg-blue-50');if(note)note.innerHTML='<p class="text-sm text-blue-800"><i class="fas fa-info-circle mr-2"></i><strong>Before payment:</strong> Review the information below carefully. You will get one final confirmation before Paystack opens.</p>';var existing=form.querySelector('[data-bizos-email-step]');if(!existing){var box=document.createElement('div');box.setAttribute('data-bizos-email-step','1');box.className='mb-5 p-4 bg-purple-50 border border-purple-100 rounded-lg';box.innerHTML='<label class="block text-sm font-semibold text-gray-800 mb-2">Workspace Email</label><input id="bizos-workspace-email-form" type="email" class="w-full border rounded-lg p-2" value="'+esc(workspaceEmail)+'" placeholder="you@company.com"><p class="text-xs text-gray-600 mt-2">Gmail or a business/domain email connected to a Google Account or Google Workspace. This is where workspace access details will be sent.</p><button type="button" onclick="window.__bizosBackToEmailStep()" class="text-xs text-purple-700 font-semibold mt-2 hover:underline">Change workspace email</button>';form.insertBefore(box,form.firstElementChild);}else{var inp=existing.querySelector('input');if(inp)inp.value=workspaceEmail;}},100);}
-function collectReview(){var form=document.getElementById('upgrade-form');if(!form)return false;var country=document.getElementById('upgrade-country');if(!country||!country.value){notify('Please select your country','warning');return false;}var rows=[];form.querySelectorAll('input,select,textarea').forEach(function(el){if(!el.id||el.id==='business-certificate'||el.type==='hidden'||el.type==='file'||el.id.indexOf('workspace-email')!==-1)return;var value=String(el.value||'').trim();if(!value)return;var label='';var parent=el.parentElement;if(parent){var l=parent.querySelector('label');if(l)label=l.textContent.replace(/\*/g,'').trim();}if(!label)label=el.id.replace(/^upgrade-/,'').replace(/[-_]/g,' ');rows.push({label:label,value:value});});var file=document.getElementById('business-certificate');if(file&&file.files&&file.files.length)rows.push({label:'Business Certificate/Document',value:file.files[0].name});reviewState={rows:rows};renderReview();return false;}
-function renderReview(){var rows=(reviewState&&reviewState.rows)||[];var html=rows.map(function(r){return '<div class="bizos-review-row"><div class="bizos-review-label">'+esc(r.label)+'</div><div class="bizos-review-value">'+esc(r.value)+'</div></div>';}).join('');content().innerHTML=`<div class="p-6 md:p-8"><div class="flex items-start justify-between gap-4 mb-6"><div><div class="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mb-3"><i class="fas fa-clipboard-check"></i></div><h2 class="text-2xl font-bold text-gray-900">Confirm Your Information</h2><p class="text-sm text-gray-500 mt-1">Please make sure everything is correct before proceeding to payment.</p></div><button type="button" onclick="window.__bizosEditUpgradeInformation()" class="text-gray-500 hover:text-gray-800 px-2"><i class="fas fa-times"></i></button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-5"><div class="border rounded-xl p-5"><h3 class="font-semibold text-gray-900 mb-1">Workspace Email</h3><p class="text-sm text-purple-700 font-semibold break-all">${esc(workspaceEmail)}</p><button type="button" onclick="window.__bizosBackToEmailStep()" class="text-xs text-purple-700 font-semibold mt-2 hover:underline">Edit email</button></div><div class="border rounded-xl p-5"><h3 class="font-semibold text-gray-900 mb-3">Business Information</h3>${html||'<p class="text-sm text-gray-500">No additional information entered.</p>'}</div></div><div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl"><p class="text-sm font-semibold text-amber-900"><i class="fas fa-exclamation-triangle mr-2"></i>Important</p><p class="text-sm text-amber-800 mt-1">Incorrect or incomplete information may delay the preparation of your BizOS service.</p><label class="flex items-start gap-3 mt-4 cursor-pointer"><input id="bizos-confirm-info" type="checkbox" class="mt-1 w-4 h-4 text-purple-600"><span class="text-sm text-gray-800">I have reviewed my information and confirm that it is correct.</span></label></div><div class="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6"><button type="button" onclick="window.__bizosEditUpgradeInformation()" class="px-5 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">← Edit Information</button><button type="button" onclick="window.__bizosConfirmAndPay()" class="px-6 py-3 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700">Continue to Payment <i class="fas fa-credit-card ml-2"></i></button></div></div>`;openOverlay();}
-function addSignupEmailNote(){var input=document.getElementById('signup-email');if(!input||document.getElementById('bizos-signup-email-note'))return;var box=document.createElement('div');box.id='bizos-signup-email-note';box.className='mt-2 p-3 bg-purple-50 border border-purple-100 rounded-lg';box.innerHTML='<p class="text-xs font-semibold text-gray-800 mb-1">Use an email you can access</p><p class="text-xs text-gray-600">BizOS workspaces are connected to Google services. Please sign up with a <strong>Gmail address</strong> or a <strong>business/domain email connected to a Google Account or Google Workspace</strong>.</p><p class="text-xs text-gray-500 mt-1">Don’t have one? You can create one before continuing, or get a business email through <a href="https://hostsuite.vobels.com.ng" target="_blank" rel="noopener" class="text-purple-700 font-semibold hover:underline">Vobels HostSuite</a>.</p>';input.parentElement.appendChild(box);}
-function captureUpgradeSubmit(e){var form=e.target&&e.target.closest?e.target.closest('#upgrade-form'):null;if(!form)return;if(allowRealUpgradeSubmit)return;if(e.preventDefault)e.preventDefault();if(e.stopImmediatePropagation)e.stopImmediatePropagation();collectReview();}
-function install(){if(installed)return;if(typeof window.showUpgradeModal!=='function'||typeof window.handleUpgradeRequest!=='function'||typeof window.callGoogleScript!=='function')return;originalShowUpgradeModal=window.showUpgradeModal;originalCallGoogleScript=window.callGoogleScript;window.showUpgradeModal=function(){workspaceEmail=currentEmail();reviewState=null;emailStep();};window.callGoogleScript=function(functionName,params,successHandler,errorHandler){var args=Array.prototype.slice.call(arguments);if(functionName==='handleUpgradeRequest'&&params&&params[0]&&typeof params[0]==='object'){var payload=Object.assign({},params[0],{workspaceEmail:workspaceEmail});args[1]=[payload];}return originalCallGoogleScript.apply(this,args);};document.addEventListener('submit',captureUpgradeSubmit,true);window.__bizosCloseUpgradeReview=function(){closeOverlay();};window.__bizosContinueToUpgradeForm=function(){var input=document.getElementById('bizos-workspace-email');workspaceEmail=input?String(input.value||'').trim():workspaceEmail;if(!/^\S+@\S+\.\S+$/.test(workspaceEmail)){notify('Please enter a valid workspace email.','warning');return;}showExistingUpgradeForm();};window.__bizosBackToEmailStep=function(){var input=document.getElementById('bizos-workspace-email-form');if(input)workspaceEmail=String(input.value||'').trim();emailStep();};window.__bizosEditUpgradeInformation=function(){closeOverlay();var modal=document.getElementById('upgrade-modal');if(modal){modal.classList.remove('hidden');modal.style.display='flex';}};window.__bizosConfirmAndPay=function(){var check=document.getElementById('bizos-confirm-info');if(!check||!check.checked){notify('Please confirm that your information is correct before continuing.','warning');return;}var form=document.getElementById('upgrade-form');if(!form){notify('Upgrade form could not be found.','error');return;}var input=document.getElementById('bizos-workspace-email-form');if(input)workspaceEmail=String(input.value||'').trim();closeOverlay();allowRealUpgradeSubmit=true;try{window.handleUpgradeRequest({preventDefault:function(){},target:form});}finally{setTimeout(function(){allowRealUpgradeSubmit=false;},0);}};installed=true;}
-function addSidebarBilling(){var nav=document.querySelector('#dashboard-page .sidebar nav');if(!nav||nav.querySelector('[data-bizos-billing-link]'))return;var btn=document.createElement('button');btn.setAttribute('data-bizos-billing-link','1');btn.type='button';btn.className='w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3';btn.innerHTML='<i class="fas fa-credit-card text-gray-500"></i><span>Billing</span>';btn.onclick=function(){window.showUpgradeModal();};var profileBtn=null;nav.querySelectorAll('button').forEach(function(b){if(String(b.getAttribute('onclick')||'').indexOf('showProfilePage')!==-1)profileBtn=b;});if(profileBtn)profileBtn.parentNode.insertBefore(btn,profileBtn);else nav.insertBefore(btn,nav.firstChild);}
-function boot(){install();addSidebarBilling();addSignupEmailNote();}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,50);});else setTimeout(boot,50);setInterval(boot,1000);document.addEventListener('keydown',function(e){if(e.key==='Escape'&&overlay()&&overlay().classList.contains('bizos-open'))closeOverlay();});
+(function () {
+  'use strict';
+
+  var installed = false;
+  var allowRealUpgradeSubmit = false;
+  var originalCallGoogleScript = null;
+  var workspaceEmail = '';
+
+  function notify(message, type) {
+    if (typeof window.showNotification === 'function') {
+      window.showNotification(message, type || 'info');
+    } else {
+      alert(message);
+    }
+  }
+
+  function getCurrentEmail() {
+    if (window.currentUser && window.currentUser.email) return String(window.currentUser.email).trim();
+    try {
+      var user = JSON.parse(localStorage.getItem('bizos_user') || '{}');
+      return String(user.email || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function injectReviewControls() {
+    var form = document.getElementById('upgrade-form');
+    if (!form) return;
+
+    var existingEmail = form.querySelector('[data-bizos-workspace-email]');
+    var existingConfirmation = form.querySelector('[data-bizos-confirmation]');
+
+    if (!workspaceEmail) workspaceEmail = getCurrentEmail();
+
+    if (!existingEmail) {
+      var emailBox = document.createElement('div');
+      emailBox.setAttribute('data-bizos-workspace-email', '1');
+      emailBox.className = 'mb-5 p-4 bg-purple-50 border border-purple-100 rounded-lg';
+      emailBox.innerHTML =
+        '<label class="block text-sm font-semibold text-gray-800 mb-2">Workspace Email *</label>' +
+        '<input id="bizos-workspace-email-form" type="email" required autocomplete="email" ' +
+        'class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" ' +
+        'placeholder="you@company.com" value="' + escapeHtml(workspaceEmail) + '">' +
+        '<p class="text-xs text-gray-600 mt-2">Use a Gmail address or a business/domain email connected to a Google Account or Google Workspace. This is where your BizOS workspace access details will be sent.</p>';
+      form.insertBefore(emailBox, form.firstElementChild);
+    } else {
+      var emailInput = document.getElementById('bizos-workspace-email-form');
+      if (emailInput && workspaceEmail) emailInput.value = workspaceEmail;
+    }
+
+    if (!existingConfirmation) {
+      var confirmation = document.createElement('div');
+      confirmation.setAttribute('data-bizos-confirmation', '1');
+      confirmation.innerHTML =
+        '<p class="text-sm font-semibold text-purple-900 mb-2"><i class="fas fa-clipboard-check mr-2"></i>Review & Confirm</p>' +
+        '<p class="text-sm text-gray-700 mb-3">Please review the business information you entered above. Make any corrections before continuing.</p>' +
+        '<label>' +
+        '<input id="bizos-confirm-info" type="checkbox" required>' +
+        '<span class="text-sm text-gray-800">I have reviewed my workspace email and business information and confirm that they are correct.</span>' +
+        '</label>';
+      form.appendChild(confirmation);
+    }
+
+    var submit = form.querySelector('button[type="submit"]');
+    if (submit) {
+      submit.innerHTML = 'Review & Continue to Payment <i class="fas fa-arrow-right ml-2"></i>';
+    }
+
+    var title = document.querySelector('#upgrade-modal h2');
+    if (title) title.textContent = 'Review & Confirm Your Upgrade';
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (m) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+
+  function prepareAndSubmit(event) {
+    var form = event && event.target && event.target.closest ? event.target.closest('#upgrade-form') : document.getElementById('upgrade-form');
+    if (!form) return;
+
+    if (allowRealUpgradeSubmit) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    var emailInput = document.getElementById('bizos-workspace-email-form');
+    workspaceEmail = emailInput ? String(emailInput.value || '').trim() : '';
+
+    if (!/^\S+@\S+\.\S+$/.test(workspaceEmail)) {
+      notify('Please enter a valid workspace email.', 'warning');
+      if (emailInput) emailInput.focus();
+      return;
+    }
+
+    var checkbox = document.getElementById('bizos-confirm-info');
+    if (!checkbox || !checkbox.checked) {
+      notify('Please review your information and confirm it before continuing to payment.', 'warning');
+      if (checkbox) checkbox.focus();
+      return;
+    }
+
+    /* The existing upgrade handler remains authoritative. We only gate it here.
+       Its callGoogleScript payload is enriched with the confirmed workspace email. */
+    allowRealUpgradeSubmit = true;
+    try {
+      if (typeof window.handleUpgradeRequest === 'function') {
+        window.handleUpgradeRequest(event);
+      } else {
+        notify('Upgrade form is not ready. Please try again.', 'error');
+      }
+    } finally {
+      setTimeout(function () { allowRealUpgradeSubmit = false; }, 0);
+    }
+  }
+
+  function install() {
+    if (installed) return;
+    if (typeof window.handleUpgradeRequest !== 'function' || typeof window.callGoogleScript !== 'function') return;
+
+    originalCallGoogleScript = window.callGoogleScript;
+
+    /* Preserve the existing backend request path while guaranteeing that the
+       confirmed workspace email travels with the upgrade payload. */
+    window.callGoogleScript = function (functionName, params, successHandler, errorHandler) {
+      var args = Array.prototype.slice.call(arguments);
+      if (functionName === 'handleUpgradeRequest' && params && params[0] && typeof params[0] === 'object') {
+        var payload = Object.assign({}, params[0], { workspaceEmail: workspaceEmail });
+        args[1] = [payload];
+      }
+      return originalCallGoogleScript.apply(this, args);
+    };
+
+    document.addEventListener('submit', prepareAndSubmit, true);
+
+    /* Upgrade modal is created dynamically, so inject controls whenever it opens. */
+    var attempts = 0;
+    var timer = setInterval(function () {
+      attempts++;
+      var modal = document.getElementById('upgrade-modal');
+      var form = document.getElementById('upgrade-form');
+      if (modal && form && !modal.classList.contains('hidden')) injectReviewControls();
+      if (attempts > 120) clearInterval(timer);
+    }, 250);
+
+    document.addEventListener('click', function () {
+      setTimeout(injectReviewControls, 0);
+    }, true);
+
+    installed = true;
+  }
+
+  function boot() {
+    install();
+    injectReviewControls();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 50); }, { once: true });
+  } else {
+    setTimeout(boot, 50);
+  }
+
+  setInterval(boot, 1000);
 })();
 </script>
