@@ -32,7 +32,13 @@ function prepareAndSubmit(event){
 function routeUpgradePaymentResult(result){
  if(!result||!result.redirectUrl)return result;
  var redirect=String(result.redirectUrl);
- if(redirect.indexOf('/payment?')!==-1&&redirect.indexOf('page=')===-1){result.redirectUrl=redirect+(redirect.indexOf('?')===-1?'?':'&')+'page=payment-method'}
+ var paymentMarker='/payment?';
+ var markerIndex=redirect.indexOf(paymentMarker);
+ if(markerIndex!==-1){
+  var base=redirect.substring(0,markerIndex);
+  var query=redirect.substring(markerIndex+paymentMarker.length);
+  result.redirectUrl=base+'/payment-method?'+query;
+ }
  return result;
 }
 function install(){
