@@ -78,8 +78,18 @@ function autoSetupClientSafe(paymentData, skipLock) {
     console.log('SAFE STEP 4: Saving full registry metadata');
     var saveResult = saveClientRecordV2({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain || paymentData.customDomain || '',customDomain:paymentData.customDomain || '',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',tier:paymentData.tier || 'sovereign',status:'active',sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,provisioningVersion:'10.0'});
     if (!saveResult || !saveResult.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true}; }
-    committed=true;
-    if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
+
+    // The paid client is now committed. Registry sync is secondary metadata;
+    // a sync failure must not turn a successfully provisioned client into a
+    // provisioning_failed upgrade state or trigger a duplicate retry.
+    committed = true;
+    if (existingBusiness && businessId) {
+      try {
+        updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
+      } catch (syncError) {
+        console.error('Business registry sync failed after successful provisioning:', syncError);
+      }
+    }
     try { sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
     return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
   } catch(error) {
