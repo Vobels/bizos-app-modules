@@ -219,6 +219,17 @@ function doPost(e) {
       case 'getModuleSummary':
         result = getModuleSummary(sessionId);
         break;
+      
+      // Business Center Part 1
+      case 'getBusinessCenterData':
+        result = getBusinessCenterData(sessionId);
+        break;
+      case 'saveBusinessCenterProduct':
+        result = saveBusinessCenterProduct(payload[0] || {}, sessionId);
+        break;
+      case 'saveBusinessCenterCustomer':
+        result = saveBusinessCenterCustomer(payload[0] || {}, sessionId);
+        break;
       case 'getEnhancedDashboardData':
         const dashPeriod = payload[0] || 'this_month';
         result = getEnhancedDashboardData(dashPeriod, sessionId);
