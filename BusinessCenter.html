@@ -28,7 +28,7 @@
   function posCall(action,payload,done){if(typeof window.callGoogleScript==='function')window.callGoogleScript(action,payload||[],done,function(e){alert((e&&e.message)||'Something went wrong.');});else alert('BizOS is still loading.');}
   function money(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(Number(v)||0);}
   function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
-  window.openBCPOS=function(){document.getElementById('business-center-page').classList.add('hidden');document.getElementById('bc-pos-page').classList.remove('hidden');document.title='Point of Sale - BizOS';posCart=[];renderBCPOS();setTimeout(focusBCBarcode,50);};
+  window.openBCPOS=function(){document.getElementById('business-center-page').classList.add('hidden');document.getElementById('bc-pos-page').classList.remove('hidden');document.title='Point of Sale - BizOS';posCart=[];window.__bcDataForPOS=[];if(typeof loadBusinessCenter==='function'){loadBusinessCenter();}posCall('getBusinessCenterData',[],function(r){if(r&&r.success)window.__bcDataForPOS=r.products||[];});renderBCPOS();setTimeout(focusBCBarcode,100);};
   window.closeBCPOS=function(){document.getElementById('bc-pos-page').classList.add('hidden');document.getElementById('business-center-page').classList.remove('hidden');};
   window.focusBCBarcode=function(){var el=document.getElementById('bc-pos-barcode');if(el){el.focus();el.select();}};
   window.bcPOSInputKey=function(e){if(e.key==='Enter'){e.preventDefault();lookupBCPOS();}};
