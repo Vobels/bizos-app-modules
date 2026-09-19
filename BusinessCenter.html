@@ -81,9 +81,10 @@
         </div>
 
         <div class="mt-6 pt-5 border-t border-white/10 space-y-3">
-          <label class="block text-xs text-gray-400">Customer <span class="text-gray-600">(optional)</span>
-            <input id="bc-pos-customer" class="mt-1.5 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-600 outline-none focus:border-white/40"
-              placeholder="Name for this sale">
+          <label class="block text-xs text-gray-400">Customer
+            <select id="bc-pos-customer" onchange="bcPOSCustomerChanged()" class="mt-1.5 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white bg-gray-900 outline-none focus:border-white/40">
+              <option value="">Walk-in customer</option>
+            </select>
           </label>
 
           <label class="block text-xs text-gray-400">Payment method
@@ -97,7 +98,7 @@
               class="mt-1.5 w-full px-3 py-3 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-600 outline-none focus:border-white/40"
               placeholder="Enter amount received">
           </label>
-          <button type="button" onclick="payBCPOSFull()" class="text-xs text-gray-300 hover:text-white">Use full sale total</button>
+          <button type="button" onclick="payBCPOSFull()" class="text-xs text-gray-300 hover:text-white">Paid in full</button>
         </div>
 
         <div class="mt-5 pt-4 border-t border-white/10 flex justify-between items-center">
@@ -136,8 +137,11 @@
     window.__bcDataForPOS=[];
     if(typeof loadBusinessCenter==='function')loadBusinessCenter();
     posCall('getBusinessCenterData',[],function(r){
-      if(r&&r.success)window.__bcDataForPOS=r.products||[];
-      else if(r&&!r.success)alert(r.message||'Could not load products.');
+      if(r&&r.success){
+        window.__bcDataForPOS=r.products||[];
+        window.__bcCustomersForPOS=r.customers||[];
+        renderBCPOSCustomers();
+      } else if(r&&!r.success)alert(r.message||'Could not load products.');
     });
     renderBCPOS();
     setTimeout(focusBCBarcode,100);
@@ -156,6 +160,23 @@
 
   window.bcPOSInputKey=function(e){
     if(e.key==='Enter'){e.preventDefault();lookupBCPOS();}
+  };
+
+  function renderBCPOSCustomers(){
+    var select=document.getElementById('bc-pos-customer');
+    if(!select)return;
+    var customers=window.__bcCustomersForPOS||[];
+    select.innerHTML='<option value="">Walk-in customer</option>'+customers.map(function(c){
+      var label=String(c.Name||'Customer');
+      if(c.Phone)label+=' · '+String(c.Phone);
+      var balance=Number(c.Balance||0);
+      if(balance>0)label+=' · owes '+money(balance);
+      return '<option value="'+esc(c.Customer_ID)+'">'+esc(label)+'</option>';
+    }).join('');
+  }
+
+  window.bcPOSCustomerChanged=function(){
+    renderBCPOS();
   };
 
   window.lookupBCPOS=function(){
@@ -275,6 +296,7 @@
     document.getElementById('bc-pos-total').textContent=money(total);
     document.getElementById('bc-pos-balance').textContent=money(change||balance);
     document.getElementById('bc-pos-balance-label').textContent=change>0?'Change':(balance>0?'Balance due':'Balance');
+    document.getElementById('bc-pos-balance').className='text-base '+(change>0?'text-white':'text-white');
     document.getElementById('bc-pos-status').textContent=posCart.length?(count+' item'+(count===1?'':'s')):'No items';
     var complete=document.getElementById('bc-pos-complete');
     complete.disabled=!posCart.length;
@@ -298,6 +320,14 @@
     var total=Math.max(0,subtotal-discount);
     var paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);
     if(paid>total){alert('Amount received cannot be greater than the sale total.');return;}
+    var customerId=document.getElementById('bc-pos-customer').value;
+    var customerSelect=document.getElementById('bc-pos-customer');
+    var customerName=customerId && customerSelect.options[customerSelect.selectedIndex] ? customerSelect.options[customerSelect.selectedIndex].text.split(' · ')[0] : '';
+    if(total>paid && !customerId){
+      alert('Please select a customer for a sale that is not fully paid.');
+      customerSelect.focus();
+      return;
+    }
 
     var button=document.getElementById('bc-pos-complete');
     button.disabled=true;
@@ -307,7 +337,8 @@
       items:posCart.map(function(p){return {Product_ID:p.Product_ID,Quantity:p.Quantity};}),
       Discount:discount,Amount_Paid:paid,
       Payment_Method:document.getElementById('bc-pos-payment').value,
-      Customer_Name:document.getElementById('bc-pos-customer').value
+      Customer_ID:customerId,
+      Customer_Name:customerName
     }],function(r){
       button.textContent='Complete sale';
       if(!r||!r.success){
@@ -315,7 +346,10 @@
         alert(r&&r.message||'Could not complete the sale. Please try again.');
         return;
       }
-      alert('Sale completed successfully. Sale number: '+r.saleId);
+      var message='Sale completed successfully.\nSale number: '+r.saleId;
+      if(r.balanceDue>0)message+='\nCustomer balance: '+money(r.balanceDue);
+      else if(r.amountPaid>r.total)message+='\nChange: '+money(r.amountPaid-r.total);
+      alert(message);
       posCart=[];
       document.getElementById('bc-pos-discount').value=0;
       document.getElementById('bc-pos-paid').value=0;
