@@ -355,3 +355,153 @@ function completeBusinessCenterSale(data, sessionId) {
     try { lock.releaseLock(); } catch (e) {}
   }
 }
+
+
+// ==================== BUSINESS CENTER PART 3: INVENTORY ====================
+
+const BUSINESS_CENTER_STOCK_HEADERS = [
+  'Movement_ID','Date','Product_ID','Product_Name','Type','Quantity',
+  'Before_Qty','After_Qty','Reason','Created_By','Created_At'
+];
+
+function getBusinessCenterInventorySheets_(workspace) {
+  const sheets = getBusinessCenterSheets_(workspace);
+  let stock = workspace.getSheetByName('BusinessCenter_Stock_Movements');
+  if (!stock) {
+    stock = workspace.insertSheet('BusinessCenter_Stock_Movements');
+    stock.getRange(1, 1, 1, BUSINESS_CENTER_STOCK_HEADERS.length).setValues([BUSINESS_CENTER_STOCK_HEADERS]);
+  }
+  return { products: sheets.products, customers: sheets.customers, stock: stock };
+}
+
+function updateBusinessCenterProduct(data, sessionId) {
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(10000)) return { success: false, message: 'Another inventory update is in progress. Please try again.' };
+    const access = businessCenterAccess_(sessionId, true);
+    if (!access.ok) return { success: false, message: access.message };
+    data = data || {};
+    const productId = String(data.Product_ID || '').trim();
+    if (!productId) return { success: false, message: 'Product ID is required.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterInventorySheets_(workspace);
+    const values = sheets.products.getDataRange().getValues();
+    const headers = values[0];
+    const idCol = headers.indexOf('Product_ID');
+    if (idCol < 0) return { success: false, message: 'Product ID column is missing.' };
+
+    let rowIndex = -1;
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][idCol] || '') === productId) { rowIndex = i; break; }
+    }
+    if (rowIndex < 0) return { success: false, message: 'Product not found.' };
+
+    const allowed = ['Name','SKU','Barcode','Cost_Price','Selling_Price','Minimum_Stock','Unit','Category','Supplier','Location'];
+    allowed.forEach(function(field) {
+      if (Object.prototype.hasOwnProperty.call(data, field)) {
+        const col = headers.indexOf(field);
+        if (col >= 0) {
+          let value = data[field];
+          if (['Cost_Price','Selling_Price','Minimum_Stock'].includes(field)) {
+            value = Number(value || 0);
+            if (!Number.isFinite(value) || value < 0) throw new Error(field + ' must be a valid non-negative number.');
+          }
+          if (field === 'Name' && !String(value || '').trim()) throw new Error('Product name is required.');
+          sheets.products.getRange(rowIndex + 1, col + 1).setValue(value);
+        }
+      }
+    });
+    return { success: true, productId: productId, message: 'Product details updated.' };
+  } catch (error) {
+    console.error('Business Center product update error:', error);
+    return { success: false, message: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+function adjustBusinessCenterStock(data, sessionId) {
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(10000)) return { success: false, message: 'Another inventory update is in progress. Please try again.' };
+    const access = businessCenterAccess_(sessionId, true);
+    if (!access.ok) return { success: false, message: access.message };
+    data = data || {};
+    const productId = String(data.Product_ID || '').trim();
+    const type = String(data.Type || '').trim();
+    const quantity = Number(data.Quantity);
+    const reason = String(data.Reason || '').trim();
+
+    if (!productId) return { success: false, message: 'Product ID is required.' };
+    if (!['stock_in','stock_out','set'].includes(type)) return { success: false, message: 'Choose a valid stock action.' };
+    if (!Number.isFinite(quantity) || quantity < 0 || (type !== 'set' && quantity === 0)) {
+      return { success: false, message: 'Enter a valid stock quantity.' };
+    }
+    if (!reason) return { success: false, message: 'Please enter a reason for the stock change.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterInventorySheets_(workspace);
+    const values = sheets.products.getDataRange().getValues();
+    const headers = values[0];
+    const idCol = headers.indexOf('Product_ID');
+    const nameCol = headers.indexOf('Name');
+    const stockCol = headers.indexOf('Stock_Qty');
+    if (idCol < 0 || stockCol < 0) return { success: false, message: 'Inventory columns are missing.' };
+
+    let rowIndex = -1;
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][idCol] || '') === productId) { rowIndex = i; break; }
+    }
+    if (rowIndex < 0) return { success: false, message: 'Product not found.' };
+
+    const before = Number(values[rowIndex][stockCol] || 0);
+    let after = before;
+    if (type === 'stock_in') after = before + quantity;
+    if (type === 'stock_out') after = before - quantity;
+    if (type === 'set') after = quantity;
+    if (after < 0) return { success: false, message: 'Stock cannot go below zero. Available: ' + before };
+
+    sheets.products.getRange(rowIndex + 1, stockCol + 1).setValue(after);
+
+    const now = new Date().toISOString();
+    const user = access.user;
+    const movementId = 'MOV-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+    sheets.stock.appendRow(BUSINESS_CENTER_STOCK_HEADERS.map(function(h) {
+      return h === 'Movement_ID' ? movementId :
+        h === 'Date' ? now.split('T')[0] :
+        h === 'Product_ID' ? productId :
+        h === 'Product_Name' ? values[rowIndex][nameCol] :
+        h === 'Type' ? type :
+        h === 'Quantity' ? quantity :
+        h === 'Before_Qty' ? before :
+        h === 'After_Qty' ? after :
+        h === 'Reason' ? reason :
+        h === 'Created_By' ? (user.email || user.name || '') :
+        h === 'Created_At' ? now : '';
+    }));
+
+    return { success: true, productId: productId, beforeQty: before, afterQty: after, movementId: movementId, message: 'Stock updated successfully.' };
+  } catch (error) {
+    console.error('Business Center stock adjustment error:', error);
+    return { success: false, message: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+function getBusinessCenterStockMovements(sessionId, productId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterInventorySheets_(workspace);
+    const rows = businessCenterRows_(sheets.stock);
+    const id = String(productId || '').trim();
+    const filtered = id ? rows.filter(function(row) { return String(row.Product_ID || '') === id; }) : rows;
+    filtered.reverse();
+    return { success: true, movements: filtered.slice(0, 100) };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
