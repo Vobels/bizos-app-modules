@@ -233,7 +233,10 @@ function lookupBusinessCenterProduct(code, sessionId) {
 }
 
 function completeBusinessCenterSale(data, sessionId) {
+  const lock = LockService.getScriptLock();
   try {
+    if (!lock.tryLock(10000)) return { success: false, message: 'Another sale is being processed. Please try again.' };
+
     const access = businessCenterAccess_(sessionId, true);
     if (!access.ok) return { success: false, message: access.message };
     data = data || {};
@@ -245,8 +248,31 @@ function completeBusinessCenterSale(data, sessionId) {
     const productValues = sheets.products.getDataRange().getValues();
     const headers = productValues[0];
     const idCol = headers.indexOf('Product_ID');
+    const nameCol = headers.indexOf('Name');
     const stockCol = headers.indexOf('Stock_Qty');
     const priceCol = headers.indexOf('Selling_Price');
+
+    const customerId = String(data.Customer_ID || '').trim();
+    const customerName = String(data.Customer_Name || '').trim();
+    let customerRow = -1;
+    let customerBalance = 0;
+
+    if (customerId) {
+      const customerValues = sheets.customers.getDataRange().getValues();
+      const customerHeaders = customerValues[0];
+      const customerIdCol = customerHeaders.indexOf('Customer_ID');
+      const customerNameCol = customerHeaders.indexOf('Name');
+      const customerBalanceCol = customerHeaders.indexOf('Balance');
+      for (let i = 1; i < customerValues.length; i++) {
+        if (String(customerValues[i][customerIdCol] || '') === customerId) {
+          customerRow = i;
+          customerBalance = Number(customerValues[i][customerBalanceCol] || 0);
+          if (!customerName) data.Customer_Name = customerValues[i][customerNameCol] || '';
+          break;
+        }
+      }
+      if (customerRow < 1) return { success: false, message: 'The selected customer could not be found. Please select the customer again.' };
+    }
 
     const resolved = [];
     let subtotal = 0;
@@ -259,20 +285,26 @@ function completeBusinessCenterSale(data, sessionId) {
       for (let i = 1; i < productValues.length; i++) {
         if (String(productValues[i][idCol]) === productId) { rowIndex = i; break; }
       }
-      if (rowIndex < 0) throw new Error('A product in the cart no longer exists.');
+      if (rowIndex < 0) throw new Error('A product in the sale no longer exists.');
       const stock = Number(productValues[rowIndex][stockCol] || 0);
       const price = Number(productValues[rowIndex][priceCol] || 0);
-      if (qty > stock) throw new Error('Insufficient stock for ' + productValues[rowIndex][headers.indexOf('Name')] + '. Available: ' + stock);
+      if (qty > stock) throw new Error('Insufficient stock for ' + productValues[rowIndex][nameCol] + '. Available: ' + stock);
       const lineTotal = price * qty;
       subtotal += lineTotal;
       resolved.push({ rowIndex: rowIndex, product: productValues[rowIndex], qty: qty, price: price, lineTotal: lineTotal });
     });
 
     const discount = Math.max(0, Number(data.Discount || 0));
+    if (!Number.isFinite(discount) || discount > subtotal) throw new Error('Discount cannot be greater than the sale subtotal.');
     const total = Math.max(0, subtotal - discount);
     const amountPaid = Math.max(0, Number(data.Amount_Paid || 0));
-    if (amountPaid > total) throw new Error('Amount paid cannot be greater than the sale total.');
+    if (!Number.isFinite(amountPaid) || amountPaid > total) throw new Error('Amount received cannot be greater than the sale total.');
     const balanceDue = total - amountPaid;
+
+    if (balanceDue > 0 && !customerId) {
+      return { success: false, message: 'Please select a customer before completing a sale with an outstanding balance.' };
+    }
+
     const saleId = 'SALE-' + Utilities.getUuid().substring(0, 8).toUpperCase();
     const now = new Date().toISOString();
     const user = access.user;
@@ -280,7 +312,7 @@ function completeBusinessCenterSale(data, sessionId) {
     sheets.sales.appendRow(BUSINESS_CENTER_SALE_HEADERS.map(function(h) {
       return h === 'Sale_ID' ? saleId :
         h === 'Date' ? (data.Date || now.split('T')[0]) :
-        h === 'Customer_ID' ? (data.Customer_ID || '') :
+        h === 'Customer_ID' ? customerId :
         h === 'Customer_Name' ? (data.Customer_Name || '') :
         h === 'Subtotal' ? subtotal :
         h === 'Discount' ? discount :
@@ -294,7 +326,7 @@ function completeBusinessCenterSale(data, sessionId) {
     }));
 
     resolved.forEach(function(line) {
-      const name = line.product[headers.indexOf('Name')];
+      const name = line.product[nameCol];
       const barcode = line.product[headers.indexOf('Barcode')];
       sheets.items.appendRow(BUSINESS_CENTER_SALE_ITEM_HEADERS.map(function(h) {
         return h === 'Sale_ID' ? saleId : h === 'Product_ID' ? line.product[idCol] :
@@ -305,15 +337,21 @@ function completeBusinessCenterSale(data, sessionId) {
       sheets.products.getRange(line.rowIndex + 1, stockCol + 1).setValue(Number(line.product[stockCol] || 0) - line.qty);
     });
 
-    // Finance and customer balances are intentionally NOT written here yet.
-    // Part 4 will add the accounting/customer-ledger orchestration after POS is validated.
+    if (customerId && balanceDue > 0) {
+      const customerHeaders = sheets.customers.getDataRange().getValues()[0];
+      const customerBalanceCol = customerHeaders.indexOf('Balance');
+      sheets.customers.getRange(customerRow + 1, customerBalanceCol + 1).setValue(customerBalance + balanceDue);
+    }
+
     return {
       success: true, saleId: saleId, subtotal: subtotal, discount: discount,
       total: total, amountPaid: amountPaid, balanceDue: balanceDue,
-      message: 'Sale completed successfully.'
+      customerId: customerId, message: 'Sale completed successfully.'
     };
   } catch (error) {
     console.error('Business Center sale error:', error);
     return { success: false, message: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
 }
