@@ -119,7 +119,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     // Payment stays on the public BizOS domain. Netlify /payment preserves
     // requestId and loads the Apps Script checkout inside the public shell.
     var publicUrl = getPublicBizOSUrl_();
-    var paymentPageUrl = publicUrl + '/payment?requestId=' + encodeURIComponent(requestId) +
+    var paymentPageUrl = publicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
 
     return {
