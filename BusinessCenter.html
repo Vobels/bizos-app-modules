@@ -294,6 +294,7 @@
     var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0);
     var discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0);
     var total=Math.max(0,subtotal-discount);
+    if(posPaidAuto)document.getElementById('bc-pos-paid').value=total.toFixed(2);
     var paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);
     var balance=Math.max(0,total-paid);
     var change=Math.max(0,paid-total);
