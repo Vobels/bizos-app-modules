@@ -170,3 +170,150 @@ function saveBusinessCenterCustomer(data, sessionId) {
     return { success: false, message: error.message };
   }
 }
+
+
+// ==================== BUSINESS CENTER PART 2: POS ====================
+
+const BUSINESS_CENTER_SALE_HEADERS = [
+  'Sale_ID','Date','Customer_ID','Customer_Name','Subtotal','Discount',
+  'Total','Amount_Paid','Balance_Due','Payment_Method','Status','Created_By','Created_At'
+];
+const BUSINESS_CENTER_SALE_ITEM_HEADERS = [
+  'Sale_ID','Product_ID','Product_Name','Barcode','Quantity','Unit_Price','Line_Total','Created_At'
+];
+
+function getBusinessCenterPOSSheets_(workspace) {
+  const sheets = getBusinessCenterSheets_(workspace);
+  let sales = workspace.getSheetByName('BusinessCenter_Sales');
+  if (!sales) {
+    sales = workspace.insertSheet('BusinessCenter_Sales');
+    sales.getRange(1, 1, 1, BUSINESS_CENTER_SALE_HEADERS.length).setValues([BUSINESS_CENTER_SALE_HEADERS]);
+  }
+  let items = workspace.getSheetByName('BusinessCenter_Sale_Items');
+  if (!items) {
+    items = workspace.insertSheet('BusinessCenter_Sale_Items');
+    items.getRange(1, 1, 1, BUSINESS_CENTER_SALE_ITEM_HEADERS.length).setValues([BUSINESS_CENTER_SALE_ITEM_HEADERS]);
+  }
+  return { products: sheets.products, customers: sheets.customers, sales: sales, items: items };
+}
+
+function findBusinessCenterProduct_(productsSheet, code) {
+  const q = String(code || '').trim().toLowerCase();
+  if (!q || productsSheet.getLastRow() < 2) return null;
+  const values = productsSheet.getDataRange().getValues();
+  const headers = values[0];
+  const nameCol = headers.indexOf('Name');
+  const skuCol = headers.indexOf('SKU');
+  const barcodeCol = headers.indexOf('Barcode');
+  const idCol = headers.indexOf('Product_ID');
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if ([row[idCol], row[nameCol], row[skuCol], row[barcodeCol]].some(function(v) {
+      return String(v || '').trim().toLowerCase() === q;
+    })) {
+      const item = {};
+      headers.forEach(function(h, j) { item[h] = row[j]; });
+      return item;
+    }
+  }
+  return null;
+}
+
+function lookupBusinessCenterProduct(code, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterSheets_(workspace);
+    const product = findBusinessCenterProduct_(sheets.products, code);
+    return product ? { success: true, product: product } : { success: false, message: 'Product not found.' };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+function completeBusinessCenterSale(data, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, true);
+    if (!access.ok) return { success: false, message: access.message };
+    data = data || {};
+    const cart = Array.isArray(data.items) ? data.items : [];
+    if (!cart.length) return { success: false, message: 'Add at least one product to the sale.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterPOSSheets_(workspace);
+    const productValues = sheets.products.getDataRange().getValues();
+    const headers = productValues[0];
+    const idCol = headers.indexOf('Product_ID');
+    const stockCol = headers.indexOf('Stock_Qty');
+    const priceCol = headers.indexOf('Selling_Price');
+
+    const resolved = [];
+    let subtotal = 0;
+
+    cart.forEach(function(line) {
+      const productId = String(line.Product_ID || '');
+      const qty = Number(line.Quantity || 0);
+      if (!productId || qty <= 0 || !Number.isFinite(qty)) throw new Error('Invalid sale item.');
+      let rowIndex = -1;
+      for (let i = 1; i < productValues.length; i++) {
+        if (String(productValues[i][idCol]) === productId) { rowIndex = i; break; }
+      }
+      if (rowIndex < 0) throw new Error('A product in the cart no longer exists.');
+      const stock = Number(productValues[rowIndex][stockCol] || 0);
+      const price = Number(productValues[rowIndex][priceCol] || 0);
+      if (qty > stock) throw new Error('Insufficient stock for ' + productValues[rowIndex][headers.indexOf('Name')] + '. Available: ' + stock);
+      const lineTotal = price * qty;
+      subtotal += lineTotal;
+      resolved.push({ rowIndex: rowIndex, product: productValues[rowIndex], qty: qty, price: price, lineTotal: lineTotal });
+    });
+
+    const discount = Math.max(0, Number(data.Discount || 0));
+    const total = Math.max(0, subtotal - discount);
+    const amountPaid = Math.max(0, Number(data.Amount_Paid || 0));
+    if (amountPaid > total) throw new Error('Amount paid cannot be greater than the sale total.');
+    const balanceDue = total - amountPaid;
+    const saleId = 'SALE-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+    const now = new Date().toISOString();
+    const user = access.user;
+
+    sheets.sales.appendRow(BUSINESS_CENTER_SALE_HEADERS.map(function(h) {
+      return h === 'Sale_ID' ? saleId :
+        h === 'Date' ? (data.Date || now.split('T')[0]) :
+        h === 'Customer_ID' ? (data.Customer_ID || '') :
+        h === 'Customer_Name' ? (data.Customer_Name || '') :
+        h === 'Subtotal' ? subtotal :
+        h === 'Discount' ? discount :
+        h === 'Total' ? total :
+        h === 'Amount_Paid' ? amountPaid :
+        h === 'Balance_Due' ? balanceDue :
+        h === 'Payment_Method' ? (data.Payment_Method || 'Cash') :
+        h === 'Status' ? (balanceDue > 0 ? 'Credit' : 'Paid') :
+        h === 'Created_By' ? (user.email || user.name || '') :
+        h === 'Created_At' ? now : '';
+    }));
+
+    resolved.forEach(function(line) {
+      const name = line.product[headers.indexOf('Name')];
+      const barcode = line.product[headers.indexOf('Barcode')];
+      sheets.items.appendRow(BUSINESS_CENTER_SALE_ITEM_HEADERS.map(function(h) {
+        return h === 'Sale_ID' ? saleId : h === 'Product_ID' ? line.product[idCol] :
+          h === 'Product_Name' ? name : h === 'Barcode' ? barcode :
+          h === 'Quantity' ? line.qty : h === 'Unit_Price' ? line.price :
+          h === 'Line_Total' ? line.lineTotal : h === 'Created_At' ? now : '';
+      }));
+      sheets.products.getRange(line.rowIndex + 1, stockCol + 1).setValue(Number(line.product[stockCol] || 0) - line.qty);
+    });
+
+    // Finance and customer balances are intentionally NOT written here yet.
+    // Part 4 will add the accounting/customer-ledger orchestration after POS is validated.
+    return {
+      success: true, saleId: saleId, subtotal: subtotal, discount: discount,
+      total: total, amountPaid: amountPaid, balanceDue: balanceDue,
+      message: 'Sale completed successfully.'
+    };
+  } catch (error) {
+    console.error('Business Center sale error:', error);
+    return { success: false, message: error.message };
+  }
+}
