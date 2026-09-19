@@ -1,5 +1,46 @@
 <!-- Business Center Part 1 -->
-<div id="business-center-page" class="hidden min-h-screen bg-[#f7f7f8]">
+<div id="bc-pos-page" class="hidden min-h-screen bg-[#f7f7f8]">
+  <div class="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+    <div class="flex items-center justify-between mb-6">
+      <div><button onclick="closeBCPOS()" class="text-sm text-gray-500 hover:text-gray-900 mb-3"><i class="fas fa-arrow-left mr-2"></i>Business Center</button><h1 class="text-3xl font-semibold tracking-tight">Point of Sale</h1><p class="text-sm text-gray-500 mt-1">Scan, sell and complete a transaction.</p></div>
+      <button onclick="focusBCBarcode()" class="px-4 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium"><i class="fas fa-barcode mr-2"></i>Scan product</button>
+    </div>
+    <div class="grid lg:grid-cols-[1.55fr_.75fr] gap-6">
+      <section class="bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex gap-3 mb-5"><input id="bc-pos-barcode" autofocus autocomplete="off" class="flex-1 px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-[#5D2A86]" placeholder="Scan barcode or search product" onkeydown="bcPOSInputKey(event)" oninput="bcPOSSearch()"><button onclick="lookupBCPOS()" class="px-4 py-3 border border-gray-200 rounded-lg"><i class="fas fa-search"></i></button></div>
+        <div id="bc-pos-results" class="hidden border border-gray-200 rounded-lg mb-5 max-h-64 overflow-auto"></div>
+        <div id="bc-pos-cart" class="divide-y divide-gray-100"></div>
+        <div id="bc-pos-empty" class="text-center py-16 text-gray-400"><i class="fas fa-shopping-basket text-2xl mb-3"></i><p>Cart is empty</p><p class="text-xs mt-1">Scan a barcode or search for a product.</p></div>
+      </section>
+      <aside class="bg-gray-950 text-white rounded-xl p-6 h-fit sticky top-5">
+        <p class="text-xs uppercase tracking-wider text-gray-400">Sale summary</p>
+        <div class="mt-6 space-y-3 text-sm"><div class="flex justify-between"><span class="text-gray-400">Subtotal</span><span id="bc-pos-subtotal">₦0.00</span></div><div class="flex justify-between items-center"><span class="text-gray-400">Discount</span><input id="bc-pos-discount" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()" class="w-28 px-2 py-1 text-right bg-white/10 border border-white/10 rounded text-white"></div><div class="border-t border-white/10 pt-4 flex justify-between text-xl font-semibold"><span>Total</span><span id="bc-pos-total">₦0.00</span></div></div>
+        <div class="mt-7 space-y-3"><label class="block text-xs text-gray-400">Customer<input id="bc-pos-customer" class="mt-1 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white" placeholder="Optional customer name"></label><label class="block text-xs text-gray-400">Payment method<select id="bc-pos-payment" class="mt-1 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white bg-gray-900"><option>Cash</option><option>Bank Transfer</option><option>Debit Card</option><option>Credit Card</option><option>Mobile Money</option></select></label><label class="block text-xs text-gray-400">Amount paid<input id="bc-pos-paid" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()" class="mt-1 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white"></label></div>
+        <div class="mt-5 pt-4 border-t border-white/10 flex justify-between text-sm"><span class="text-gray-400">Balance due</span><strong id="bc-pos-balance">₦0.00</strong></div>
+        <button onclick="completeBCPOS()" class="w-full mt-6 py-3 bg-white text-gray-950 rounded-lg font-semibold hover:bg-gray-100">Complete sale</button>
+      </aside>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  let posCart=[];
+  function posCall(action,payload,done){if(typeof window.callGoogleScript==='function')window.callGoogleScript(action,payload||[],done,function(e){alert((e&&e.message)||'Something went wrong.');});else alert('BizOS is still loading.');}
+  function money(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(Number(v)||0);}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
+  window.openBCPOS=function(){document.getElementById('business-center-page').classList.add('hidden');document.getElementById('bc-pos-page').classList.remove('hidden');document.title='Point of Sale - BizOS';posCart=[];renderBCPOS();setTimeout(focusBCBarcode,50);};
+  window.closeBCPOS=function(){document.getElementById('bc-pos-page').classList.add('hidden');document.getElementById('business-center-page').classList.remove('hidden');};
+  window.focusBCBarcode=function(){var el=document.getElementById('bc-pos-barcode');if(el){el.focus();el.select();}};
+  window.bcPOSInputKey=function(e){if(e.key==='Enter'){e.preventDefault();lookupBCPOS();}};
+  window.lookupBCPOS=function(){var code=document.getElementById('bc-pos-barcode').value.trim();if(!code)return;posCall('lookupBusinessCenterProduct',[code],function(r){if(!r||!r.success){alert(r&&r.message||'Product not found.');focusBCBarcode();return;}addBCPOSProduct(r.product);document.getElementById('bc-pos-barcode').value='';focusBCBarcode();});};
+  window.bcPOSSearch=function(){var q=document.getElementById('bc-pos-barcode').value.trim().toLowerCase();if(!q){document.getElementById('bc-pos-results').classList.add('hidden');return;}var data=window.__bcDataForPOS||[];var found=data.filter(function(p){return [p.Name,p.Barcode,p.SKU].join(' ').toLowerCase().includes(q);}).slice(0,8);var box=document.getElementById('bc-pos-results');box.innerHTML=found.map(function(p){return '<button onclick="addBCPOSProductById(\''+esc(p.Product_ID)+'\')" class="w-full p-3 text-left hover:bg-gray-50 flex justify-between"><span>'+esc(p.Name)+'</span><span>'+money(p.Selling_Price)+'</span></button>';}).join('');box.classList.toggle('hidden',!found.length);};
+  window.addBCPOSProductById=function(id){var p=(window.__bcDataForPOS||[]).find(function(x){return x.Product_ID===id;});if(p){addBCPOSProduct(p);document.getElementById('bc-pos-results').classList.add('hidden');document.getElementById('bc-pos-barcode').value='';focusBCBarcode();}};
+  function addBCPOSProduct(p){var existing=posCart.find(function(x){return x.Product_ID===p.Product_ID;});if(existing){if(existing.Quantity<Number(p.Stock_Qty||0))existing.Quantity++;else return alert('No more stock available.');}else posCart.push({Product_ID:p.Product_ID,Name:p.Name,Barcode:p.Barcode,Price:Number(p.Selling_Price)||0,Stock:Number(p.Stock_Qty)||0,Quantity:1});renderBCPOS();}
+  window.renderBCPOS=function(){var body=document.getElementById('bc-pos-cart'),empty=document.getElementById('bc-pos-empty');body.innerHTML=posCart.map(function(p){return '<div class="py-4 flex items-center gap-3"><div class="h-12 w-12 bg-gray-100 rounded-lg overflow-hidden"></div><div class="flex-1 min-w-0"><p class="font-medium truncate">'+esc(p.Name)+'</p><p class="text-xs text-gray-500">'+money(p.Price)+' each</p></div><div class="flex items-center border border-gray-200 rounded-lg"><button onclick="changeBCPOSQty(\''+p.Product_ID+'\',-1)" class="px-3 py-1">−</button><span class="px-2 text-sm">'+p.Quantity+'</span><button onclick="changeBCPOSQty(\''+p.Product_ID+'\',1)" class="px-3 py-1">+</button></div><strong class="w-24 text-right">'+money(p.Price*p.Quantity)+'</strong></div>';}).join('');empty.classList.toggle('hidden',posCart.length>0);var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0),discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0),total=Math.max(0,subtotal-discount),paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);document.getElementById('bc-pos-subtotal').textContent=money(subtotal);document.getElementById('bc-pos-total').textContent=money(total);document.getElementById('bc-pos-balance').textContent=money(Math.max(0,total-paid));};
+  window.changeBCPOSQty=function(id,delta){var p=posCart.find(function(x){return x.Product_ID===id;});if(!p)return;p.Quantity+=delta;if(p.Quantity<=0)posCart=posCart.filter(function(x){return x.Product_ID!==id;});else if(p.Quantity>p.Stock)p.Quantity=p.Stock;renderBCPOS();};
+  window.completeBCPOS=function(){if(!posCart.length)return alert('Cart is empty.');var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0),discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0),total=Math.max(0,subtotal-discount),paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);if(paid>total)return alert('Amount paid cannot be greater than total.');posCall('completeBusinessCenterSale',[{items:posCart.map(function(p){return {Product_ID:p.Product_ID,Quantity:p.Quantity};}),Discount:discount,Amount_Paid:paid,Payment_Method:document.getElementById('bc-pos-payment').value,Customer_Name:document.getElementById('bc-pos-customer').value}],function(r){if(!r||!r.success){alert(r&&r.message||'Could not complete sale.');return;}alert('Sale '+r.saleId+' completed.');posCart=[];document.getElementById('bc-pos-discount').value=0;document.getElementById('bc-pos-paid').value=0;renderBCPOS();focusBCBarcode();});};
+})();
+</script><div id="business-center-page" class="hidden min-h-screen bg-[#f7f7f8]">
   <div class="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
     <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-8">
       <div>
