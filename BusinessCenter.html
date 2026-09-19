@@ -94,7 +94,7 @@
           </label>
 
           <label class="block text-xs text-gray-400">Amount received
-            <input id="bc-pos-paid" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()"
+            <input id="bc-pos-paid" type="number" min="0" step="0.01" value="0" oninput="posPaidAuto=false;renderBCPOS()"
               class="mt-1.5 w-full px-3 py-3 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-600 outline-none focus:border-white/40"
               placeholder="Enter amount received">
           </label>
@@ -244,6 +244,12 @@
       });
     }
     renderBCPOS();
+    if(posPaidAuto){
+      var subtotal=posCart.reduce(function(s,x){return s+x.Price*x.Quantity;},0);
+      var discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0);
+      document.getElementById('bc-pos-paid').value=Math.max(0,subtotal-discount).toFixed(2);
+      renderBCPOS();
+    }
   }
 
   window.clearBCPOS=function(){
@@ -258,6 +264,7 @@
   };
 
   window.payBCPOSFull=function(){
+    posPaidAuto=true;
     var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0);
     var discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0);
     var total=Math.max(0,subtotal-discount);
