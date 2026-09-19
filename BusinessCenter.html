@@ -1,23 +1,115 @@
-<!-- Business Center Part 1 -->
+<!-- Business Center Part 2: POS / Sell -->
 <div id="bc-pos-page" class="hidden min-h-screen bg-[#f7f7f8]">
-  <div class="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-    <div class="flex items-center justify-between mb-6">
-      <div><button onclick="closeBCPOS()" class="text-sm text-gray-500 hover:text-gray-900 mb-3"><i class="fas fa-arrow-left mr-2"></i>Business Center</button><h1 class="text-3xl font-semibold tracking-tight">Point of Sale</h1><p class="text-sm text-gray-500 mt-1">Scan, sell and complete a transaction.</p></div>
-      <button onclick="focusBCBarcode()" class="px-4 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium"><i class="fas fa-barcode mr-2"></i>Scan product</button>
+  <div class="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-5 lg:py-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5 lg:mb-7">
+      <div>
+        <button onclick="closeBCPOS()" class="text-sm text-gray-500 hover:text-gray-900 mb-2 inline-flex items-center gap-2">
+          <i class="fas fa-arrow-left"></i> Business Center
+        </button>
+        <p class="text-xs uppercase tracking-[0.16em] font-semibold text-[#5D2A86]">Point of Sale</p>
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight mt-1">Sell products</h1>
+        <p class="text-sm text-gray-500 mt-1">Scan a barcode or find a product to start a sale.</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="clearBCPOS()" class="px-3 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
+          Clear sale
+        </button>
+        <button onclick="focusBCBarcode()" class="px-4 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium hover:bg-[#4d226f]">
+          <i class="fas fa-barcode mr-2"></i>Scan barcode
+        </button>
+      </div>
     </div>
-    <div class="grid lg:grid-cols-[1.55fr_.75fr] gap-6">
-      <section class="bg-white border border-gray-200 rounded-xl p-5">
-        <div class="flex gap-3 mb-5"><input id="bc-pos-barcode" autofocus autocomplete="off" class="flex-1 px-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-[#5D2A86]" placeholder="Scan barcode or search product" onkeydown="bcPOSInputKey(event)" oninput="bcPOSSearch()"><button onclick="lookupBCPOS()" class="px-4 py-3 border border-gray-200 rounded-lg"><i class="fas fa-search"></i></button></div>
-        <div id="bc-pos-results" class="hidden border border-gray-200 rounded-lg mb-5 max-h-64 overflow-auto"></div>
-        <div id="bc-pos-cart" class="divide-y divide-gray-100"></div>
-        <div id="bc-pos-empty" class="text-center py-16 text-gray-400"><i class="fas fa-shopping-basket text-2xl mb-3"></i><p>Cart is empty</p><p class="text-xs mt-1">Scan a barcode or search for a product.</p></div>
+
+    <div class="grid lg:grid-cols-[1.55fr_.75fr] gap-5 lg:gap-6 items-start">
+      <section class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-gray-100">
+          <label for="bc-pos-barcode" class="block text-sm font-semibold text-gray-800 mb-2">Find a product</label>
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input id="bc-pos-barcode" autofocus autocomplete="off"
+                class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10"
+                placeholder="Scan barcode or type product name"
+                onkeydown="bcPOSInputKey(event)" oninput="bcPOSSearch()">
+            </div>
+            <button onclick="lookupBCPOS()" class="px-4 py-3 bg-gray-950 text-white rounded-lg font-medium hover:bg-gray-800" aria-label="Find product">
+              Find
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">A barcode scanner works here like a keyboard. Scan, then press Enter if needed.</p>
+        </div>
+
+        <div id="bc-pos-results" class="hidden border-b border-gray-100 max-h-72 overflow-auto"></div>
+
+        <div class="px-4 sm:px-5">
+          <div class="flex items-center justify-between py-4">
+            <div>
+              <h2 class="font-semibold text-gray-900">Current sale</h2>
+              <p id="bc-pos-item-count" class="text-xs text-gray-500 mt-0.5">0 items</p>
+            </div>
+          </div>
+          <div id="bc-pos-cart" class="divide-y divide-gray-100"></div>
+          <div id="bc-pos-empty" class="text-center py-14 sm:py-20 text-gray-400">
+            <div class="h-12 w-12 mx-auto rounded-full bg-gray-50 flex items-center justify-center mb-3">
+              <i class="fas fa-basket-shopping text-lg text-gray-300"></i>
+            </div>
+            <p class="font-medium text-gray-600">No products added</p>
+            <p class="text-xs mt-1">Scan a barcode or search for a product above.</p>
+          </div>
+        </div>
       </section>
-      <aside class="bg-gray-950 text-white rounded-xl p-6 h-fit sticky top-5">
-        <p class="text-xs uppercase tracking-wider text-gray-400">Sale summary</p>
-        <div class="mt-6 space-y-3 text-sm"><div class="flex justify-between"><span class="text-gray-400">Subtotal</span><span id="bc-pos-subtotal">₦0.00</span></div><div class="flex justify-between items-center"><span class="text-gray-400">Discount</span><input id="bc-pos-discount" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()" class="w-28 px-2 py-1 text-right bg-white/10 border border-white/10 rounded text-white"></div><div class="border-t border-white/10 pt-4 flex justify-between text-xl font-semibold"><span>Total</span><span id="bc-pos-total">₦0.00</span></div></div>
-        <div class="mt-7 space-y-3"><label class="block text-xs text-gray-400">Customer<input id="bc-pos-customer" class="mt-1 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white" placeholder="Optional customer name"></label><label class="block text-xs text-gray-400">Payment method<select id="bc-pos-payment" class="mt-1 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white bg-gray-900"><option>Cash</option><option>Bank Transfer</option><option>Debit Card</option><option>Credit Card</option><option>Mobile Money</option></select></label><label class="block text-xs text-gray-400">Amount paid<input id="bc-pos-paid" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()" class="mt-1 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white"></label></div>
-        <div class="mt-5 pt-4 border-t border-white/10 flex justify-between text-sm"><span class="text-gray-400">Balance due</span><strong id="bc-pos-balance">₦0.00</strong></div>
-        <button onclick="completeBCPOS()" class="w-full mt-6 py-3 bg-white text-gray-950 rounded-lg font-semibold hover:bg-gray-100">Complete sale</button>
+
+      <aside class="bg-gray-950 text-white rounded-xl p-5 sm:p-6 lg:sticky lg:top-5">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-wider text-gray-400">Sale total</p>
+            <p id="bc-pos-total" class="text-3xl font-semibold tracking-tight mt-1">₦0.00</p>
+          </div>
+          <span id="bc-pos-status" class="text-xs px-2 py-1 rounded-full bg-white/10 text-gray-300">No items</span>
+        </div>
+
+        <div class="mt-6 space-y-3 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Subtotal</span>
+            <span id="bc-pos-subtotal">₦0.00</span>
+          </div>
+          <label class="flex items-center justify-between gap-3">
+            <span class="text-gray-400">Discount</span>
+            <input id="bc-pos-discount" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()"
+              class="w-28 px-2 py-1.5 text-right bg-white/10 border border-white/10 rounded text-white outline-none focus:border-white/40" placeholder="0">
+          </label>
+        </div>
+
+        <div class="mt-6 pt-5 border-t border-white/10 space-y-3">
+          <label class="block text-xs text-gray-400">Customer <span class="text-gray-600">(optional)</span>
+            <input id="bc-pos-customer" class="mt-1.5 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-600 outline-none focus:border-white/40"
+              placeholder="Name for this sale">
+          </label>
+
+          <label class="block text-xs text-gray-400">Payment method
+            <select id="bc-pos-payment" class="mt-1.5 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white bg-gray-900 outline-none">
+              <option>Cash</option><option>Bank Transfer</option><option>Debit Card</option><option>Credit Card</option><option>Mobile Money</option>
+            </select>
+          </label>
+
+          <label class="block text-xs text-gray-400">Amount received
+            <input id="bc-pos-paid" type="number" min="0" step="0.01" value="0" oninput="renderBCPOS()"
+              class="mt-1.5 w-full px-3 py-3 bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-gray-600 outline-none focus:border-white/40"
+              placeholder="Enter amount received">
+          </label>
+          <button type="button" onclick="payBCPOSFull()" class="text-xs text-gray-300 hover:text-white">Use full sale total</button>
+        </div>
+
+        <div class="mt-5 pt-4 border-t border-white/10 flex justify-between items-center">
+          <span id="bc-pos-balance-label" class="text-gray-400">Balance due</span>
+          <strong id="bc-pos-balance" class="text-base">₦0.00</strong>
+        </div>
+
+        <button id="bc-pos-complete" onclick="completeBCPOS()" disabled
+          class="w-full mt-6 py-3.5 bg-white text-gray-950 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition">
+          Complete sale
+        </button>
+        <p id="bc-pos-help" class="text-[11px] text-gray-500 text-center mt-3">Add a product to continue.</p>
       </aside>
     </div>
   </div>
@@ -25,22 +117,216 @@
 <script>
 (function(){
   let posCart=[];
-  function posCall(action,payload,done){if(typeof window.callGoogleScript==='function')window.callGoogleScript(action,payload||[],done,function(e){alert((e&&e.message)||'Something went wrong.');});else alert('BizOS is still loading.');}
-  function money(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN'}).format(Number(v)||0);}
+
+  function posCall(action,payload,done){
+    if(typeof window.callGoogleScript==='function'){
+      window.callGoogleScript(action,payload||[],done,function(e){
+        alert((e&&e.message)||'Something went wrong. Please try again.');
+      });
+    } else alert('BizOS is still loading. Please try again.');
+  }
+  function money(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(Number(v)||0);}
   function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
-  window.openBCPOS=function(){document.getElementById('business-center-page').classList.add('hidden');document.getElementById('bc-pos-page').classList.remove('hidden');document.title='Point of Sale - BizOS';posCart=[];window.__bcDataForPOS=[];if(typeof loadBusinessCenter==='function'){loadBusinessCenter();}posCall('getBusinessCenterData',[],function(r){if(r&&r.success)window.__bcDataForPOS=r.products||[];});renderBCPOS();setTimeout(focusBCBarcode,100);};
-  window.closeBCPOS=function(){document.getElementById('bc-pos-page').classList.add('hidden');document.getElementById('business-center-page').classList.remove('hidden');};
-  window.focusBCBarcode=function(){var el=document.getElementById('bc-pos-barcode');if(el){el.focus();el.select();}};
-  window.bcPOSInputKey=function(e){if(e.key==='Enter'){e.preventDefault();lookupBCPOS();}};
-  window.lookupBCPOS=function(){var code=document.getElementById('bc-pos-barcode').value.trim();if(!code)return;posCall('lookupBusinessCenterProduct',[code],function(r){if(!r||!r.success){alert(r&&r.message||'Product not found.');focusBCBarcode();return;}addBCPOSProduct(r.product);document.getElementById('bc-pos-barcode').value='';focusBCBarcode();});};
-  window.bcPOSSearch=function(){var q=document.getElementById('bc-pos-barcode').value.trim().toLowerCase();if(!q){document.getElementById('bc-pos-results').classList.add('hidden');return;}var data=window.__bcDataForPOS||[];var found=data.filter(function(p){return [p.Name,p.Barcode,p.SKU].join(' ').toLowerCase().includes(q);}).slice(0,8);var box=document.getElementById('bc-pos-results');box.innerHTML=found.map(function(p){return '<button onclick="addBCPOSProductById(\''+esc(p.Product_ID)+'\')" class="w-full p-3 text-left hover:bg-gray-50 flex justify-between"><span>'+esc(p.Name)+'</span><span>'+money(p.Selling_Price)+'</span></button>';}).join('');box.classList.toggle('hidden',!found.length);};
-  window.addBCPOSProductById=function(id){var p=(window.__bcDataForPOS||[]).find(function(x){return x.Product_ID===id;});if(p){addBCPOSProduct(p);document.getElementById('bc-pos-results').classList.add('hidden');document.getElementById('bc-pos-barcode').value='';focusBCBarcode();}};
-  function addBCPOSProduct(p){var existing=posCart.find(function(x){return x.Product_ID===p.Product_ID;});if(existing){if(existing.Quantity<Number(p.Stock_Qty||0))existing.Quantity++;else return alert('No more stock available.');}else posCart.push({Product_ID:p.Product_ID,Name:p.Name,Barcode:p.Barcode,Price:Number(p.Selling_Price)||0,Stock:Number(p.Stock_Qty)||0,Quantity:1});renderBCPOS();}
-  window.renderBCPOS=function(){var body=document.getElementById('bc-pos-cart'),empty=document.getElementById('bc-pos-empty');body.innerHTML=posCart.map(function(p){return '<div class="py-4 flex items-center gap-3"><div class="h-12 w-12 bg-gray-100 rounded-lg overflow-hidden"></div><div class="flex-1 min-w-0"><p class="font-medium truncate">'+esc(p.Name)+'</p><p class="text-xs text-gray-500">'+money(p.Price)+' each</p></div><div class="flex items-center border border-gray-200 rounded-lg"><button onclick="changeBCPOSQty(\''+p.Product_ID+'\',-1)" class="px-3 py-1">−</button><span class="px-2 text-sm">'+p.Quantity+'</span><button onclick="changeBCPOSQty(\''+p.Product_ID+'\',1)" class="px-3 py-1">+</button></div><strong class="w-24 text-right">'+money(p.Price*p.Quantity)+'</strong></div>';}).join('');empty.classList.toggle('hidden',posCart.length>0);var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0),discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0),total=Math.max(0,subtotal-discount),paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);document.getElementById('bc-pos-subtotal').textContent=money(subtotal);document.getElementById('bc-pos-total').textContent=money(total);document.getElementById('bc-pos-balance').textContent=money(Math.max(0,total-paid));};
-  window.changeBCPOSQty=function(id,delta){var p=posCart.find(function(x){return x.Product_ID===id;});if(!p)return;p.Quantity+=delta;if(p.Quantity<=0)posCart=posCart.filter(function(x){return x.Product_ID!==id;});else if(p.Quantity>p.Stock)p.Quantity=p.Stock;renderBCPOS();};
-  window.completeBCPOS=function(){if(!posCart.length)return alert('Cart is empty.');var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0),discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0),total=Math.max(0,subtotal-discount),paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);if(paid>total)return alert('Amount paid cannot be greater than total.');posCall('completeBusinessCenterSale',[{items:posCart.map(function(p){return {Product_ID:p.Product_ID,Quantity:p.Quantity};}),Discount:discount,Amount_Paid:paid,Payment_Method:document.getElementById('bc-pos-payment').value,Customer_Name:document.getElementById('bc-pos-customer').value}],function(r){if(!r||!r.success){alert(r&&r.message||'Could not complete sale.');return;}alert('Sale '+r.saleId+' completed.');posCart=[];document.getElementById('bc-pos-discount').value=0;document.getElementById('bc-pos-paid').value=0;renderBCPOS();focusBCBarcode();});};
+
+  window.openBCPOS=function(){
+    document.getElementById('business-center-page').classList.add('hidden');
+    document.getElementById('bc-pos-page').classList.remove('hidden');
+    document.title='Sell Products - BizOS';
+    posCart=[];
+    window.__bcDataForPOS=[];
+    if(typeof loadBusinessCenter==='function')loadBusinessCenter();
+    posCall('getBusinessCenterData',[],function(r){
+      if(r&&r.success)window.__bcDataForPOS=r.products||[];
+      else if(r&&!r.success)alert(r.message||'Could not load products.');
+    });
+    renderBCPOS();
+    setTimeout(focusBCBarcode,100);
+  };
+
+  window.closeBCPOS=function(){
+    document.getElementById('bc-pos-page').classList.add('hidden');
+    document.getElementById('business-center-page').classList.remove('hidden');
+    document.title='Business Center - BizOS';
+  };
+
+  window.focusBCBarcode=function(){
+    var el=document.getElementById('bc-pos-barcode');
+    if(el){el.focus();el.select();}
+  };
+
+  window.bcPOSInputKey=function(e){
+    if(e.key==='Enter'){e.preventDefault();lookupBCPOS();}
+  };
+
+  window.lookupBCPOS=function(){
+    var code=document.getElementById('bc-pos-barcode').value.trim();
+    if(!code)return;
+    posCall('lookupBusinessCenterProduct',[code],function(r){
+      if(!r||!r.success){
+        alert(r&&r.message||'We could not find that product. Check the barcode or product name.');
+        focusBCBarcode();
+        return;
+      }
+      addBCPOSProduct(r.product);
+      document.getElementById('bc-pos-barcode').value='';
+      document.getElementById('bc-pos-results').classList.add('hidden');
+      focusBCBarcode();
+    });
+  };
+
+  window.bcPOSSearch=function(){
+    var q=document.getElementById('bc-pos-barcode').value.trim().toLowerCase();
+    var box=document.getElementById('bc-pos-results');
+    if(!q){box.classList.add('hidden');return;}
+    var data=window.__bcDataForPOS||[];
+    var found=data.filter(function(p){
+      return [p.Name,p.Barcode,p.SKU,p.Category].join(' ').toLowerCase().includes(q);
+    }).slice(0,8);
+    box.innerHTML=found.map(function(p){
+      var stock=Number(p.Stock_Qty||0);
+      return '<button onclick="addBCPOSProductById(\\''+esc(p.Product_ID)+'\\')" class="w-full p-3.5 text-left hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100 last:border-0">'+
+        '<div class="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">'+
+        (p.Image_Data?'<img src="'+p.Image_Data+'" class="h-full w-full object-cover">':'<i class="fas fa-box text-gray-300 text-sm"></i>')+
+        '</div><span class="flex-1 min-w-0"><span class="block font-medium text-gray-900 truncate">'+esc(p.Name)+'</span>'+
+        '<span class="block text-xs text-gray-500 mt-0.5">'+(stock>0?stock+' in stock':'Out of stock')+(p.Barcode?' · '+esc(p.Barcode):'')+'</span></span>'+
+        '<strong class="text-sm text-gray-900">'+money(p.Selling_Price)+'</strong></button>';
+    }).join('');
+    if(found.length){
+      box.classList.remove('hidden');
+    } else {
+      box.innerHTML='<div class="p-5 text-center text-sm text-gray-500">No matching product found.</div>';
+      box.classList.remove('hidden');
+    }
+  };
+
+  window.addBCPOSProductById=function(id){
+    var p=(window.__bcDataForPOS||[]).find(function(x){return x.Product_ID===id;});
+    if(p){
+      if(Number(p.Stock_Qty||0)<=0){alert('This product is out of stock.');return;}
+      addBCPOSProduct(p);
+      document.getElementById('bc-pos-results').classList.add('hidden');
+      document.getElementById('bc-pos-barcode').value='';
+      focusBCBarcode();
+    }
+  };
+
+  function addBCPOSProduct(p){
+    if(Number(p.Stock_Qty||0)<=0){alert('This product is out of stock.');return;}
+    var existing=posCart.find(function(x){return x.Product_ID===p.Product_ID;});
+    if(existing){
+      if(existing.Quantity<Number(p.Stock_Qty||0))existing.Quantity++;
+      else {alert('You have reached the available stock for this product.');return;}
+    } else {
+      posCart.push({
+        Product_ID:p.Product_ID,Name:p.Name,Barcode:p.Barcode,Price:Number(p.Selling_Price)||0,
+        Stock:Number(p.Stock_Qty)||0,Quantity:1,Image_Data:p.Image_Data||''
+      });
+    }
+    renderBCPOS();
+  }
+
+  window.clearBCPOS=function(){
+    if(!posCart.length)return;
+    if(!confirm('Clear all products from this sale?'))return;
+    posCart=[];
+    document.getElementById('bc-pos-discount').value=0;
+    document.getElementById('bc-pos-paid').value=0;
+    document.getElementById('bc-pos-customer').value='';
+    renderBCPOS();
+    focusBCBarcode();
+  };
+
+  window.payBCPOSFull=function(){
+    var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0);
+    var discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0);
+    var total=Math.max(0,subtotal-discount);
+    document.getElementById('bc-pos-paid').value=total.toFixed(2);
+    renderBCPOS();
+  };
+
+  window.renderBCPOS=function(){
+    var body=document.getElementById('bc-pos-cart'),empty=document.getElementById('bc-pos-empty');
+    if(!body)return;
+    body.innerHTML=posCart.map(function(p){
+      var stockText=p.Stock===1?'1 left':p.Stock+' in stock';
+      return '<div class="py-4 flex items-center gap-3">'+
+        '<div class="h-12 w-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">'+
+        (p.Image_Data?'<img src="'+p.Image_Data+'" class="h-full w-full object-cover">':'<div class="h-full w-full flex items-center justify-center text-gray-300"><i class="fas fa-box"></i></div>')+
+        '</div><div class="flex-1 min-w-0"><p class="font-medium truncate">'+esc(p.Name)+'</p>'+
+        '<p class="text-xs text-gray-500 mt-0.5">'+money(p.Price)+' each · '+stockText+'</p></div>'+
+        '<div class="flex items-center border border-gray-200 rounded-lg flex-shrink-0">'+
+        '<button onclick="changeBCPOSQty(\\''+p.Product_ID+'\\',-1)" class="w-9 h-9 text-gray-600 hover:bg-gray-50" aria-label="Decrease quantity">−</button>'+
+        '<span class="w-8 text-center text-sm font-medium">'+p.Quantity+'</span>'+
+        '<button onclick="changeBCPOSQty(\\''+p.Product_ID+'\\',1)" class="w-9 h-9 text-gray-600 hover:bg-gray-50" aria-label="Increase quantity">+</button></div>'+
+        '<strong class="w-24 text-right text-sm flex-shrink-0">'+money(p.Price*p.Quantity)+'</strong></div>';
+    }).join('');
+
+    empty.classList.toggle('hidden',posCart.length>0);
+    var count=posCart.reduce(function(s,p){return s+p.Quantity;},0);
+    var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0);
+    var discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0);
+    var total=Math.max(0,subtotal-discount);
+    var paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);
+    var balance=Math.max(0,total-paid);
+    var change=Math.max(0,paid-total);
+
+    document.getElementById('bc-pos-item-count').textContent=count+' item'+(count===1?'':'s');
+    document.getElementById('bc-pos-subtotal').textContent=money(subtotal);
+    document.getElementById('bc-pos-total').textContent=money(total);
+    document.getElementById('bc-pos-balance').textContent=money(change||balance);
+    document.getElementById('bc-pos-balance-label').textContent=change>0?'Change':(balance>0?'Balance due':'Balance');
+    document.getElementById('bc-pos-status').textContent=posCart.length?(count+' item'+(count===1?'':'s')):'No items';
+    var complete=document.getElementById('bc-pos-complete');
+    complete.disabled=!posCart.length;
+    document.getElementById('bc-pos-help').textContent=posCart.length?(balance>0?'Enter the amount received or leave it as credit.':'Ready to complete this sale.'):'Add a product to continue.';
+  };
+
+  window.changeBCPOSQty=function(id,delta){
+    var p=posCart.find(function(x){return x.Product_ID===id;});
+    if(!p)return;
+    p.Quantity+=delta;
+    if(p.Quantity<=0)posCart=posCart.filter(function(x){return x.Product_ID!==id;});
+    else if(p.Quantity>p.Stock)p.Quantity=p.Stock;
+    renderBCPOS();
+  };
+
+  window.completeBCPOS=function(){
+    if(!posCart.length)return;
+    var subtotal=posCart.reduce(function(s,p){return s+p.Price*p.Quantity;},0);
+    var discount=Math.max(0,Number(document.getElementById('bc-pos-discount').value)||0);
+    if(discount>subtotal){alert('Discount cannot be more than the sale total.');return;}
+    var total=Math.max(0,subtotal-discount);
+    var paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);
+    if(paid>total){alert('Amount received cannot be greater than the sale total.');return;}
+
+    var button=document.getElementById('bc-pos-complete');
+    button.disabled=true;
+    button.textContent='Completing sale...';
+
+    posCall('completeBusinessCenterSale',[{
+      items:posCart.map(function(p){return {Product_ID:p.Product_ID,Quantity:p.Quantity};}),
+      Discount:discount,Amount_Paid:paid,
+      Payment_Method:document.getElementById('bc-pos-payment').value,
+      Customer_Name:document.getElementById('bc-pos-customer').value
+    }],function(r){
+      button.textContent='Complete sale';
+      if(!r||!r.success){
+        button.disabled=false;
+        alert(r&&r.message||'Could not complete the sale. Please try again.');
+        return;
+      }
+      alert('Sale completed successfully. Sale number: '+r.saleId);
+      posCart=[];
+      document.getElementById('bc-pos-discount').value=0;
+      document.getElementById('bc-pos-paid').value=0;
+      document.getElementById('bc-pos-customer').value='';
+      renderBCPOS();
+      focusBCBarcode();
+    });
+  };
 })();
-</script><div id="business-center-page" class="hidden min-h-screen bg-[#f7f7f8]">
+</script>
+<div id="business-center-page" class="hidden min-h-screen bg-[#f7f7f8]">
   <div class="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
     <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-8">
       <div>
