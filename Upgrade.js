@@ -67,7 +67,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     }
 
     var existingPending = getPendingUpgradeRequestForUser_(user.email);
-    if (existingPending && existingPending.tier === tier) {
+    if (existingPending) {
       var pendingPublicUrl = getPublicBizOSUrl_();
       var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(existingPending.requestId) +
         '&country=' + encodeURIComponent(existingPending.country || country) + '&tier=' + encodeURIComponent(existingPending.tier || tier);
