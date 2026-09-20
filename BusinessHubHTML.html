@@ -130,8 +130,16 @@
   function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
 
   window.openBCPOS=function(){
-    document.getElementById('business-center-page').classList.add('hidden');
-    document.getElementById('bc-pos-page').classList.remove('hidden');
+    var businessCenterPage=document.getElementById('business-center-page');
+    var posPage=document.getElementById('bc-pos-page');
+    if(businessCenterPage){
+      businessCenterPage.classList.add('hidden');
+      businessCenterPage.style.setProperty('display','none','important');
+    }
+    if(posPage){
+      posPage.classList.remove('hidden');
+      posPage.style.setProperty('display','block','important');
+    }
     document.title='Sell Products - BizOS';
     posCart=[];
     window.__bcDataForPOS=[];
@@ -148,8 +156,17 @@
   };
 
   window.closeBCPOS=function(){
-    document.getElementById('bc-pos-page').classList.add('hidden');
-    document.getElementById('business-center-page').classList.remove('hidden');
+    var posPage=document.getElementById('bc-pos-page');
+    var businessCenterPage=document.getElementById('business-center-page');
+    if(posPage){
+      posPage.classList.add('hidden');
+      posPage.style.removeProperty('display');
+    }
+    if(businessCenterPage){
+      businessCenterPage.classList.remove('hidden');
+      businessCenterPage.style.setProperty('display','block','important');
+      businessCenterPage.style.setProperty('visibility','visible','important');
+    }
     document.title='Business Center - BizOS';
   };
 
