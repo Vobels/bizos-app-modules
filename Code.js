@@ -235,6 +235,11 @@ function doPost(e) {
         result = getEnhancedDashboardData(dashPeriod, sessionId);
         break;
       
+      // Business Center Part 1: safe existing-data connection (read-only)
+      case 'getBusinessCenterConnectedData':
+        result = getBusinessCenterConnectedData(sessionId);
+        break;
+      
       // Module functions
       case 'getModuleData':
         const moduleName = payload[0];
