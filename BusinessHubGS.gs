@@ -445,7 +445,7 @@ function completeBusinessCenterSale(data, sessionId) {
       for (let i = 1; i < customerValues.length; i++) {
         if (String(customerValues[i][customerIdCol] || '') === customerId) {
           customerRow = i;
-          customerBalance = Number(customerValues[i][customerBalanceCol] || 0);
+          customerBalance = getBusinessCenterCustomerBalance_(workspace, customerId);
           resolvedCustomerName = String(customerValues[i][customerNameCol] || '').trim();
           break;
         }
@@ -610,6 +610,25 @@ function completeBusinessCenterSale(data, sessionId) {
 
 
 // ==================== BUSINESS CENTER PART 4: CUSTOMER LEDGER ====================
+function getBusinessCenterCustomerBalance_(workspace, customerId) {
+  const sheets = getBusinessCenterPOSSheets_(workspace);
+  const ledgerSheet = getBusinessCenterLedgerSheet_(workspace);
+  let balance = 0;
+
+  businessCenterRows_(sheets.sales).forEach(function(sale) {
+    if (String(sale.Customer_ID || '') !== String(customerId)) return;
+    const due = Number(sale.Balance_Due || 0);
+    if (due > 0) balance += due;
+  });
+
+  businessCenterRows_(ledgerSheet).forEach(function(row) {
+    if (String(row.Customer_ID || '') !== String(customerId)) return;
+    balance -= Number(row.Credit || 0);
+  });
+
+  return Math.max(0, balance);
+}
+
 
 const BUSINESS_CENTER_LEDGER_HEADERS = [
   'Entry_ID','Date','Customer_ID','Customer_Name','Type','Reference_ID',
@@ -696,7 +715,7 @@ function getBusinessCenterCustomerLedger(customerId, sessionId) {
       summary: {
         totalDebit: entries.reduce(function(t, e) { return t + Number(e.Debit || 0); }, 0),
         totalCredit: entries.reduce(function(t, e) { return t + Number(e.Credit || 0); }, 0),
-        balance: Number(customer.Balance || 0)
+        balance: getBusinessCenterCustomerBalance_(workspace, customerId)
       }
     };
   } catch (error) {
@@ -706,7 +725,10 @@ function getBusinessCenterCustomerLedger(customerId, sessionId) {
 }
 
 function recordBusinessCenterCustomerPayment(data, sessionId) {
+  const lock = LockService.getScriptLock();
   try {
+    if (!lock.tryLock(10000)) return { success: false, message: 'Another customer payment is being processed. Please try again.' };
+
     const access = businessCenterAccess_(sessionId, true);
     if (!access.ok) return { success: false, message: access.message };
     data = data || {};
@@ -726,39 +748,62 @@ function recordBusinessCenterCustomerPayment(data, sessionId) {
     if (idCol < 0 || balanceCol < 0) throw new Error('Customer schema is missing required fields.');
 
     let rowIndex = -1;
-    let currentBalance = 0;
     let customerName = '';
     for (let i = 1; i < values.length; i++) {
       if (String(values[i][idCol] || '') === customerId) {
         rowIndex = i;
-        currentBalance = Number(values[i][balanceCol] || 0);
         customerName = String(values[i][nameCol] || '');
         break;
       }
     }
     if (rowIndex < 1) return { success: false, message: 'Customer not found.' };
+
+    // Sales and ledger entries are the source of truth. The customer Balance
+    // column is a cached value kept in sync with that derived balance.
+    const currentBalance = getBusinessCenterCustomerBalance_(workspace, customerId);
     if (currentBalance <= 0) return { success: false, message: 'This customer has no outstanding balance.' };
     if (amount > currentBalance) return { success: false, message: 'Payment cannot be greater than the outstanding balance.' };
 
     const now = new Date().toISOString();
     const entryId = 'PAY-' + Utilities.getUuid().substring(0, 8).toUpperCase();
     const ledger = getBusinessCenterLedgerSheet_(workspace);
-    ledger.appendRow([
-      entryId,
-      data.Date || now.split('T')[0],
-      customerId,
-      customerName,
-      'Payment',
-      entryId,
-      String(data.Description || 'Customer payment'),
-      0,
-      amount,
-      currentBalance - amount,
-      access.user.email || access.user.name || '',
-      now
-    ]);
 
-    customers.getRange(rowIndex + 1, balanceCol + 1).setValue(currentBalance - amount);
+    try {
+      ledger.appendRow([
+        entryId,
+        data.Date || now.split('T')[0],
+        customerId,
+        customerName,
+        'Payment',
+        entryId,
+        String(data.Description || 'Customer payment'),
+        0,
+        amount,
+        currentBalance - amount,
+        access.user.email || access.user.name || '',
+        now
+      ]);
+
+      customers.getRange(rowIndex + 1, balanceCol + 1).setValue(currentBalance - amount);
+    } catch (writeError) {
+      try {
+        const valuesAfter = ledger.getDataRange().getValues();
+        const entryCol = valuesAfter.length ? valuesAfter[0].indexOf('Entry_ID') : -1;
+        if (entryCol >= 0) {
+          for (let i = valuesAfter.length - 1; i >= 1; i--) {
+            if (String(valuesAfter[i][entryCol] || '') === entryId) {
+              ledger.deleteRow(i + 1);
+              break;
+            }
+          }
+        }
+        customers.getRange(rowIndex + 1, balanceCol + 1).setValue(currentBalance);
+      } catch (rollbackError) {
+        console.error('Business Center customer payment rollback error:', rollbackError);
+        throw new Error('Payment could not be recorded safely. Please check the customer ledger before retrying.');
+      }
+      throw writeError;
+    }
 
     return {
       success: true,
@@ -771,6 +816,8 @@ function recordBusinessCenterCustomerPayment(data, sessionId) {
   } catch (error) {
     console.error('Business Center customer payment error:', error);
     return { success: false, message: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
 }
 
