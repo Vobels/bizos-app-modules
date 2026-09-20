@@ -114,6 +114,11 @@ function getBusinessCenterData(sessionId) {
     const sheets = getBusinessCenterSheets_(workspace);
     const products = businessCenterRows_(sheets.products);
     const customers = businessCenterRows_(sheets.customers);
+    const customerBalances = getBusinessCenterCustomerBalanceMap_(workspace);
+    customers.forEach(function(customer) {
+      const id = String(customer.Customer_ID || '').trim();
+      customer.Balance = Number(customerBalances[id] || 0);
+    });
     const lowStock = products.filter(function(p) {
       return Number(p.Stock_Qty || 0) <= Number(p.Minimum_Stock || 0);
     }).length;
@@ -610,23 +615,33 @@ function completeBusinessCenterSale(data, sessionId) {
 
 
 // ==================== BUSINESS CENTER PART 4: CUSTOMER LEDGER ====================
-function getBusinessCenterCustomerBalance_(workspace, customerId) {
+function getBusinessCenterCustomerBalanceMap_(workspace) {
   const sheets = getBusinessCenterPOSSheets_(workspace);
   const ledgerSheet = getBusinessCenterLedgerSheet_(workspace);
-  let balance = 0;
+  const balances = {};
 
   businessCenterRows_(sheets.sales).forEach(function(sale) {
-    if (String(sale.Customer_ID || '') !== String(customerId)) return;
+    const id = String(sale.Customer_ID || '').trim();
+    if (!id) return;
     const due = Number(sale.Balance_Due || 0);
-    if (due > 0) balance += due;
+    if (due > 0) balances[id] = (balances[id] || 0) + due;
   });
 
   businessCenterRows_(ledgerSheet).forEach(function(row) {
-    if (String(row.Customer_ID || '') !== String(customerId)) return;
-    balance -= Number(row.Credit || 0);
+    const id = String(row.Customer_ID || '').trim();
+    if (!id) return;
+    balances[id] = (balances[id] || 0) - Number(row.Credit || 0);
   });
 
-  return Math.max(0, balance);
+  Object.keys(balances).forEach(function(id) {
+    balances[id] = Math.max(0, balances[id]);
+  });
+  return balances;
+}
+
+function getBusinessCenterCustomerBalance_(workspace, customerId) {
+  const balances = getBusinessCenterCustomerBalanceMap_(workspace);
+  return Number(balances[String(customerId || '').trim()] || 0);
 }
 
 
@@ -659,6 +674,7 @@ function getBusinessCenterCustomerLedger(customerId, sessionId) {
       return String(row.Customer_ID || '') === customerId;
     });
     if (!customer) return { success: false, message: 'Customer not found.' };
+    customer.Balance = getBusinessCenterCustomerBalance_(workspace, customerId);
 
     const entries = [];
 
