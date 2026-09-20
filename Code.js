@@ -246,6 +246,13 @@ function doPost(e) {
       case 'getBusinessCenterStockMovements':
         result = getBusinessCenterStockMovements(sessionId, payload[0] || '');
         break;
+      // Business Center Part 4: Customer Ledger
+      case 'getBusinessCenterCustomerLedger':
+        result = getBusinessCenterCustomerLedger(payload[0] || '', sessionId);
+        break;
+      case 'recordBusinessCenterCustomerPayment':
+        result = recordBusinessCenterCustomerPayment(payload[0] || {}, sessionId);
+        break;
       // Business Center Part 3: Sales History + Receipts
       case 'getBusinessCenterSales':
         result = getBusinessCenterSales(payload[0] || {}, sessionId);
