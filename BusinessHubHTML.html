@@ -84,11 +84,20 @@
         </div>
 
         <div class="mt-6 pt-5 border-t border-white/10 space-y-3">
-          <label class="block text-xs text-gray-400">Customer
-            <select id="bc-pos-customer" onchange="bcPOSCustomerChanged()" style="color:#111827;background:#ffffff;color-scheme:light" class="mt-1.5 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-gray-900 bg-white outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10">
-              <option value="" class="text-gray-900 bg-white">Walk-in customer</option>
+          <div>
+            <label for="bc-pos-customer-type" class="block text-xs text-gray-400">Customer</label>
+            <select id="bc-pos-customer-type" onchange="bcPOSCustomerChanged()" style="color:#111827;background:#ffffff;color-scheme:light" class="mt-1.5 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-gray-900 bg-white outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10">
+              <option value="walk_in">Walk-in customer</option>
+              <option value="online">Online client</option>
+              <option value="registered">Registered customer</option>
             </select>
-          </label>
+            <div id="bc-pos-registered-customer-wrap" class="hidden mt-2">
+              <label for="bc-pos-registered-customer" class="sr-only">Select registered customer</label>
+              <select id="bc-pos-registered-customer" style="color:#111827;background:#ffffff;color-scheme:light" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-gray-900 bg-white outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10">
+                <option value="">Select registered customer</option>
+              </select>
+            </div>
+          </div>
 
           <label class="block text-xs text-gray-400">Payment method
             <select id="bc-pos-payment" style="color:#111827;background:#ffffff;color-scheme:light" class="mt-1.5 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-gray-900 bg-white outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10">
@@ -188,14 +197,13 @@
   };
 
   function renderBCPOSCustomers(){
-    var select=document.getElementById('bc-pos-customer');
+    var select=document.getElementById('bc-pos-registered-customer');
     if(!select)return;
     var customers=Array.isArray(window.__bcCustomersForPOS)?window.__bcCustomersForPOS:[];
-    // Keep the native dropdown readable across browsers/OS themes.
     select.style.color='#111827';
     select.style.backgroundColor='#ffffff';
     select.style.colorScheme='light';
-    select.innerHTML='<option value="" style="color:#111827;background:#ffffff">Walk-in customer</option>'+customers.map(function(c){
+    select.innerHTML='<option value="" style="color:#111827;background:#ffffff">Select registered customer</option>'+customers.map(function(c){
       var label=String(c.Name||'Customer');
       if(c.Phone)label+=' · '+String(c.Phone);
       var balance=Number(c.Balance||0);
@@ -205,6 +213,11 @@
   }
 
   window.bcPOSCustomerChanged=function(){
+    var type=document.getElementById('bc-pos-customer-type').value;
+    var wrap=document.getElementById('bc-pos-registered-customer-wrap');
+    var select=document.getElementById('bc-pos-registered-customer');
+    if(wrap)wrap.classList.toggle('hidden',type!=='registered');
+    if(type!=='registered' && select)select.value='';
     renderBCPOS();
   };
 
@@ -287,7 +300,9 @@
     posCart=[];
     document.getElementById('bc-pos-discount').value=0;
     document.getElementById('bc-pos-paid').value=0;
-    document.getElementById('bc-pos-customer').value='';
+    document.getElementById('bc-pos-customer-type').value='walk_in';
+    document.getElementById('bc-pos-registered-customer').value='';
+    document.getElementById('bc-pos-registered-customer-wrap').classList.add('hidden');
     renderBCPOS();
     focusBCBarcode();
   };
@@ -357,12 +372,23 @@
     var total=Math.max(0,subtotal-discount);
     var paid=Math.max(0,Number(document.getElementById('bc-pos-paid').value)||0);
     if(paid>total){alert('Amount received cannot be greater than the sale total.');return;}
-    var customerId=document.getElementById('bc-pos-customer').value;
-    var customerSelect=document.getElementById('bc-pos-customer');
-    var customerName=customerId && customerSelect.options[customerSelect.selectedIndex] ? customerSelect.options[customerSelect.selectedIndex].text.split(' · ')[0] : '';
-    if(total>paid && !customerId){
-      alert('Please select a customer for a sale that is not fully paid.');
+    var customerType=document.getElementById('bc-pos-customer-type').value;
+    var customerSelect=document.getElementById('bc-pos-registered-customer');
+    var customerId=customerType==='registered' ? customerSelect.value : '';
+    var customerName='';
+    if(customerType==='walk_in') customerName='Walk-in customer';
+    if(customerType==='online') customerName='Online client';
+    if(customerType==='registered'){
+      customerName=customerId && customerSelect.options[customerSelect.selectedIndex] ? customerSelect.options[customerSelect.selectedIndex].text.split(' · ')[0] : '';
+    }
+    if(customerType==='registered' && !customerId){
+      alert('Please select the registered customer.');
       customerSelect.focus();
+      return;
+    }
+    if(total>paid && !customerId){
+      alert('An unpaid sale must be linked to a registered customer.');
+      customerType==='registered' ? customerSelect.focus() : document.getElementById('bc-pos-customer-type').focus();
       return;
     }
 
@@ -390,7 +416,9 @@
       posCart=[];
       document.getElementById('bc-pos-discount').value=0;
       document.getElementById('bc-pos-paid').value=0;
-      document.getElementById('bc-pos-customer').value='';
+      document.getElementById('bc-pos-customer-type').value='walk_in';
+      document.getElementById('bc-pos-registered-customer').value='';
+      document.getElementById('bc-pos-registered-customer-wrap').classList.add('hidden');
       renderBCPOS();
       focusBCBarcode();
     });
