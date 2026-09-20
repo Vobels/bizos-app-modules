@@ -576,6 +576,10 @@
         <div class="text-center text-xs text-gray-400">or paste from Excel below</div>
         <textarea id="bc-bulk-paste" rows="7" class="bc-input font-mono text-xs" placeholder="Name	Barcode	Cost Price	Selling Price	Stock	Category"></textarea>
         <div id="bc-bulk-status" class="hidden rounded-lg p-3 text-sm"></div>
+        <div id="bc-bulk-results" class="hidden rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div class="p-4 border-b border-gray-100"><p class="font-semibold text-gray-900">Import results</p><p id="bc-bulk-summary" class="text-sm text-gray-500 mt-1"></p></div>
+          <div id="bc-bulk-errors" class="hidden max-h-56 overflow-y-auto p-4 bg-red-50"></div>
+        </div>
         <div class="flex justify-end gap-3 pt-3 border-t border-gray-100"><button type="button" onclick="closeBCModals()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Cancel</button><button id="bc-bulk-submit" type="button" onclick="submitBCBulkImport()" class="px-5 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium">Add products</button></div>
       </div>
     </div>
@@ -757,16 +761,32 @@
     return rows.slice(1).filter(function(x){return x.some(function(v){return v!=='';});}).map(function(x){return{Name:get(x,'name'),Barcode:get(x,'barcode'),Cost_Price:get(x,'cost'),Selling_Price:get(x,'selling'),Stock_Qty:get(x,'stock'),Minimum_Stock:get(x,'minstock'),Category:get(x,'category'),Unit:get(x,'unit'),SKU:get(x,'sku'),Supplier:get(x,'supplier'),Location:get(x,'location')};});
   }
   window.submitBCBulkImport=function(){
-    var file=document.getElementById('bc-bulk-file').files[0],pasted=document.getElementById('bc-bulk-paste').value.trim(),status=document.getElementById('bc-bulk-status'),button=document.getElementById('bc-bulk-submit');
+    var file=document.getElementById('bc-bulk-file').files[0],pasted=document.getElementById('bc-bulk-paste').value.trim(),status=document.getElementById('bc-bulk-status'),results=document.getElementById('bc-bulk-results'),summary=document.getElementById('bc-bulk-summary'),errorsBox=document.getElementById('bc-bulk-errors'),button=document.getElementById('bc-bulk-submit');
+    function showError(message){
+      status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';
+      status.textContent=message;
+      results.classList.add('hidden');
+    }
     function send(text){
       var rows=bcRowsFromTable(text);
-      if(!rows.length){status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';status.textContent='Choose a CSV file or paste your product rows.';return;}
-      if(rows.length>1000){status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';status.textContent='Please add 1,000 products or fewer at a time.';return;}
+      if(!rows.length){showError('Choose a CSV file or paste your product rows.');return;}
+      if(rows.length>1000){showError('Please add 1,000 products or fewer at a time.');return;}
       button.disabled=true;button.textContent='Adding products…';
+      results.classList.add('hidden');
       bcCall('saveBusinessCenterProductsBulk',[rows],function(r){
         button.disabled=false;button.textContent='Add products';
-        if(!r||!r.success){status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';status.textContent=r&&r.message||'Could not add products.';return;}
-        status.className='rounded-lg p-3 text-sm bg-green-50 text-green-700';status.textContent=r.message+(r.skipped?' '+r.skipped+' row(s) skipped.':'')+(r.errors&&r.errors.length?' '+r.errors.slice(0,3).join(' '):'');
+        if(!r||!r.success){showError(r&&r.message||'Could not add products.');return;}
+        status.className='rounded-lg p-3 text-sm bg-green-50 text-green-700';
+        status.textContent=r.skipped?'Import completed with some rows skipped.':'Import completed successfully.';
+        summary.textContent=Number(r.imported||0)+' added · '+Number(r.skipped||0)+' skipped';
+        results.classList.remove('hidden');
+        if(r.errors&&r.errors.length){
+          errorsBox.className='max-h-56 overflow-y-auto p-4 bg-red-50';
+          errorsBox.innerHTML='<p class="text-sm font-semibold text-red-800 mb-2">Rows that need attention</p><ul class="space-y-1 text-sm text-red-700">'+r.errors.map(function(error){return '<li>• '+esc(error)+'</li>';}).join('')+'</ul>';
+        }else{
+          errorsBox.className='hidden';
+          errorsBox.innerHTML='';
+        }
         loadBusinessCenter();
       });
     }
