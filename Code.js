@@ -260,6 +260,10 @@ function doPost(e) {
       case 'getBusinessCenterSaleDetails':
         result = getBusinessCenterSaleDetails(payload[0] || '', sessionId);
         break;
+      case 'getBusinessCenterFinanceData':
+        result=getBusinessCenterFinanceData(sessionId); break;
+      case 'recordBusinessCenterExpense':
+        result=recordBusinessCenterExpense(payload[0]||{},sessionId); break;
       case 'getEnhancedDashboardData':
         const dashPeriod = payload[0] || 'this_month';
         result = getEnhancedDashboardData(dashPeriod, sessionId);
