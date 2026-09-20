@@ -144,6 +144,94 @@ function saveBusinessCenterProduct(data, sessionId) {
   }
 }
 
+
+function generateBusinessCenterBarcode_(existing) {
+  const used = {};
+  (existing || []).forEach(function(p) {
+    const b = String(p.Barcode || '').trim();
+    if (b) used[b] = true;
+  });
+  let code = '';
+  do {
+    code = '20' + String(Date.now()).slice(-8) + String(Math.floor(Math.random() * 100)).padStart(2, '0');
+  } while (used[code]);
+  return code;
+}
+
+function saveBusinessCenterProductsBulk(data, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, true);
+    if (!access.ok) return { success: false, message: access.message };
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) return { success: false, message: 'No products were supplied.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterSheets_(workspace);
+    const existing = businessCenterRows_(sheets.products);
+    const existingBarcodes = {};
+    existing.forEach(function(p) {
+      const b = String(p.Barcode || '').trim();
+      if (b) existingBarcodes[b] = true;
+    });
+
+    const user = access.user;
+    const now = new Date().toISOString();
+    const values = [];
+    const errors = [];
+    const seen = {};
+    rows.slice(0, 1000).forEach(function(item, index) {
+      item = item || {};
+      const name = String(item.Name || '').trim();
+      const selling = Number(item.Selling_Price || 0);
+      const stock = Number(item.Stock_Qty || 0);
+      if (!name) { errors.push('Row ' + (index + 2) + ': product name is required.'); return; }
+      if (!Number.isFinite(selling) || selling < 0) { errors.push('Row ' + (index + 2) + ': selling price is invalid.'); return; }
+      if (!Number.isFinite(stock) || stock < 0) { errors.push('Row ' + (index + 2) + ': stock is invalid.'); return; }
+
+      let barcode = String(item.Barcode || '').trim();
+      if (barcode) {
+        if (existingBarcodes[barcode] || seen[barcode]) {
+          errors.push('Row ' + (index + 2) + ': barcode ' + barcode + ' already exists.');
+          return;
+        }
+      } else {
+        barcode = generateBusinessCenterBarcode_(existing.concat(values.map(function(v) {
+          return { Barcode: v[3] };
+        })));
+      }
+      seen[barcode] = true;
+
+      const productId = 'PRD-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+      values.push(BUSINESS_CENTER_PRODUCT_HEADERS.map(function(header) {
+        if (header === 'Product_ID') return productId;
+        if (header === 'Barcode') return barcode;
+        if (header === 'Created_By') return user.email || user.name || '';
+        if (header === 'Created_At') return now;
+        if (header === 'Stock_Qty') return stock;
+        if (header === 'Minimum_Stock') return Math.max(0, Number(item.Minimum_Stock || 0));
+        if (header === 'Cost_Price') return Math.max(0, Number(item.Cost_Price || 0));
+        if (header === 'Selling_Price') return selling;
+        return item[header] === undefined || item[header] === null ? '' : item[header];
+      }));
+    });
+
+    if (values.length) {
+      sheets.products.getRange(sheets.products.getLastRow() + 1, 1, values.length, BUSINESS_CENTER_PRODUCT_HEADERS.length).setValues(values);
+    }
+    return {
+      success: true,
+      imported: values.length,
+      skipped: errors.length,
+      errors: errors.slice(0, 20),
+      message: values.length + ' product' + (values.length === 1 ? '' : 's') + ' added.'
+    };
+  } catch (error) {
+    console.error('Business Center bulk product import error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+
 function saveBusinessCenterCustomer(data, sessionId) {
   try {
     const access = businessCenterAccess_(sessionId, true);
