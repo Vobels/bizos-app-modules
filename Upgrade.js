@@ -66,6 +66,23 @@ function handleUpgradeRequest(upgradeData, sessionId) {
       }
     }
 
+    var latestRequest = getLatestUpgradeRequestForUser_(user.email);
+    if (latestRequest && latestRequest.status === 'pending_payment') {
+      var pendingPublicUrl = getPublicBizOSUrl_();
+      var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
+        '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier);
+      return {
+        success:true,
+        message:'You already have an upgrade in progress. Continue with your existing payment request.',
+        requestId:latestRequest.requestId,
+        paymentId:latestRequest.paymentId,
+        amount:latestRequest.amount,
+        currency:latestRequest.currency,
+        redirectUrl:pendingPaymentPageUrl,
+        resumed:true
+      };
+    }
+
     var certificateUrl = '';
     var uploadedCertificateName = '';
     if (certificateBase64 && certificateName) {
@@ -119,7 +136,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     // Payment stays on the public BizOS domain. Netlify /payment preserves
     // requestId and loads the Apps Script checkout inside the public shell.
     var publicUrl = getPublicBizOSUrl_();
-    var paymentPageUrl = publicUrl + '/payment?requestId=' + encodeURIComponent(requestId) +
+    var paymentPageUrl = publicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
 
     return {
@@ -134,6 +151,94 @@ function handleUpgradeRequest(upgradeData, sessionId) {
   } catch (error) {
     console.error('Upgrade request error:', error);
     return {success:false, message:error.message || 'An error occurred. Please try again.'};
+  }
+}
+
+
+/**
+ * Return the latest upgrade request for an authenticated user, regardless of status.
+ * The latest row is authoritative: only a latest pending_payment request can
+ * be resumed or block creation of a new request.
+ */
+function getLatestUpgradeRequestForUser_(email) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+    if (!sheet) return null;
+    var data = sheet.getDataRange().getValues();
+    if (data.length < 2) return null;
+    var headers = data[0];
+    var emailCol = headers.indexOf('Email');
+    var statusCol = headers.indexOf('Status');
+    var requestIdCol = headers.indexOf('Request_ID');
+    var paymentIdCol = headers.indexOf('Payment_ID');
+    var workspaceEmailCol = headers.indexOf('Workspace_Email');
+    var businessNameCol = headers.indexOf('Business_Name');
+    var tierCol = headers.indexOf('Tier');
+    var amountCol = headers.indexOf('Amount');
+    var currencyCol = headers.indexOf('Currency');
+    var countryCol = headers.indexOf('Country');
+    var createdAtCol = headers.indexOf('Created_At');
+    if (emailCol === -1 || statusCol === -1 || requestIdCol === -1) return null;
+
+    var targetEmail = String(email || '').trim().toLowerCase();
+    if (!targetEmail) return null;
+
+    for (var i = data.length - 1; i >= 1; i--) {
+      var rowEmail = String(data[i][emailCol] || '').trim().toLowerCase();
+      var status = String(data[i][statusCol] || '').trim().toLowerCase();
+      if (rowEmail === targetEmail) {
+        return {
+          requestId: requestIdCol !== -1 ? String(data[i][requestIdCol] || '') : '',
+          paymentId: paymentIdCol !== -1 ? String(data[i][paymentIdCol] || '') : '',
+          workspaceEmail: workspaceEmailCol !== -1 ? String(data[i][workspaceEmailCol] || '') : '',
+          businessName: businessNameCol !== -1 ? String(data[i][businessNameCol] || '') : '',
+          tier: tierCol !== -1 ? String(data[i][tierCol] || 'sovereign') : 'sovereign',
+          amount: amountCol !== -1 ? data[i][amountCol] : '',
+          currency: currencyCol !== -1 ? String(data[i][currencyCol] || '') : '',
+          country: countryCol !== -1 ? String(data[i][countryCol] || '') : '',
+          createdAt: createdAtCol !== -1 ? data[i][createdAtCol] : '',
+          status: status
+        };
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('getLatestUpgradeRequestForUser_ error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get the authenticated user's latest upgrade. A pending upgrade is
+ * resumable only when it is the latest request for that account.
+ */
+function getPendingUpgradeRequestStatus(businessId, sessionId) {
+  try {
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false, message:'Session expired. Please login again.'};
+    if (businessId && user.businessId && String(businessId) !== String(user.businessId)) {
+      return {success:false, message:'Business does not match the current session.'};
+    }
+    var latestRequest = getLatestUpgradeRequestForUser_(user.email);
+    if (!latestRequest || latestRequest.status !== 'pending_payment') return {success:true, hasPending:false};
+    var pending = latestRequest;
+    return {
+      success:true,
+      hasPending:true,
+      requestId:pending.requestId,
+      paymentId:pending.paymentId,
+      businessName:pending.businessName || user.businessName || '',
+      tier:pending.tier || 'sovereign',
+      amount:pending.amount,
+      currency:pending.currency,
+      country:pending.country,
+      workspaceEmail:pending.workspaceEmail,
+      createdAt:pending.createdAt,
+      status:pending.status
+    };
+  } catch (error) {
+    console.error('getPendingUpgradeRequestStatus error:', error);
+    return {success:false, message:error.message || 'Unable to check upgrade status.'};
   }
 }
 
