@@ -227,6 +227,9 @@ function doPost(e) {
       case 'saveBusinessCenterProduct':
         result = saveBusinessCenterProduct(payload[0] || {}, sessionId);
         break;
+      case 'saveBusinessCenterProductsBulk':
+        result = saveBusinessCenterProductsBulk(payload[0] || [], sessionId);
+        break;
       case 'saveBusinessCenterCustomer':
         result = saveBusinessCenterCustomer(payload[0] || {}, sessionId);
         break;
