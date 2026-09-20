@@ -222,10 +222,10 @@ function doPost(e) {
       
       // Business Center Part 1
       case 'getBusinessCenterData':
-  case 'getBusinessCenterProductImages':
-    result = getBusinessCenterProductImages(payload[0] || [], sessionId);
-    break;
         result = getBusinessCenterData(sessionId);
+        break;
+      case 'getBusinessCenterProductImages':
+        result = getBusinessCenterProductImages(payload[0] || [], sessionId);
         break;
       case 'saveBusinessCenterProduct':
         result = saveBusinessCenterProduct(payload[0] || {}, sessionId);
