@@ -845,9 +845,20 @@ function getBusinessCenterSales(payload, sessionId) {
     if (!access.ok) return { success: false, message: access.message };
     const workspace = getWorkspaceFile(sessionId);
     const sheets = getBusinessCenterPOSSheets_(workspace);
-    const rows = businessCenterRows_(sheets.sales).reverse();
     const limit = Math.min(Math.max(Number((payload || {}).limit || 100), 1), 500);
-    return { success: true, sales: rows.slice(0, limit) };
+    const sheet = sheets.sales;
+    if (!sheet || sheet.getLastRow() < 2) return { success: true, sales: [] };
+    const lastRow = sheet.getLastRow();
+    const headerCount = sheet.getLastColumn();
+    const startRow = Math.max(2, lastRow - limit + 1);
+    const values = sheet.getRange(startRow, 1, lastRow - startRow + 1, headerCount).getValues();
+    const headers = sheet.getRange(1, 1, 1, headerCount).getValues()[0];
+    const rows = values.reverse().map(function(row) {
+      const item = {};
+      headers.forEach(function(header, i) { item[header] = row[i]; });
+      return item;
+    });
+    return { success: true, sales: rows };
   } catch (error) {
     console.error('Business Center sales history error:', error);
     return { success: false, message: error.message };
