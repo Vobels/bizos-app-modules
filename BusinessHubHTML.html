@@ -753,17 +753,26 @@
   window.openBCExpenseForm=function(){document.getElementById('bc-expense-date').value=new Date().toISOString().slice(0,10);var m=document.getElementById('bc-expense-modal');m.classList.remove('hidden');m.classList.add('flex');};
   window.closeBCExpenseForm=function(){var m=document.getElementById('bc-expense-modal');m.classList.add('hidden');m.classList.remove('flex');};
   window.submitBCExpense=function(e){e.preventDefault();var b=document.getElementById('bc-expense-submit');b.disabled=true;b.textContent='Saving...';var data={Amount:document.getElementById('bc-expense-amount').value,Category:document.getElementById('bc-expense-category').value,Description:document.getElementById('bc-expense-description').value,Payment_Method:document.getElementById('bc-expense-payment').value,Date:document.getElementById('bc-expense-date').value};bcCall('recordBusinessCenterExpense',[data],function(r){b.disabled=false;b.textContent='Save expense';if(!r||!r.success){alert((r&&r.message)||'Could not record expense.');return;}closeBCExpenseForm();document.getElementById('bc-expense-amount').value='';document.getElementById('bc-expense-category').value='';document.getElementById('bc-expense-description').value='';loadBCFinance();});};
+  var bcCoreLoading=false,bcCoreQueue=[];
   function refreshBCCore_(done){
+    if(bcCoreLoading){if(done)bcCoreQueue.push(done);return;}
+    bcCoreLoading=true;
     bcCall('getBusinessCenterData',[],function(result){
-      if(!result||!result.success){if(done)done(false);else alert(result&&result.message||'Could not load Business Center.');return;}
-      bcData=result;
-      window.__bcDataForLedger=result.customers||[];
-      document.getElementById('bc-stat-products').textContent=result.summary.products;
-      document.getElementById('bc-stat-customers').textContent=result.summary.customers;
-      document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;
-      document.getElementById('bc-stat-low').textContent=result.summary.lowStock;
-      renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();loadBCCustomerLedgerCustomers();
-      if(done)done(true);
+      var ok=!!(result&&result.success);
+      if(ok){
+        bcData=result;
+        window.__bcDataForLedger=result.customers||[];
+        document.getElementById('bc-stat-products').textContent=result.summary.products;
+        document.getElementById('bc-stat-customers').textContent=result.summary.customers;
+        document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;
+        document.getElementById('bc-stat-low').textContent=result.summary.lowStock;
+        renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();loadBCCustomerLedgerCustomers();
+      }
+      bcCoreLoading=false;
+      var callbacks=bcCoreQueue.splice(0);
+      if(done)callbacks.unshift(done);
+      callbacks.forEach(function(cb){cb(ok);});
+      if(!ok&&!done)alert(result&&result.message||'Could not load Business Center.');
     });
   }
   window.refreshBusinessCenterCore=function(done){refreshBCCore_(done);};
