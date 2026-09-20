@@ -114,7 +114,12 @@ function saveBusinessCenterProduct(data, sessionId) {
 
     const workspace = getWorkspaceFile(sessionId);
     const sheets = getBusinessCenterSheets_(workspace);
+    const existingProducts = businessCenterRows_(sheets.products);
     const productId = 'PRD-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+    const barcode = String(data.Barcode || '').trim() || generateBusinessCenterBarcode_(existingProducts);
+    if (existingProducts.some(function(p) { return String(p.Barcode || '').trim() === barcode; })) {
+      return { success: false, message: 'That barcode is already used by another product.' };
+    }
     let imageFileId = '';
 
     if (data.Image_Data) {
@@ -131,6 +136,7 @@ function saveBusinessCenterProduct(data, sessionId) {
     const row = BUSINESS_CENTER_PRODUCT_HEADERS.map(function(header) {
       if (header === 'Product_ID') return productId;
       if (header === 'Image_File_ID') return imageFileId;
+      if (header === 'Barcode') return barcode;
       if (header === 'Created_By') return user.email || user.name || '';
       if (header === 'Created_At') return new Date().toISOString();
       const value = data[header];
