@@ -85,13 +85,13 @@
 
         <div class="mt-6 pt-5 border-t border-white/10 space-y-3">
           <label class="block text-xs text-gray-400">Customer
-            <select id="bc-pos-customer" onchange="bcPOSCustomerChanged()" class="mt-1.5 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white bg-gray-900 outline-none focus:border-white/40">
+            <select id="bc-pos-customer" onchange="bcPOSCustomerChanged()" style="color:#111827;background:#ffffff;color-scheme:light" class="mt-1.5 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-gray-900 bg-white outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10">
               <option value="" class="text-gray-900 bg-white">Walk-in customer</option>
             </select>
           </label>
 
           <label class="block text-xs text-gray-400">Payment method
-            <select id="bc-pos-payment" class="mt-1.5 w-full px-3 py-2.5 bg-white/10 border border-white/10 rounded-lg text-white bg-gray-900 outline-none">
+            <select id="bc-pos-payment" style="color:#111827;background:#ffffff;color-scheme:light" class="mt-1.5 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-gray-900 bg-white outline-none focus:border-[#5D2A86] focus:ring-2 focus:ring-[#5D2A86]/10">
               <option>Cash</option><option>Bank Transfer</option><option>Debit Card</option><option>Credit Card</option><option>Mobile Money</option>
             </select>
           </label>
@@ -146,13 +146,18 @@
     document.title='Sell Products - BizOS';
     posCart=[];
     window.__bcDataForPOS=[];
-    if(typeof loadBusinessCenter==='function')loadBusinessCenter();
+    window.__bcCustomersForPOS=[];
+    renderBCPOSCustomers();
+    if(typeof loadBusinessCenter==='function'){
+      loadBusinessCenter();
+    }
+    // Load POS data directly as well, but use the same customer records returned by Business Center.
     posCall('getBusinessCenterData',[],function(r){
       if(r&&r.success){
         window.__bcDataForPOS=r.products||[];
-        window.__bcCustomersForPOS=r.customers||[];
+        window.__bcCustomersForPOS=Array.isArray(r.customers)?r.customers:[];
         renderBCPOSCustomers();
-      } else if(r&&!r.success)alert(r.message||'Could not load products.');
+      } else if(r&&!r.success)alert(r.message||'Could not load products and customers.');
     });
     renderBCPOS();
     setTimeout(focusBCBarcode,100);
@@ -185,13 +190,17 @@
   function renderBCPOSCustomers(){
     var select=document.getElementById('bc-pos-customer');
     if(!select)return;
-    var customers=window.__bcCustomersForPOS||[];
-    select.innerHTML='<option value="" class="text-gray-900 bg-white">Walk-in customer</option>'+customers.map(function(c){
+    var customers=Array.isArray(window.__bcCustomersForPOS)?window.__bcCustomersForPOS:[];
+    // Keep the native dropdown readable across browsers/OS themes.
+    select.style.color='#111827';
+    select.style.backgroundColor='#ffffff';
+    select.style.colorScheme='light';
+    select.innerHTML='<option value="" style="color:#111827;background:#ffffff">Walk-in customer</option>'+customers.map(function(c){
       var label=String(c.Name||'Customer');
       if(c.Phone)label+=' · '+String(c.Phone);
       var balance=Number(c.Balance||0);
       if(balance>0)label+=' · owes '+money(balance);
-      return '<option value="'+esc(c.Customer_ID)+'" class="text-gray-900 bg-white">'+esc(label)+'</option>';
+      return '<option value="'+esc(c.Customer_ID)+'" style="color:#111827;background:#ffffff">'+esc(label)+'</option>';
     }).join('');
   }
 
