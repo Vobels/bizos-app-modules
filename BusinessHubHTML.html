@@ -445,12 +445,16 @@
       <div class="bg-white border border-gray-200 p-5 rounded-xl"><p class="text-xs text-gray-500 uppercase tracking-wide">Stock units</p><p id="bc-stat-stock" class="text-2xl font-semibold mt-2">0</p></div>
       <div class="bg-white border border-gray-200 p-5 rounded-xl"><p class="text-xs text-gray-500 uppercase tracking-wide">Low stock</p><p id="bc-stat-low" class="text-2xl font-semibold mt-2">0</p></div>
     </div>
-    <div class="flex items-center gap-2 border-b border-gray-200 mb-6">
-      <button id="bc-tab-overview" onclick="switchBCTab('overview')" class="px-1 pb-3 mr-5 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]">Overview</button>
-      <button id="bc-tab-products" onclick="switchBCTab('products')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Products</button>
-      <button id="bc-tab-customers" onclick="switchBCTab('customers')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customers</button>
-      <button id="bc-tab-sales" onclick="switchBCTab('sales')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Sales</button>
-      <button id="bc-tab-ledger" onclick="switchBCTab('ledger')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customer Ledger</button><button id="bc-tab-finance" onclick="switchBCTab('finance')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Finance</button><button id="bc-tab-inventory" onclick="switchBCTab('inventory')" class="px-1 pb-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Inventory</button>
+    <div class="sticky top-0 z-30 bg-[#f7f7f8]/95 backdrop-blur border-b border-gray-200 mb-6">
+      <div id="bc-tab-scroll" class="flex items-center gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap -mx-4 px-4 sm:-mx-0 sm:px-0" style="-webkit-overflow-scrolling:touch;scrollbar-width:none;">
+        <button id="bc-tab-overview" onclick="switchBCTab('overview')" class="shrink-0 px-3 py-3 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]">Overview</button>
+        <button id="bc-tab-products" onclick="switchBCTab('products')" class="shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Products</button>
+        <button id="bc-tab-customers" onclick="switchBCTab('customers')" class="shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customers</button>
+        <button id="bc-tab-sales" onclick="switchBCTab('sales')" class="shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Sales</button>
+        <button id="bc-tab-ledger" onclick="switchBCTab('ledger')" class="shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customer Ledger</button>
+        <button id="bc-tab-finance" onclick="switchBCTab('finance')" class="shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Finance</button>
+        <button id="bc-tab-inventory" onclick="switchBCTab('inventory')" class="shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Inventory</button>
+      </div>
     </div>
     <section id="bc-overview">
       <div class="mb-6 bg-white border border-gray-200 rounded-xl p-5">
@@ -937,7 +941,7 @@
           errorsBox.className='hidden';
           errorsBox.innerHTML='';
         }
-        loadBusinessCenter();
+        refreshBCCore_();
       });
     }
     if(file){var reader=new FileReader();reader.onload=function(){send(String(reader.result||''));};reader.readAsText(file);}else send(pasted);
