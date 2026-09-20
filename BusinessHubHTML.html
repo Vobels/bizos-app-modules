@@ -186,12 +186,12 @@
     var select=document.getElementById('bc-pos-customer');
     if(!select)return;
     var customers=window.__bcCustomersForPOS||[];
-    select.innerHTML='<option value="">Walk-in customer</option>'+customers.map(function(c){
+    select.innerHTML='<option value="" class="text-gray-900 bg-white">Walk-in customer</option>'+customers.map(function(c){
       var label=String(c.Name||'Customer');
       if(c.Phone)label+=' · '+String(c.Phone);
       var balance=Number(c.Balance||0);
       if(balance>0)label+=' · owes '+money(balance);
-      return '<option value="'+esc(c.Customer_ID)+'">'+esc(label)+'</option>';
+      return '<option value="'+esc(c.Customer_ID)+'" class="text-gray-900 bg-white">'+esc(label)+'</option>';
     }).join('');
   }
 
