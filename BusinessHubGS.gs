@@ -405,6 +405,172 @@ function completeBusinessCenterSale(data, sessionId) {
 }
 
 
+
+// ==================== BUSINESS CENTER PART 4: CUSTOMER LEDGER ====================
+
+const BUSINESS_CENTER_LEDGER_HEADERS = [
+  'Entry_ID','Date','Customer_ID','Customer_Name','Type','Reference_ID',
+  'Description','Debit','Credit','Balance','Created_By','Created_At'
+];
+
+function getBusinessCenterLedgerSheet_(workspace) {
+  let sheet = workspace.getSheetByName('BusinessCenter_Customer_Ledger');
+  if (!sheet) {
+    sheet = workspace.insertSheet('BusinessCenter_Customer_Ledger');
+    sheet.getRange(1, 1, 1, BUSINESS_CENTER_LEDGER_HEADERS.length).setValues([BUSINESS_CENTER_LEDGER_HEADERS]);
+  }
+  return sheet;
+}
+
+function getBusinessCenterCustomerLedger(customerId, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    customerId = String(customerId || '').trim();
+    if (!customerId) return { success: false, message: 'Customer is required.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterPOSSheets_(workspace);
+    const ledgerSheet = getBusinessCenterLedgerSheet_(workspace);
+    const customers = businessCenterRows_(sheets.customers);
+    const customer = customers.find(function(row) {
+      return String(row.Customer_ID || '') === customerId;
+    });
+    if (!customer) return { success: false, message: 'Customer not found.' };
+
+    const entries = [];
+
+    businessCenterRows_(sheets.sales).forEach(function(sale) {
+      if (String(sale.Customer_ID || '') !== customerId) return;
+      const balanceDue = Number(sale.Balance_Due || 0);
+      if (balanceDue <= 0) return;
+      entries.push({
+        Entry_ID: 'SALE-' + String(sale.Sale_ID || ''),
+        Date: sale.Date || sale.Created_At || '',
+        Customer_ID: customerId,
+        Customer_Name: sale.Customer_Name || customer.Name || '',
+        Type: 'Sale',
+        Reference_ID: sale.Sale_ID || '',
+        Description: 'Credit sale',
+        Debit: balanceDue,
+        Credit: 0,
+        Created_By: sale.Created_By || '',
+        Created_At: sale.Created_At || ''
+      });
+    });
+
+    businessCenterRows_(ledgerSheet).forEach(function(row) {
+      if (String(row.Customer_ID || '') !== customerId) return;
+      entries.push({
+        Entry_ID: row.Entry_ID || '',
+        Date: row.Date || row.Created_At || '',
+        Customer_ID: customerId,
+        Customer_Name: row.Customer_Name || customer.Name || '',
+        Type: row.Type || 'Payment',
+        Reference_ID: row.Reference_ID || '',
+        Description: row.Description || '',
+        Debit: Number(row.Debit || 0),
+        Credit: Number(row.Credit || 0),
+        Created_By: row.Created_By || '',
+        Created_At: row.Created_At || ''
+      });
+    });
+
+    entries.sort(function(a, b) {
+      return new Date(a.Created_At || a.Date || 0).getTime() - new Date(b.Created_At || b.Date || 0).getTime();
+    });
+
+    let running = 0;
+    entries.forEach(function(entry) {
+      running += Number(entry.Debit || 0) - Number(entry.Credit || 0);
+      entry.Balance = running;
+    });
+
+    return {
+      success: true,
+      customer: customer,
+      entries: entries.reverse(),
+      summary: {
+        totalDebit: entries.reduce(function(t, e) { return t + Number(e.Debit || 0); }, 0),
+        totalCredit: entries.reduce(function(t, e) { return t + Number(e.Credit || 0); }, 0),
+        balance: Number(customer.Balance || 0)
+      }
+    };
+  } catch (error) {
+    console.error('Business Center customer ledger error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+function recordBusinessCenterCustomerPayment(data, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, true);
+    if (!access.ok) return { success: false, message: access.message };
+    data = data || {};
+    const customerId = String(data.Customer_ID || '').trim();
+    const amount = Number(data.Amount || 0);
+    if (!customerId) return { success: false, message: 'Customer is required.' };
+    if (!Number.isFinite(amount) || amount <= 0) return { success: false, message: 'Enter a valid payment amount.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterPOSSheets_(workspace);
+    const customers = sheets.customers;
+    const values = customers.getDataRange().getValues();
+    const headers = values[0] || [];
+    const idCol = headers.indexOf('Customer_ID');
+    const balanceCol = headers.indexOf('Balance');
+    const nameCol = headers.indexOf('Name');
+    if (idCol < 0 || balanceCol < 0) throw new Error('Customer schema is missing required fields.');
+
+    let rowIndex = -1;
+    let currentBalance = 0;
+    let customerName = '';
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][idCol] || '') === customerId) {
+        rowIndex = i;
+        currentBalance = Number(values[i][balanceCol] || 0);
+        customerName = String(values[i][nameCol] || '');
+        break;
+      }
+    }
+    if (rowIndex < 1) return { success: false, message: 'Customer not found.' };
+    if (currentBalance <= 0) return { success: false, message: 'This customer has no outstanding balance.' };
+    if (amount > currentBalance) return { success: false, message: 'Payment cannot be greater than the outstanding balance.' };
+
+    const now = new Date().toISOString();
+    const entryId = 'PAY-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+    const ledger = getBusinessCenterLedgerSheet_(workspace);
+    ledger.appendRow([
+      entryId,
+      data.Date || now.split('T')[0],
+      customerId,
+      customerName,
+      'Payment',
+      entryId,
+      String(data.Description || 'Customer payment'),
+      0,
+      amount,
+      currentBalance - amount,
+      access.user.email || access.user.name || '',
+      now
+    ]);
+
+    customers.getRange(rowIndex + 1, balanceCol + 1).setValue(currentBalance - amount);
+
+    return {
+      success: true,
+      entryId: entryId,
+      customerId: customerId,
+      amount: amount,
+      balance: currentBalance - amount,
+      message: 'Customer payment recorded successfully.'
+    };
+  } catch (error) {
+    console.error('Business Center customer payment error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
 // ==================== BUSINESS CENTER PART 3: SALES HISTORY + RECEIPTS ====================
 
 function getBusinessCenterSales(payload, sessionId) {
