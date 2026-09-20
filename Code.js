@@ -224,6 +224,9 @@ function doPost(e) {
       case 'getBusinessCenterData':
         result = getBusinessCenterData(sessionId);
         break;
+      case 'getBusinessCenterProductImages':
+        result = getBusinessCenterProductImages(payload[0] || [], sessionId);
+        break;
       case 'saveBusinessCenterProduct':
         result = saveBusinessCenterProduct(payload[0] || {}, sessionId);
         break;
