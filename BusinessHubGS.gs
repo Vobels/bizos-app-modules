@@ -16,18 +16,30 @@ const BUSINESS_CENTER_CUSTOMER_HEADERS = [
 function businessCenterAccess_(sessionId, write) {
   const user = getUserFromSession(sessionId);
   if (!user) return { ok: false, message: 'Session expired. Please login again.' };
-  if (!userHasAccess('Ecommerce', sessionId)) {
+
+  const role = String(user.role || 'staff').toLowerCase();
+  const accessibleModules = Array.isArray(user.accessibleModules) ? user.accessibleModules : [];
+  const hasEcommerceAccess = accessibleModules.indexOf('Ecommerce') !== -1;
+
+  // Business Center is tied to the Ecommerce module. The server-side
+  // module entitlement remains authoritative for both viewing and writing.
+  if (!hasEcommerceAccess) {
     return { ok: false, message: 'Business Center is not available for this account.' };
   }
+
   if (write) {
-    const role = user.role || 'staff';
-    if (role !== 'owner' && role !== 'admin') {
-      return { ok: false, message: 'You have view-only access to Business Center.' };
-    }
+    // Demo accounts remain read-only regardless of role/module entitlement.
     if (user.isDemo === 'YES') {
       return { ok: false, message: 'Demo accounts are view-only.' };
     }
+
+    // Owners/admins retain full Business Center write access.
+    // Staff can write when Ecommerce/Business Center is assigned to them.
+    if (role !== 'owner' && role !== 'admin' && role !== 'staff') {
+      return { ok: false, message: 'You have view-only access to Business Center.' };
+    }
   }
+
   return { ok: true, user: user };
 }
 
