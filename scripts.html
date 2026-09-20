@@ -6010,6 +6010,9 @@ window.loadNotificationsForDropdown = loadNotificationsForDropdown;
   window.showForgotPassword = showForgotPassword;
   window.closeForgotModal = closeForgotModal;
   window.showDashboardHome = showDashboardHome;
+  // Business Center is defined by BusinessHubHTML and loaded before this file.
+  // Keep an explicit global reference so sidebar navigation always resolves it.
+  if (typeof window.showBusinessCenter === 'function') window.showBusinessCenter = window.showBusinessCenter;
   window.showAppsPage = showAppsPage;
   window.loadAllApps = loadAllApps;
   window.loadFeaturedApps = loadFeaturedApps;
