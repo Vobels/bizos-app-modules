@@ -395,6 +395,26 @@
       <button id="bc-tab-inventory" onclick="switchBCTab('inventory')" class="px-1 pb-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Inventory</button>
     </div>
     <section id="bc-overview">
+      <div class="mb-6 bg-white border border-gray-200 rounded-xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold">Connected business data</h2>
+            <p class="text-sm text-gray-500 mt-1">Business Center can safely read your existing Ecommerce and CRM records without changing them.</p>
+          </div>
+          <button onclick="loadBCConnectedData()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Refresh connection</button>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-3 mt-4">
+          <div class="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+            <p class="text-xs text-gray-500">Ecommerce records</p>
+            <p id="bc-connected-ecommerce" class="text-lg font-semibold mt-1">—</p>
+          </div>
+          <div class="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+            <p class="text-xs text-gray-500">CRM records</p>
+            <p id="bc-connected-crm" class="text-lg font-semibold mt-1">—</p>
+          </div>
+        </div>
+      </div>
+
       <div class="grid lg:grid-cols-[1.4fr_0.6fr] gap-6">
         <div class="bg-white border border-gray-200 rounded-xl p-6">
           <div class="flex items-center justify-between mb-5"><div><h2 class="text-lg font-semibold">Product catalog</h2><p class="text-sm text-gray-500 mt-1">Build the catalog that POS and online selling will use.</p></div><button onclick="switchBCTab('products')" class="text-sm text-[#5D2A86] font-medium">View products</button></div>
@@ -492,7 +512,19 @@
   function bcCall(action,payload,done){if(typeof window.callGoogleScript==='function'){window.callGoogleScript(action,payload||[],done,function(err){alert((err&&err.message)||'Something went wrong.');});}else alert('BizOS is still loading. Please try again.');}
   window.showBusinessCenter=function(){['landing-page','dashboard-page','profile-page','settings-page','staff-page','cms-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});var page=document.getElementById('business-center-page');if(page)page.classList.remove('hidden');document.title='Business Center - BizOS';loadBusinessCenter();};
   window.closeBusinessCenter=function(){var page=document.getElementById('business-center-page');if(page)page.classList.add('hidden');if(typeof showDashboardHome==='function')showDashboardHome();};
-  window.loadBusinessCenter=function(){bcCall('getBusinessCenterData',[],function(result){if(!result||!result.success){alert(result&&result.message||'Could not load Business Center.');return;}bcData=result;document.getElementById('bc-stat-products').textContent=result.summary.products;document.getElementById('bc-stat-customers').textContent=result.summary.customers;document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;document.getElementById('bc-stat-low').textContent=result.summary.lowStock;renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();});};
+  window.loadBCConnectedData=function(){
+    bcCall('getBusinessCenterConnectedData',[],function(result){
+      if(!result||!result.success)return;
+      var ecommerce=result.sources&&result.sources.ecommerce;
+      var crm=result.sources&&result.sources.crm;
+      var e=document.getElementById('bc-connected-ecommerce');
+      var c=document.getElementById('bc-connected-crm');
+      if(e)e.textContent=ecommerce&&ecommerce.connected?String(ecommerce.count):'Not available';
+      if(c)c.textContent=crm&&crm.connected?String(crm.count):'Not available';
+    });
+  };
+
+  window.loadBusinessCenter=function(){bcCall('getBusinessCenterData',[],function(result){if(!result||!result.success){alert(result&&result.message||'Could not load Business Center.');return;}bcData=result;document.getElementById('bc-stat-products').textContent=result.summary.products;document.getElementById('bc-stat-customers').textContent=result.summary.customers;document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;document.getElementById('bc-stat-low').textContent=result.summary.lowStock;renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();loadBCConnectedData();});};
   window.switchBCTab=function(tab){['overview','products','customers','inventory'].forEach(function(name){document.getElementById('bc-'+name).classList.toggle('hidden',name!==tab);var btn=document.getElementById('bc-tab-'+name);btn.className=name===tab?'px-1 pb-3 mr-5 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]':'px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent';});};
   function productCard(p){var image=p.Image_Data?'<img src="'+p.Image_Data+'" class="h-full w-full object-cover">':'<div class="h-full w-full flex items-center justify-center text-gray-300"><i class="fas fa-box text-2xl"></i></div>';return '<div class="group border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-gray-300 transition"><div class="aspect-square bg-gray-50">'+image+'</div><div class="p-3"><p class="font-medium text-sm truncate">'+esc(p.Name)+'</p><p class="text-xs text-gray-500 mt-1">'+money(p.Selling_Price)+' · '+Number(p.Stock_Qty||0)+' in stock</p><p class="text-[11px] text-gray-400 mt-1 truncate">'+esc(p.Barcode||p.SKU||'No barcode yet')+'</p><div class="flex gap-2 mt-3"><button onclick="openBCEditProduct(\\''+esc(p.Product_ID)+'\\')" class="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50">Edit</button><button onclick="openBCStockModal(\\''+esc(p.Product_ID)+'\\')" class="flex-1 px-2.5 py-2 bg-gray-950 text-white rounded-lg text-xs font-medium hover:bg-gray-800">Stock</button></div></div></div>';}
   window.renderBCProducts=function(){var q=(document.getElementById('bc-product-search')||{}).value||'';q=q.toLowerCase().trim();var products=bcData.products.filter(function(p){return !q||[p.Name,p.Barcode,p.SKU,p.Category].join(' ').toLowerCase().includes(q);});document.getElementById('bc-products-grid').innerHTML=products.map(productCard).join('');document.getElementById('bc-products-empty').classList.toggle('hidden',products.length!==0);};
