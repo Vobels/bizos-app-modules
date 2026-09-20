@@ -41,33 +41,55 @@ function autoSetupClientSafe(paymentData, skipLock) {
     existingBusiness = getBusinessByEmail(paymentData.email);
     businessId = existingBusiness ? existingBusiness.businessId : clientId;
     console.log('SAFE STEP 1: Creating workspace:', clientId);
-    sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:'7.0'});
+    sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:'10.0'});
     if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
 
-    // The workspace creator establishes the initial sheets. Run the canonical
-    // guard immediately afterward so provisioning cannot leave a workspace
-    // with missing/out-of-order headings, and so future schema additions can
-    // be repaired without attaching data to the wrong field.
     console.log('SAFE STEP 1B: Verifying canonical workspace database schema');
     var schemaResult = ensureBizOSClientWorkspace(sheetResult.sheetId,clientId,businessId,businessName,paymentData.email);
     if (!schemaResult || !schemaResult.success) {
       cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
-      return {success:false,code:'WORKSPACE_SCHEMA_FAILED',message:'Client workspace was created, but its database schema could not be verified: '+((schemaResult&&schemaResult.message)||'Unknown schema error'),clientId:clientId,cleanedUp:true};
+      return {success:false,code:'WORKSPACE_SCHEMA_FAILED',message:'Client workspace was created, but its database schema could not be verified: '+((schemaResult&&schemaResult.message)||'Unknown error'),clientId:clientId,cleanedUp:true};
     }
 
-    console.log('SAFE STEP 2: Generating V7 client package with client-scoped team management');
-    var clientCode = generateClientCodeSafelyV7({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
+    // Existing free users already have a business workspace. Move their
+    // Finance + Ecommerce records into the paid workspace before deployment.
+    // The migration is idempotent and only runs when a real source workspace exists.
+    var sourceWorkspaceId = existingBusiness && (existingBusiness.workspaceId || existingBusiness.Workspace_ID || existingBusiness.workspaceID);
+    if (sourceWorkspaceId && String(sourceWorkspaceId) !== String(sheetResult.sheetId)) {
+      console.log('SAFE STEP 1C: Migrating free Finance + Ecommerce data from:', sourceWorkspaceId);
+      var migrationResult = migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId,sheetResult.sheetId,businessId,businessName,paymentData.email);
+      if (!migrationResult || !migrationResult.success) {
+        cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
+        return {success:false,code:'FREE_DATA_MIGRATION_FAILED',message:'Your paid workspace was created, but your existing free-workspace data could not be migrated. No paid workspace was activated.',clientId:clientId,cleanedUp:true,migration:migrationResult};
+      }
+      console.log('SAFE STEP 1C COMPLETE:',JSON.stringify(migrationResult));
+    } else {
+      console.log('SAFE STEP 1C: No separate free workspace found; no data migration required.');
+    }
+
+    console.log('SAFE STEP 2: Generating V10 client package with self-service staff invitations');
+    var clientCode = generateClientCodeSafelyV10({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
     if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
     var packageCheck = validateClientDeploymentPackage_(clientCode,{clientId:clientId,sheetId:sheetResult.sheetId});
     if (!packageCheck || !packageCheck.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); return {success:false,code:packageCheck&&packageCheck.code?packageCheck.code:'PACKAGE_INVALID',message:packageCheck&&packageCheck.message?packageCheck.message:'Generated client package failed validation.',clientId:clientId,cleanedUp:true}; }
-    console.log('SAFE STEP 3: Publishing exact V7 package');
+    console.log('SAFE STEP 3: Publishing exact V10 package');
     scriptResult = createAndDeployClientScriptSafe(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor || '#2E7D32',paymentData.logoUrl || '');
     if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) { var deploymentMessage=scriptResult&&scriptResult.message?scriptResult.message:'The client application could not be deployed.'; cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: '+deploymentMessage,clientId:clientId,cleanedUp:true}; }
     console.log('SAFE STEP 4: Saving full registry metadata');
-    var saveResult = saveClientRecordV2({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain || paymentData.customDomain || '',customDomain:paymentData.customDomain || '',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',tier:paymentData.tier || 'sovereign',status:'active',sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,provisioningVersion:'7.0'});
+    var saveResult = saveClientRecordV2({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain || paymentData.customDomain || '',customDomain:paymentData.customDomain || '',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',tier:paymentData.tier || 'sovereign',status:'active',sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,provisioningVersion:'10.0'});
     if (!saveResult || !saveResult.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true}; }
-    committed=true;
-    if (existingBusiness && businessId) updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
+
+    // The paid client is now committed. Registry sync is secondary metadata;
+    // a sync failure must not turn a successfully provisioned client into a
+    // provisioning_failed upgrade state or trigger a duplicate retry.
+    committed = true;
+    if (existingBusiness && businessId) {
+      try {
+        updateBusinessWithClientInfo(businessId,clientId,scriptResult.webAppUrl);
+      } catch (syncError) {
+        console.error('Business registry sync failed after successful provisioning:', syncError);
+      }
+    }
     try { sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
     return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
   } catch(error) {
