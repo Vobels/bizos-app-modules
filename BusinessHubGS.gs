@@ -405,6 +405,48 @@ function completeBusinessCenterSale(data, sessionId) {
 }
 
 
+// ==================== BUSINESS CENTER PART 3: SALES HISTORY + RECEIPTS ====================
+
+function getBusinessCenterSales(payload, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterPOSSheets_(workspace);
+    const rows = businessCenterRows_(sheets.sales).reverse();
+    const limit = Math.min(Math.max(Number((payload || {}).limit || 100), 1), 500);
+    return { success: true, sales: rows.slice(0, limit) };
+  } catch (error) {
+    console.error('Business Center sales history error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+function getBusinessCenterSaleDetails(saleId, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    saleId = String(saleId || '').trim();
+    if (!saleId) return { success: false, message: 'Sale ID is required.' };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterPOSSheets_(workspace);
+    const sales = businessCenterRows_(sheets.sales);
+    const sale = sales.find(function(row) { return String(row.Sale_ID || '') === saleId; });
+    if (!sale) return { success: false, message: 'Sale not found.' };
+
+    const items = businessCenterRows_(sheets.items).filter(function(row) {
+      return String(row.Sale_ID || '') === saleId;
+    });
+
+    return { success: true, sale: sale, items: items };
+  } catch (error) {
+    console.error('Business Center sale details error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+
 // ==================== BUSINESS CENTER PART 3: INVENTORY ====================
 
 const BUSINESS_CENTER_STOCK_HEADERS = [
