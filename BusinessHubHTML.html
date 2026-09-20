@@ -709,8 +709,38 @@
   window.loadBusinessCenter=function(){bcCall('getBusinessCenterData',[],function(result){if(!result||!result.success){alert(result&&result.message||'Could not load Business Center.');return;}bcData=result;window.__bcDataForLedger=result.customers||[];document.getElementById('bc-stat-products').textContent=result.summary.products;document.getElementById('bc-stat-customers').textContent=result.summary.customers;document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;document.getElementById('bc-stat-low').textContent=result.summary.lowStock;renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();loadBCCustomerLedgerCustomers();loadBCConnectedData();loadBCSales();loadBCFinance();});};
   window.switchBCTab=function(tab){['overview','products','customers','sales','inventory','ledger','finance'].forEach(function(name){var page=document.getElementById('bc-'+name);if(page)page.classList.toggle('hidden',name!==tab);var btn=document.getElementById('bc-tab-'+name);if(btn)btn.className=name===tab?'px-1 pb-3 mr-5 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]':'px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent';});if(tab==='ledger'){loadBCCustomerLedgerCustomers();loadBCCustomerLedger();}if(tab==='finance'){loadBCFinance();}};
   function productCard(p){var image=p.Image_Data?'<img src="'+p.Image_Data+'" class="h-full w-full object-cover">':'<div class="h-full w-full flex items-center justify-center text-gray-300"><i class="fas fa-box text-2xl"></i></div>';return '<div class="group border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-gray-300 transition"><div class="aspect-square bg-gray-50">'+image+'</div><div class="p-3"><p class="font-medium text-sm truncate">'+esc(p.Name)+'</p><p class="text-xs text-gray-500 mt-1">'+money(p.Selling_Price)+' · '+Number(p.Stock_Qty||0)+' in stock</p><p class="text-[11px] text-gray-400 mt-1 truncate">'+esc(p.Barcode||p.SKU||'No barcode yet')+'</p><div class="flex gap-2 mt-3"><button onclick="openBCEditProduct(\''+esc(p.Product_ID)+'\')" class="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50">Edit</button><button onclick="openBCStockModal(\''+esc(p.Product_ID)+'\')" class="flex-1 px-2.5 py-2 bg-gray-950 text-white rounded-lg text-xs font-medium hover:bg-gray-800">Stock</button></div>'+(p.Barcode?'<button onclick="printBCBarcode(\'+esc(p.Product_ID)+\')" class="w-full mt-2 px-2.5 py-2 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50"><i class="fas fa-barcode mr-1"></i>Print barcode</button>':'')+'</div></div>';}
-  window.renderBCProducts=function(){var q=(document.getElementById('bc-product-search')||{}).value||'';q=q.toLowerCase().trim();var products=bcData.products.filter(function(p){return !q||[p.Name,p.Barcode,p.SKU,p.Category].join(' ').toLowerCase().includes(q);});document.getElementById('bc-products-grid').innerHTML=products.map(productCard).join('');document.getElementById('bc-products-empty').classList.toggle('hidden',products.length!==0);};
-  function renderBCFeatured(){var items=bcData.products.slice(-6).reverse();document.getElementById('bc-featured-products').innerHTML=items.map(productCard).join('');document.getElementById('bc-no-products').classList.toggle('hidden',items.length!==0);}
+  function loadBCProductImages(products, callback){
+    var ids=products.slice(0,30).map(function(p){return p.Product_ID;}).filter(Boolean);
+    if(!ids.length){if(callback)callback();return;}
+    bcCall('getBusinessCenterProductImages',[ids],function(result){
+      if(result&&result.success&&result.images){
+        Object.keys(result.images).forEach(function(id){
+          var p=bcData.products.find(function(item){return String(item.Product_ID)===String(id);});
+          if(p)p.Image_Data=result.images[id];
+        });
+      }
+      if(callback)callback();
+    });
+  }
+  window.renderBCProducts=function(){
+    var q=(document.getElementById('bc-product-search')||{}).value||'';
+    q=q.toLowerCase().trim();
+    var products=bcData.products.filter(function(p){return !q||[p.Name,p.Barcode,p.SKU,p.Category].join(' ').toLowerCase().includes(q);});
+    document.getElementById('bc-products-grid').innerHTML=products.map(productCard).join('');
+    document.getElementById('bc-products-empty').classList.toggle('hidden',products.length!==0);
+    loadBCProductImages(products,function(){
+      document.getElementById('bc-products-grid').innerHTML=products.map(productCard).join('');
+    });
+  };
+
+  function renderBCFeatured(){
+    var items=bcData.products.slice(-6).reverse();
+    document.getElementById('bc-featured-products').innerHTML=items.map(productCard).join('');
+    document.getElementById('bc-no-products').classList.toggle('hidden',items.length!==0);
+    loadBCProductImages(items,function(){
+      document.getElementById('bc-featured-products').innerHTML=items.map(productCard).join('');
+    });
+  }
   function renderBCCustomers(){var body=document.getElementById('bc-customers-body');body.innerHTML=bcData.customers.map(function(c){return '<tr class="border-t border-gray-100"><td class="px-5 py-4 font-medium">'+esc(c.Name)+'</td><td class="px-5 py-4 text-gray-500">'+esc(c.Phone||'—')+'</td><td class="px-5 py-4 text-gray-500">'+esc(c.Email||'—')+'</td><td class="px-5 py-4 text-right font-medium">'+money(c.Balance||0)+'</td></tr>';}).join('');document.getElementById('bc-customers-empty').classList.toggle('hidden',bcData.customers.length!==0);}
   window.openBCProductForm=function(){closeBCModals();document.getElementById('bc-product-modal').classList.remove('hidden');document.getElementById('bc-name').focus();};
   window.openBCCustomerForm=function(){closeBCModals();document.getElementById('bc-customer-modal').classList.remove('hidden');document.getElementById('bc-customer-name').focus();};
