@@ -6027,7 +6027,10 @@ window.showBusinessCenter = function() {
   });
 
   var dashboardPage = document.getElementById('dashboard-page');
-  if (dashboardPage) dashboardPage.classList.add('hidden');
+  if (dashboardPage) {
+    dashboardPage.classList.add('hidden');
+    dashboardPage.style.setProperty('display', 'none', 'important');
+  }
 
   var businessCenterPage = document.getElementById('business-center-page');
   if (!businessCenterPage) {
@@ -6036,7 +6039,9 @@ window.showBusinessCenter = function() {
   }
 
   businessCenterPage.classList.remove('hidden');
-  businessCenterPage.style.display = 'block';
+  businessCenterPage.removeAttribute('hidden');
+  businessCenterPage.style.setProperty('display', 'block', 'important');
+  businessCenterPage.style.setProperty('visibility', 'visible', 'important');
   document.title = 'Business Center - BizOS';
 
   if (typeof window.loadBusinessCenter === 'function') {
