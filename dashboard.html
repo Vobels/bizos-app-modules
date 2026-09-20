@@ -10,18 +10,18 @@
           </div>
         </div>
         <nav class="space-y-2">
-          <button onclick="showDashboardHome()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-home text-gray-500"></i><span>Dashboard</span></button>
-          <button onclick="showBusinessCenter()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-store text-gray-500"></i><span>Business Center</span></button>
-          <button onclick="showStaffPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-users text-gray-500"></i><span>Staff</span></button>
-          <button onclick="showAppsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-th-large text-gray-500"></i><span>Apps</span></button>
+          <button onclick="window.showDashboardHome()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-home text-gray-500"></i><span>Dashboard</span></button>
+          <button onclick="window.showBusinessCenter()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-store text-gray-500"></i><span>Business Center</span></button>
+          <button onclick="window.showStaffPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-users text-gray-500"></i><span>Staff</span></button>
+          <button onclick="window.showAppsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-th-large text-gray-500"></i><span>Apps</span></button>
           <div class="relative">
             <button id="settings-sidebar-toggle" onclick="toggleSettingsSidebarMenu(event)" aria-expanded="false" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center justify-between">
               <span class="flex items-center space-x-3"><i class="fas fa-cog text-gray-500"></i><span>Settings</span></span>
               <i id="settings-sidebar-chevron" class="fas fa-chevron-down text-xs text-gray-400 transition-transform"></i>
             </button>
             <div id="settings-sidebar-menu" class="hidden mt-1 ml-3 pl-3 border-l border-gray-200 space-y-1">
-              <button onclick="showProfilePage(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-user-circle text-gray-500 w-4"></i><span>Profile</span></button>
-              <button data-bizos-billing-link="1" onclick="showUpgradeModal(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-credit-card text-gray-500 w-4"></i><span>Billing</span></button>
+              <button onclick="window.showProfilePage(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-user-circle text-gray-500 w-4"></i><span>Profile</span></button>
+              <button data-bizos-billing-link="1" onclick="window.showUpgradeModal(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-credit-card text-gray-500 w-4"></i><span>Billing</span></button>
             </div>
           </div>
           <div class="pt-4"><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Applications</p><div id="module-list" class="space-y-2"></div></div>
