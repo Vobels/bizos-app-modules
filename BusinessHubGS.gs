@@ -172,6 +172,54 @@ function saveBusinessCenterCustomer(data, sessionId) {
 }
 
 
+
+// ==================== BUSINESS CENTER PART 1: SAFE EXISTING-DATA CONNECTION ====================
+// Read-only adapter: lets Business Center see what existing Ecommerce/CRM modules contain
+// without changing, duplicating, or rewriting those module records.
+
+function getBusinessCenterConnectedData(sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+
+    const result = {
+      success: true,
+      sources: {
+        ecommerce: { connected: false, count: 0, records: [] },
+        crm: { connected: false, count: 0, records: [] }
+      }
+    };
+
+    try {
+      const ecommerce = getModuleData('Ecommerce', sessionId);
+      if (Array.isArray(ecommerce)) {
+        result.sources.ecommerce.connected = true;
+        result.sources.ecommerce.count = ecommerce.length;
+        result.sources.ecommerce.records = ecommerce.slice(0, 100);
+      }
+    } catch (e) {
+      console.log('Business Center Ecommerce connection skipped:', e.message);
+    }
+
+    try {
+      const crm = getModuleData('CRM', sessionId);
+      if (Array.isArray(crm)) {
+        result.sources.crm.connected = true;
+        result.sources.crm.count = crm.length;
+        result.sources.crm.records = crm.slice(0, 100);
+      }
+    } catch (e) {
+      console.log('Business Center CRM connection skipped:', e.message);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Business Center connected-data error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+
 // ==================== BUSINESS CENTER PART 2: POS ====================
 
 const BUSINESS_CENTER_SALE_HEADERS = [
