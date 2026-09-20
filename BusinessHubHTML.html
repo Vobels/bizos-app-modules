@@ -454,7 +454,7 @@
         <div class="bg-gray-950 text-white rounded-xl p-6">
           <p class="text-xs uppercase tracking-wider text-gray-400">Next in Business Center</p><h2 class="text-2xl font-semibold mt-2">Fast selling.</h2>
           <p class="text-sm text-gray-400 mt-3 leading-6">Barcode scanning, cart, payment, stock deduction and receipts will all use the products you create here.</p>
-          <div class="mt-8 pt-5 border-t border-white/10 text-sm text-gray-300 space-y-3"><div class="flex gap-3"><span class="text-gray-500">01</span><span>Product catalog</span></div><div class="flex gap-3"><span class="text-gray-500">02</span><span>POS selling</span></div><div class="flex gap-3"><span class="text-gray-500">03</span><span>Inventory control</span></div><div class="flex gap-3"><span class="text-gray-500">04</span><span>Receipts & customer balances</span></div></div>
+          <div class="mt-8 pt-5 border-t border-white/10 text-sm text-gray-300 space-y-3"><button type="button" onclick="switchBCTab('products')" class="w-full flex gap-3 text-left hover:text-white transition cursor-pointer"><span class="text-gray-500">01</span><span>Product catalog</span></button><button type="button" onclick="openBCPOS()" class="w-full flex gap-3 text-left hover:text-white transition cursor-pointer"><span class="text-gray-500">02</span><span>POS selling</span></button><button type="button" onclick="switchBCTab('inventory')" class="w-full flex gap-3 text-left hover:text-white transition cursor-pointer"><span class="text-gray-500">03</span><span>Inventory control</span></button><button type="button" onclick="switchBCTab('sales')" class="w-full flex gap-3 text-left hover:text-white transition cursor-pointer"><span class="text-gray-500">04</span><span>Receipts & customer balances</span></button></div>
         </div>
       </div>
     </section>
@@ -576,7 +576,7 @@
       <div id="bc-receipt-content" class="p-5"></div>
       <div class="p-5 border-t border-gray-100 flex justify-end gap-3">
         <button onclick="closeBCReceipt()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Close</button>
-        <button onclick="printBCReceipt()" class="px-5 py-2.5 bg-gray-950 text-white rounded-lg">Print receipt</button>
+        <button onclick="printBCReceipt()" class="px-5 py-2.5 bg-gray-950 text-white rounded-lg"><i class="fas fa-print mr-2"></i>Print / Save PDF</button>
       </div>
     </div>
   </div>
@@ -698,6 +698,16 @@
     });
   };
   window.closeBCReceipt=function(){document.getElementById('bc-receipt-modal').classList.add('hidden');};
+  document.addEventListener('keydown',function(event){
+    if((event.ctrlKey||event.metaKey)&&String(event.key).toLowerCase()==='p'){
+      var modal=document.getElementById('bc-receipt-modal');
+      if(modal && !modal.classList.contains('hidden')){
+        event.preventDefault();
+        window.printBCReceipt();
+      }
+    }
+  });
+
   window.printBCReceipt=function(){
     var el=document.getElementById('bc-print-receipt'); if(!el)return;
     var w=window.open('','_blank','width=420,height=700');
