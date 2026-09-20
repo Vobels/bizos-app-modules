@@ -463,57 +463,110 @@ function completeBusinessCenterSale(data, sessionId) {
     const now = new Date().toISOString();
     const user = access.user;
 
-    sheets.sales.appendRow(BUSINESS_CENTER_SALE_HEADERS.map(function(h) {
-      return h === 'Sale_ID' ? saleId :
-        h === 'Date' ? (data.Date || now.split('T')[0]) :
-        h === 'Customer_ID' ? customerId :
-        h === 'Customer_Name' ? (data.Customer_Name || '') :
-        h === 'Subtotal' ? subtotal :
-        h === 'Discount' ? discount :
-        h === 'Total' ? total :
-        h === 'Amount_Paid' ? amountPaid :
-        h === 'Balance_Due' ? balanceDue :
-        h === 'Payment_Method' ? (data.Payment_Method || 'Cash') :
-        h === 'Status' ? (balanceDue > 0 ? 'Credit' : 'Paid') :
-        h === 'Created_By' ? (user.email || user.name || '') :
-        h === 'Created_At' ? now : '';
-    }));
-
-    resolved.forEach(function(line) {
-      const name = line.product[nameCol];
-      const barcode = line.product[headers.indexOf('Barcode')];
-      sheets.items.appendRow(BUSINESS_CENTER_SALE_ITEM_HEADERS.map(function(h) {
-        return h === 'Sale_ID' ? saleId : h === 'Product_ID' ? line.product[idCol] :
-          h === 'Product_Name' ? name : h === 'Barcode' ? barcode :
-          h === 'Quantity' ? line.qty : h === 'Unit_Price' ? line.price :
-          h === 'Line_Total' ? line.lineTotal : h === 'Created_At' ? now : '';
-      }));
-      const beforeQty = Number(line.product[stockCol] || 0);
-      const afterQty = beforeQty - line.qty;
-      sheets.products.getRange(line.rowIndex + 1, stockCol + 1).setValue(afterQty);
-
-      // Every completed sale creates an inventory audit entry so stock
-      // reductions from POS are visible alongside manual stock adjustments.
-      const stockMovementSheet = getBusinessCenterInventorySheets_(workspace).stock;
-      stockMovementSheet.appendRow([
-        'MOV-' + Utilities.getUuid().substring(0, 8).toUpperCase(),
-        data.Date || now.split('T')[0],
-        line.product[idCol],
-        name,
-        'sale',
-        line.qty,
-        beforeQty,
-        afterQty,
-        'POS sale ' + saleId,
-        user.email || user.name || '',
-        now
-      ]);
+    // Keep the original stock/balance values so a later write failure can be rolled back.
+    const originalStocks = resolved.map(function(line) {
+      return {
+        rowIndex: line.rowIndex,
+        stock: Number(line.product[stockCol] || 0)
+      };
     });
+    const customerHeaders = sheets.customers.getDataRange().getValues()[0];
+    const customerBalanceCol = customerHeaders.indexOf('Balance');
 
-    if (customerId && balanceDue > 0) {
-      const customerHeaders = sheets.customers.getDataRange().getValues()[0];
-      const customerBalanceCol = customerHeaders.indexOf('Balance');
-      sheets.customers.getRange(customerRow + 1, customerBalanceCol + 1).setValue(customerBalance + balanceDue);
+    try {
+      sheets.sales.appendRow(BUSINESS_CENTER_SALE_HEADERS.map(function(h) {
+        return h === 'Sale_ID' ? saleId :
+          h === 'Date' ? (data.Date || now.split('T')[0]) :
+          h === 'Customer_ID' ? customerId :
+          h === 'Customer_Name' ? (data.Customer_Name || '') :
+          h === 'Subtotal' ? subtotal :
+          h === 'Discount' ? discount :
+          h === 'Total' ? total :
+          h === 'Amount_Paid' ? amountPaid :
+          h === 'Balance_Due' ? balanceDue :
+          h === 'Payment_Method' ? (data.Payment_Method || 'Cash') :
+          h === 'Status' ? (balanceDue > 0 ? 'Credit' : 'Paid') :
+          h === 'Created_By' ? (user.email || user.name || '') :
+          h === 'Created_At' ? now : '';
+      }));
+
+      resolved.forEach(function(line) {
+        const name = line.product[nameCol];
+        const barcode = line.product[headers.indexOf('Barcode')];
+        sheets.items.appendRow(BUSINESS_CENTER_SALE_ITEM_HEADERS.map(function(h) {
+          return h === 'Sale_ID' ? saleId : h === 'Product_ID' ? line.product[idCol] :
+            h === 'Product_Name' ? name : h === 'Barcode' ? barcode :
+            h === 'Quantity' ? line.qty : h === 'Unit_Price' ? line.price :
+            h === 'Line_Total' ? line.lineTotal : h === 'Created_At' ? now : '';
+        }));
+
+        const beforeQty = Number(line.product[stockCol] || 0);
+        const afterQty = beforeQty - line.qty;
+        sheets.products.getRange(line.rowIndex + 1, stockCol + 1).setValue(afterQty);
+
+        // Every completed sale creates an inventory audit entry so stock
+        // reductions from POS are visible alongside manual stock adjustments.
+        const stockMovementSheet = getBusinessCenterInventorySheets_(workspace).stock;
+        stockMovementSheet.appendRow([
+          'MOV-' + Utilities.getUuid().substring(0, 8).toUpperCase(),
+          data.Date || now.split('T')[0],
+          line.product[idCol],
+          name,
+          'sale',
+          line.qty,
+          beforeQty,
+          afterQty,
+          'POS sale ' + saleId,
+          user.email || user.name || '',
+          now
+        ]);
+      });
+
+      if (customerId && balanceDue > 0) {
+        sheets.customers.getRange(customerRow + 1, customerBalanceCol + 1).setValue(customerBalance + balanceDue);
+      }
+    } catch (writeError) {
+      // Google Sheets writes are not transactional. Remove any records created
+      // by this sale and restore stock/customer balance before reporting failure.
+      try {
+        const deleteRowsByValue = function(sheet, headerName, matchValue) {
+          const values = sheet.getDataRange().getValues();
+          if (!values.length) return;
+          const col = values[0].indexOf(headerName);
+          if (col < 0) return;
+          for (let i = values.length - 1; i >= 1; i--) {
+            if (String(values[i][col] || '') === String(matchValue)) sheet.deleteRow(i + 1);
+          }
+        };
+
+        deleteRowsByValue(sheets.sales, 'Sale_ID', saleId);
+        deleteRowsByValue(sheets.items, 'Sale_ID', saleId);
+
+        const stockMovementSheet = workspace.getSheetByName('BusinessCenter_Stock_Movements');
+        if (stockMovementSheet) {
+          const values = stockMovementSheet.getDataRange().getValues();
+          const reasonCol = values.length ? values[0].indexOf('Reason') : -1;
+          if (reasonCol >= 0) {
+            for (let i = values.length - 1; i >= 1; i--) {
+              if (String(values[i][reasonCol] || '') === 'POS sale ' + saleId) {
+                stockMovementSheet.deleteRow(i + 1);
+              }
+            }
+          }
+        }
+
+        originalStocks.forEach(function(original) {
+          sheets.products.getRange(original.rowIndex + 1, stockCol + 1).setValue(original.stock);
+        });
+
+        if (customerId && balanceDue > 0) {
+          sheets.customers.getRange(customerRow + 1, customerBalanceCol + 1).setValue(customerBalance);
+        }
+      } catch (rollbackError) {
+        console.error('Business Center sale rollback error:', rollbackError);
+        throw new Error('Sale could not be completed safely, and automatic rollback also failed. Please check the sale and inventory records before retrying.');
+      }
+      throw writeError;
     }
 
     return {
