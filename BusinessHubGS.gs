@@ -831,6 +831,23 @@ function updateBusinessCenterProduct(data, sessionId) {
     }
     if (rowIndex < 0) return { success: false, message: 'Product not found.' };
 
+    // Barcodes must remain unique across the catalog, including when editing.
+    // An empty barcode is allowed because BizOS can use the product's internal ID.
+    if (Object.prototype.hasOwnProperty.call(data, 'Barcode')) {
+      const barcode = String(data.Barcode || '').trim();
+      if (barcode) {
+        const barcodeCol = headers.indexOf('Barcode');
+        if (barcodeCol >= 0) {
+          for (let i = 1; i < values.length; i++) {
+            if (i === rowIndex) continue;
+            if (String(values[i][barcodeCol] || '').trim().toLowerCase() === barcode.toLowerCase()) {
+              return { success: false, message: 'This barcode is already assigned to another product.' };
+            }
+          }
+        }
+      }
+    }
+
     const allowed = ['Name','SKU','Barcode','Cost_Price','Selling_Price','Minimum_Stock','Unit','Category','Supplier','Location'];
     allowed.forEach(function(field) {
       if (Object.prototype.hasOwnProperty.call(data, field)) {
