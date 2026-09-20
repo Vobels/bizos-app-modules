@@ -767,7 +767,7 @@
     });
   }
   window.refreshBusinessCenterCore=function(done){refreshBCCore_(done);};
-  window.loadBusinessCenter=function(){refreshBCCore_(function(ok){if(ok)switchBCTab('overview');});};
+  window.loadBusinessCenter=function(){window.__bcTabLoads={};refreshBCCore_(function(ok){if(ok)switchBCTab('overview');});};
   window.__bcTabLoads={};
   window.switchBCTab=function(tab){
     ['overview','products','customers','sales','inventory','ledger','finance'].forEach(function(name){
@@ -776,6 +776,7 @@
       if(btn)btn.className=name===tab?'shrink-0 px-3 py-3 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]':'shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent';
       if(name===tab&&btn&&typeof btn.scrollIntoView==='function')btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
     });
+    if(tab==='overview'&&!window.__bcTabLoads.connected){window.__bcTabLoads.connected=true;loadBCConnectedData();}
     if(tab==='sales'&&!window.__bcTabLoads.sales){window.__bcTabLoads.sales=true;loadBCSales();}
     if(tab==='ledger'){loadBCCustomerLedgerCustomers();loadBCCustomerLedger();}
     if(tab==='finance'&&!window.__bcTabLoads.finance){window.__bcTabLoads.finance=true;loadBCFinance();}
