@@ -5528,6 +5528,27 @@ function showSettingsPage() {
   console.log("Settings page displayed");
 }
 
+function toggleSettingsSidebarMenu(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('settings-sidebar-menu');
+  const toggle = document.getElementById('settings-sidebar-toggle');
+  const chevron = document.getElementById('settings-sidebar-chevron');
+  if (!menu) return;
+  const willOpen = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !willOpen);
+  if (toggle) toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  if (chevron) chevron.classList.toggle('rotate-180', willOpen);
+}
+
+function closeSettingsSidebarMenu() {
+  const menu = document.getElementById('settings-sidebar-menu');
+  const toggle = document.getElementById('settings-sidebar-toggle');
+  const chevron = document.getElementById('settings-sidebar-chevron');
+  if (menu) menu.classList.add('hidden');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  if (chevron) chevron.classList.remove('rotate-180');
+}
+
 function loadNotificationPreferences() {
   const prefs = JSON.parse(localStorage.getItem('bizos_notification_prefs') || '{}');
   
@@ -5947,6 +5968,8 @@ window.closeProfileSidebar = closeProfileSidebar;
   
 // ===== EXPOSE SETTINGS GLOBALLY =====
 window.showSettingsPage = showSettingsPage;
+window.toggleSettingsSidebarMenu = toggleSettingsSidebarMenu;
+window.closeSettingsSidebarMenu = closeSettingsSidebarMenu;
 window.loadNotificationPreferences = loadNotificationPreferences;
 window.saveNotificationPreferences = saveNotificationPreferences;
 window.goToSecurityTab = goToSecurityTab;
