@@ -418,9 +418,9 @@
       document.getElementById('bc-pos-registered-customer-wrap').classList.add('hidden');
       renderBCPOS();
       focusBCBarcode();
-      refreshBCCore_();
-      if(bcTabLoads.sales)loadBCSales();
-      if(bcTabLoads.finance)loadBCFinance();
+      if(typeof window.refreshBusinessCenterCore==='function')window.refreshBusinessCenterCore();
+      if(window.__bcTabLoads&&window.__bcTabLoads.sales)loadBCSales();
+      if(window.__bcTabLoads&&window.__bcTabLoads.finance)loadBCFinance();
     });
   };
 })();
@@ -768,7 +768,7 @@
   }
   window.refreshBusinessCenterCore=function(done){refreshBCCore_(done);};
   window.loadBusinessCenter=function(){refreshBCCore_(function(ok){if(ok)switchBCTab('overview');});};
-  var bcTabLoads={};
+  window.__bcTabLoads={};
   window.switchBCTab=function(tab){
     ['overview','products','customers','sales','inventory','ledger','finance'].forEach(function(name){
       var page=document.getElementById('bc-'+name);if(page)page.classList.toggle('hidden',name!==tab);
@@ -776,9 +776,9 @@
       if(btn)btn.className=name===tab?'shrink-0 px-3 py-3 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]':'shrink-0 px-3 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent';
       if(name===tab&&btn&&typeof btn.scrollIntoView==='function')btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
     });
-    if(tab==='sales'&&!bcTabLoads.sales){bcTabLoads.sales=true;loadBCSales();}
+    if(tab==='sales'&&!window.__bcTabLoads.sales){window.__bcTabLoads.sales=true;loadBCSales();}
     if(tab==='ledger'){loadBCCustomerLedgerCustomers();loadBCCustomerLedger();}
-    if(tab==='finance'&&!bcTabLoads.finance){bcTabLoads.finance=true;loadBCFinance();}
+    if(tab==='finance'&&!window.__bcTabLoads.finance){window.__bcTabLoads.finance=true;loadBCFinance();}
     if(tab==='customers')renderBCCustomers();
     if(tab==='products')renderBCProducts();
     if(tab==='inventory')renderBCInventory();
