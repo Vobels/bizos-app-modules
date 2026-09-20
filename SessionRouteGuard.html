@@ -2,8 +2,12 @@
 (function () {
   'use strict';
 
+  var SESSION_IDLE_LIMIT_MS = 20 * 60 * 1000;
+  var ACTIVITY_WRITE_INTERVAL_MS = 60 * 1000;
+  var lastActivityWrite = 0;
+
   function hideAuthenticatedPages() {
-    ['dashboard-page', 'profile-page', 'settings-page'].forEach(function (id) {
+    ['dashboard-page', 'profile-page', 'settings-page', 'staff-page'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.classList.add('hidden');
     });
@@ -28,7 +32,7 @@
     } catch (e) {}
     try {
       window.__BIZOS_PUBLIC_ROUTE = '/';
-      if (typeof window.publishRoute === 'function') window.publishRoute('/', true);
+      if (typeof window.publishBizOSRoute === 'function') window.publishBizOSRoute('/', true);
       else if (window.top !== window) window.top.postMessage({type: 'bizos-route', path: '/', replace: true}, '*');
     } catch (e) {}
   }
@@ -40,13 +44,72 @@
         localStorage.removeItem('bizos_session');
         localStorage.removeItem('bizos_user');
       }
+      localStorage.removeItem('bizos_last_activity');
     } catch (e) {
       try {
         localStorage.removeItem('bizos_session');
         localStorage.removeItem('bizos_user');
+        localStorage.removeItem('bizos_last_activity');
       } catch (ignore) {}
     }
     forceLanding();
+  }
+
+  function touchActivity(force) {
+    var sessionId = null;
+    try { sessionId = localStorage.getItem('bizos_session'); } catch (e) {}
+    if (!sessionId) return;
+
+    var now = Date.now();
+    if (!force && now - lastActivityWrite < ACTIVITY_WRITE_INTERVAL_MS) return;
+    lastActivityWrite = now;
+    try { localStorage.setItem('bizos_last_activity', String(now)); } catch (e) {}
+  }
+
+  function isIdleExpired() {
+    var sessionId = null;
+    try { sessionId = localStorage.getItem('bizos_session'); } catch (e) {}
+    if (!sessionId) return true;
+
+    var raw = null;
+    try { raw = localStorage.getItem('bizos_last_activity'); } catch (e) {}
+    var last = Number(raw);
+
+    // A session created by the existing login code may not have the new
+    // activity marker yet. Initialize it instead of logging the user out.
+    if (!last || !isFinite(last)) {
+      touchActivity(true);
+      return false;
+    }
+
+    return Date.now() - last >= SESSION_IDLE_LIMIT_MS;
+  }
+
+  function installActivityTracking() {
+    if (window.__BIZOS_ACTIVITY_TRACKING_INSTALLED) return;
+    window.__BIZOS_ACTIVITY_TRACKING_INSTALLED = true;
+
+    ['click', 'keydown', 'mousemove', 'mousedown', 'touchstart', 'scroll'].forEach(function (eventName) {
+      window.addEventListener(eventName, function () {
+        if (localStorage.getItem('bizos_session')) touchActivity(false);
+      }, {passive: true});
+    });
+
+    window.addEventListener('storage', function (event) {
+      if (event.key === 'bizos_last_activity' && event.newValue) {
+        lastActivityWrite = Number(event.newValue) || Date.now();
+      }
+      if (event.key === 'bizos_session' && !event.newValue) {
+        forceLanding();
+      }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        if (isIdleExpired()) clearAndLand();
+        else touchActivity(true);
+      }
+    });
   }
 
   function installLogoutGuard() {
@@ -61,7 +124,6 @@
           window.callGoogleScript('logout', [sessionId], function () {}, function () {});
         }
       } catch (e) {}
-      // Keep the existing logout function available for any additional cleanup it performs.
       try { originalLogout.apply(this, arguments); } catch (e) {}
       clearAndLand();
     };
@@ -81,16 +143,25 @@
       if (route !== '/' && route !== '/login') forceLanding();
       var dashboard = document.getElementById('dashboard-page');
       if (dashboard && !dashboard.classList.contains('hidden')) forceLanding();
+      return;
     }
+
+    if (isIdleExpired()) {
+      clearAndLand();
+      return;
+    }
+
+    touchActivity(false);
   }
 
   function boot() {
+    installActivityTracking();
     installLogoutGuard();
     enforceNoSession();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once: true});
   else boot();
-  setInterval(boot, 500);
+  setInterval(boot, 15000);
 })();
 </script>
