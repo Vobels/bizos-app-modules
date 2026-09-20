@@ -392,6 +392,7 @@
       <button id="bc-tab-overview" onclick="switchBCTab('overview')" class="px-1 pb-3 mr-5 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]">Overview</button>
       <button id="bc-tab-products" onclick="switchBCTab('products')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Products</button>
       <button id="bc-tab-customers" onclick="switchBCTab('customers')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customers</button>
+      <button id="bc-tab-sales" onclick="switchBCTab('sales')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Sales</button>
       <button id="bc-tab-inventory" onclick="switchBCTab('inventory')" class="px-1 pb-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Inventory</button>
     </div>
     <section id="bc-overview">
@@ -432,6 +433,21 @@
       <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 class="text-lg font-semibold">Products</h2><p class="text-sm text-gray-500">Pictures, barcode, pricing and stock foundation.</p></div><input id="bc-product-search" oninput="renderBCProducts()" class="w-full sm:w-72 px-3 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#5D2A86]/20" placeholder="Search product or barcode"></div>
         <div id="bc-products-grid" class="p-5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4"></div><div id="bc-products-empty" class="hidden text-center py-16 text-gray-400">No matching products.</div>
+      </div>
+    </section>
+    <section id="bc-sales" class="hidden">
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div><h2 class="text-lg font-semibold">Sales History</h2><p class="text-sm text-gray-500">Every completed Business Center sale is recorded here.</p></div>
+          <button onclick="loadBCSales()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Refresh</button>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-gray-500"><tr>
+          <th class="text-left px-5 py-3 font-medium">Sale</th><th class="text-left px-5 py-3 font-medium">Date</th>
+          <th class="text-left px-5 py-3 font-medium">Customer</th><th class="text-right px-5 py-3 font-medium">Total</th>
+          <th class="text-right px-5 py-3 font-medium">Paid</th><th class="text-right px-5 py-3 font-medium">Balance</th>
+          <th class="text-left px-5 py-3 font-medium">Status</th><th class="text-right px-5 py-3 font-medium">Action</th>
+        </tr></thead><tbody id="bc-sales-body"></tbody></table></div>
+        <div id="bc-sales-empty" class="hidden text-center py-16 text-gray-400">No sales yet.</div>
       </div>
     </section>
     <section id="bc-inventory" class="hidden">
@@ -500,6 +516,19 @@
     </form>
   </div></div>
 
+  <div id="bc-receipt-modal" class="hidden fixed inset-0 z-[100] bg-black/50 p-4 overflow-y-auto">
+    <div class="max-w-xl mx-auto bg-white rounded-2xl shadow-2xl my-6">
+      <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+        <div><h2 class="text-xl font-semibold">Sale details</h2><p id="bc-receipt-subtitle" class="text-sm text-gray-500 mt-1"></p></div>
+        <button onclick="closeBCReceipt()" class="text-gray-400"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="bc-receipt-content" class="p-5"></div>
+      <div class="p-5 border-t border-gray-100 flex justify-end gap-3">
+        <button onclick="closeBCReceipt()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Close</button>
+        <button onclick="printBCReceipt()" class="px-5 py-2.5 bg-gray-950 text-white rounded-lg">Print receipt</button>
+      </div>
+    </div>
+  </div>
   <div id="bc-customer-modal" class="hidden fixed inset-0 z-[80] bg-black/50 p-4 overflow-y-auto"><div class="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl my-10">
     <div class="p-5 border-b border-gray-200 flex justify-between items-center"><h2 class="text-xl font-semibold">Add customer</h2><button onclick="closeBCModals()" class="text-gray-400"><i class="fas fa-times"></i></button></div>
     <form onsubmit="submitBCCustomer(event)" class="p-5 space-y-4"><label><span class="bc-label">Name *</span><input id="bc-customer-name" required class="bc-input" placeholder="Customer name"></label><label><span class="bc-label">Phone</span><input id="bc-customer-phone" class="bc-input" placeholder="Phone number"></label><label><span class="bc-label">Email</span><input id="bc-customer-email" type="email" class="bc-input" placeholder="Email address"></label><label><span class="bc-label">Address</span><textarea id="bc-customer-address" class="bc-input min-h-24" placeholder="Optional address"></textarea></label><div class="flex justify-end gap-3 pt-3 border-t border-gray-100"><button type="button" onclick="closeBCModals()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Cancel</button><button class="px-5 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium">Save customer</button></div></form>
@@ -524,8 +553,62 @@
     });
   };
 
-  window.loadBusinessCenter=function(){bcCall('getBusinessCenterData',[],function(result){if(!result||!result.success){alert(result&&result.message||'Could not load Business Center.');return;}bcData=result;document.getElementById('bc-stat-products').textContent=result.summary.products;document.getElementById('bc-stat-customers').textContent=result.summary.customers;document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;document.getElementById('bc-stat-low').textContent=result.summary.lowStock;renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();loadBCConnectedData();});};
-  window.switchBCTab=function(tab){['overview','products','customers','inventory'].forEach(function(name){document.getElementById('bc-'+name).classList.toggle('hidden',name!==tab);var btn=document.getElementById('bc-tab-'+name);btn.className=name===tab?'px-1 pb-3 mr-5 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]':'px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent';});};
+  window.loadBCSales=function(){
+    bcCall('getBusinessCenterSales',[{limit:200}],function(result){
+      if(!result||!result.success){alert(result&&result.message||'Could not load sales history.');return;}
+      var body=document.getElementById('bc-sales-body'),empty=document.getElementById('bc-sales-empty'),sales=result.sales||[];
+      body.innerHTML=sales.map(function(s){
+        return '<tr class="border-t border-gray-100">'+
+          '<td class="px-5 py-4 font-medium">'+esc(s.Sale_ID)+'</td>'+
+          '<td class="px-5 py-4 text-gray-500">'+esc(s.Date||'—')+'</td>'+
+          '<td class="px-5 py-4">'+esc(s.Customer_Name||'Walk-in customer')+'</td>'+
+          '<td class="px-5 py-4 text-right">'+money(s.Total)+'</td>'+
+          '<td class="px-5 py-4 text-right">'+money(s.Amount_Paid)+'</td>'+
+          '<td class="px-5 py-4 text-right">'+money(s.Balance_Due)+'</td>'+
+          '<td class="px-5 py-4">'+esc(s.Status||'—')+'</td>'+
+          '<td class="px-5 py-4 text-right"><button onclick="openBCReceipt(\\''+esc(s.Sale_ID)+'\\')" class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50">View</button></td>'+
+          '</tr>';
+      }).join('');
+      empty.classList.toggle('hidden',sales.length!==0);
+    });
+  };
+  window.openBCReceipt=function(saleId){
+    bcCall('getBusinessCenterSaleDetails',[saleId],function(result){
+      if(!result||!result.success){alert(result&&result.message||'Could not load sale details.');return;}
+      var sale=result.sale,items=result.items||[];
+      window.__bcReceiptData={sale:sale,items:items};
+      document.getElementById('bc-receipt-subtitle').textContent=sale.Sale_ID+' · '+(sale.Date||'');
+      var rows=items.map(function(i){
+        return '<tr><td class="py-2">'+esc(i.Product_Name)+'</td><td class="py-2 text-center">'+esc(i.Quantity)+'</td><td class="py-2 text-right">'+money(i.Unit_Price)+'</td><td class="py-2 text-right">'+money(i.Line_Total)+'</td></tr>';
+      }).join('');
+      document.getElementById('bc-receipt-content').innerHTML=
+        '<div id="bc-print-receipt" class="max-w-[380px] mx-auto text-sm text-gray-900">'+
+        '<div class="text-center mb-5"><h3 class="text-lg font-bold">Business Center</h3><p class="text-xs text-gray-500">Sales Receipt</p></div>'+
+        '<div class="flex justify-between text-xs border-b border-gray-200 pb-3 mb-3"><span>'+esc(sale.Sale_ID)+'</span><span>'+esc(sale.Date||'')+'</span></div>'+
+        '<p class="mb-3"><strong>Customer:</strong> '+esc(sale.Customer_Name||'Walk-in customer')+'</p>'+
+        '<table class="w-full border-collapse"><thead><tr class="border-b border-gray-300"><th class="text-left py-2">Item</th><th class="text-center py-2">Qty</th><th class="text-right py-2">Price</th><th class="text-right py-2">Total</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+        '<div class="border-t border-gray-300 mt-3 pt-3 space-y-1">'+
+        '<div class="flex justify-between"><span>Subtotal</span><span>'+money(sale.Subtotal)+'</span></div>'+
+        '<div class="flex justify-between"><span>Discount</span><span>'+money(sale.Discount)+'</span></div>'+
+        '<div class="flex justify-between font-bold text-base pt-1"><span>Total</span><span>'+money(sale.Total)+'</span></div>'+
+        '<div class="flex justify-between"><span>Paid</span><span>'+money(sale.Amount_Paid)+'</span></div>'+
+        '<div class="flex justify-between"><span>Balance</span><span>'+money(sale.Balance_Due)+'</span></div>'+
+        '<div class="flex justify-between"><span>Payment</span><span>'+esc(sale.Payment_Method||'')+'</span></div>'+
+        '</div><p class="text-center text-xs text-gray-400 mt-6">Thank you.</p></div>';
+      document.getElementById('bc-receipt-modal').classList.remove('hidden');
+    });
+  };
+  window.closeBCReceipt=function(){document.getElementById('bc-receipt-modal').classList.add('hidden');};
+  window.printBCReceipt=function(){
+    var el=document.getElementById('bc-print-receipt'); if(!el)return;
+    var w=window.open('','_blank','width=420,height=700');
+    if(!w){alert('Please allow pop-ups to print the receipt.');return;}
+    w.document.write('<html><head><title>Receipt</title><style>body{font-family:Arial,sans-serif;padding:12px;color:#111}.receipt{width:80mm;margin:auto;font-size:12px}table{width:100%;border-collapse:collapse}th,td{padding:4px 0}th{border-bottom:1px solid #999;text-align:left}@media print{body{padding:0}}</style></head><body><div class="receipt">'+el.innerHTML+'</div></body></html>');
+    w.document.close(); w.focus(); setTimeout(function(){w.print();},250);
+  };
+
+  window.loadBusinessCenter=function(){bcCall('getBusinessCenterData',[],function(result){if(!result||!result.success){alert(result&&result.message||'Could not load Business Center.');return;}bcData=result;document.getElementById('bc-stat-products').textContent=result.summary.products;document.getElementById('bc-stat-customers').textContent=result.summary.customers;document.getElementById('bc-stat-stock').textContent=result.summary.stockUnits;document.getElementById('bc-stat-low').textContent=result.summary.lowStock;renderBCProducts();renderBCCustomers();renderBCInventory();renderBCFeatured();loadBCConnectedData();loadBCSales();});};
+  window.switchBCTab=function(tab){['overview','products','customers','sales','inventory'].forEach(function(name){document.getElementById('bc-'+name).classList.toggle('hidden',name!==tab);var btn=document.getElementById('bc-tab-'+name);btn.className=name===tab?'px-1 pb-3 mr-5 text-sm font-semibold text-[#5D2A86] border-b-2 border-[#5D2A86]':'px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent';});};
   function productCard(p){var image=p.Image_Data?'<img src="'+p.Image_Data+'" class="h-full w-full object-cover">':'<div class="h-full w-full flex items-center justify-center text-gray-300"><i class="fas fa-box text-2xl"></i></div>';return '<div class="group border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-gray-300 transition"><div class="aspect-square bg-gray-50">'+image+'</div><div class="p-3"><p class="font-medium text-sm truncate">'+esc(p.Name)+'</p><p class="text-xs text-gray-500 mt-1">'+money(p.Selling_Price)+' · '+Number(p.Stock_Qty||0)+' in stock</p><p class="text-[11px] text-gray-400 mt-1 truncate">'+esc(p.Barcode||p.SKU||'No barcode yet')+'</p><div class="flex gap-2 mt-3"><button onclick="openBCEditProduct(\\''+esc(p.Product_ID)+'\\')" class="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50">Edit</button><button onclick="openBCStockModal(\\''+esc(p.Product_ID)+'\\')" class="flex-1 px-2.5 py-2 bg-gray-950 text-white rounded-lg text-xs font-medium hover:bg-gray-800">Stock</button></div></div></div>';}
   window.renderBCProducts=function(){var q=(document.getElementById('bc-product-search')||{}).value||'';q=q.toLowerCase().trim();var products=bcData.products.filter(function(p){return !q||[p.Name,p.Barcode,p.SKU,p.Category].join(' ').toLowerCase().includes(q);});document.getElementById('bc-products-grid').innerHTML=products.map(productCard).join('');document.getElementById('bc-products-empty').classList.toggle('hidden',products.length!==0);};
   function renderBCFeatured(){var items=bcData.products.slice(-6).reverse();document.getElementById('bc-featured-products').innerHTML=items.map(productCard).join('');document.getElementById('bc-no-products').classList.toggle('hidden',items.length!==0);}
