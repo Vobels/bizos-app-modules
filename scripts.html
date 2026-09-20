@@ -1911,6 +1911,12 @@ function showAppsPage() {
 // KEEP THIS VERSION - More concise and includes all pages
 function showDashboardHome() {
   console.log("showDashboardHome called");
+  // Keep Business Center isolated from the main dashboard view.
+  const businessCenterPage = document.getElementById('business-center-page');
+  if (businessCenterPage) {
+    businessCenterPage.classList.add('hidden');
+    businessCenterPage.style.display = 'none';
+  }
   
   // Get all page containers
   const dashboardHome = document.getElementById('dashboard-home');
@@ -6030,6 +6036,7 @@ window.showBusinessCenter = function() {
   }
 
   businessCenterPage.classList.remove('hidden');
+  businessCenterPage.style.display = 'block';
   document.title = 'Business Center - BizOS';
 
   if (typeof window.loadBusinessCenter === 'function') {
