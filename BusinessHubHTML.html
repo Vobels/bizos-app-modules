@@ -14,6 +14,9 @@
         <button onclick="clearBCPOS()" class="px-3 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50">
           Clear sale
         </button>
+        <button onclick="openBCScanner()" class="px-4 py-2.5 bg-white border border-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-50">
+          <i class="fas fa-camera mr-2"></i>Use camera
+        </button>
         <button onclick="focusBCBarcode()" class="px-4 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium hover:bg-[#4d226f]">
           <i class="fas fa-barcode mr-2"></i>Scan barcode
         </button>
@@ -395,7 +398,7 @@
         <p class="mt-2 text-gray-500 max-w-2xl">Products, customers and stock are managed here. Selling and receipts use the same business records.</p>
       </div>
       <div class="flex gap-3">
-        <button onclick="openBCPOS()" class="px-4 py-2.5 bg-gray-950 text-white rounded-lg font-medium hover:bg-gray-800 transition"><i class="fas fa-cash-register mr-2"></i>Open POS</button><button onclick="openBCProductForm()" class="px-4 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium hover:bg-[#4d226f] transition"><i class="fas fa-plus mr-2"></i>Add product</button>
+        <button onclick="openBCPOS()" class="px-4 py-2.5 bg-gray-950 text-white rounded-lg font-medium hover:bg-gray-800 transition"><i class="fas fa-cash-register mr-2"></i>Open POS</button><button onclick="openBCBulkImport()" class="px-4 py-2.5 bg-white border border-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-50 transition"><i class="fas fa-file-import mr-2"></i>Add many</button><button onclick="openBCProductForm()" class="px-4 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium hover:bg-[#4d226f] transition"><i class="fas fa-plus mr-2"></i>Add product</button>
         <button onclick="openBCCustomerForm()" class="px-4 py-2.5 bg-white border border-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-50 transition"><i class="fas fa-user-plus mr-2"></i>Add customer</button>
       </div>
     </div>
@@ -497,7 +500,7 @@
     <form onsubmit="submitBCProduct(event)" class="p-5 grid md:grid-cols-2 gap-4">
       <div class="md:col-span-2 grid md:grid-cols-[150px_1fr] gap-5">
         <div><label class="block text-xs font-semibold text-gray-500 mb-2">Product image</label><label class="h-36 w-36 border border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50"><img id="bc-image-preview" class="hidden h-full w-full object-cover"><span id="bc-image-placeholder" class="text-center text-gray-400 text-xs px-4"><i class="fas fa-image text-xl block mb-2"></i>Upload image</span><input id="bc-image" type="file" accept="image/*" class="hidden" onchange="previewBCImage(this)"></label></div>
-        <div class="grid sm:grid-cols-2 gap-4"><label><span class="bc-label">Product name *</span><input id="bc-name" required class="bc-input" placeholder="e.g. Premium Rice 5kg"></label><label><span class="bc-label">Barcode</span><input id="bc-barcode" class="bc-input" autocomplete="off" placeholder="Scan or type barcode"></label><label><span class="bc-label">SKU</span><input id="bc-sku" class="bc-input" placeholder="Optional SKU"></label><label><span class="bc-label">Category</span><input id="bc-category" class="bc-input" placeholder="e.g. Groceries"></label></div>
+        <div class="grid sm:grid-cols-2 gap-4"><label><span class="bc-label">Product name *</span><input id="bc-name" required class="bc-input" placeholder="e.g. Premium Rice 5kg"></label><label><span class="bc-label">Barcode</span><input id="bc-barcode" class="bc-input" autocomplete="off" placeholder="Scan or type barcode"><span class="text-[11px] text-gray-400 mt-1 block">Use the manufacturer's barcode if there is one. Leave empty and BizOS creates an internal code.</span></label><label><span class="bc-label">SKU</span><input id="bc-sku" class="bc-input" placeholder="Optional SKU"></label><label><span class="bc-label">Category</span><input id="bc-category" class="bc-input" placeholder="e.g. Groceries"></label></div>
       </div>
       <label><span class="bc-label">Cost price</span><input id="bc-cost" type="number" min="0" step="0.01" class="bc-input" placeholder="0.00"></label><label><span class="bc-label">Selling price *</span><input id="bc-selling" required type="number" min="0" step="0.01" class="bc-input" placeholder="0.00"></label><label><span class="bc-label">Opening stock</span><input id="bc-stock" type="number" min="0" step="1" class="bc-input" value="0"></label><label><span class="bc-label">Minimum stock</span><input id="bc-minstock" type="number" min="0" step="1" class="bc-input" value="0"></label><label><span class="bc-label">Unit</span><input id="bc-unit" class="bc-input" placeholder="piece, kg, carton..."></label><label><span class="bc-label">Supplier</span><input id="bc-supplier" class="bc-input" placeholder="Optional"></label><label class="md:col-span-2"><span class="bc-label">Location</span><input id="bc-location" class="bc-input" placeholder="Shop, warehouse, shelf..."></label>
       <div class="md:col-span-2 flex justify-end gap-3 pt-3 border-t border-gray-100"><button type="button" onclick="closeBCModals()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Cancel</button><button id="bc-product-submit" class="px-5 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium">Save product</button></div>
@@ -555,6 +558,26 @@
     <form onsubmit="submitBCCustomer(event)" class="p-5 space-y-4"><label><span class="bc-label">Name *</span><input id="bc-customer-name" required class="bc-input" placeholder="Customer name"></label><label><span class="bc-label">Phone</span><input id="bc-customer-phone" class="bc-input" placeholder="Phone number"></label><label><span class="bc-label">Email</span><input id="bc-customer-email" type="email" class="bc-input" placeholder="Email address"></label><label><span class="bc-label">Address</span><textarea id="bc-customer-address" class="bc-input min-h-24" placeholder="Optional address"></textarea></label><div class="flex justify-end gap-3 pt-3 border-t border-gray-100"><button type="button" onclick="closeBCModals()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Cancel</button><button class="px-5 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium">Save customer</button></div></form>
   </div></div>
 </div>
+
+  <div id="bc-bulk-modal" class="hidden fixed inset-0 z-[95] bg-black/50 p-4 overflow-y-auto">
+    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl my-6">
+      <div class="p-5 border-b border-gray-200 flex justify-between items-center"><div><h2 class="text-xl font-semibold">Add many products</h2><p class="text-sm text-gray-500 mt-1">Upload a CSV from Excel or paste rows directly.</p></div><button onclick="closeBCModals()" class="text-gray-400"><i class="fas fa-times"></i></button></div>
+      <div class="p-5 space-y-5">
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600"><p class="font-semibold text-gray-800 mb-2">Columns</p><p>Name · Barcode · Cost Price · Selling Price · Stock · Category</p><p class="text-xs mt-2 text-gray-500">Use the manufacturer's barcode when available. Leave Barcode empty when you want BizOS to create an internal barcode.</p></div>
+        <label class="block"><span class="bc-label">Choose CSV file</span><input id="bc-bulk-file" type="file" accept=".csv,text/csv" class="block w-full text-sm border border-gray-200 rounded-lg p-3 bg-white"></label>
+        <div class="text-center text-xs text-gray-400">or paste from Excel below</div>
+        <textarea id="bc-bulk-paste" rows="7" class="bc-input font-mono text-xs" placeholder="Name	Barcode	Cost Price	Selling Price	Stock	Category"></textarea>
+        <div id="bc-bulk-status" class="hidden rounded-lg p-3 text-sm"></div>
+        <div class="flex justify-end gap-3 pt-3 border-t border-gray-100"><button type="button" onclick="closeBCModals()" class="px-4 py-2.5 border border-gray-200 rounded-lg">Cancel</button><button id="bc-bulk-submit" type="button" onclick="submitBCBulkImport()" class="px-5 py-2.5 bg-[#5D2A86] text-white rounded-lg font-medium">Add products</button></div>
+      </div>
+    </div>
+  </div>
+  <div id="bc-scanner-modal" class="hidden fixed inset-0 z-[100] bg-black/70 p-4 overflow-y-auto">
+    <div class="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl my-6 overflow-hidden">
+      <div class="p-5 flex justify-between items-center border-b border-gray-200"><div><h2 class="text-xl font-semibold">Scan product</h2><p class="text-sm text-gray-500 mt-1">Point the camera at the barcode.</p></div><button onclick="closeBCScanner()" class="text-gray-400"><i class="fas fa-times"></i></button></div>
+      <div class="p-4"><video id="bc-scanner-video" autoplay muted playsinline class="w-full aspect-video object-cover rounded-xl bg-black"></video><div id="bc-scanner-message" class="text-sm text-gray-500 mt-3 text-center">Starting camera…</div><button type="button" onclick="closeBCScanner()" class="w-full mt-4 py-3 border border-gray-200 rounded-lg font-medium">Close</button></div>
+    </div>
+  </div>
 <style>#business-center-page .bc-label{display:block;font-size:.75rem;font-weight:600;color:#6b7280;margin-bottom:.45rem}#business-center-page .bc-input{width:100%;border:1px solid #e5e7eb;border-radius:.6rem;padding:.65rem .75rem;outline:none;background:#fff}#business-center-page .bc-input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(93,42,134,.08)}</style>
 <script>
 (function(){
@@ -656,5 +679,66 @@
   window.submitBCProduct=function(e){e.preventDefault();var button=document.getElementById('bc-product-submit');button.disabled=true;button.textContent='Saving...';bcCall('saveBusinessCenterProduct',[{Name:val('bc-name'),Barcode:val('bc-barcode'),SKU:val('bc-sku'),Category:val('bc-category'),Cost_Price:val('bc-cost'),Selling_Price:val('bc-selling'),Stock_Qty:val('bc-stock'),Minimum_Stock:val('bc-minstock'),Unit:val('bc-unit'),Supplier:val('bc-supplier'),Location:val('bc-location'),Image_Data:bcImageData}],function(result){button.disabled=false;button.textContent='Save product';if(!result||!result.success){alert(result&&result.message||'Could not save product.');return;}closeBCModals();document.querySelector('#bc-product-modal form').reset();bcImageData='';document.getElementById('bc-image-preview').classList.add('hidden');document.getElementById('bc-image-placeholder').classList.remove('hidden');loadBusinessCenter();});};
   window.submitBCCustomer=function(e){e.preventDefault();bcCall('saveBusinessCenterCustomer',[{Name:val('bc-customer-name'),Phone:val('bc-customer-phone'),Email:val('bc-customer-email'),Address:val('bc-customer-address'),Balance:0}],function(result){if(!result||!result.success){alert(result&&result.message||'Could not save customer.');return;}closeBCModals();document.querySelector('#bc-customer-modal form').reset();loadBusinessCenter();switchBCTab('customers');});};
   function val(id){return document.getElementById(id).value.trim();}function money(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(Number(v)||0);}function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
+
+  window.openBCBulkImport=function(){
+    closeBCModals();
+    document.getElementById('bc-bulk-file').value='';
+    document.getElementById('bc-bulk-paste').value='';
+    document.getElementById('bc-bulk-status').className='hidden';
+    document.getElementById('bc-bulk-modal').classList.remove('hidden');
+  };
+  function parseBCCSV(text){
+    var rows=[],row=[],cell='',quoted=false;
+    for(var i=0;i<text.length;i++){
+      var ch=text[i],next=text[i+1];
+      if(ch==='"'){if(quoted&&next==='"'){cell+='"';i++;}else quoted=!quoted;}
+      else if((ch===','||ch==='\t')&&!quoted){row.push(cell.trim());cell='';}
+      else if((ch==='\n'||ch==='\r')&&!quoted){if(ch==='\r'&&next==='\n')i++;row.push(cell.trim());cell='';if(row.some(function(v){return v!=='';}))rows.push(row);row=[];}
+      else cell+=ch;
+    }
+    if(cell!==''||row.length){row.push(cell.trim());if(row.some(function(v){return v!=='';}))rows.push(row);}
+    return rows;
+  }
+  function bcRowsFromTable(text){
+    var rows=parseBCCSV(text);if(!rows.length)return[];
+    var header=rows[0].map(function(v){return String(v).toLowerCase().replace(/[^a-z0-9]/g,'');});
+    var aliases={name:['name','product','productname'],barcode:['barcode','barcodenumber'],cost:['costprice','cost'],selling:['sellingprice','price','saleprice'],stock:['stock','stockqty','quantity'],minstock:['minimumstock','minstock'],category:['category'],unit:['unit'],sku:['sku'],supplier:['supplier'],location:['location']};
+    function col(keys){for(var i=0;i<header.length;i++)if(keys.indexOf(header[i])>-1)return i;return-1;}
+    var map={};Object.keys(aliases).forEach(function(k){map[k]=col(aliases[k]);});
+    function get(x,k){return map[k]>=0?(x[map[k]]||''):'';}
+    return rows.slice(1).filter(function(x){return x.some(function(v){return v!=='';});}).map(function(x){return{Name:get(x,'name'),Barcode:get(x,'barcode'),Cost_Price:get(x,'cost'),Selling_Price:get(x,'selling'),Stock_Qty:get(x,'stock'),Minimum_Stock:get(x,'minstock'),Category:get(x,'category'),Unit:get(x,'unit'),SKU:get(x,'sku'),Supplier:get(x,'supplier'),Location:get(x,'location')};});
+  }
+  window.submitBCBulkImport=function(){
+    var file=document.getElementById('bc-bulk-file').files[0],pasted=document.getElementById('bc-bulk-paste').value.trim(),status=document.getElementById('bc-bulk-status'),button=document.getElementById('bc-bulk-submit');
+    function send(text){
+      var rows=bcRowsFromTable(text);
+      if(!rows.length){status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';status.textContent='Choose a CSV file or paste your product rows.';return;}
+      if(rows.length>1000){status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';status.textContent='Please add 1,000 products or fewer at a time.';return;}
+      button.disabled=true;button.textContent='Adding products…';
+      bcCall('saveBusinessCenterProductsBulk',[rows],function(r){
+        button.disabled=false;button.textContent='Add products';
+        if(!r||!r.success){status.className='rounded-lg p-3 text-sm bg-red-50 text-red-700';status.textContent=r&&r.message||'Could not add products.';return;}
+        status.className='rounded-lg p-3 text-sm bg-green-50 text-green-700';status.textContent=r.message+(r.skipped?' '+r.skipped+' row(s) skipped.':'')+(r.errors&&r.errors.length?' '+r.errors.slice(0,3).join(' '):'');
+        loadBusinessCenter();
+      });
+    }
+    if(file){var reader=new FileReader();reader.onload=function(){send(String(reader.result||''));};reader.readAsText(file);}else send(pasted);
+  };
+  var bcScannerStream=null,bcScannerTimer=null;
+  window.openBCScanner=function(){
+    var modal=document.getElementById('bc-scanner-modal'),video=document.getElementById('bc-scanner-video'),message=document.getElementById('bc-scanner-message');
+    if(!modal||!video)return;modal.classList.remove('hidden');
+    if(!('BarcodeDetector' in window)){message.textContent='Camera scanning is not supported here. Use the barcode box or a physical scanner.';return;}
+    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}}).then(function(stream){
+      bcScannerStream=stream;video.srcObject=stream;var detector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf']});message.textContent='Point the camera at the barcode…';
+      bcScannerTimer=setInterval(function(){if(video.readyState<2)return;detector.detect(video).then(function(codes){if(!codes||!codes.length)return;var code=codes[0].rawValue;if(!code)return;document.getElementById('bc-pos-barcode').value=code;closeBCScanner();lookupBCPOS();}).catch(function(){});},250);
+    }).catch(function(){message.textContent='Camera could not be opened. Check browser permission, or use the barcode box/physical scanner.';});
+  };
+  window.closeBCScanner=function(){
+    if(bcScannerTimer){clearInterval(bcScannerTimer);bcScannerTimer=null;}
+    if(bcScannerStream){bcScannerStream.getTracks().forEach(function(t){t.stop();});bcScannerStream=null;}
+    var video=document.getElementById('bc-scanner-video');if(video)video.srcObject=null;
+    var modal=document.getElementById('bc-scanner-modal');if(modal)modal.classList.add('hidden');
+  };
 })();
 </script>
