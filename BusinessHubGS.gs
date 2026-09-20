@@ -88,7 +88,32 @@ function getBusinessCenterData(sessionId) {
     const sheets = getBusinessCenterSheets_(workspace);
     const products = businessCenterRows_(sheets.products);
     const customers = businessCenterRows_(sheets.customers);
-    products.forEach(function(product) { product.Image_Data = businessCenterImageData_(product.Image_File_ID); });
+function getBusinessCenterProductImages(productIds, sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    const ids = Array.isArray(productIds) ? productIds.slice(0, 30).map(function(id) { return String(id || '').trim(); }).filter(Boolean) : [];
+    if (!ids.length) return { success: true, images: {} };
+
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterSheets_(workspace);
+    const products = businessCenterRows_(sheets.products);
+    const wanted = {};
+    ids.forEach(function(id) { wanted[id] = true; });
+
+    const images = {};
+    products.forEach(function(product) {
+      if (!wanted[String(product.Product_ID || '')]) return;
+      const data = businessCenterImageData_(product.Image_File_ID);
+      if (data) images[String(product.Product_ID)] = data;
+    });
+    return { success: true, images: images };
+  } catch (error) {
+    console.error('Business Center product image error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
     const customerBalances = getBusinessCenterCustomerBalanceMap_(workspace);
     customers.forEach(function(customer) {
       const id = String(customer.Customer_ID || '').trim();
