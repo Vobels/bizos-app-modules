@@ -407,8 +407,8 @@ function completeBusinessCenterSale(data, sessionId) {
     const priceCol = headers.indexOf('Selling_Price');
 
     const customerId = String(data.Customer_ID || '').trim();
-    const customerName = String(data.Customer_Name || '').trim();
     let customerRow = -1;
+    let resolvedCustomerName = '';
     let customerBalance = 0;
 
     if (customerId) {
@@ -421,7 +421,7 @@ function completeBusinessCenterSale(data, sessionId) {
         if (String(customerValues[i][customerIdCol] || '') === customerId) {
           customerRow = i;
           customerBalance = Number(customerValues[i][customerBalanceCol] || 0);
-          if (!customerName) data.Customer_Name = customerValues[i][customerNameCol] || '';
+          resolvedCustomerName = String(customerValues[i][customerNameCol] || '').trim();
           break;
         }
       }
@@ -478,7 +478,7 @@ function completeBusinessCenterSale(data, sessionId) {
         return h === 'Sale_ID' ? saleId :
           h === 'Date' ? (data.Date || now.split('T')[0]) :
           h === 'Customer_ID' ? customerId :
-          h === 'Customer_Name' ? (data.Customer_Name || '') :
+          h === 'Customer_Name' ? resolvedCustomerName :
           h === 'Subtotal' ? subtotal :
           h === 'Discount' ? discount :
           h === 'Total' ? total :
