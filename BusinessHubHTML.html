@@ -457,9 +457,21 @@
     </section>
     <section id="bc-sales" class="hidden">
       <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div><h2 class="text-lg font-semibold">Sales History</h2><p class="text-sm text-gray-500">Every completed Business Center sale is recorded here.</p></div>
-          <button onclick="loadBCSales()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Refresh</button>
+        <div class="p-5 border-b border-gray-200 flex flex-col gap-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div><h2 class="text-lg font-semibold">Sales History</h2><p class="text-sm text-gray-500">Search sales, check payments and open receipts.</p></div>
+            <button onclick="loadBCSales()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Refresh</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <input id="bc-sales-search" oninput="renderBCSales()" class="px-3 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#5D2A86]/20" placeholder="Search sale or customer">
+            <input id="bc-sales-date" type="date" onchange="renderBCSales()" class="px-3 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#5D2A86]/20">
+            <select id="bc-sales-status" onchange="renderBCSales()" class="px-3 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#5D2A86]/20">
+              <option value="">All payments</option>
+              <option value="paid">Paid</option>
+              <option value="credit">Credit</option>
+            </select>
+            <button onclick="clearBCSalesFilters()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Clear filters</button>
+          </div>
         </div>
         <div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-gray-500"><tr>
           <th class="text-left px-5 py-3 font-medium">Sale</th><th class="text-left px-5 py-3 font-medium">Date</th>
@@ -609,23 +621,45 @@
     });
   };
 
+  window.renderBCSales=function(){
+    var body=document.getElementById('bc-sales-body'),empty=document.getElementById('bc-sales-empty');
+    var search=((document.getElementById('bc-sales-search')||{}).value||'').toLowerCase().trim();
+    var date=((document.getElementById('bc-sales-date')||{}).value||'').trim();
+    var status=((document.getElementById('bc-sales-status')||{}).value||'').trim();
+    var sales=(window.__bcSales||[]).filter(function(s){
+      var haystack=[s.Sale_ID,s.Customer_Name,s.Customer_ID].join(' ').toLowerCase();
+      var matchesSearch=!search||haystack.indexOf(search)!==-1;
+      var saleDate=String(s.Date||s.Created_At||'').slice(0,10);
+      var matchesDate=!date||saleDate===date;
+      var due=Number(s.Balance_Due||0);
+      var matchesStatus=!status||(status==='paid'&&due<=0)||(status==='credit'&&due>0);
+      return matchesSearch&&matchesDate&&matchesStatus;
+    });
+    body.innerHTML=sales.map(function(s){
+      return '<tr class="border-t border-gray-100">'+
+        '<td class="px-5 py-4 font-medium">'+esc(s.Sale_ID)+'</td>'+
+        '<td class="px-5 py-4 text-gray-500">'+esc(s.Date||'—')+'</td>'+
+        '<td class="px-5 py-4">'+esc(s.Customer_Name||'Walk-in customer')+'</td>'+
+        '<td class="px-5 py-4 text-right">'+money(s.Total)+'</td>'+
+        '<td class="px-5 py-4 text-right">'+money(s.Amount_Paid)+'</td>'+
+        '<td class="px-5 py-4 text-right">'+money(s.Balance_Due)+'</td>'+
+        '<td class="px-5 py-4">'+esc(s.Status||'—')+'</td>'+
+        '<td class="px-5 py-4 text-right"><button onclick="openBCReceipt(\''+esc(s.Sale_ID)+'\')" class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50">View</button></td>'+
+        '</tr>';
+    }).join('');
+    empty.textContent=sales.length?'':'No sales match these filters.';
+    empty.classList.toggle('hidden',sales.length!==0);
+  };
+  window.clearBCSalesFilters=function(){
+    ['bc-sales-search','bc-sales-date'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    var status=document.getElementById('bc-sales-status');if(status)status.value='';
+    renderBCSales();
+  };
   window.loadBCSales=function(){
     bcCall('getBusinessCenterSales',[{limit:200}],function(result){
       if(!result||!result.success){alert(result&&result.message||'Could not load sales history.');return;}
-      var body=document.getElementById('bc-sales-body'),empty=document.getElementById('bc-sales-empty'),sales=result.sales||[];
-      body.innerHTML=sales.map(function(s){
-        return '<tr class="border-t border-gray-100">'+
-          '<td class="px-5 py-4 font-medium">'+esc(s.Sale_ID)+'</td>'+
-          '<td class="px-5 py-4 text-gray-500">'+esc(s.Date||'—')+'</td>'+
-          '<td class="px-5 py-4">'+esc(s.Customer_Name||'Walk-in customer')+'</td>'+
-          '<td class="px-5 py-4 text-right">'+money(s.Total)+'</td>'+
-          '<td class="px-5 py-4 text-right">'+money(s.Amount_Paid)+'</td>'+
-          '<td class="px-5 py-4 text-right">'+money(s.Balance_Due)+'</td>'+
-          '<td class="px-5 py-4">'+esc(s.Status||'—')+'</td>'+
-          '<td class="px-5 py-4 text-right"><button onclick="openBCReceipt(\''+esc(s.Sale_ID)+'\')" class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50">View</button></td>'+
-          '</tr>';
-      }).join('');
-      empty.classList.toggle('hidden',sales.length!==0);
+      window.__bcSales=result.sales||[];
+      renderBCSales();
     });
   };
   window.openBCReceipt=function(saleId){
