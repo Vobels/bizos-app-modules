@@ -6010,9 +6010,34 @@ window.loadNotificationsForDropdown = loadNotificationsForDropdown;
   window.showForgotPassword = showForgotPassword;
   window.closeForgotModal = closeForgotModal;
   window.showDashboardHome = showDashboardHome;
-  // Business Center is defined by BusinessHubHTML and loaded before this file.
-  // Keep an explicit global reference so sidebar navigation always resolves it.
-  if (typeof window.showBusinessCenter === 'function') window.showBusinessCenter = window.showBusinessCenter;
+  // Business Center navigation guard.
+// Define the navigation entry point here as well so the sidebar does not depend
+// on the BusinessHubHTML script block successfully initializing first.
+window.showBusinessCenter = function() {
+  console.log("showBusinessCenter called");
+  ['landing-page','dashboard-page','profile-page','settings-page','staff-page','cms-page'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+
+  var dashboardPage = document.getElementById('dashboard-page');
+  if (dashboardPage) dashboardPage.classList.add('hidden');
+
+  var businessCenterPage = document.getElementById('business-center-page');
+  if (!businessCenterPage) {
+    console.error('Business Center page container not found');
+    return;
+  }
+
+  businessCenterPage.classList.remove('hidden');
+  document.title = 'Business Center - BizOS';
+
+  if (typeof window.loadBusinessCenter === 'function') {
+    window.loadBusinessCenter();
+  } else {
+    console.error('loadBusinessCenter is not available');
+  }
+};
   window.showAppsPage = showAppsPage;
   window.loadAllApps = loadAllApps;
   window.loadFeaturedApps = loadFeaturedApps;
