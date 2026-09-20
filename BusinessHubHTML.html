@@ -757,8 +757,9 @@
     var code=document.getElementById('bc-barcode-product-code').textContent||'';
     var win=window.open('','_blank','width=600,height=400');
     if(!win){alert('Please allow pop-ups to print the barcode label.');return;}
-    win.document.write('<!doctype html><html><head><title>Barcode</title><style>body{font-family:Arial,sans-serif;text-align:center;margin:24px}.label{width:320px;margin:auto}.name{font-size:18px;font-weight:600;margin-bottom:8px}svg{max-width:100%;height:auto}.code{font-size:14px;margin-top:6px}@media print{body{margin:0}.label{width:100%}}</style></head><body><div class="label"><div class="name">'+esc(name)+'</div>'+svg.outerHTML+'<div class="code">'+esc(code)+'</div></div><script>window.onload=function(){window.print();};</script></body></html>');
+    win.document.write('<!doctype html><html><head><title>Barcode</title><style>body{font-family:Arial,sans-serif;text-align:center;margin:24px}.label{width:320px;margin:auto}.name{font-size:18px;font-weight:600;margin-bottom:8px}svg{max-width:100%;height:auto}.code{font-size:14px;margin-top:6px}@media print{body{margin:0}.label{width:100%}}</style></head><body><div class="label"><div class="name">'+esc(name)+'</div>'+svg.outerHTML+'<div class="code">'+esc(code)+'</div></div></body></html>');
     win.document.close();
+    win.onload=function(){win.print();};
   };
 
   window.previewBCImage=function(input){var file=input.files&&input.files[0];if(!file)return;if(file.size>800000){alert('Please choose an image under 800 KB.');input.value='';return;}var reader=new FileReader();reader.onload=function(e){bcImageData=e.target.result;document.getElementById('bc-image-preview').src=bcImageData;document.getElementById('bc-image-preview').classList.remove('hidden');document.getElementById('bc-image-placeholder').classList.add('hidden');};reader.readAsDataURL(file);};
