@@ -393,7 +393,7 @@
       <button id="bc-tab-products" onclick="switchBCTab('products')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Products</button>
       <button id="bc-tab-customers" onclick="switchBCTab('customers')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customers</button>
       <button id="bc-tab-sales" onclick="switchBCTab('sales')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Sales</button>
-      <button id="bc-tab-inventory" onclick="switchBCTab('inventory')" class="px-1 pb-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Inventory</button>
+      <button id="bc-tab-ledger" onclick="switchBCTab('ledger')" class="px-1 pb-3 mr-5 text-sm font-medium text-gray-500 border-b-2 border-transparent">Customer Ledger</button><button id="bc-tab-inventory" onclick="switchBCTab('inventory')" class="px-1 pb-3 text-sm font-medium text-gray-500 border-b-2 border-transparent">Inventory</button>
     </div>
     <section id="bc-overview">
       <div class="mb-6 bg-white border border-gray-200 rounded-xl p-5">
@@ -603,7 +603,45 @@
     var el=document.getElementById('bc-print-receipt'); if(!el)return;
     var w=window.open('','_blank','width=420,height=700');
     if(!w){alert('Please allow pop-ups to print the receipt.');return;}
-    w.document.write('<html><head><title>Receipt</title><style>body{font-family:Arial,sans-serif;padding:12px;color:#111}.receipt{width:80mm;margin:auto;font-size:12px}table{width:100%;border-collapse:collapse}th,td{padding:4px 0}th{border-bottom:1px solid #999;text-align:left}@media print{body{padding:0}}</style></head><body><div class="receipt">'+el.innerHTML+'</div></body></html>');
+    w.document.write('<html><head><title>Receipt</title><style>body{font-family:Arial,sans-serif;padding:12px;color:#111}.receipt{width:80mm;margin:auto;font-size:12px}table{width:100%;border-collapse:collapse}th,td{padding:4px 0}th{border-bottom:1px solid #999;text-align:left}@media print{body{padding:0}}</style></head><body><div class="receipt">'+el.innerHTML+'</div><script>
+(function(){
+  function bcLedgerMoney(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(Number(v)||0);}
+  function bcLedgerEsc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
+  window.loadBCCustomerLedger=function(){
+    var id=document.getElementById('bc-ledger-customer').value;
+    var body=document.getElementById('bc-ledger-body'),empty=document.getElementById('bc-ledger-empty');
+    if(!id){body.innerHTML='';empty.classList.remove('hidden');return;}
+    if(typeof window.callGoogleScript!=='function')return;
+    window.callGoogleScript('getBusinessCenterCustomerLedger',[id],function(r){
+      if(!r||!r.success){alert((r&&r.message)||'Could not load customer ledger.');return;}
+      empty.classList.add('hidden');
+      document.getElementById('bc-ledger-debit').textContent=bcLedgerMoney(r.summary.totalDebit);
+      document.getElementById('bc-ledger-credit').textContent=bcLedgerMoney(r.summary.totalCredit);
+      document.getElementById('bc-ledger-balance').textContent=bcLedgerMoney(r.summary.balance);
+      body.innerHTML=(r.entries||[]).map(function(e){return '<tr class="border-t border-gray-100"><td class="px-5 py-3">'+bcLedgerEsc(e.Date)+'</td><td class="px-5 py-3">'+bcLedgerEsc(e.Type)+'</td><td class="px-5 py-3">'+bcLedgerEsc(e.Reference_ID)+'</td><td class="px-5 py-3">'+bcLedgerEsc(e.Description)+'</td><td class="px-5 py-3 text-right">'+bcLedgerMoney(e.Debit)+'</td><td class="px-5 py-3 text-right">'+bcLedgerMoney(e.Credit)+'</td><td class="px-5 py-3 text-right font-medium">'+bcLedgerMoney(e.Balance)+'</td></tr>';}).join('');
+    });
+  };
+  window.loadBCCustomerLedgerCustomers=function(){
+    var customers=window.__bcDataForLedger||[];
+    var html='<option value="">Select customer</option>'+customers.map(function(c){return '<option value="'+bcLedgerEsc(c.Customer_ID)+'">'+bcLedgerEsc(c.Name)+'</option>';}).join('');
+    var a=document.getElementById('bc-ledger-customer'),b=document.getElementById('bc-payment-customer');
+    if(a)a.innerHTML=html;if(b)b.innerHTML=html;
+  };
+  window.openBCPaymentForm=function(){
+    var id=document.getElementById('bc-ledger-customer').value;
+    if(id)document.getElementById('bc-payment-customer').value=id;
+    document.getElementById('bc-payment-date').value=new Date().toISOString().slice(0,10);
+    document.getElementById('bc-payment-modal').classList.remove('hidden');document.getElementById('bc-payment-modal').classList.add('flex');
+  };
+  window.closeBCPaymentForm=function(){var m=document.getElementById('bc-payment-modal');m.classList.add('hidden');m.classList.remove('flex');};
+  window.submitBCPayment=function(e){
+    e.preventDefault();
+    var data={Customer_ID:document.getElementById('bc-payment-customer').value,Amount:document.getElementById('bc-payment-amount').value,Date:document.getElementById('bc-payment-date').value,Description:document.getElementById('bc-payment-description').value};
+    window.callGoogleScript('recordBusinessCenterCustomerPayment',[data],function(r){if(!r||!r.success){alert((r&&r.message)||'Could not record payment.');return;}closeBCPaymentForm();document.getElementById('bc-payment-amount').value='';document.getElementById('bc-payment-description').value='';var selected=document.getElementById('bc-payment-customer').value;document.getElementById('bc-ledger-customer').value=selected;loadBCCustomerLedger();if(typeof loadBusinessCenter==='function')loadBusinessCenter();});
+  };
+})();
+</script>
+</body></html>');
     w.document.close(); w.focus(); setTimeout(function(){w.print();},250);
   };
 
