@@ -340,8 +340,8 @@ function doPost(e) {
       
       // Upgrade functions
       case 'getPendingUpgradeRequestStatus':
-        const upgradeBusinessId = payload[0];
-        result = getPendingUpgradeRequestStatus(upgradeBusinessId);
+        const upgradeBusinessId = payload[0] || '';
+        result = getPendingUpgradeRequestStatus(upgradeBusinessId, sessionId);
         break;
       case 'submitUpgradeRequest':
         const submitBusinessId = payload[0];
