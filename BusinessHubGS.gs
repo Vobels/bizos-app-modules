@@ -508,7 +508,7 @@ function completeBusinessCenterSale(data, sessionId) {
         return h === 'Sale_ID' ? saleId :
           h === 'Date' ? (data.Date || now.split('T')[0]) :
           h === 'Customer_ID' ? customerId :
-          h === 'Customer_Name' ? resolvedCustomerName :
+          h === 'Customer_Name' ? (resolvedCustomerName || String(data.Customer_Name || '').trim()) :
           h === 'Subtotal' ? subtotal :
           h === 'Discount' ? discount :
           h === 'Total' ? total :
