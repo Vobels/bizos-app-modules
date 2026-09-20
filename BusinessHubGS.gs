@@ -488,7 +488,26 @@ function completeBusinessCenterSale(data, sessionId) {
           h === 'Quantity' ? line.qty : h === 'Unit_Price' ? line.price :
           h === 'Line_Total' ? line.lineTotal : h === 'Created_At' ? now : '';
       }));
-      sheets.products.getRange(line.rowIndex + 1, stockCol + 1).setValue(Number(line.product[stockCol] || 0) - line.qty);
+      const beforeQty = Number(line.product[stockCol] || 0);
+      const afterQty = beforeQty - line.qty;
+      sheets.products.getRange(line.rowIndex + 1, stockCol + 1).setValue(afterQty);
+
+      // Every completed sale creates an inventory audit entry so stock
+      // reductions from POS are visible alongside manual stock adjustments.
+      const stockMovementSheet = getBusinessCenterInventorySheets_(workspace).stock;
+      stockMovementSheet.appendRow([
+        'MOV-' + Utilities.getUuid().substring(0, 8).toUpperCase(),
+        data.Date || now.split('T')[0],
+        line.product[idCol],
+        name,
+        'sale',
+        line.qty,
+        beforeQty,
+        afterQty,
+        'POS sale ' + saleId,
+        user.email || user.name || '',
+        now
+      ]);
     });
 
     if (customerId && balanceDue > 0) {
