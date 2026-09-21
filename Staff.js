@@ -109,6 +109,11 @@ function inviteStaffMember(businessId, email, name, role, invitedByEmail, assign
     const now = new Date().toISOString();
 
     if (existingIndex >= 1) {
+      const existingStatus = String(data[existingIndex][statusCol] || '').toLowerCase();
+      if (existingStatus === 'accepted') {
+        return { success: false, message: 'This email is already a member of this business.' };
+      }
+
       userSheet.getRange(existingIndex + 1, invitedByCol + 1).setValue(invitedByEmail);
       userSheet.getRange(existingIndex + 1, statusCol + 1).setValue('pending');
       userSheet.getRange(existingIndex + 1, codeCol + 1).setValue(invitationCode);
@@ -242,7 +247,9 @@ function acceptInvitation(invitationCode, password, name, phone) {
 }
 
 function resendStaffInvitation(businessId, email, sessionId) {
+  const lock = LockService.getScriptLock();
   try {
+    if (!lock.tryLock(10000)) return { success: false, message: 'Another staff invitation is being updated. Please try again.' };
     const actor = staffActor_(sessionId, businessId, ['owner', 'admin']);
     if (!actor.ok) return { success: false, message: actor.message };
 
@@ -280,6 +287,8 @@ function resendStaffInvitation(businessId, email, sessionId) {
   } catch (error) {
     console.error('Resend staff invitation error:', error);
     return { success: false, message: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
 }
 
