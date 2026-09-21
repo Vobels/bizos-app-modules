@@ -664,7 +664,7 @@ function executeWithLicenseCheck(operation, moduleName, data, sessionId) {
   
   // ===== STAFF: Check if module is assigned =====
   if (!isOwnerOrAdmin) {
-    const accessibleModules = user.accessibleModules || ['Finance'];
+    const accessibleModules = user.accessibleModules || [];
     if (!accessibleModules.includes(moduleName)) {
       return {
         success: false,
