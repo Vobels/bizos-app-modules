@@ -24,6 +24,10 @@ function getUpgradePaymentDetails(requestId) {
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
 
     var status = String(request.status || '').trim().toLowerCase();
+    if (status === 'pending_payment' && isUpgradeRequestExpired_(request.createdAt)) {
+      markUpgradeRequestExpired_(requestId);
+      return {success:false,code:'REQUEST_EXPIRED',message:'This upgrade request expired after 10 days. Please submit a new upgrade request.'};
+    }
     if (status !== 'pending_payment') {
       return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is no longer awaiting payment.'};
     }
@@ -57,6 +61,10 @@ function getPaystackCheckoutDetails(requestId) {
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
 
     var status = String(request.status || '').toLowerCase();
+    if (status === 'pending_payment' && isUpgradeRequestExpired_(request.createdAt)) {
+      markUpgradeRequestExpired_(requestId);
+      return {success:false,code:'REQUEST_EXPIRED',message:'This upgrade request expired after 10 days. Please submit a new upgrade request.'};
+    }
     if (status !== 'pending_payment') {
       return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is not awaiting payment.'};
     }
@@ -116,6 +124,10 @@ function verifyPaystackPaymentAndProvisionSecure(reference, requestId) {
     // payment verification network request.
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.status || '').trim().toLowerCase() === 'pending_payment' && isUpgradeRequestExpired_(request.createdAt)) {
+      markUpgradeRequestExpired_(requestId);
+      return {success:false,code:'REQUEST_EXPIRED',message:'This upgrade request expired after 10 days. Please submit a new upgrade request.'};
+    }
 
     var response = UrlFetchApp.fetch(
       'https://api.paystack.co/transaction/verify/' + encodeURIComponent(reference),
