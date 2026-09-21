@@ -37,6 +37,7 @@ function getBankDetails() {
  * Workspace_Email is the Google/Workspace destination used for provisioning.
  */
 function handleUpgradeRequest(upgradeData, sessionId) {
+  var upgradeLock = null;
   try {
     var user = validateUpgradeSession(sessionId);
     if (!user) return {success:false, message:'Session expired. Please login again.'};
@@ -66,8 +67,13 @@ function handleUpgradeRequest(upgradeData, sessionId) {
       }
     }
 
+    // Serialize the final duplicate check + request creation so two rapid
+    // submissions cannot create two open upgrade requests for the same account.
+    upgradeLock = LockService.getScriptLock();
+    upgradeLock.waitLock(10000);
+
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
-    if (latestRequest && latestRequest.status === 'pending_payment') {
+    if (latestRequest && latestRequest.status === 'pending_payment' && !latestRequest.expired) {
       var pendingPublicUrl = getPublicBizOSUrl_();
       var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
         '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier);
@@ -130,6 +136,11 @@ function handleUpgradeRequest(upgradeData, sessionId) {
       paymentId, requestId, user.email, workspaceEmail, amount, currency, 'pending', '', timestamp.toISOString(), ''
     ]);
 
+    if (upgradeLock) {
+      upgradeLock.releaseLock();
+      upgradeLock = null;
+    }
+
     sendUpgradeRequestEmail(user.email, user.name, requestId, country, tier, amount, symbol);
     sendAdminUpgradeNotification(user.email, user.name, requestId, country, businessDetails, certificateUrl);
 
@@ -152,6 +163,10 @@ function handleUpgradeRequest(upgradeData, sessionId) {
   } catch (error) {
     console.error('Upgrade request error:', error);
     return {success:false, message:error.message || 'An error occurred. Please try again.'};
+  } finally {
+    if (upgradeLock) {
+      try { upgradeLock.releaseLock(); } catch (ignore) {}
+    }
   }
 }
 
@@ -161,6 +176,39 @@ function handleUpgradeRequest(upgradeData, sessionId) {
  * The latest row is authoritative: only a latest pending_payment request can
  * be resumed or block creation of a new request.
  */
+var UPGRADE_REQUEST_TTL_MS = 10 * 24 * 60 * 60 * 1000;
+
+function isUpgradeRequestExpired_(createdAt) {
+  var createdDate = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  if (isNaN(createdDate.getTime())) return true;
+  return Date.now() - createdDate.getTime() >= UPGRADE_REQUEST_TTL_MS;
+}
+
+function markUpgradeRequestExpired_(requestId) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+    if (!sheet) return;
+    var data = sheet.getDataRange().getValues();
+    if (!data.length) return;
+    var headers = data[0] || [];
+    var requestIdCol = headers.indexOf('Request_ID');
+    var statusCol = headers.indexOf('Status');
+    var updatedCol = headers.indexOf('Updated_At');
+    if (requestIdCol === -1 || statusCol === -1) return;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][requestIdCol]) === String(requestId)) {
+        if (String(data[i][statusCol] || '').toLowerCase() === 'pending_payment') {
+          sheet.getRange(i + 1, statusCol + 1).setValue('expired');
+          if (updatedCol !== -1) sheet.getRange(i + 1, updatedCol + 1).setValue(new Date().toISOString());
+        }
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('markUpgradeRequestExpired_ error:', error);
+  }
+}
+
 function getLatestUpgradeRequestForUser_(email) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
@@ -198,7 +246,14 @@ function getLatestUpgradeRequestForUser_(email) {
           currency: currencyCol !== -1 ? String(data[i][currencyCol] || '') : '',
           country: countryCol !== -1 ? String(data[i][countryCol] || '') : '',
           createdAt: createdAtCol !== -1 ? data[i][createdAtCol] : '',
-          status: status
+          status: status,
+          expiresAt: (function () {
+            var created = data[i][createdAtCol];
+            var createdDate = created instanceof Date ? created : new Date(created);
+            if (isNaN(createdDate.getTime())) return '';
+            return new Date(createdDate.getTime() + UPGRADE_REQUEST_TTL_MS).toISOString();
+          })(),
+          expired: status === 'pending_payment' && isUpgradeRequestExpired_(data[i][createdAtCol])
         };
       }
     }
@@ -221,7 +276,10 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
       return {success:false, message:'Business does not match the current session.'};
     }
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
-    if (!latestRequest || latestRequest.status !== 'pending_payment') return {success:true, hasPending:false};
+    if (!latestRequest || latestRequest.status !== 'pending_payment' || latestRequest.expired) {
+      if (latestRequest && latestRequest.status === 'pending_payment' && latestRequest.expired) markUpgradeRequestExpired_(latestRequest.requestId);
+      return {success:true, hasPending:false};
+    }
     var pending = latestRequest;
     return {
       success:true,
