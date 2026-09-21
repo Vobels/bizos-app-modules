@@ -297,7 +297,7 @@ function getUserFromSession(sessionId) {
   } else {
     accessibleModules = getStaffModules(email, businessId);
     if (accessibleModules.length === 0) {
-      accessibleModules = ['Finance'];
+      accessibleModules = [];
     }
   }
   
