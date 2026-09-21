@@ -1911,6 +1911,12 @@ function showAppsPage() {
 // KEEP THIS VERSION - More concise and includes all pages
 function showDashboardHome() {
   console.log("showDashboardHome called");
+  // Keep Business Center isolated from the main dashboard view.
+  const businessCenterPage = document.getElementById('business-center-page');
+  if (businessCenterPage) {
+    businessCenterPage.classList.add('hidden');
+    businessCenterPage.style.display = 'none';
+  }
   
   // Get all page containers
   const dashboardHome = document.getElementById('dashboard-home');
@@ -5528,6 +5534,27 @@ function showSettingsPage() {
   console.log("Settings page displayed");
 }
 
+function toggleSettingsSidebarMenu(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('settings-sidebar-menu');
+  const toggle = document.getElementById('settings-sidebar-toggle');
+  const chevron = document.getElementById('settings-sidebar-chevron');
+  if (!menu) return;
+  const willOpen = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !willOpen);
+  if (toggle) toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  if (chevron) chevron.classList.toggle('rotate-180', willOpen);
+}
+
+function closeSettingsSidebarMenu() {
+  const menu = document.getElementById('settings-sidebar-menu');
+  const toggle = document.getElementById('settings-sidebar-toggle');
+  const chevron = document.getElementById('settings-sidebar-chevron');
+  if (menu) menu.classList.add('hidden');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  if (chevron) chevron.classList.remove('rotate-180');
+}
+
 function loadNotificationPreferences() {
   const prefs = JSON.parse(localStorage.getItem('bizos_notification_prefs') || '{}');
   
@@ -5947,6 +5974,8 @@ window.closeProfileSidebar = closeProfileSidebar;
   
 // ===== EXPOSE SETTINGS GLOBALLY =====
 window.showSettingsPage = showSettingsPage;
+window.toggleSettingsSidebarMenu = toggleSettingsSidebarMenu;
+window.closeSettingsSidebarMenu = closeSettingsSidebarMenu;
 window.loadNotificationPreferences = loadNotificationPreferences;
 window.saveNotificationPreferences = saveNotificationPreferences;
 window.goToSecurityTab = goToSecurityTab;
@@ -5987,6 +6016,40 @@ window.loadNotificationsForDropdown = loadNotificationsForDropdown;
   window.showForgotPassword = showForgotPassword;
   window.closeForgotModal = closeForgotModal;
   window.showDashboardHome = showDashboardHome;
+  // Business Center navigation guard.
+// Define the navigation entry point here as well so the sidebar does not depend
+// on the BusinessHubHTML script block successfully initializing first.
+window.showBusinessCenter = function() {
+  console.log("showBusinessCenter called");
+  ['landing-page','dashboard-page','profile-page','settings-page','staff-page','cms-page'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+
+  var dashboardPage = document.getElementById('dashboard-page');
+  if (dashboardPage) {
+    dashboardPage.classList.add('hidden');
+    dashboardPage.style.setProperty('display', 'none', 'important');
+  }
+
+  var businessCenterPage = document.getElementById('business-center-page');
+  if (!businessCenterPage) {
+    console.error('Business Center page container not found');
+    return;
+  }
+
+  businessCenterPage.classList.remove('hidden');
+  businessCenterPage.removeAttribute('hidden');
+  businessCenterPage.style.setProperty('display', 'block', 'important');
+  businessCenterPage.style.setProperty('visibility', 'visible', 'important');
+  document.title = 'Business Center - BizOS';
+
+  if (typeof window.loadBusinessCenter === 'function') {
+    window.loadBusinessCenter();
+  } else {
+    console.error('loadBusinessCenter is not available');
+  }
+};
   window.showAppsPage = showAppsPage;
   window.loadAllApps = loadAllApps;
   window.loadFeaturedApps = loadFeaturedApps;
