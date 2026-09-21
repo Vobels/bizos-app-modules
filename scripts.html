@@ -4307,14 +4307,31 @@ async function handleUpgradeRequest(event) {
         showNotification(res.message, 'success');
         closeUpgradeModal();
         if (res.redirectUrl) {
-          // Continue the existing transaction on the public BizOS domain.
-          // Do not open a new tab: popup blockers can interrupt the payment flow.
-          // The public URL is generated server-side from CONFIG.URLS.base.
+          // Keep the payment request inside the current BizOS entry point.
+          // If BizOS is embedded on the custom domain, document.referrer is the
+          // custom-domain page; if opened directly from Apps Script, the fallback
+          // keeps the navigation on the Apps Script deployment.
           try {
+            var redirectUrl = String(res.redirectUrl);
+            if (redirectUrl.charAt(0) === '?') {
+              var entryUrl = '';
+              try {
+                if (document.referrer) {
+                  var ref = new URL(document.referrer);
+                  if (ref.protocol === 'http:' || ref.protocol === 'https:') {
+                    entryUrl = ref.origin + ref.pathname;
+                  }
+                }
+              } catch (referrerError) {}
+              if (!entryUrl) {
+                entryUrl = window.location.origin + window.location.pathname;
+              }
+              redirectUrl = entryUrl + redirectUrl;
+            }
             if (window.top && window.top !== window) {
-              window.top.location.assign(res.redirectUrl);
+              window.top.location.assign(redirectUrl);
             } else {
-              window.location.assign(res.redirectUrl);
+              window.location.assign(redirectUrl);
             }
           } catch (navigationError) {
             window.location.assign(res.redirectUrl);
