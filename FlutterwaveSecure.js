@@ -35,9 +35,9 @@ function createFlutterwaveCheckout(requestId) {
     if (!amount || amount<=0) return {success:false,code:'INVALID_PAYMENT_AMOUNT',message:'Upgrade request has an invalid payment amount.'};
     var currency=String(request.currency||'NGN').toUpperCase();
     var txRef='BIZOS-' + String(requestId).replace(/[^A-Za-z0-9._=-]/g,'-') + '-FLW-' + Utilities.getUuid().replace(/-/g,'').substring(0,8);
-    var callbackBase=String(ScriptApp.getService().getUrl()||'').replace(/\/$/,'');
-    if (!callbackBase) throw new Error('The BizOS web app URL is not available for Flutterwave callback handling.');
-    var redirectUrl=callbackBase+'?page=flutterwave-callback&requestId='+encodeURIComponent(requestId);
+    var callbackBase=String(getPublicBizOSUrl_()||'').replace(/\/$/,'');
+    if (!callbackBase) throw new Error('The BizOS public URL is not configured.');
+    var redirectUrl=callbackBase+'/?page=flutterwave-callback&requestId='+encodeURIComponent(requestId);
     var payload={tx_ref:txRef,amount:amount,currency:currency,redirect_url:redirectUrl,customer:{email:String(request.email||''),name:String(request.name||request.email||'')},customizations:{title:'BizOS Upgrade',description:'Sovereign workspace upgrade for '+String(request.businessName||'your business')},meta:{requestId:requestId,businessName:String(request.businessName||''),tier:String(request.tier||'sovereign')}};
     var response=UrlFetchApp.fetch('https://api.flutterwave.com/v3/payments',{method:'post',contentType:'application/json',headers:{Authorization:'Bearer '+getFlutterwaveSecretKey_()},payload:JSON.stringify(payload),muteHttpExceptions:true});
     var result=JSON.parse(response.getContentText()||'{}');
