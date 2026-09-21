@@ -157,7 +157,7 @@ function saveBusinessCenterProduct(data, sessionId) {
     const workspace = getWorkspaceFile(sessionId);
     const sheets = getBusinessCenterSheets_(workspace);
     const existingProducts = businessCenterRows_(sheets.products);
-    if (String(access.user.subscriptionTier || '').toLowerCase() === 'free' && existingProducts.length >= 10) {
+    if (['free', 'starter'].indexOf(String(access.user.subscriptionTier || '').toLowerCase()) !== -1 && existingProducts.length >= 10) {
       return { success: false, message: 'Free Business Center accounts can contain up to 10 products. Upgrade to Sovereign for unlimited products.' };
     }
     const productId = 'PRD-' + Utilities.getUuid().substring(0, 8).toUpperCase();
