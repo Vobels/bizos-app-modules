@@ -203,8 +203,8 @@ function getModuleSummary(sessionId) {
         // Demo: All modules but read-only
         accessibleModules = Object.keys(allModules);
       } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
-        // Free: Only Finance + Ecommerce
-        accessibleModules = ['Finance', 'Ecommerce'];
+        // Free: Business Center/Ecommerce only
+        accessibleModules = ['Ecommerce'];
       } else {
         // Sovereign/Enterprise: All modules
         accessibleModules = Object.keys(allModules);
@@ -212,9 +212,9 @@ function getModuleSummary(sessionId) {
     } else {
       // Staff/Manager/Viewer: Only assigned modules
       accessibleModules = staffModules.length > 0 ? staffModules : [];
-      // If no modules assigned, they get Finance by default (view only)
+      // No implicit module access for unassigned staff.
       if (accessibleModules.length === 0) {
-        accessibleModules = ['Finance'];
+        accessibleModules = [];
       }
     }
     
