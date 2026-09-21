@@ -1,0 +1,52 @@
+<!-- BizOS Records directory -->
+<div id="records-page" class="hidden fixed inset-0 z-[999997] bg-gray-50 overflow-hidden">
+  <main class="w-full h-full overflow-y-auto">
+    <header class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div><h1 class="text-xl font-semibold text-gray-900">Records</h1><p class="text-sm text-gray-500 mt-1">Your business records, organized by record type.</p></div>
+        <button type="button" onclick="closeRecordsPage()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+      </div>
+    </header>
+    <div class="p-6">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <section class="bg-white border rounded-xl p-4">
+          <h2 class="font-semibold text-gray-900 mb-3">Record types</h2>
+          <div id="records-type-list" class="space-y-1"><p class="text-sm text-gray-500 p-3">Loading...</p></div>
+        </section>
+        <section class="lg:col-span-3 bg-white border rounded-xl overflow-hidden">
+          <div class="px-5 py-4 border-b"><h2 id="records-table-title" class="font-semibold text-gray-900">Select a record type</h2></div>
+          <div id="records-table-wrap" class="overflow-x-auto"><p class="p-8 text-center text-gray-500">Choose a record type to view its records.</p></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  window.closeRecordsPage=function(){var p=document.getElementById('records-page');if(p)p.classList.add('hidden');};
+  window.showRecordsPage=function(){
+    var p=document.getElementById('records-page');if(!p)return;
+    p.classList.remove('hidden');
+    var list=document.getElementById('records-type-list');
+    list.innerHTML='<p class="text-sm text-gray-500 p-3">Loading...</p>';
+    callGoogleScript('getRecordsDirectory',[],function(res){
+      if(!res||!res.success){list.innerHTML='<p class="text-sm text-red-500 p-3">'+esc(res&&res.message||'Failed to load records.')+'</p>';return;}
+      list.innerHTML=(res.records||[]).map(function(r){
+        return '<button type="button" onclick="loadRecordRows(\''+esc(r.key).replace(/'/g,"\\'")+'\')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"><span><i class="fas fa-table text-gray-400 mr-2"></i>'+esc(r.name)+'</span><span class="text-xs text-gray-500">'+r.count+'</span></button>';
+      }).join('')||'<p class="text-sm text-gray-500 p-3">No record types are available.</p>';
+    },function(){list.innerHTML='<p class="text-sm text-red-500 p-3">Failed to load records.</p>';});
+  };
+  window.loadRecordRows=function(key){
+    var wrap=document.getElementById('records-table-wrap'),title=document.getElementById('records-table-title');
+    wrap.innerHTML='<p class="p-8 text-center text-gray-500">Loading...</p>';
+    callGoogleScript('getRecordRows',[key],function(res){
+      if(!res||!res.success){wrap.innerHTML='<p class="p-8 text-center text-red-500">'+esc(res&&res.message||'Failed to load records.')+'</p>';return;}
+      title.textContent=res.recordType||'Records';
+      var headers=res.headers||[],rows=res.records||[];
+      if(!rows.length){wrap.innerHTML='<p class="p-8 text-center text-gray-500">No records yet.</p>';return;}
+      wrap.innerHTML='<table class="min-w-full text-sm"><thead class="bg-gray-50"><tr>'+headers.map(function(h){return '<th class="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(row){return '<tr class="border-t">'+headers.map(function(h){return '<td class="px-4 py-3 whitespace-nowrap text-gray-700">'+esc(row[h])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table>';
+    },function(){wrap.innerHTML='<p class="p-8 text-center text-red-500">Failed to load records.</p>';});
+  };
+})();
+</script>
