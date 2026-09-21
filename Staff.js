@@ -94,9 +94,9 @@ function inviteStaffMember(businessId, email, name, role, invitedByEmail, assign
       return { success: false, message: 'Only business owners or admins can invite staff members.' };
     }
     if (!email || !email.includes('@')) return { success: false, message: 'Enter a valid staff email.' };
-    if (role !== 'staff') return { success: false, message: 'Only the staff role can be invited from this flow.' };
+    if (role !== 'staff' && role !== 'admin') return { success: false, message: 'Invalid staff role.' };
 
-    const modules = normalizeStaffModules_(assignedModules);
+    const modules = role === 'admin' ? getAvailableModulesForStaff() : normalizeStaffModules_(assignedModules);
     if (!modules.length) return { success: false, message: 'Please assign at least one valid module for the staff member.' };
 
     const invitationCode = generateInvitationCode();
@@ -243,6 +243,48 @@ function acceptInvitation(invitationCode, password, name, phone) {
     return { success: false, message: error.message };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+function resendStaffInvitation(businessId, email, sessionId) {
+  try {
+    const actor = staffActor_(sessionId, businessId, ['owner', 'admin']);
+    if (!actor.ok) return { success: false, message: actor.message };
+
+    const userSheet = getOrCreateUserSheet();
+    const headers = ensureStaffInvitationColumns_(userSheet);
+    const data = userSheet.getDataRange().getValues();
+    const emailCol = headers.indexOf('Email');
+    const bizCol = headers.indexOf('Business_ID');
+    const statusCol = headers.indexOf('Invitation_Status');
+    const codeCol = headers.indexOf('Invitation_Code');
+    const expiresCol = headers.indexOf('Invitation_Expires_At');
+    const nameCol = headers.indexOf('Name');
+    const roleCol = headers.indexOf('Role');
+    const assignedCol = headers.indexOf('Assigned_Modules');
+
+    const rowIndex = data.findIndex(function(row) {
+      return String(row[emailCol] || '').toLowerCase() === String(email || '').toLowerCase() &&
+             String(row[bizCol] || '') === String(businessId);
+    });
+    if (rowIndex < 1) return { success: false, message: 'Pending staff invitation not found.' };
+    if (String(data[rowIndex][statusCol] || '').toLowerCase() === 'accepted') {
+      return { success: false, message: 'This staff member has already accepted the invitation.' };
+    }
+
+    const code = generateInvitationCode();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    userSheet.getRange(rowIndex + 1, statusCol + 1).setValue('pending');
+    userSheet.getRange(rowIndex + 1, codeCol + 1).setValue(code);
+    userSheet.getRange(rowIndex + 1, expiresCol + 1).setValue(expiresAt);
+
+    const role = String(data[rowIndex][roleCol] || 'staff').toLowerCase();
+    const name = String(data[rowIndex][nameCol] || '');
+    sendInvitationEmail(email, name, code, role);
+    return { success: true, message: 'Invitation resent to ' + email, expiresAt: expiresAt };
+  } catch (error) {
+    console.error('Resend staff invitation error:', error);
+    return { success: false, message: error.message };
   }
 }
 
