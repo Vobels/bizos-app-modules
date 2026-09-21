@@ -29,16 +29,28 @@ function authenticateUser(email, password, businessName) {
     }
     
     // ===== FIND USER =====
+    // A staff member may belong to more than one business with the same email.
+    // When a business name is supplied, select the matching business row instead
+    // of assuming one email can only belong to one workspace.
     let userRow = null;
     let rowIndex = -1;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedBusinessName = String(businessName || '').trim().toLowerCase();
+
     for (let i = 1; i < data.length; i++) {
-      if (data[i][emailCol] && data[i][emailCol].toLowerCase() === email.toLowerCase()) {
-        userRow = data[i];
-        rowIndex = i;
-        break;
-      }
+      const rowEmail = String(data[i][emailCol] || '').trim().toLowerCase();
+      const rowBusinessName = businessNameCol !== -1
+        ? String(data[i][businessNameCol] || '').trim().toLowerCase()
+        : '';
+
+      if (rowEmail !== normalizedEmail) continue;
+      if (normalizedBusinessName && rowBusinessName !== normalizedBusinessName) continue;
+
+      userRow = data[i];
+      rowIndex = i;
+      break;
     }
-    
+
     if (!userRow) {
       console.log('❌ User not found:', email);
       return { success: false, message: "Email not found. Please sign up first." };
@@ -113,7 +125,7 @@ function authenticateUser(email, password, businessName) {
     }
     
     // ===== CREATE SESSION =====
-    const sessionId = createSession(email.toLowerCase());
+    const sessionId = createSession(email.toLowerCase(), businessId);
     console.log('🔑 Session created:', sessionId.substring(0, 20) + '...');
     
     // ===== GET BUSINESS INFO =====
@@ -188,11 +200,12 @@ function hashPassword(password) {
 /**
  * Create session and cache it
  */
-function createSession(email) {
+function createSession(email, businessId) {
   const sessionId = Utilities.getUuid();
   const cache = CacheService.getScriptCache();
   const sessionData = {
     email: email,
+    businessId: businessId || '',
     createdAt: new Date().toISOString()
   };
   // Store for 24 hours (86400 seconds)
@@ -204,28 +217,38 @@ function createSession(email) {
 /**
  * Validate session from cache
  */
+function getSessionData_(sessionId) {
+  if (!sessionId) return null;
+
+  const cache = CacheService.getScriptCache();
+  const sessionData = cache.get(sessionId);
+  if (!sessionData) return null;
+
+  try {
+    return JSON.parse(sessionData);
+  } catch (error) {
+    console.error('❌ Session data parse error:', error);
+    return null;
+  }
+}
+
+/**
+ * Validate session from cache
+ */
 function validateSession(sessionId) {
   if (!sessionId) {
     console.log('⚠️ No sessionId provided');
     return null;
   }
   
-  const cache = CacheService.getScriptCache();
-  const sessionData = cache.get(sessionId);
-  
-  if (!sessionData) {
+  const session = getSessionData_(sessionId);
+  if (!session) {
     console.log('⚠️ No session data found for:', sessionId.substring(0, 20) + '...');
     return null;
   }
-  
-  try {
-    const session = JSON.parse(sessionData);
-    console.log('✅ Session validated for:', session.email);
-    return session.email;
-  } catch (error) {
-    console.error('❌ Session validation error:', error);
-    return null;
-  }
+
+  console.log('✅ Session validated for:', session.email);
+  return session.email;
 }
 
 /**
@@ -259,13 +282,25 @@ function getUserFromSession(sessionId) {
     return null;
   }
   
-  const userRow = data.find(row => row[emailCol] && row[emailCol].toLowerCase() === email.toLowerCase());
-  
-  if (!userRow) {
+  const session = getSessionData_(sessionId);
+  const sessionBusinessId = session && session.businessId ? String(session.businessId) : '';
+
+  const matchingRows = data.map(function(row, index) {
+    return { row: row, index: index };
+  }).filter(function(item) {
+    const rowEmail = String(item.row[emailCol] || '').trim().toLowerCase();
+    const rowBusinessId = businessIdCol !== -1 ? String(item.row[businessIdCol] || '') : '';
+    return rowEmail === String(email || '').trim().toLowerCase() &&
+      (!sessionBusinessId || rowBusinessId === sessionBusinessId);
+  });
+
+  if (!matchingRows.length) {
     console.log("⚠️ User row not found for email:", email);
     return null;
   }
   
+  const userRow = matchingRows[0].row;
+
   // Get business info
   const businessSheet = getOrCreateBusinessSheet();
   const businessData = businessSheet.getDataRange().getValues();
