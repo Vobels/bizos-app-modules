@@ -391,6 +391,10 @@ function getStaffModules(email, businessId) {
       return String(r[e] || '').toLowerCase() === String(email || '').toLowerCase() &&
              String(r[b] || '') === String(businessId || '');
     }).map(function(r) { return r[m]; });
+  } catch (error) {
+    console.error('Error getting staff modules:', error);
+    return [];
+  }
 }
 
 function assignModuleToStaff(email, businessId, moduleName, assignedBy, sessionId) {
