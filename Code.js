@@ -219,9 +219,65 @@ function doPost(e) {
       case 'getModuleSummary':
         result = getModuleSummary(sessionId);
         break;
+      
+      // Business Center Part 1
+      case 'getBusinessCenterData':
+        result = getBusinessCenterData(sessionId);
+        break;
+      case 'getBusinessCenterProductImages':
+        result = getBusinessCenterProductImages(payload[0] || [], sessionId);
+        break;
+      case 'saveBusinessCenterProduct':
+        result = saveBusinessCenterProduct(payload[0] || {}, sessionId);
+        break;
+      case 'saveBusinessCenterProductsBulk':
+        result = saveBusinessCenterProductsBulk(payload[0] || [], sessionId);
+        break;
+      case 'saveBusinessCenterCustomer':
+        result = saveBusinessCenterCustomer(payload[0] || {}, sessionId);
+        break;
+      // Business Center Part 2: POS + Inventory
+      case 'lookupBusinessCenterProduct':
+        result = lookupBusinessCenterProduct(payload[0] || '', sessionId);
+        break;
+      case 'completeBusinessCenterSale':
+        result = completeBusinessCenterSale(payload[0] || {}, sessionId);
+        break;
+      case 'updateBusinessCenterProduct':
+        result = updateBusinessCenterProduct(payload[0] || {}, sessionId);
+        break;
+      case 'adjustBusinessCenterStock':
+        result = adjustBusinessCenterStock(payload[0] || {}, sessionId);
+        break;
+      case 'getBusinessCenterStockMovements':
+        result = getBusinessCenterStockMovements(sessionId, payload[0] || '');
+        break;
+      // Business Center Part 4: Customer Ledger
+      case 'getBusinessCenterCustomerLedger':
+        result = getBusinessCenterCustomerLedger(payload[0] || '', sessionId);
+        break;
+      case 'recordBusinessCenterCustomerPayment':
+        result = recordBusinessCenterCustomerPayment(payload[0] || {}, sessionId);
+        break;
+      // Business Center Part 3: Sales History + Receipts
+      case 'getBusinessCenterSales':
+        result = getBusinessCenterSales(payload[0] || {}, sessionId);
+        break;
+      case 'getBusinessCenterSaleDetails':
+        result = getBusinessCenterSaleDetails(payload[0] || '', sessionId);
+        break;
+      case 'getBusinessCenterFinanceData':
+        result=getBusinessCenterFinanceData(sessionId); break;
+      case 'recordBusinessCenterExpense':
+        result=recordBusinessCenterExpense(payload[0]||{},sessionId); break;
       case 'getEnhancedDashboardData':
         const dashPeriod = payload[0] || 'this_month';
         result = getEnhancedDashboardData(dashPeriod, sessionId);
+        break;
+      
+      // Business Center Part 1: safe existing-data connection (read-only)
+      case 'getBusinessCenterConnectedData':
+        result = getBusinessCenterConnectedData(sessionId);
         break;
       
       // Module functions
