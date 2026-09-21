@@ -8,7 +8,7 @@
 <script>
 (function(){
 'use strict';
-var installed=false,allowRealUpgradeSubmit=false,originalCallGoogleScript=null,workspaceEmail='',pendingUpgradeChecked=false;
+var installed=false,allowRealUpgradeSubmit=false,originalCallGoogleScript=null,workspaceEmail='',pendingUpgradeChecked=false,pendingUpgradeActive=false;
 function notify(message,type){if(typeof window.showNotification==='function')window.showNotification(message,type||'info');else alert(message)}
 function getCurrentEmail(){if(window.currentUser&&window.currentUser.email)return String(window.currentUser.email).trim();try{var user=JSON.parse(localStorage.getItem('bizos_user')||'{}');return String(user.email||'').trim()}catch(e){return ''}}
 function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
@@ -19,12 +19,13 @@ function checkPendingUpgrade(){
   if(!result||!result.success||!result.hasPending)return;
   var modal=document.getElementById('upgrade-modal');if(!modal)return;
   var content=modal.querySelector('.modal-content');if(!content||content.querySelector('[data-bizos-pending-upgrade]'))return;
+  pendingUpgradeActive=true;
   var business=escapeHtml(result.businessName||'your business');
   var tier=escapeHtml(result.tier||'sovereign');
   var requestId=encodeURIComponent(result.requestId||'');
   var country=encodeURIComponent(result.country||'');
   var box=document.createElement('div');box.setAttribute('data-bizos-pending-upgrade','1');box.className='mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg';
-  box.innerHTML='<div class="flex items-start gap-3"><div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0"><i class="fas fa-clock text-amber-600"></i></div><div class="flex-1"><p class="font-semibold text-amber-900">Upgrade in progress</p><p class="text-sm text-amber-800 mt-1">You already have a pending <strong>'+tier+'</strong> upgrade for <strong>'+business+'</strong>. You can continue the existing payment instead of submitting another request.</p><button type="button" data-bizos-continue-upgrade="1" class="mt-3 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold">Continue Upgrade <i class="fas fa-arrow-right ml-1"></i></button></div></div>';
+  box.innerHTML='<div class="flex items-start gap-3"><div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0"><i class="fas fa-clock text-amber-600"></i></div><div class="flex-1"><p class="font-semibold text-amber-900">Upgrade in progress</p><p class="text-sm text-amber-800 mt-1">You already have a pending <strong>'+tier+'</strong> upgrade for <strong>'+business+'</strong>. You can continue the existing payment instead of submitting another request.</p><button type="button" data-bizos-continue-upgrade="1" class="mt-3 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold">Continue Your Request <i class="fas fa-arrow-right ml-1"></i></button></div></div>';
   var first=content.firstElementChild;content.insertBefore(box,first||null);
   var btn=box.querySelector('[data-bizos-continue-upgrade]');if(btn)btn.onclick=function(){
     if(result.redirectUrl){window.location.href=String(result.redirectUrl);return;}
