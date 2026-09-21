@@ -527,7 +527,7 @@ function checkModuleAccess(moduleName) {
   
   // ===== STAFF: Check if module is assigned =====
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Finance'];
+    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
     if (!assignedModules.includes(moduleName)) {
       showNotification('You do not have access to this module', 'warning');
       return false;
@@ -542,7 +542,7 @@ function checkModuleAccess(moduleName) {
   }
   
   // ===== FREE: Only Finance and Ecommerce =====
-  if (tier === 'free' && !['Finance', 'Ecommerce'].includes(moduleName)) {
+  if (tier === 'free' && !['Ecommerce'].includes(moduleName)) {
     showNotification('Upgrade to Sovereign to access all apps!', 'warning');
     return false;
   }
@@ -571,7 +571,7 @@ function getModuleAccess(moduleName) {
   
   // ===== STAFF: Check if module is assigned =====
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Finance'];
+    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
     const isAssigned = assignedModules.includes(moduleName);
     
     return {
