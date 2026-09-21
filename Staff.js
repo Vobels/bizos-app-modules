@@ -336,6 +336,7 @@ function getBusinessStaff(businessId, sessionId) {
         role: row[headers.indexOf('Role')],
         isVerified: row[headers.indexOf('Is_Verified')],
         invitationStatus: row[headers.indexOf('Invitation_Status')],
+        assignedModules: normalizeStaffModules_(row[headers.indexOf('Assigned_Modules')]),
         createdAt: row[headers.indexOf('Created_At')]
       };
     });
