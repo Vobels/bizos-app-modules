@@ -47,7 +47,17 @@
         details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
       }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh and try again.','error');}).getUpgradePaymentDetails(requestId);
       paystack.addEventListener('click',function(){
-        if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');(window.top || window).location.href='/?page=payment&requestId='+encodeURIComponent(requestId);
+        if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
+        var paymentUrl='?page=payment&requestId='+encodeURIComponent(requestId);
+        var entryUrl='';
+        try{
+          if(document.referrer){
+            var ref=new URL(document.referrer);
+            if(ref.protocol==='http:'||ref.protocol==='https:')entryUrl=ref.origin+ref.pathname;
+          }
+        }catch(e){}
+        if(!entryUrl)entryUrl=window.location.origin+window.location.pathname;
+        (window.top||window).location.href=entryUrl+paymentUrl;
       });
       flutterwave.addEventListener('click',function(){
         if(!details)return;setBusy(flutterwave,'Opening Flutterwave...');paystack.disabled=true;status('Preparing secure Flutterwave checkout...','info');
