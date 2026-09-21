@@ -37,6 +37,8 @@
     } catch (e) {}
   }
 
+  window.__bizosForceLanding = function () { clearAndLand(); };
+
   function clearAndLand() {
     try {
       if (typeof window.clearSession === 'function') window.clearSession();
@@ -116,16 +118,19 @@
     if (typeof window.handleLogout !== 'function' || window.handleLogout.__bizosLogoutGuard) return;
     var originalLogout = window.handleLogout;
     var guardedLogout = function () {
-      // Clear the browser session immediately so the UI cannot remain authenticated.
+      // Capture the session before clearing it so the server can invalidate it too.
+      var sessionId = null;
+      try { sessionId = currentSessionId || localStorage.getItem('bizos_session'); } catch (e) {}
+
       clearAndLand();
-      try {
-        var sessionId = currentSessionId;
-        if (sessionId && typeof window.callGoogleScript === 'function') {
-          window.callGoogleScript('logout', [sessionId], function () {}, function () {});
-        }
-      } catch (e) {}
-      try { originalLogout.apply(this, arguments); } catch (e) {}
-      clearAndLand();
+
+      if (sessionId && typeof window.callGoogleScript === 'function') {
+        try { window.callGoogleScript('logout', [sessionId], function () {}, function () {}); } catch (e) {}
+      }
+
+      // The original handler is deliberately not called: it waits for a server
+      // callback before changing the UI, which can leave the dashboard visible.
+      try { if (typeof window.showNotification === 'function') window.showNotification('Logged out successfully', 'success'); } catch (e) {}
     };
     guardedLogout.__bizosLogoutGuard = true;
     guardedLogout.__bizosOriginal = originalLogout;
