@@ -449,6 +449,7 @@ function getFrontendConfig() {
       all: CONFIG.MODULES.all,
       free: CONFIG.MODULES.freeModules,
       labels: CONFIG.MODULES.labels,
+      maturity: CONFIG.MODULES.maturity,
       icons: CONFIG.MODULES.icons,
       colors: CONFIG.MODULES.colors,
     },
