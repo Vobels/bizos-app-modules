@@ -462,7 +462,7 @@ function getStaffDashboard(sessionId) {
     return { success: false, message: 'Use full dashboard' };
   }
   
-  const accessibleModules = user.accessibleModules || ['Finance'];
+  const accessibleModules = user.accessibleModules || [];
   const dashboardData = {
     user: {
       name: user.name,
