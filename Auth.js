@@ -290,7 +290,7 @@ function getUserFromSession(sessionId) {
     if (isDemo) {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
-      accessibleModules = ['Finance', 'Ecommerce'];
+      accessibleModules = ['Ecommerce'];
     } else {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     }
