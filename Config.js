@@ -115,6 +115,20 @@ var CONFIG = {
       Attendance: "from-cyan-500 to-cyan-700",
       Warehouse: "from-slate-500 to-slate-700",
     },
+    maturity: {
+      Finance: 'core',
+      Ecommerce: 'core',
+      POS: 'core',
+      Sales: 'foundation',
+      CRM: 'foundation',
+      HR: 'foundation',
+      Logistics: 'foundation',
+      Tax: 'foundation',
+      Agro: 'foundation',
+      Productivity: 'foundation',
+      Attendance: 'foundation',
+      Warehouse: 'foundation'
+    },
     labels: {
       Finance: "Financial Management",
       Sales: "Sales Pipeline",
