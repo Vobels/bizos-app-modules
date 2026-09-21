@@ -4307,8 +4307,19 @@ async function handleUpgradeRequest(event) {
         showNotification(res.message, 'success');
         closeUpgradeModal();
         if (res.redirectUrl) {
-          // Open payment page in new tab
-          window.open(res.redirectUrl, '_blank');
+          // Continue the existing transaction on the public BizOS domain.
+          // Do not open a new tab: popup blockers can interrupt the payment flow.
+          // The public URL is generated server-side from CONFIG.URLS.base.
+          try {
+            if (window.top && window.top !== window) {
+              window.top.location.assign(res.redirectUrl);
+            } else {
+              window.location.assign(res.redirectUrl);
+            }
+          } catch (navigationError) {
+            window.location.assign(res.redirectUrl);
+          }
+          return;
         }
         // Reset form
         document.getElementById('upgrade-form').reset();
