@@ -49,15 +49,7 @@
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
         var paymentUrl='?page=payment&requestId='+encodeURIComponent(requestId);
-        var entryUrl='';
-        try{
-          if(document.referrer){
-            var ref=new URL(document.referrer);
-            if(ref.protocol==='http:'||ref.protocol==='https:')entryUrl=ref.origin+ref.pathname;
-          }
-        }catch(e){}
-        if(!entryUrl)entryUrl=window.location.origin+window.location.pathname;
-        (window.top||window).location.href=entryUrl+paymentUrl;
+        (window.top||window).location.href=paymentUrl;
       });
       flutterwave.addEventListener('click',function(){
         if(!details)return;setBusy(flutterwave,'Opening Flutterwave...');paystack.disabled=true;status('Preparing secure Flutterwave checkout...','info');
