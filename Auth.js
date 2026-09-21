@@ -124,12 +124,12 @@ function authenticateUser(email, password, businessName) {
       console.log('📅 Updated last login');
     }
     
+    // ===== GET BUSINESS INFO =====
+    const businessId = businessIdCol !== -1 ? userRow[businessIdCol] : '';
+
     // ===== CREATE SESSION =====
     const sessionId = createSession(email.toLowerCase(), businessId);
     console.log('🔑 Session created:', sessionId.substring(0, 20) + '...');
-    
-    // ===== GET BUSINESS INFO =====
-    const businessId = businessIdCol !== -1 ? userRow[businessIdCol] : '';
     const businessSheet = getOrCreateBusinessSheet();
     const businessData = businessSheet.getDataRange().getValues();
     const businessHeaders = businessData[0];
