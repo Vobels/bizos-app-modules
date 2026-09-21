@@ -68,7 +68,8 @@ function handleUpgradeRequest(upgradeData, sessionId) {
 
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
     if (latestRequest && latestRequest.status === 'pending_payment') {
-      var pendingPaymentPageUrl = '?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
+      var pendingPublicUrl = getPublicBizOSUrl_();
+      var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
         '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier);
       return {
         success:true,
@@ -135,7 +136,8 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     // Keep the payment flow on the Apps Script deployment that owns the
     // Upgrade_Requests sheet. This preserves requestId and guarantees the
     // payment page reads the same backend/workspace that created the request.
-    var paymentPageUrl = '?page=payment-method&requestId=' + encodeURIComponent(requestId) +
+    var publicUrl = getPublicBizOSUrl_();
+    var paymentPageUrl = publicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
 
     return {
@@ -233,7 +235,9 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
       country:pending.country,
       workspaceEmail:pending.workspaceEmail,
       createdAt:pending.createdAt,
-      status:pending.status
+      status:pending.status,
+      redirectUrl: getPublicBizOSUrl_() + '/?page=payment-method&requestId=' + encodeURIComponent(pending.requestId) +
+        '&country=' + encodeURIComponent(pending.country || '') + '&tier=' + encodeURIComponent(pending.tier || 'sovereign')
     };
   } catch (error) {
     console.error('getPendingUpgradeRequestStatus error:', error);
