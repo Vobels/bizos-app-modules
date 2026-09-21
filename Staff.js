@@ -69,7 +69,7 @@ function syncStaffModules_(email, businessId, modules, assignedBy) {
 
 // ==================== STAFF INVITATION SYSTEM ====================
 
-function inviteStaffMember(businessId, email, name, role, invitedByEmail, assignedModules) {
+function inviteStaffMember(businessId, email, name, role, invitedByEmail, assignedModules, sessionId) {
   const lock = LockService.getScriptLock();
   try {
     if (!lock.tryLock(10000)) return { success: false, message: 'Another staff change is in progress. Please try again.' };
@@ -78,21 +78,16 @@ function inviteStaffMember(businessId, email, name, role, invitedByEmail, assign
     invitedByEmail = String(invitedByEmail || '').trim().toLowerCase();
     role = String(role || 'staff').trim().toLowerCase();
 
+    const actor = staffActor_(sessionId, businessId, ['owner', 'admin']);
+    if (!actor.ok) return { success: false, message: actor.message };
+    invitedByEmail = actor.user.email;
+
     const userSheet = getOrCreateUserSheet();
     const headers = ensureStaffInvitationColumns_(userSheet);
     const data = userSheet.getDataRange().getValues();
     const emailCol = headers.indexOf('Email');
     const roleCol = headers.indexOf('Role');
     const businessIdCol = headers.indexOf('Business_ID');
-    const inviterRow = data.find(function(row) {
-      return String(row[emailCol] || '').toLowerCase() === invitedByEmail &&
-             String(row[businessIdCol] || '') === String(businessId);
-    });
-
-    if (!inviterRow || (String(inviterRow[roleCol] || '').toLowerCase() !== 'owner' &&
-        String(inviterRow[roleCol] || '').toLowerCase() !== 'admin')) {
-      return { success: false, message: 'Only business owners or admins can invite staff members.' };
-    }
     if (!email || !email.includes('@')) return { success: false, message: 'Enter a valid staff email.' };
     if (role !== 'staff' && role !== 'admin') return { success: false, message: 'Invalid staff role.' };
 
