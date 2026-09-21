@@ -14,18 +14,18 @@ var BIZOS_MASTER_SCHEMAS = {
 };
 
 var BIZOS_CLIENT_SCHEMAS = {
-  Financial_Data: ['Date','Type','Category','Subcategory','Amount','Description','Status','Created_By','Created_At'],
-  Ecommerce_Data: ['Order_ID','Date','Customer_Email','Product','Quantity','Price','Status','Created_At'],
-  Sales_Data: ['Deal_ID','Date','Customer_Name','Product','Amount','Stage','Created_At'],
-  CRM_Data: ['Contact_ID','Name','Email','Phone','Company','Status','Created_At'],
-  HR_Data: ['Employee_ID','Name','Position','Department','Salary','Status','Created_At'],
-  Logistics_Data: ['Shipment_ID','Order_ID','Status','Location','Carrier','Created_At'],
-  Tax_Data: ['Tax_ID','Date','Type','Amount','Status','Created_At'],
-  Agro_Data: ['Record_ID','Date','Type','Activity','Quantity','Cost','Revenue','Created_At'],
-  Productivity_Data: ['Record_ID','Staff','Date','Task','Hours','Created_At'],
-  POS_Data: ['Transaction_ID','Date','Customer','Product','Quantity','Total','Created_At'],
-  Attendance_Data: ['Record_ID','Staff','Date','Clock_In','Clock_Out','Status','Created_At'],
-  Warehouse_Data: ['Item_ID','Item_Name','SKU','Quantity','Location','Status','Created_At']
+  Financial_Data: ['Transaction_ID','Date','Type','Category','Subcategory','Module_Source','Module_Record_ID','Description','Amount','Payment_Method','Reference','Status','Created_By','Created_At'],
+  Ecommerce_Data: ['Order_ID','Date','Customer_Email','Product_Name','SKU','Quantity','Unit_Price','Subtotal','Shipping_Cost','Tax','Total_Amount','Payment_Status','Fulfillment_Status','Tracking_Number','Financial_Link_ID','Created_By'],
+  Sales_Data: ['Deal_ID','Date','Customer_Name','Customer_Email','Product_Service','Quantity','Unit_Price','Total_Amount','Stage','Probability','Expected_Close_Date','Sales_Person','Notes','Financial_Link_ID','Created_By'],
+  CRM_Data: ['Contact_ID','Name','Email','Phone','Company','Status','Last_Contact','Assigned_To','Notes','Created_By','Created_At'],
+  HR_Data: ['Employee_ID','Name','Position','Department','Hire_Date','Salary','Manager','Status','Created_By','Created_At'],
+  Logistics_Data: ['Shipment_ID','Order_ID','Status','Location','Carrier','Tracking','ETA','Dispatched_By','Created_By','Created_At'],
+  Tax_Data: ['Tax_ID','Date','Type','Amount','Tax_Rate','Tax_Amount','Reference','Filed_By','Status','Created_By','Created_At'],
+  Agro_Data: ['Record_ID','Date','Type','Activity','Crop_Name','Livestock_Type','Quantity','Unit','Unit_Cost','Total_Cost','Selling_Price','Revenue','Field_Plot','Health_Status','Notes','Financial_Link_ID','Created_By'],
+  Productivity_Data: ['Record_ID','Staff_Email','Date','Task','Hours_Spent','Apps_Used','Notes','Created_By','Created_At'],
+  POS_Data: ['Transaction_ID','Date','Customer_Name','Customer_Email','Product_Name','Quantity','Unit_Price','Total_Amount','Payment_Method','Status','Receipt_Number','Created_By','Created_At'],
+  Attendance_Data: ['Record_ID','Staff_Email','Date','Clock_In','Clock_Out','Hours_Worked','Status','Created_By','Created_At'],
+  Warehouse_Data: ['Item_ID','Item_Name','SKU','Category','Quantity','Min_Stock','Max_Stock','Location','Supplier','Last_Restock_Date','Unit_Cost','Selling_Price','Status','Created_By','Created_At']
 };
 
 var BIZOS_CLIENT_INFO_HEADERS = ['Property','Value'];
