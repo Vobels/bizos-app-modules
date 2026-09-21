@@ -157,6 +157,9 @@ function saveBusinessCenterProduct(data, sessionId) {
     const workspace = getWorkspaceFile(sessionId);
     const sheets = getBusinessCenterSheets_(workspace);
     const existingProducts = businessCenterRows_(sheets.products);
+    if (String(access.user.subscriptionTier || '').toLowerCase() === 'free' && existingProducts.length >= 10) {
+      return { success: false, message: 'Free Business Center accounts can contain up to 10 products. Upgrade to Sovereign for unlimited products.' };
+    }
     const productId = 'PRD-' + Utilities.getUuid().substring(0, 8).toUpperCase();
     const barcode = String(data.Barcode || '').trim() || generateBusinessCenterBarcode_(existingProducts);
     if (existingProducts.some(function(p) { return String(p.Barcode || '').trim() === barcode; })) {
@@ -216,6 +219,9 @@ function saveBusinessCenterProductsBulk(data, sessionId) {
     const workspace = getWorkspaceFile(sessionId);
     const sheets = getBusinessCenterSheets_(workspace);
     const existing = businessCenterRows_(sheets.products);
+    const isFree = String(access.user.subscriptionTier || '').toLowerCase() === 'free';
+    if (isFree && existing.length >= 10) return { success: false, message: 'Free Business Center accounts can contain up to 10 products. Upgrade to Sovereign for unlimited products.' };
+    const importRows = isFree ? rows.slice(0, Math.max(0, 10 - existing.length)) : rows.slice(0, 1000);
     const existingBarcodes = {};
     existing.forEach(function(p) {
       const b = String(p.Barcode || '').trim();
@@ -227,7 +233,7 @@ function saveBusinessCenterProductsBulk(data, sessionId) {
     const values = [];
     const errors = [];
     const seen = {};
-    rows.slice(0, 1000).forEach(function(item, index) {
+    importRows.forEach(function(item, index) {
       item = item || {};
       const name = String(item.Name || '').trim();
       const selling = Number(item.Selling_Price || 0);
