@@ -793,19 +793,38 @@ function closeLoginModal() {
 }
 
 function handleLogout() {
-  google.script.run
-    .withSuccessHandler(() => {
-      clearSession();
-      const dashboardPage = document.getElementById('dashboard-page');
-      const landingPage = document.getElementById('landing-page');
-      if (dashboardPage) dashboardPage.classList.add('hidden');
-      if (landingPage) landingPage.classList.remove('hidden');
-      showNotification('Logged out successfully', 'success');
-    })
-    .withFailureHandler(() => {
-      showNotification('Logout failed', 'error');
-    })
-    .logout(currentSessionId);
+  // Clear the browser session immediately so logout cannot leave the user
+  // visually authenticated while the server request is still running.
+  const sessionId = currentSessionId || localStorage.getItem('bizos_session');
+
+  clearSession();
+
+  // Force the authenticated shell back to the public landing/login state.
+  if (typeof window.__bizosForceLanding === 'function') {
+    window.__bizosForceLanding();
+  } else {
+    const dashboardPage = document.getElementById('dashboard-page');
+    const profilePage = document.getElementById('profile-page');
+    const settingsPage = document.getElementById('settings-page');
+    const staffPage = document.getElementById('staff-page');
+    const landingPage = document.getElementById('landing-page');
+    [dashboardPage, profilePage, settingsPage, staffPage].forEach(function (page) {
+      if (page) page.classList.add('hidden');
+    });
+    if (landingPage) landingPage.classList.remove('hidden');
+    if (typeof window.publishBizOSRoute === 'function') {
+      window.publishBizOSRoute('/', true);
+    }
+  }
+
+  // Server-side invalidation is best-effort; the browser is already logged out.
+  if (sessionId) {
+    google.script.run
+      .withFailureHandler(() => {})
+      .logout(sessionId);
+  }
+
+  showNotification('Logged out successfully', 'success');
 }
 
 // ==================== AUTHENTICATION - SIGNUP / REGISTRATION ====================
