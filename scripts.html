@@ -4307,34 +4307,17 @@ async function handleUpgradeRequest(event) {
         showNotification(res.message, 'success');
         closeUpgradeModal();
         if (res.redirectUrl) {
-          // Keep the payment request inside the current BizOS entry point.
-          // If BizOS is embedded on the custom domain, document.referrer is the
-          // custom-domain page; if opened directly from Apps Script, the fallback
-          // keeps the navigation on the Apps Script deployment.
+          // The backend returns the canonical BizOS entry URL, so do not
+          // reconstruct the domain from iframe/referrer state.
           try {
             var redirectUrl = String(res.redirectUrl);
-            if (redirectUrl.charAt(0) === '?') {
-              var entryUrl = '';
-              try {
-                if (document.referrer) {
-                  var ref = new URL(document.referrer);
-                  if (ref.protocol === 'http:' || ref.protocol === 'https:') {
-                    entryUrl = ref.origin + ref.pathname;
-                  }
-                }
-              } catch (referrerError) {}
-              if (!entryUrl) {
-                entryUrl = window.location.origin + window.location.pathname;
-              }
-              redirectUrl = entryUrl + redirectUrl;
-            }
             if (window.top && window.top !== window) {
               window.top.location.assign(redirectUrl);
             } else {
               window.location.assign(redirectUrl);
             }
           } catch (navigationError) {
-            window.location.assign(res.redirectUrl);
+            window.location.assign(String(res.redirectUrl));
           }
           return;
         }
