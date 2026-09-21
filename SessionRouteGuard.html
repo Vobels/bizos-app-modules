@@ -35,21 +35,7 @@
       if (typeof window.publishBizOSRoute === 'function') window.publishBizOSRoute('/', true);
       else if (window.top !== window) window.top.postMessage({type: 'bizos-route', path: '/', replace: true}, '*');
     } catch (e) {}
-    // Route messages only update the parent when a shell is listening.
-    // Reload the current top-level entry without its query/hash so logout
-    // always returns to the public landing page on either direct /dev or
-    // the BizOS front URL.
-    try {
-      var topWindow = window.top || window;
-      var current = String(topWindow.location.href || window.location.href);
-      var landingUrl = current.split('#')[0].split('?')[0];
-      if (landingUrl) topWindow.location.replace(landingUrl);
-    } catch (e) {
-      try {
-        var fallback = String(window.location.href || '').split('#')[0].split('?')[0];
-        if (fallback) window.location.replace(fallback);
-      } catch (ignore) {}
-    }
+
   }
 
   window.__bizosForceLanding = function () { clearAndLand(); };
