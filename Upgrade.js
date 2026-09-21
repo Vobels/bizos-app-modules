@@ -73,6 +73,10 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     upgradeLock.waitLock(10000);
 
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
+    if (latestRequest && latestRequest.status === 'pending_payment' && latestRequest.expired) {
+      markUpgradeRequestExpired_(latestRequest.requestId);
+      latestRequest.status = 'expired';
+    }
     if (latestRequest && latestRequest.status === 'pending_payment' && !latestRequest.expired) {
       var pendingPublicUrl = getPublicBizOSUrl_();
       var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
