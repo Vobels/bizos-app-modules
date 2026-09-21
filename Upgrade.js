@@ -68,8 +68,8 @@ function handleUpgradeRequest(upgradeData, sessionId) {
 
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
     if (latestRequest && latestRequest.status === 'pending_payment') {
-      var pendingPublicUrl = getPublicBizOSUrl_();
-      var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
+      var pendingPaymentBaseUrl = ScriptApp.getService().getUrl();
+      var pendingPaymentPageUrl = pendingPaymentBaseUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
         '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier);
       return {
         success:true,
@@ -133,10 +133,11 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     sendUpgradeRequestEmail(user.email, user.name, requestId, country, tier, amount, symbol);
     sendAdminUpgradeNotification(user.email, user.name, requestId, country, businessDetails, certificateUrl);
 
-    // Payment stays on the public BizOS domain. Netlify /payment preserves
-    // requestId and loads the Apps Script checkout inside the public shell.
-    var publicUrl = getPublicBizOSUrl_();
-    var paymentPageUrl = publicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(requestId) +
+    // Keep the payment flow on the Apps Script deployment that owns the
+    // Upgrade_Requests sheet. This preserves requestId and guarantees the
+    // payment page reads the same backend/workspace that created the request.
+    var paymentBaseUrl = ScriptApp.getService().getUrl();
+    var paymentPageUrl = paymentBaseUrl + '/?page=payment-method&requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
 
     return {
