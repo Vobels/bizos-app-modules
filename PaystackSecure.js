@@ -16,6 +16,39 @@ function getPaystackPublicKey_() {
   return String(key).trim();
 }
 
+function getUpgradePaymentDetails(requestId) {
+  try {
+    if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Upgrade request ID is required.'};
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+
+    var status = String(request.status || '').trim().toLowerCase();
+    if (status !== 'pending_payment') {
+      return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is no longer awaiting payment.'};
+    }
+
+    var amount = Number(request.amount || 0);
+    if (!amount || amount <= 0) {
+      return {success:false,code:'INVALID_PAYMENT_AMOUNT',message:'Upgrade request has an invalid payment amount.'};
+    }
+
+    return {
+      success:true,
+      requestId:String(request.requestId || requestId),
+      email:String(request.email || ''),
+      businessName:String(request.businessName || ''),
+      tier:String(request.tier || 'sovereign'),
+      displayAmount:amount,
+      currency:String(request.currency || 'NGN').toUpperCase(),
+      country:String(request.country || '')
+    };
+  } catch (error) {
+    console.error('getUpgradePaymentDetails error:', error);
+    return {success:false,code:'PAYMENT_DETAILS_ERROR',message:error.message || 'Unable to load upgrade payment details.'};
+  }
+}
+
 function getPaystackCheckoutDetails(requestId) {
   try {
     if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
