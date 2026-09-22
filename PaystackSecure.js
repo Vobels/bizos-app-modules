@@ -16,12 +16,22 @@ function getPaystackPublicKey_() {
   return String(key).trim();
 }
 
-function getUpgradePaymentDetails(requestId) {
+function getUpgradePaymentDetails(requestId, sessionId) {
   try {
     if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Upgrade request ID is required.'};
+    if (!sessionId) return {success:false,code:'SESSION_REQUIRED',message:'Your BizOS session is required to view this payment request.'};
+
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
 
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+
+    var requestEmail = String(request.email || '').trim().toLowerCase();
+    var sessionEmail = String(user.email || '').trim().toLowerCase();
+    if (!requestEmail || requestEmail !== sessionEmail) {
+      return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
+    }
 
     var status = String(request.status || '').trim().toLowerCase();
     if (status === 'pending_payment' && isUpgradeRequestExpired_(request.createdAt)) {
