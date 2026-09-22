@@ -152,7 +152,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     // Upgrade_Requests sheet. This preserves requestId and guarantees the
     // payment page reads the same backend/workspace that created the request.
     var publicUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
-    var paymentPageUrl = publicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(requestId) +
+    var paymentPageUrl = publicUrl + '?page=payment-method&requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
 
     return {
