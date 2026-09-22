@@ -79,7 +79,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     }
     if (latestRequest && latestRequest.status === 'pending_payment' && !latestRequest.expired) {
       var pendingPublicUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
-      var pendingPaymentPageUrl = pendingPublicUrl + '/?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
+      var pendingPaymentPageUrl = pendingPublicUrl + '?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
         '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier);
       return {
         success:true,
@@ -298,7 +298,7 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
       workspaceEmail:pending.workspaceEmail,
       createdAt:pending.createdAt,
       status:pending.status,
-      redirectUrl: (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '/?page=payment-method&requestId=' + encodeURIComponent(pending.requestId) +
+      redirectUrl: (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '?page=payment-method&requestId=' + encodeURIComponent(pending.requestId) +
         '&country=' + encodeURIComponent(pending.country || '') + '&tier=' + encodeURIComponent(pending.tier || 'sovereign')
     };
   } catch (error) {
