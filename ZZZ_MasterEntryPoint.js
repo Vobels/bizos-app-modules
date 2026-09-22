@@ -7,7 +7,13 @@ function getPublicBizOSUrl_() {
   if (!base) base = 'https://bizos.higroups.com';
   return String(base).replace(/\/$/, '');
 }
-function getAppUrl() { return getPublicBizOSUrl_(); }
+function getAppUrl() { return getPublicBizOSUrl_(); }\nfunction getAuthoritativeBizOSWebAppUrl_() {
+  try {
+    var url = ScriptApp.getService().getUrl();
+    if (url) return String(url).replace(/\/$/, '');
+  } catch (e) {}
+  return '';
+}
 function getInitialPublicRoute_(params) {
   var requested = params ? String(params.path || params.route || params.page || '').trim().toLowerCase() : '';
   var aliases = {landing:'/',login:'/login',dashboard:'/dashboard',profile:'/profile',staff:'/staff',settings:'/settings'};
