@@ -10,22 +10,6 @@ function getFlutterwaveSecretKey_() {
   return String(key).trim();
 }
 
-function getUpgradePaymentDetails(requestId) {
-  try {
-    if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
-    var request=getUpgradeRequest(requestId);
-    if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
-    var status=String(request.status||'').toLowerCase();
-    if (status !== 'pending_payment') return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is not awaiting payment.'};
-    var amount=Number(request.amount||0);
-    if (!amount || amount<=0) return {success:false,code:'INVALID_PAYMENT_AMOUNT',message:'Upgrade request has an invalid payment amount.'};
-    return {success:true,requestId:requestId,email:String(request.email||''),businessName:String(request.businessName||''),amount:amount,displayAmount:amount,currency:String(request.currency||'NGN').toUpperCase(),tier:String(request.tier||'sovereign')};
-  } catch(error) {
-    console.error('getUpgradePaymentDetails error:',error);
-    return {success:false,code:'PAYMENT_DETAILS_ERROR',message:error.message||'Unable to load payment details.'};
-  }
-}
-
 function createFlutterwaveCheckout(requestId) {
   try {
     var request=getUpgradeRequest(requestId);
