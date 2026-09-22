@@ -8,7 +8,7 @@
 <script>
 (function(){
 'use strict';
-var installed=false,allowRealUpgradeSubmit=false,originalCallGoogleScript=null,workspaceEmail='',pendingUpgradeChecked=false,pendingUpgradeActive=false;
+var installed=false,originalCallGoogleScript=null,workspaceEmail='',pendingUpgradeChecked=false,pendingUpgradeActive=false;
 function notify(message,type){if(typeof window.showNotification==='function')window.showNotification(message,type||'info');else alert(message)}
 function getCurrentEmail(){if(window.currentUser&&window.currentUser.email)return String(window.currentUser.email).trim();try{var user=JSON.parse(localStorage.getItem('bizos_user')||'{}');return String(user.email||'').trim()}catch(e){return ''}}
 function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
@@ -44,12 +44,23 @@ function injectReviewControls(){
  var title=document.querySelector('#upgrade-modal h2');if(title)title.textContent='Review & Confirm Your Upgrade';
 }
 function prepareAndSubmit(event){
- var form=event&&event.target&&event.target.closest?event.target.closest('#upgrade-form'):document.getElementById('upgrade-form');if(!form)return;if(allowRealUpgradeSubmit)return;
+ var form=event&&event.target&&event.target.closest?event.target.closest('#upgrade-form'):document.getElementById('upgrade-form');if(!form)return;
  event.preventDefault();event.stopImmediatePropagation();
  var emailInput=document.getElementById('bizos-workspace-email-form');workspaceEmail=emailInput?String(emailInput.value||'').trim():'';
  if(!/^\S+@\S+\.\S+$/.test(workspaceEmail)){notify('Please enter a valid workspace email.','warning');if(emailInput)emailInput.focus();return}
  var checkbox=document.getElementById('bizos-confirm-info');if(!checkbox||!checkbox.checked){notify('Please review your information and confirm it before continuing to payment.','warning');if(checkbox)checkbox.focus();return}
- allowRealUpgradeSubmit=true;try{if(typeof window.handleUpgradeRequest==='function')window.handleUpgradeRequest(event);else notify('Upgrade form is not ready. Please try again.','error')}finally{setTimeout(function(){allowRealUpgradeSubmit=false},0)}
+ if(typeof window.handleUpgradeRequest!=='function'){notify('Upgrade form is not ready. Please refresh and try again.','error');return}
+ console.log('[BizOS Upgrade] submit intercepted; starting authoritative upgrade request');
+ try{
+   var result=window.handleUpgradeRequest(event);
+   if(result&&typeof result.catch==='function')result.catch(function(error){
+     console.error('[BizOS Upgrade] unexpected submission error:',error);
+     notify('Upgrade request failed. Please try again.','error');
+   });
+ }catch(error){
+   console.error('[BizOS Upgrade] submission start failed:',error);
+   notify('Upgrade request failed. Please try again.','error');
+ }
 }
 function routeUpgradePaymentResult(result){
  if(!result||!result.redirectUrl)return result;
