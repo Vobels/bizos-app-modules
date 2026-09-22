@@ -45,7 +45,7 @@
       google.script.run.withSuccessHandler(function(r){
         if(!r||!r.success){status(r&&r.message||'We could not load your payment details. Please return to BizOS and try again.','error');return;}
         details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
-      }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh and try again.','error');}).getUpgradePaymentDetails(requestId);
+      }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh and try again.','error');}).getUpgradePaymentDetails(requestId, localStorage.getItem('bizos_session') || '');
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
         var paymentUrl='?page=payment&requestId='+encodeURIComponent(requestId);
