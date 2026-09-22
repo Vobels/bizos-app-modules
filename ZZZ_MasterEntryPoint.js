@@ -7,7 +7,8 @@ function getPublicBizOSUrl_() {
   if (!base) base = 'https://bizos.higroups.com';
   return String(base).replace(/\/$/, '');
 }
-function getAppUrl() { return getPublicBizOSUrl_(); }\nfunction getAuthoritativeBizOSWebAppUrl_() {
+function getAppUrl() { return getPublicBizOSUrl_(); }
+function getAuthoritativeBizOSWebAppUrl_() {
   try {
     var url = ScriptApp.getService().getUrl();
     if (url) return String(url).replace(/\/$/, '');
