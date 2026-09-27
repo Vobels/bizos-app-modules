@@ -65,6 +65,12 @@ function doGet(e) {
       return paymentTemplate.evaluate().setTitle('Complete Payment - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
+      var adminSessionId = String(params.session || '').trim();
+      if (typeof validateAdminSession !== 'function' || !validateAdminSession(adminSessionId)) {
+        var adminLoginTemplate = HtmlService.createTemplateFromFile('admin-login');
+        return adminLoginTemplate.evaluate().setTitle('Admin Login - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      }
+
       var adminTemplate = HtmlService.createTemplateFromFile('admin');
       adminTemplate.initialAdminTab = requestedPage === 'admin-settings' ? 'settings' : 'overview';
       var adminOutput = adminTemplate.evaluate().setTitle(requestedPage === 'admin-settings' ? 'BizOS Admin Settings' : 'BizOS Admin Dashboard').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
