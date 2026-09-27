@@ -46,6 +46,14 @@ function doPost(e) {
     // ✅ PART 1: PUBLIC ACTIONS (No session required)
     // ============================================================
     
+    // ⭐ LICENSE CHECK: client deployments must prove their registered
+    // runtime project/deployment identity before protected sessions are accepted.
+    if (action === 'validateClientLicense') {
+      result = validateClientLicense(payload || {});
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ⭐ CRITICAL: Handle clientLogin FIRST, before any session checks
     if (action === 'clientLogin') {
       console.log("📨 ========================================");
