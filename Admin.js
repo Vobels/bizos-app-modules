@@ -117,7 +117,9 @@ function getAdminPasswordHash_() {
   var configuredPassword = String(props.getProperty('ADMIN_PASSWORD') || '');
   if (configuredPassword) return hashPassword(configuredPassword).toLowerCase();
 
-  return '';
+  // Preserve the existing admin login during migration without keeping the
+  // plaintext legacy password in source. Replace with ADMIN_PASSWORD_HASH.
+  return 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408';
 }
 
 function createAdminSession_(ttlSeconds) {
@@ -493,9 +495,6 @@ function getSystemLogs(sessionId) {\n  requireAdminSession_(sessionId);
   return ['System logs: All systems operational', 'Last check: ' + new Date().toISOString()];
 }
 
-function adminLogout() {
-  return { success: true };
-}
 
 function getClientConfig() {
   return {
@@ -579,20 +578,6 @@ function setWhiteLabelConfig(clientName, clientDomain, customCss = '', customLog
 
 // ==================== ADMIN AUTHENTICATION ====================
 // Add these 3 functions to your Admin.gs
-
-function adminLogin(password) {
-  // Change this to your desired password
-  const ADMIN_PASSWORD = "Admin@2026";  // CHANGE THIS!
-  
-  if (password === ADMIN_PASSWORD) {
-    // Create admin session
-    const sessionId = Utilities.getUuid();
-    const cache = CacheService.getScriptCache();
-    cache.put('admin_session_' + sessionId, 'authenticated', 3600); // 1 hour expiry
-    return { success: true, sessionId: sessionId };
-  }
-  return { success: false, message: "Invalid password" };
-}
 
 function checkAdminSession(sessionId) {
   if (!sessionId) return false;
