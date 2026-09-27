@@ -508,6 +508,109 @@ function doPost(e) {
   }
 }
 
+
+/**
+ * Validate that a paid client request is coming from the exact
+ * provisioned client deployment registered in the master Clients sheet.
+ *
+ * Runtime identity is supplied by the client deployment itself:
+ * - ScriptApp.getScriptId() identifies the actual Apps Script project.
+ * - ScriptApp.getService().getUrl() identifies the deployed web app.
+ *
+ * These values are compared against the authoritative Clients registry.
+ * Client-supplied clientId/workspace IDs are never sufficient by themselves.
+ */
+function validateClientLicense(payload) {
+  try {
+    payload = payload || {};
+
+    var clientId = String(payload.clientId || '').trim();
+    var scriptId = String(payload.scriptId || '').trim();
+    var deploymentId = String(payload.deploymentId || '').trim();
+    var businessId = String(payload.businessId || '').trim();
+    var sheetId = String(payload.sheetId || '').trim();
+
+    if (!clientId || !scriptId || !deploymentId) {
+      return {
+        success: false,
+        code: 'LICENSE_IDENTITY_REQUIRED',
+        message: 'Client deployment identity is required.'
+      };
+    }
+
+    var client = getClientById(clientId);
+    if (!client) {
+      return {
+        success: false,
+        code: 'CLIENT_NOT_FOUND',
+        message: 'This BizOS client deployment is not registered.'
+      };
+    }
+
+    var status = String(client.status || '').toLowerCase();
+    if (status !== 'active') {
+      return {
+        success: false,
+        code: 'CLIENT_INACTIVE',
+        message: 'This BizOS client license is not active.'
+      };
+    }
+
+    if (String(client.scriptId || '') !== scriptId) {
+      return {
+        success: false,
+        code: 'SCRIPT_BINDING_MISMATCH',
+        message: 'This code is not running from the provisioned BizOS client deployment.'
+      };
+    }
+
+    if (String(client.deploymentId || '') !== deploymentId) {
+      return {
+        success: false,
+        code: 'DEPLOYMENT_BINDING_MISMATCH',
+        message: 'This deployment is not authorized for this BizOS client.'
+      };
+    }
+
+    if (businessId && String(client.businessId || '') !== businessId) {
+      return {
+        success: false,
+        code: 'BUSINESS_BINDING_MISMATCH',
+        message: 'Client business identity does not match the registered deployment.'
+      };
+    }
+
+    if (sheetId && String(client.sheetId || '') !== sheetId) {
+      return {
+        success: false,
+        code: 'WORKSPACE_BINDING_MISMATCH',
+        message: 'Client workspace identity does not match the registered deployment.'
+      };
+    }
+
+    return {
+      success: true,
+      code: 'LICENSE_VALID',
+      client: {
+        clientId: String(client.clientId || ''),
+        businessId: String(client.businessId || ''),
+        sheetId: String(client.sheetId || ''),
+        status: String(client.status || ''),
+        tier: String(client.tier || ''),
+        clientName: String(client.clientName || '')
+      }
+    };
+  } catch (error) {
+    console.error('validateClientLicense error:', error);
+    return {
+      success: false,
+      code: 'LICENSE_VALIDATION_ERROR',
+      message: error && error.message ? error.message : 'License validation failed.'
+    };
+  }
+}
+
+
 // ============================================================
 // 📌 Helper: Get Script URL
 // ============================================================
