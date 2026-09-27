@@ -31,6 +31,7 @@ function doGet(e) {
     var pathInfo = (e && e.pathInfo) ? String(e.pathInfo) : '';
     var pathRoute = pathInfo.replace(/^\/+|\/+$/g, '').toLowerCase();
     var requestedPage = String(params.page || pathRoute || '').toLowerCase();
+    if (String(params.admin || '').toLowerCase() === 'true') requestedPage = 'admin';
     if (requestedPage === 'admin/settings') requestedPage = 'admin-settings';
     if (params.auth === '1') return HtmlService.createHtmlOutput('<html><body style="font-family:Arial;text-align:center;padding:50px"><h2 style="color:#5D2A86">Authorization Successful</h2><p>You can now close this tab and return to BizOS.</p></body></html>').setTitle('Authorization Complete');
     var invitationCode = String(params.invite || '').trim();
