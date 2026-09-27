@@ -807,7 +807,7 @@
           }
         })
         .withFailureHandler(function() { showNotification('Error loading stats', 'error'); })
-        .getAdminStats();
+        .getAdminStats(localStorage.getItem('admin_session'));
     }
     
     function loadBusinesses() {
@@ -833,7 +833,7 @@
           `).join('');
         })
         .withFailureHandler(function() { showNotification('Error loading businesses', 'error'); })
-        .getAllBusinesses();
+        .getAllBusinesses(localStorage.getItem('admin_session'));
     }
     
     function loadUsers() {
@@ -858,7 +858,7 @@
           populateUserDropdown();
         })
         .withFailureHandler(function() { showNotification('Error loading users', 'error'); })
-        .getAllUsers();
+        .getAllUsers(localStorage.getItem('admin_session'));
     }
     
     function loadFeatures() {
@@ -894,7 +894,7 @@
           `).join('');
         })
         .withFailureHandler(function() { showNotification('Error loading features', 'error'); })
-        .getAllFeatures();
+        .getAllFeatures(localStorage.getItem('admin_session'));
     }
     
     function loadModules() {
@@ -926,7 +926,7 @@
           `).join('');
         })
         .withFailureHandler(function() { showNotification('Error loading modules', 'error'); })
-        .getAllModules();
+        .getAllModules(localStorage.getItem('admin_session'));
     }
     
     function loadWhiteLabelConfig() {
@@ -1068,7 +1068,7 @@
     function clearCache() {
       google.script.run
         .withSuccessHandler(function() { showNotification('Cache cleared!', 'success'); })
-        .clearSystemCache();
+        .clearSystemCache(localStorage.getItem('admin_session'));
     }
     
     function runHealthCheck() {
@@ -1082,7 +1082,7 @@
             console.warn('Health issues:', issues);
           }
         })
-        .runSystemHealthCheck();
+        .runSystemHealthCheck(localStorage.getItem('admin_session'));
     }
     
     function viewLogs() {
@@ -1091,7 +1091,7 @@
           const win = window.open('', '_blank');
           win.document.write('<pre style="padding: 20px; font-family: monospace;">' + logs.join('\n') + '</pre>');
         })
-        .getSystemLogs();
+        .getSystemLogs(localStorage.getItem('admin_session'));
     }
     
     function exportAllData() {
@@ -1107,7 +1107,7 @@
           URL.revokeObjectURL(url);
           showNotification('Export complete!', 'success');
         })
-        .exportBusinessData();
+        .exportBusinessData(localStorage.getItem('admin_session'));
     }
     
     // ===== FILTERS =====
@@ -1167,7 +1167,7 @@
         .withFailureHandler(function() {
           showNotification('Error loading users', 'error');
         })
-        .getAllUsers();
+        .getAllUsers(localStorage.getItem('admin_session'));
     }
 
     // ===== SHOW CURRENT TIER ON SELECT =====
