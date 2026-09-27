@@ -1008,21 +1008,21 @@
           console.error('Error:', error);
           showNotification('Error: ' + error.message, 'error');
         })
-        .addFeature(data);
+        .addFeature(data, localStorage.getItem('admin_session'));
     }
 
     
     function toggleFeature(id) {
       google.script.run
         .withSuccessHandler(function() { loadFeatures(); })
-        .toggleFeature(id);
+        .toggleFeature(id, localStorage.getItem('admin_session'));
     }
     
     function deleteFeature(id) {
       if (confirm('Delete this feature?')) {
         google.script.run
           .withSuccessHandler(function() { loadFeatures(); })
-          .deleteFeature(id);
+          .deleteFeature(id, localStorage.getItem('admin_session'));
       }
     }
     
@@ -1031,7 +1031,7 @@
     function toggleBusinessStatus(id) {
       google.script.run
         .withSuccessHandler(function() { loadBusinesses(); })
-        .toggleBusinessStatus(id);
+        .toggleBusinessStatus(id, localStorage.getItem('admin_session'));
     }
     
     function deleteBusiness(id) {
@@ -1040,7 +1040,7 @@
         if (confirmText === 'DELETE') {
           google.script.run
             .withSuccessHandler(function() { loadBusinesses(); loadOverview(); })
-            .deleteBusiness(id);
+            .deleteBusiness(id, localStorage.getItem('admin_session'));
         }
       }
     }
@@ -1060,7 +1060,7 @@
         .withSuccessHandler(function(r) {
           if (r.success) showNotification('White label saved!', 'success');
         })
-        .setWhiteLabelConfig(data.clientName, data.clientDomain, data.customCss, data.customLogo, data.customFavicon);
+        .setWhiteLabelConfig(data.clientName, data.clientDomain, data.customCss, data.customLogo, data.customFavicon, localStorage.getItem('admin_session'));
     }
 
     // ===== SETTINGS =====
@@ -1237,7 +1237,7 @@
             </div>
           `;
         })
-        .manuallyUpgradeUser(email, tier);
+        .manuallyUpgradeUser(email, tier, localStorage.getItem('admin_session'));
     }
 
     // ===== NOTIFICATIONS =====
