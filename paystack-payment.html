@@ -62,7 +62,8 @@
   <script>
     (function(){
       'use strict';
-      var requestId=<?!= JSON.stringify(requestId || '') ?>;
+      var requestId=<?!= JSON.stringify(requestId || '') ?> || new URLSearchParams(window.location.search).get('requestId') || '';
+      var sessionId=localStorage.getItem('bizos_session') || '';
       var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),amountEl=document.getElementById('amount');
       var payBtn=document.getElementById('pay'),statusEl=document.getElementById('status'),checkoutView=document.getElementById('checkoutView');
       var resultEl=document.getElementById('result'),resultTitle=document.getElementById('resultTitle'),resultText=document.getElementById('resultText'),launchBtn=document.getElementById('launch');
@@ -102,7 +103,7 @@
         google.script.run.withSuccessHandler(function(r){
           if(!r||!r.success){status(r&&r.message||'We could not prepare your payment. Please return to BizOS and try again.','error');setButton('Payment unavailable',true);return;}
           checkout=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);setButton('Pay '+money(r.displayAmount,r.currency),false);status('Your payment is ready.','info');
-        }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh this page and try again.','error');setButton('Payment unavailable',true);}).getPaystackCheckoutDetails(requestId);
+        }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh this page and try again.','error');setButton('Payment unavailable',true);}).getPaystackCheckoutDetails(requestId,sessionId);
       }
       function verify(reference){
         status('Payment received. We are confirming it and preparing your workspace...','info');setButton('<span class="spinner"></span>Confirming payment...',true);
@@ -110,7 +111,7 @@
           if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);}
           else if(r&&r.paymentVerified){showPaidButNotReady();}
           else{status(r&&r.message||'We could not confirm this payment. Please do not pay again until we know what happened.','error');setButton('Payment could not be confirmed',true);}
-        }).withFailureHandler(function(){status('We could not complete the payment check. Please do not pay again. Refresh the page or contact BizOS support so we can check the payment for you.','error');setButton('Payment check needs attention',true);}).verifyPaystackPaymentAndProvisionSecure(reference,requestId);
+        }).withFailureHandler(function(){status('We could not complete the payment check. Please do not pay again. Refresh the page or contact BizOS support so we can check the payment for you.','error');setButton('Payment check needs attention',true);}).verifyPaystackPaymentAndProvisionSecure(reference,requestId,sessionId);
       }
       function continueSetup(){
         launchBtn.disabled=true;launchBtn.innerHTML='<span class="spinner"></span>Finishing setup...';
