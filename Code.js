@@ -509,6 +509,47 @@ function doPost(e) {
 }
 
 
+function getRegisteredClientForLicense_(clientId) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Clients');
+    if (!sheet || sheet.getLastRow() < 2) return null;
+
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0].map(function (h) { return String(h || '').trim(); });
+    var clientIdCol = headers.indexOf('Client_ID');
+    if (clientIdCol < 0) return null;
+
+    var wanted = String(clientId || '').trim();
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][clientIdCol] || '').trim() !== wanted) continue;
+
+      var client = {};
+      headers.forEach(function (header, index) {
+        client[header] = values[i][index] === undefined ? '' : values[i][index];
+      });
+
+      return {
+        clientId: String(client.Client_ID || ''),
+        businessId: String(client.Business_ID || ''),
+        sheetId: String(client.Workspace_ID || client.Sheet_ID || ''),
+        scriptId: String(client.Script_ID || ''),
+        deploymentId: String(client.Deployment_ID || ''),
+        status: String(client.Status || ''),
+        tier: String(client.Tier || ''),
+        clientName: String(client.Client_Name || ''),
+        email: String(client.Email || '')
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('getRegisteredClientForLicense_ error:', error);
+    return null;
+  }
+}
+
+
 /**
  * Validate that a paid client request is coming from the exact
  * provisioned client deployment registered in the master Clients sheet.
@@ -538,7 +579,7 @@ function validateClientLicense(payload) {
       };
     }
 
-    var client = getClientById(clientId);
+    var client = getRegisteredClientForLicense_(clientId);
     if (!client) {
       return {
         success: false,
