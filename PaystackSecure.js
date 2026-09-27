@@ -27,7 +27,6 @@ function getUpgradePaymentDetails(requestId, sessionId) {
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
     if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
-    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
 
     var requestEmail = String(request.email || '').trim().toLowerCase();
     var sessionEmail = String(user.email || '').trim().toLowerCase();
@@ -73,6 +72,7 @@ function getPaystackCheckoutDetails(requestId, sessionId) {
 
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
 
     var status = String(request.status || '').toLowerCase();
     if (status === 'pending_payment' && isUpgradeRequestExpired_(request.createdAt)) {
@@ -140,6 +140,7 @@ function verifyPaystackPaymentAndProvisionSecure(reference, requestId, sessionId
     // payment verification network request.
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
     if (String(request.status || '').trim().toLowerCase() === 'pending_payment' && isUpgradeRequestExpired_(request.createdAt)) {
       markUpgradeRequestExpired_(requestId);
       return {success:false,code:'REQUEST_EXPIRED',message:'This upgrade request expired after 10 days. Please submit a new upgrade request.'};
