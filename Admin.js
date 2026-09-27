@@ -1,5 +1,5 @@
 //admin.gs
-function approveUpgradeRequest(requestId, adminEmail) {
+function approveUpgradeRequest(requestId, adminEmail, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!upgradeSheet) return { success: false, message: "No requests found" };
@@ -61,7 +61,7 @@ function approveUpgradeRequest(requestId, adminEmail) {
 }
 
 
-function getPendingUpgradeRequests() {
+function getPendingUpgradeRequests(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!upgradeSheet) return [];
@@ -85,7 +85,7 @@ function getPendingUpgradeRequests() {
 }
 
 
-function getPendingBusinesses() {
+function getPendingBusinesses(sessionId) {\n  requireAdminSession_(sessionId);
   const businessSheet = getOrCreateBusinessSheet();
   const data = businessSheet.getDataRange().getValues();
   const headers = data[0];
@@ -104,10 +104,62 @@ function getPendingBusinesses() {
     }));
 }
 
+
+// ==================== ADMIN SESSION SECURITY ====================
+
+function getAdminPasswordHash_() {
+  var props = PropertiesService.getScriptProperties();
+  var configuredHash = String(props.getProperty('ADMIN_PASSWORD_HASH') || '').trim();
+  if (configuredHash) return configuredHash.toLowerCase();
+
+  // Backward-compatible bootstrap: if an existing ADMIN_PASSWORD property is
+  // configured, compare its hash without exposing the password in source.
+  var configuredPassword = String(props.getProperty('ADMIN_PASSWORD') || '');
+  if (configuredPassword) return hashPassword(configuredPassword).toLowerCase();
+
+  return '';
+}
+
+function createAdminSession_(ttlSeconds) {
+  var sessionId = 'ADM_' + Utilities.getUuid();
+  CacheService.getScriptCache().put('admin_session_' + sessionId, '1', ttlSeconds || 3600);
+  return sessionId;
+}
+
+function validateAdminSession(sessionId) {
+  if (!sessionId) return false;
+  return CacheService.getScriptCache().get('admin_session_' + String(sessionId)) === '1';
+}
+
+function requireAdminSession_(sessionId) {
+  if (!validateAdminSession(sessionId)) {
+    throw new Error('Unauthorized: valid admin session required.');
+  }
+  return true;
+}
+
+function adminLogin(password) {
+  var supplied = String(password || '');
+  if (!supplied) return { success: false, message: 'Admin password is required.' };
+
+  var expectedHash = getAdminPasswordHash_();
+  if (!expectedHash) {
+    console.error('ADMIN_PASSWORD_HASH/ADMIN_PASSWORD is not configured.');
+    return { success: false, message: 'Admin authentication is not configured.' };
+  }
+
+  var suppliedHash = String(hashPassword(supplied) || '').toLowerCase();
+  if (suppliedHash !== expectedHash) {
+    return { success: false, message: 'Invalid password.' };
+  }
+
+  return { success: true, sessionId: createAdminSession_(3600) };
+}
+
 // ==================== ADMIN FUNCTIONS ====================
 // Add these to your Admin.gs file
 
-function getAdminStats() {
+function getAdminStats(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const businessSheet = getOrCreateBusinessSheet();
     const userSheet = getOrCreateUserSheet();
@@ -196,7 +248,7 @@ function getRecentActivity(limit = 10) {
   return activities.slice(0, limit);
 }
 
-function getAllBusinesses() {
+function getAllBusinesses(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -220,7 +272,7 @@ function getAllBusinesses() {
   }
 }
 
-function getAllUsers() {
+function getAllUsers(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateUserSheet();
     const data = sheet.getDataRange().getValues();
@@ -243,7 +295,7 @@ function getAllUsers() {
   }
 }
 
-function getAllFeatures() {
+function getAllFeatures(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) {
@@ -271,7 +323,7 @@ function getAllFeatures() {
   }
 }
 
-function getAllModules() {
+function getAllModules(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const config = getConfig();  // ✅ Get CONFIG safely
     const modules = [];
@@ -299,7 +351,7 @@ function getAllModules() {
   }
 }
 
-function addFeature(featureData) {
+function addFeature(featureData, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) {
@@ -318,7 +370,7 @@ function addFeature(featureData) {
   }
 }
 
-function toggleFeature(featureId) {
+function toggleFeature(featureId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
@@ -339,7 +391,7 @@ function toggleFeature(featureId) {
   }
 }
 
-function deleteFeature(featureId) {
+function deleteFeature(featureId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
@@ -356,7 +408,7 @@ function deleteFeature(featureId) {
   }
 }
 
-function toggleBusinessStatus(businessId) {
+function toggleBusinessStatus(businessId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -376,7 +428,7 @@ function toggleBusinessStatus(businessId) {
   }
 }
 
-function deleteBusiness(businessId) {
+function deleteBusiness(businessId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -392,7 +444,7 @@ function deleteBusiness(businessId) {
   }
 }
 
-function exportBusinessData() {
+function exportBusinessData(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -406,7 +458,7 @@ function exportBusinessData() {
   }
 }
 
-function clearSystemCache() {
+function clearSystemCache(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const cache = CacheService.getScriptCache();
     cache.remove('dashboard_fast_');
@@ -417,7 +469,7 @@ function clearSystemCache() {
   }
 }
 
-function runSystemHealthCheck() {
+function runSystemHealthCheck(sessionId) {\n  requireAdminSession_(sessionId);
   const results = [];
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -437,7 +489,7 @@ function runSystemHealthCheck() {
   return results;
 }
 
-function getSystemLogs() {
+function getSystemLogs(sessionId) {\n  requireAdminSession_(sessionId);
   return ['System logs: All systems operational', 'Last check: ' + new Date().toISOString()];
 }
 
@@ -514,7 +566,7 @@ function getWhiteLabelConfig() {
   }
 }
 
-function setWhiteLabelConfig(clientName, clientDomain, customCss = '', customLogo = '', customFavicon = '') {
+function setWhiteLabelConfig(clientName, clientDomain, customCss = '', customLogo = '', customFavicon = '', sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const props = PropertiesService.getScriptProperties();
     const config = { enabled: true, clientName, clientDomain, customCss, customLogo, customFavicon, hideBranding: true };
@@ -564,7 +616,7 @@ function adminLogout(sessionId) {
 
 // ==================== MANUAL USER UPGRADE ====================
 
-function manuallyUpgradeUser(email, targetTier) {
+function manuallyUpgradeUser(email, targetTier, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     // Validate tier
     const validTiers = ['free', 'starter', 'sovereign', 'professional', 'enterprise'];
