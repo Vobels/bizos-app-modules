@@ -191,7 +191,17 @@ function generateClientCodeSafelyV10(settings){
   var base=generateClientCodeSafelyV9(settings);
   if(!base||!base.files)throw new Error('Client deployment package is empty.');
   base.files=base.files.map(function(file){
-    if(!file||file.name!=='appsscript')return file;
+    if(!file)return file;
+
+    if(file.name==='Code'){
+      var code=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
+      code+=buildClientLicenseGuardV10_();
+      file.source=code;
+      if(typeof file.content==='string')file.content=code;
+      return file;
+    }
+
+    if(file.name!=='appsscript')return file;
     var manifest={};
     try{manifest=JSON.parse(String(file.source||file.content||'{}'));}catch(e){throw new Error('Client appsscript manifest is invalid: '+e.message);}
     manifest.oauthScopes=manifest.oauthScopes||[];
