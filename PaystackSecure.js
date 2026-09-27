@@ -26,6 +26,8 @@ function getUpgradePaymentDetails(requestId, sessionId) {
 
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
 
     var requestEmail = String(request.email || '').trim().toLowerCase();
     var sessionEmail = String(user.email || '').trim().toLowerCase();
@@ -63,8 +65,10 @@ function getUpgradePaymentDetails(requestId, sessionId) {
   }
 }
 
-function getPaystackCheckoutDetails(requestId) {
+function getPaystackCheckoutDetails(requestId, sessionId) {
   try {
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
     if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
 
     var request = getUpgradeRequest(requestId);
@@ -123,8 +127,10 @@ function savePaystackReference_(requestId, reference) {
   }
 }
 
-function verifyPaystackPaymentAndProvisionSecure(reference, requestId) {
+function verifyPaystackPaymentAndProvisionSecure(reference, requestId, sessionId) {
   try {
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
     if (!reference || !requestId) {
       return {success:false,code:'INVALID_PAYMENT_COMPLETION',message:'Payment reference and request ID are required.'};
     }
