@@ -1,45 +1,11 @@
 // ============================================================
 // 📁 Code.gs - FIXED doPost() - Handle clientLogin FIRST
 // ============================================================
-function doGet(e) {
-  try {
-    var params = e?.parameter || {};
-
-    if (params.auth === '1') {
-      return HtmlService.createHtmlOutput(
-        '<html><body style="font-family: Arial; text-align: center; padding: 50px;">' +
-        '<h2 style="color: #5D2A86;">✅ Authorization Successful</h2>' +
-        '<p>You can now close this tab and try logging in again.</p>' +
-        '</body></html>'
-      ).setTitle('Authorization Complete');
-    }
-
-    // ✅ If page=dashboard, redirect to MAIN APP dashboard
-    if (params.page === 'dashboard' && params.sessionId) {
-      var mainAppUrl = CLIENT_CONFIG.masterApiUrl;
-      return HtmlService.createHtmlOutput(
-        '<html><head><meta http-equiv="refresh" content="0; url=' + mainAppUrl + '?page=dashboard&sessionId=' + params.sessionId + '&clientId=' + CLIENT_CONFIG.clientId + '"></head>' +
-        '<body style="font-family: Arial; text-align: center; padding: 50px;"><p>Redirecting to dashboard...</p></body></html>'
-      ).setTitle('Redirecting...');
-    }
-
-    // Serve the landing page
-    var template = HtmlService.createTemplateFromFile('client-landing');
-    template.settings = getClientSettings();
-    template.clientId = CLIENT_CONFIG.clientId;
-    template.clientName = CLIENT_CONFIG.clientName;
-
-    return template.evaluate()
-      .setTitle(CLIENT_CONFIG.clientName + ' - Business OS')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
-  } catch (error) {
-    return HtmlService.createHtmlOutput('<h1>Error</h1><p>' + error.message + '</p>');
-  }
-}
-
-
+// ============================================================
+// NOTE: Master doGet() lives in ZZZ_MasterEntryPoint.js.
+// Code.js intentionally contains doPost() and shared legacy helpers only.
+// Keeping a second global doGet() here can create ambiguous web-app routing.
+// ============================================================
 function doPost(e) {
   // ===== RATE LIMITING =====
   const rateLimitKey = `rate_limit_${e?.postData?.contents?.length || 'unknown'}`;
