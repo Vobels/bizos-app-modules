@@ -142,23 +142,36 @@ function getSheetHeadersBySheet(sheet) {
 
 function getWorkspaceFile(sessionId) {
   const user = getUserFromSession(sessionId);
-  
-  if (!user || !user.workspaceId) {
-    console.log('No workspace ID found for user, using main spreadsheet');
-    return SpreadsheetApp.getActiveSpreadsheet();
+  if (!user) {
+    throw new Error('Unauthorized: valid BizOS session required.');
   }
-  
+
+  // Free/starter accounts intentionally use the master workspace.
+  // Paid accounts must have an isolated workspace; never silently fall back
+  // to the master spreadsheet if their workspace is missing or unavailable.
+  const tier = String(user.subscriptionTier || 'starter').toLowerCase();
+  const isPaidTier = ['sovereign', 'professional', 'tier2', 'enterprise'].includes(tier);
+
+  if (!user.workspaceId) {
+    if (!isPaidTier) {
+      console.log('Using master spreadsheet for free/starter account.');
+      return SpreadsheetApp.getActiveSpreadsheet();
+    }
+    throw new Error('Workspace is not configured for this paid account.');
+  }
+
   try {
     const workspace = SpreadsheetApp.openById(user.workspaceId);
-    console.log('Using workspace:', workspace.getName(), 'ID:', workspace.getId());
+    console.log('Using isolated workspace:', workspace.getName(), 'ID:', workspace.getId());
     return workspace;
   } catch (error) {
-    console.error('Error opening workspace:', error.message);
-    console.log('Falling back to main spreadsheet');
-    return SpreadsheetApp.getActiveSpreadsheet();
+    console.error('Error opening isolated workspace:', error.message);
+    if (!isPaidTier) {
+      console.log('Using master spreadsheet for free/starter account after workspace lookup failure.');
+      return SpreadsheetApp.getActiveSpreadsheet();
+    }
+    throw new Error('Unable to open the isolated workspace for this paid account.');
   }
-
-
 }
 
 function updateSourceRecordWithLink(workspace, moduleName, recordId, financialId) {
