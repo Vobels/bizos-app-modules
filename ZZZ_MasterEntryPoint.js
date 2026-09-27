@@ -4,7 +4,7 @@
 function getPublicBizOSUrl_() {
   var base = '';
   try { base = CONFIG && CONFIG.URLS ? CONFIG.URLS.base : ''; } catch (e) {}
-  if (!base) base = 'https://bizos.higroups.com';
+  if (!base) { try { base = ScriptApp.getService().getUrl() || ''; } catch (e) {} }
   return String(base).replace(/\/$/, '');
 }
 function getAppUrl() { return getPublicBizOSUrl_(); }
