@@ -4307,18 +4307,14 @@ async function handleUpgradeRequest(event) {
         showNotification(res.message, 'success');
         closeUpgradeModal();
         if (res.redirectUrl) {
-          // The backend returns the canonical BizOS entry URL, so do not
-          // reconstruct the domain from iframe/referrer state.
-          try {
-            var redirectUrl = String(res.redirectUrl);
-            if (window.top && window.top !== window) {
-              window.top.location.assign(redirectUrl);
-            } else {
-              window.location.assign(redirectUrl);
-            }
-          } catch (navigationError) {
-            window.location.assign(String(res.redirectUrl));
-          }
+          // Apps Script runs this page inside a sandboxed iframe. The callback
+          // is asynchronous, so top-window navigation can be blocked by the
+          // iframe sandbox. Navigate the current frame to the server-rendered
+          // payment page instead; the payment page handles its own user-driven
+          // top-level checkout navigation.
+          var redirectUrl = String(res.redirectUrl);
+          console.log('Upgrade request created. Opening payment method:', redirectUrl);
+          window.location.assign(redirectUrl);
           return;
         }
         // Reset form
