@@ -76,6 +76,7 @@ function doGet(e) {
       var paymentTemplate = HtmlService.createTemplateFromFile('paystack-payment');
       paymentTemplate.requestId = requestId;
       paymentTemplate.accessToken = paymentAccessToken;
+      paymentTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
       return paymentTemplate.evaluate().setTitle('Complete Payment - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
