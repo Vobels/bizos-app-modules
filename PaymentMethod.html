@@ -37,6 +37,13 @@
   </main>
   <script>
     (function(){
+      var BIZOS_PUBLIC_URL=<?!= JSON.stringify(publicBizOSUrl || '') ?>;
+      function openBizOS(path){
+        var base=String(BIZOS_PUBLIC_URL||'').replace(/\\/$/,'');
+        if(!base){ status('BizOS navigation URL is unavailable. Please reopen BizOS and try again.','error'); return; }
+        var target=base+path;
+        try { window.top.location.href=target; } catch(e) { window.location.href=target; }
+      }
       'use strict';
       var params=new URLSearchParams(window.location.search),requestId=<?!= JSON.stringify(requestId || '') ?> || params.get('requestId') || '';
       var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),countryEl=document.getElementById('country'),currencyEl=document.getElementById('currency'),amountEl=document.getElementById('amount'),statusEl=document.getElementById('status');
@@ -44,8 +51,8 @@
       var details=null;
       var backToBilling=document.getElementById('back-to-billing');
       var editUpgrade=document.getElementById('edit-upgrade-details');
-      backToBilling.addEventListener('click',function(event){event.preventDefault();window.location.assign('?page=dashboard&billing=1');});
-      editUpgrade.addEventListener('click',function(event){event.preventDefault();window.location.assign('?page=dashboard&billing=1&editUpgrade=1&requestId='+encodeURIComponent(requestId));});
+      backToBilling.addEventListener('click',function(event){event.preventDefault();openBizOS('?page=dashboard&billing=1');});
+      editUpgrade.addEventListener('click',function(event){event.preventDefault();openBizOS('?page=dashboard&billing=1&editUpgrade=1&requestId='+encodeURIComponent(requestId));});
       function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
       function money(amount,currency){try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}}
       function setBusy(button,text){button.disabled=true;button.querySelector('strong').textContent=text;}
