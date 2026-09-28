@@ -287,7 +287,9 @@ var paymentWasAlreadyConfirmed = ['payment_confirmed','provisioning','provisioni
     return {
       success:true,
       paymentVerified:true,
-      processing:true,
+      processing:!!(queued && queued.success),
+      workerAvailable:!!(queued && queued.success),
+      setupQueued:!!(queued && queued.success),
       requestId:requestId,
       reference:reference,
       paymentId:request.paymentId,
