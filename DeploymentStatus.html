@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BizOS Deployment Status</title>
+  <title><?!= confirmationMode ? 'BizOS Deployment Confirmation' : 'BizOS Deployment Status' ?></title>
   <style>
     body{margin:0;background:#f7f8fa;font-family:Arial,sans-serif;color:#1f2937}
     .wrap{max-width:760px;margin:40px auto;padding:20px}
@@ -28,7 +28,7 @@
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>BizOS Deployment Status</h1>
+    <h1 id="page-title"><?!= confirmationMode ? 'BizOS Deployment Confirmation' : 'BizOS Deployment Status' ?></h1>
     <p class="sub">Track your payment and workspace setup in one place.</p>
     <div id="notice" class="notice">Checking your deployment status...</div>
     <div id="content"></div>
@@ -43,6 +43,7 @@
 <script>
 (function(){
   var requestId=<?!= JSON.stringify(requestId || '') ?>;
+  var confirmationMode=<?!= JSON.stringify(confirmationMode || false) ?>;
   var publicBizOSUrl=<?!= JSON.stringify(publicBizOSUrl || '') ?>;
   var notice=document.getElementById('notice'),content=document.getElementById('content');
   var launch=document.getElementById('launch'),cont=document.getElementById('continue'),dash=document.getElementById('dashboard');
@@ -74,7 +75,9 @@
 
     var status=String(r.status||'').toLowerCase(), ready=!!r.ready, retryable=!!r.retryable;
     notice.className='notice '+(ready?'ready':retryable?'warn':'');
-    notice.textContent=r.message||'Your deployment status is being checked.';
+    notice.textContent=ready
+      ? 'Your BizOS workspace has been successfully deployed. Your launch link is ready.'
+      : (r.message||'Your deployment status is being checked.');
 
     var paymentDone=r.paymentConfirmed;
     var provisioningDone=ready;
@@ -96,6 +99,12 @@
       '<div class="detail-box"><strong>Payment ID</strong>'+escapeHtml(r.paymentId||'—')+'</div>'+
       '<div class="detail-box"><strong>Request ID</strong>'+escapeHtml(r.requestId||'—')+'</div>'+
       '</div>';
+
+    if(ready){
+      content.innerHTML += '<div class="notice ready" style="margin-top:20px"><strong>Deployment complete.</strong><br>Your BizOS workspace is ready to use. Click <strong>Launch BizOS</strong> below to open your workspace.</div>';
+    } else if(retryable && r.provisioningError){
+      content.innerHTML += '<div class="notice warn" style="margin-top:20px"><strong>Setup needs attention.</strong><br>'+escapeHtml(r.provisioningError)+'</div>';
+    }
 
     if(ready&&(r.landingUrl||r.webAppUrl)){
       launch.href=r.landingUrl||r.webAppUrl; launch.style.display='inline-block';
