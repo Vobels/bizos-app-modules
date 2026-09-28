@@ -25,6 +25,20 @@ function getUpgradePaymentDetails(requestId, sessionId) {
     if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
 
     var request = getUpgradeRequest(requestId);
+
+    // The requestId in a resumed payment URL is only a routing hint. If the
+    // direct lookup misses it, recover the authenticated user's latest valid
+    // pending request instead of forcing the user to submit a duplicate
+    // upgrade request. The fallback remains account-bound through the
+    // validated session and pending-request lookup.
+    if (!request) {
+      var latestPending = getLatestUpgradeRequestForUser_(user.email);
+      if (latestPending && latestPending.status === 'pending_payment' && !latestPending.expired) {
+        requestId = latestPending.requestId;
+        request = getUpgradeRequest(requestId);
+      }
+    }
+
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
     if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
 
