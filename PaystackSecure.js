@@ -57,6 +57,33 @@ function getUpgradePaymentDetails(requestId, sessionId, accessToken) {
       return {success:false,code:'REQUEST_EXPIRED',message:'This upgrade request expired after 10 days. Please submit a new upgrade request.'};
     }
     if (status !== 'pending_payment') {
+      if (status === 'payment_confirmed' || status === 'provisioning' || status === 'provisioning_failed' || status === 'provisioned' || status === 'active') {
+        var setupStatus = null;
+        try {
+          setupStatus = getUpgradeProvisioningStatus(requestId, sessionId, accessToken);
+        } catch (statusError) {
+          console.error('getUpgradePaymentDetails setup status error:', statusError);
+        }
+        return {
+          success:true,
+          requestId:String(request.requestId || requestId),
+          email:String(request.email || ''),
+          businessName:String(request.businessName || ''),
+          tier:String(request.tier || 'sovereign'),
+          displayAmount:Number(request.amount || 0),
+          currency:String(request.currency || 'NGN').toUpperCase(),
+          country:String(request.country || ''),
+          paymentConfirmed:true,
+          ready:!!(setupStatus && setupStatus.success && (setupStatus.webAppUrl || setupStatus.landingUrl)),
+          webAppUrl:setupStatus && setupStatus.webAppUrl || '',
+          landingUrl:setupStatus && setupStatus.landingUrl || '',
+          retryable:status === 'provisioning_failed',
+          status:status,
+          message:status === 'provisioning_failed'
+            ? 'Your payment is confirmed, but workspace setup still needs to be continued. You do not need to pay again.'
+            : 'Your payment is confirmed. You do not need to pay again.'
+        };
+      }
       return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is no longer awaiting payment.'};
     }
 
