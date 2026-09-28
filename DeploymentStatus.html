@@ -4,9 +4,31 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?!= confirmationMode ? 'BizOS Deployment Confirmation' : 'BizOS Deployment Status' ?></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body{margin:0;background:#f7f8fa;font-family:Arial,sans-serif;color:#1f2937}
-    .wrap{max-width:760px;margin:40px auto;padding:20px}
+    body{margin:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;color:#1f2937}
+    .deployment-shell{min-height:100vh}
+    .deployment-sidebar{width:256px;position:fixed;top:0;left:0;bottom:0;background:#fff;border-right:1px solid #e5e7eb;z-index:1000}
+    .deployment-main{margin-left:256px;min-height:100vh}
+    .deployment-header{position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 24px}
+    .deployment-content{max-width:900px;margin:0 auto;padding:28px 24px}
+    .deployment-menu{display:none}
+    @media(max-width:768px){
+      .deployment-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:4px 0 18px rgba(0,0,0,.08)}
+      .deployment-sidebar.mobile-open{transform:translateX(0)}
+      .deployment-main{margin-left:0}
+      .deployment-menu{display:block}
+      .deployment-content{padding:20px 16px}
+      .deployment-header{padding:14px 16px}
+    }
+    .deployment-nav-link{display:flex;align-items:center;gap:12px;width:100%;padding:9px 16px;border:0;background:transparent;color:#374151;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;box-sizing:border-box}
+    .deployment-nav-link:hover{background:#f9fafb}
+    .deployment-nav-link.active{background:#f5f3ff;color:#5D2A86}
+    .deployment-nav-link i{width:20px;text-align:center;color:#6b7280}
+    .deployment-nav-link.active i{color:#5D2A86}
+    .deployment-signout{margin-top:auto;padding:24px;border-top:1px solid #e5e7eb}
+    .wrap{max-width:900px;margin:0 auto;padding:0}
     .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px;box-shadow:0 8px 30px rgba(0,0,0,.05)}
     h1{margin:0 0 8px;font-size:28px}.sub{color:#6b7280;margin:0 0 24px}
     .notice{padding:16px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;margin-bottom:24px}
@@ -26,6 +48,36 @@
   </style>
 </head>
 <body>
+<div class="deployment-shell">
+  <aside class="deployment-sidebar">
+    <div class="p-6 h-full flex flex-col">
+      <div class="text-2xl font-bold text-[#5D2A86] mb-8">BizOS</div>
+      <nav class="space-y-2">
+        <a class="deployment-nav-link" href="#" data-route="dashboard"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a class="deployment-nav-link" href="#" data-route="dashboard"><i class="fas fa-store"></i><span>Business Center</span></a>
+        <a class="deployment-nav-link" href="#" data-route="staff"><i class="fas fa-users"></i><span>Staff</span></a>
+        <a class="deployment-nav-link" href="#" data-route="dashboard"><i class="fas fa-th-large"></i><span>Apps</span></a>
+        <a class="deployment-nav-link" href="#" data-route="settings"><i class="fas fa-cog"></i><span>Settings</span></a>
+      </nav>
+      <div class="deployment-signout">
+        <a class="deployment-nav-link" href="#" data-route="dashboard"><i class="fas fa-arrow-left"></i><span>Back to Dashboard</span></a>
+      </div>
+    </div>
+  </aside>
+  <div class="deployment-main">
+    <header class="deployment-header">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <button id="deployment-menu" class="deployment-menu text-gray-600 mr-4" type="button" aria-label="Open navigation"><i class="fas fa-bars text-xl"></i></button>
+          <div>
+            <h1 id="page-title" class="text-xl font-semibold text-gray-900"><?!= confirmationMode ? 'Deployment Confirmation' : 'Deployment Status' ?></h1>
+            <p class="text-xs text-gray-500 mt-1">BizOS</p>
+          </div>
+        </div>
+        <a id="header-dashboard-link" href="#" class="text-sm text-gray-600 hover:text-purple-700">Dashboard</a>
+      </div>
+    </header>
+    <main class="deployment-content">
 <div class="wrap">
   <div class="card">
     <h1 id="page-title"><?!= confirmationMode ? 'BizOS Deployment Confirmation' : 'BizOS Deployment Status' ?></h1>
@@ -40,18 +92,43 @@
     <div class="small">If your payment has been confirmed, you do not need to pay again. This page reflects the server-side status of your BizOS upgrade request.</div>
   </div>
 </div>
+    </main>
+  </div>
+</div>
 <script>
 (function(){
   var requestId=<?!= JSON.stringify(requestId || '') ?>;
   var confirmationMode=<?!= JSON.stringify(confirmationMode || false) ?>;
   var publicBizOSUrl=<?!= JSON.stringify(publicBizOSUrl || '') ?>;
   var notice=document.getElementById('notice'),content=document.getElementById('content');
+  var navLinks=document.querySelectorAll('.deployment-nav-link[data-route]');
+  var menuButton=document.getElementById('deployment-menu');
+  var sidebar=document.querySelector('.deployment-sidebar');
+  var headerDashboard=document.getElementById('header-dashboard-link');
   var launch=document.getElementById('launch'),cont=document.getElementById('continue'),dash=document.getElementById('dashboard');
 
   function session(){try{return localStorage.getItem('bizos_session')||'';}catch(e){return '';}}
   function money(amount,currency){if(amount===''||amount==null)return '';try{return new Intl.NumberFormat(undefined,{style:'currency',currency:currency||'USD',maximumFractionDigits:0}).format(Number(amount));}catch(e){return String(amount)+' '+(currency||'');}}
-  function dashboardUrl(){var b=String(publicBizOSUrl||'').replace(/\/$/,'');return b?b+'?page=dashboard':'?page=dashboard';}
+  function routeUrl(route){
+    var b=String(publicBizOSUrl||'').replace(/\/$/,'');
+    var page=route==='staff'?'staff':route==='settings'?'settings':'dashboard';
+    return b?b+'?page='+encodeURIComponent(page):'?page='+encodeURIComponent(page);
+  }
+  function navigate(route){
+    var url=routeUrl(route);
+    try{window.top.location.href=url;}catch(e){window.location.href=url;}
+  }
+  function dashboardUrl(){return routeUrl('dashboard');}
   dash.href=dashboardUrl();
+  headerDashboard.href=dashboardUrl();
+  navLinks.forEach(function(link){
+    link.addEventListener('click',function(event){event.preventDefault();navigate(link.getAttribute('data-route')||'dashboard');});
+  });
+  if(menuButton){
+    menuButton.addEventListener('click',function(){
+      if(sidebar)sidebar.classList.toggle('mobile-open');
+    });
+  }
 
   function escapeHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
