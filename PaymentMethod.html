@@ -37,7 +37,7 @@
       var paystack=document.getElementById('paystack'),flutterwave=document.getElementById('flutterwave');
       var details=null;
       var backToBilling=document.getElementById('back-to-billing');
-      backToBilling.addEventListener('click',function(event){event.preventDefault();window.location.assign('?page=billing');});
+      backToBilling.addEventListener('click',function(event){event.preventDefault();window.location.assign('?page=dashboard&billing=1');});
       function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
       function money(amount,currency){try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}}
       function setBusy(button,text){button.disabled=true;button.querySelector('strong').textContent=text;}
