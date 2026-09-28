@@ -274,6 +274,46 @@ function getLatestUpgradeRequestForUser_(email) {
  * Get the authenticated user's latest upgrade. A pending upgrade is
  * resumable only when it is the latest request for that account.
  */
+function getCurrentUpgradePaymentStatus(sessionId) {
+  try {
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Session expired.'};
+
+    var latest = getLatestUpgradeRequestForUser_(user.email);
+    if (!latest) return {success:true,active:false};
+
+    var status = String(latest.status || '').trim().toLowerCase();
+    var tracked = ['payment_confirmed','provisioning','provisioning_failed','provisioned','active'];
+    if (tracked.indexOf(status) === -1) return {success:true,active:false};
+
+    var accessToken = createPaymentAccessToken_(latest.requestId, user.email);
+    var resumeUrl = (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) +
+      '?page=payment&requestId=' + encodeURIComponent(latest.requestId) +
+      '&accessToken=' + encodeURIComponent(accessToken);
+
+    var setup = getUpgradeProvisioningStatus(latest.requestId, sessionId, accessToken);
+    return {
+      success:true,
+      active:true,
+      requestId:latest.requestId,
+      status:status,
+      paymentConfirmed:true,
+      ready:!!(setup && setup.success && (setup.webAppUrl || setup.landingUrl)),
+      webAppUrl:setup && setup.webAppUrl || '',
+      landingUrl:setup && setup.landingUrl || '',
+      resumeUrl:resumeUrl,
+      message: status === 'provisioned' || status === 'active'
+        ? 'Your payment is confirmed and your BizOS workspace is ready.'
+        : status === 'provisioning_failed'
+          ? 'Your payment is confirmed, but workspace setup still needs to be continued. You do not need to pay again.'
+          : 'Your payment is confirmed and your BizOS workspace is being prepared. You do not need to pay again.'
+    };
+  } catch (error) {
+    console.error('getCurrentUpgradePaymentStatus error:', error);
+    return {success:false,code:'PAYMENT_STATUS_ERROR',message:'We could not check your upgrade payment status right now.'};
+  }
+}
+
 function getPendingUpgradeRequestStatus(businessId, sessionId) {
   try {
     var user = validateUpgradeSession(sessionId);
