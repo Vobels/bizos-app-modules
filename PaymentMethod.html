@@ -49,6 +49,9 @@
       var hashParams=new URLSearchParams(String(window.location.hash||'').replace(/^#/, ''));
       var requestId=<?!= JSON.stringify(requestId || '') ?> || params.get('requestId') || '';
       var accessToken=hashParams.get('accessToken') || '';
+      function getStoredSession(){
+        try { return localStorage.getItem('bizos_session') || ''; } catch(e) { return ''; }
+      }
       var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),countryEl=document.getElementById('country'),currencyEl=document.getElementById('currency'),amountEl=document.getElementById('amount'),statusEl=document.getElementById('status');
       var paystack=document.getElementById('paystack'),flutterwave=document.getElementById('flutterwave');
       var details=null;
@@ -72,7 +75,7 @@
         // even if the URL contains an older/stale requestId.
         if (r.requestId) requestId=String(r.requestId);
         details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';currencyEl.textContent=String(r.currency||'').toUpperCase();amountEl.textContent=money(r.displayAmount,r.currency);paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
-      }).withFailureHandler(function(){clearLoading('We could not connect to BizOS. Please refresh and try again.');}).getUpgradePaymentDetails(requestId, localStorage.getItem('bizos_session') || '', accessToken);
+      }).withFailureHandler(function(){clearLoading('We could not connect to BizOS. Please refresh and try again.');}).getUpgradePaymentDetails(requestId, getStoredSession(), accessToken);
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
         var base=String(BIZOS_PUBLIC_URL||'').replace(/\/$/,'');
@@ -84,7 +87,7 @@
         google.script.run.withSuccessHandler(function(r){
           if(r&&r.success&&r.checkoutUrl){window.location.href=r.checkoutUrl;return;}
           paystack.disabled=false;flutterwave.disabled=false;flutterwave.querySelector('strong').textContent='Flutterwave';status(r&&r.message||'Flutterwave checkout could not be prepared. Please try again or choose Paystack.','error');
-        }).withFailureHandler(function(){paystack.disabled=false;flutterwave.disabled=false;flutterwave.querySelector('strong').textContent='Flutterwave';status('Flutterwave checkout could not be prepared. Please try again or choose Paystack.','error');}).createFlutterwaveCheckout(requestId, localStorage.getItem('bizos_session') || '', accessToken);
+        }).withFailureHandler(function(){paystack.disabled=false;flutterwave.disabled=false;flutterwave.querySelector('strong').textContent='Flutterwave';status('Flutterwave checkout could not be prepared. Please try again or choose Paystack.','error');}).createFlutterwaveCheckout(requestId, getStoredSession(), accessToken);
       });
     })();
   </script>
