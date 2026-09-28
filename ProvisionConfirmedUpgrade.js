@@ -228,6 +228,24 @@ function processConfirmedUpgradeProvisioningQueue_() {
     var reqCol=headers.indexOf('Request_ID'),statusCol=headers.indexOf('Status');
     if(reqCol===-1||statusCol===-1)return;
 
+    // Only successful payment records are eligible for background provisioning.
+    // This prevents a stale/manual payment_confirmed status from ever creating
+    // a client workspace without a matching successful payment.
+    ensurePaymentsSchema_();
+    var paymentSheet=ss.getSheetByName('Payments');
+    var successfulPayments={};
+    if(paymentSheet){
+      var paymentData=paymentSheet.getDataRange().getValues(),paymentHeaders=paymentData[0]||[];
+      var paymentReqCol=paymentHeaders.indexOf('Request_ID'),paymentStatusCol=paymentHeaders.indexOf('Status');
+      if(paymentReqCol!==-1&&paymentStatusCol!==-1){
+        for(var p=1;p<paymentData.length;p++){
+          var paymentRequestId=String(paymentData[p][paymentReqCol]||'').trim();
+          var paymentStatus=String(paymentData[p][paymentStatusCol]||'').trim().toLowerCase();
+          if(paymentRequestId&&paymentStatus==='success')successfulPayments[paymentRequestId]=true;
+        }
+      }
+    }
+
     // The actual provisioning function owns the per-request lock.
     // Do not hold the same ScriptLock here or provisioning would deadlock.
     var processed=0;
@@ -235,7 +253,7 @@ function processConfirmedUpgradeProvisioningQueue_() {
       var status=String(data[i][statusCol]||'').trim().toLowerCase();
       if(status!=='payment_confirmed'&&status!=='provisioning')continue;
       var requestId=String(data[i][reqCol]||'').trim();
-      if(!requestId)continue;
+      if(!requestId||!successfulPayments[requestId])continue;
       processed++;
       var result=provisionConfirmedUpgradeRequest(requestId);
       if(result&&result.success){
