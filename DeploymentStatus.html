@@ -117,8 +117,19 @@
   cont.addEventListener('click',function(){
     var s=session(); if(!s)return;
     cont.disabled=true; cont.textContent='Continuing setup...';
-    google.script.run.withSuccessHandler(function(r){cont.disabled=false;cont.textContent='Continue Setup';render(r);})
-      .withFailureHandler(function(){cont.disabled=false;cont.textContent='Continue Setup';})
+    google.script.run.withSuccessHandler(function(r){
+      cont.disabled=false;
+      cont.textContent='Continue Setup';
+      // continueConfirmedUpgradeSetup returns a provisioning result, not the
+      // full DeploymentStatus payload. Always reload the authoritative status
+      // after the retry so the page cannot lose the request state.
+      load();
+    })
+      .withFailureHandler(function(){
+        cont.disabled=false;
+        cont.textContent='Continue Setup';
+        load();
+      })
       .continueConfirmedUpgradeSetup(requestId,s,'');
   });
 
