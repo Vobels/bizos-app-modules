@@ -1440,25 +1440,55 @@ function openDeploymentStatus() {
   }
 }
 
+function openClientDeployment(url) {
+  const target = String(url || '').trim();
+  if (!target) {
+    openDeploymentStatus();
+    return;
+  }
+  try {
+    window.open(target, '_blank', 'noopener');
+  } catch (e) {
+    try { window.top.location.href = target; } catch (ignore) { window.location.href = target; }
+  }
+}
+
 function updateDeploymentStatusSidebar(response) {
   const link = document.getElementById('deployment-status-sidebar-link');
   if (!link) return;
 
   if (!response || !response.success || !response.active) {
     link.classList.add('hidden');
+    link.onclick = null;
     return;
   }
 
   link.classList.remove('hidden');
   link.classList.remove('bg-purple-50', 'text-purple-700');
 
-  if (response.status === 'provisioning' || response.status === 'payment_confirmed' || response.status === 'provisioning_failed') {
-    link.querySelector('span').textContent = response.status === 'provisioning_failed' ? 'Continue Setup' : 'Deployment Status';
-  } else if (response.ready) {
-    link.querySelector('span').textContent = 'Deployment Status';
-  } else {
-    link.querySelector('span').textContent = 'Deployment Status';
+  const ready = response.ready && (response.landingUrl || response.webAppUrl);
+  const span = link.querySelector('span');
+
+  if (ready) {
+    if (span) span.textContent = 'Your BizOS';
+    link.onclick = function(event) {
+      event.preventDefault();
+      openClientDeployment(response.landingUrl || response.webAppUrl);
+    };
+    link.title = 'Open your BizOS workspace';
+    return;
   }
+
+  if (span) {
+    span.textContent = response.status === 'provisioning_failed'
+      ? 'Continue Setup'
+      : 'Deployment Status';
+  }
+  link.onclick = function(event) {
+    event.preventDefault();
+    openDeploymentStatus();
+  };
+  link.title = 'View your BizOS deployment status';
 }
 
 function loadUpgradePaymentStatus() {
