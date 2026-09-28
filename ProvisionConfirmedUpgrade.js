@@ -119,8 +119,6 @@ function queueConfirmedUpgradeProvisioning(requestId) {
 }
 
 function processConfirmedUpgradeProvisioningQueue_() {
-  var lock = LockService.getScriptLock();
-  if (!lock.tryLock(1000)) return;
   try {
     var ss=SpreadsheetApp.getActiveSpreadsheet();
     if(!ss) return;
@@ -131,8 +129,8 @@ function processConfirmedUpgradeProvisioningQueue_() {
     var reqCol=headers.indexOf('Request_ID'),statusCol=headers.indexOf('Status');
     if(reqCol===-1||statusCol===-1)return;
 
-    // Process confirmed requests and interrupted provisioning attempts.
-    // Failed requests are retried only after the user explicitly presses Continue Setup.
+    // The actual provisioning function owns the per-request lock.
+    // Do not hold the same ScriptLock here or provisioning would deadlock.
     var processed=0;
     for(var i=1;i<data.length&&processed<2;i++){
       var status=String(data[i][statusCol]||'').trim().toLowerCase();
@@ -152,8 +150,6 @@ function processConfirmedUpgradeProvisioningQueue_() {
     }
   } catch(error) {
     console.error('processConfirmedUpgradeProvisioningQueue_ error:',error);
-  } finally {
-    try{lock.releaseLock();}catch(ignore){}
   }
 }
 
