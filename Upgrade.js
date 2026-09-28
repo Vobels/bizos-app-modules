@@ -89,7 +89,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
       var pendingPaymentAccessToken = createPaymentAccessToken_(latestRequest.requestId, user.email);
       var pendingPaymentPageUrl = pendingPublicUrl + '?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
         '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier) +
-        '#accessToken=' + encodeURIComponent(pendingPaymentAccessToken);
+        '&accessToken=' + encodeURIComponent(pendingPaymentAccessToken);
       return {
         success:true,
         message:'You already have an upgrade in progress. Continue with your existing payment request.',
@@ -153,7 +153,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var paymentAccessToken = createPaymentAccessToken_(requestId, user.email);
     var paymentPageUrl = publicUrl + '?page=payment-method&requestId=' + encodeURIComponent(requestId) +
       '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier) +
-      '#accessToken=' + encodeURIComponent(paymentAccessToken);
+      '&accessToken=' + encodeURIComponent(paymentAccessToken);
 
     return {
       success:true,
@@ -305,7 +305,7 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
       status:pending.status,
       redirectUrl: (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '?page=payment-method&requestId=' + encodeURIComponent(pending.requestId) +
         '&country=' + encodeURIComponent(pending.country || '') + '&tier=' + encodeURIComponent(pending.tier || 'sovereign') +
-        '#accessToken=' + encodeURIComponent(createPaymentAccessToken_(pending.requestId, user.email))
+        '&accessToken=' + encodeURIComponent(createPaymentAccessToken_(pending.requestId, user.email))
     };
   } catch (error) {
     console.error('getPendingUpgradeRequestStatus error:', error);
@@ -409,7 +409,7 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
 
     var publicUrl=getAuthoritativeBizOSWebAppUrl_()||getPublicBizOSUrl_();
     var paymentAccessToken=createPaymentAccessToken_(requestId,user.email);
-    var paymentPageUrl=publicUrl+'?page=payment-method&requestId='+encodeURIComponent(requestId)+'&country='+encodeURIComponent(country)+'&tier='+encodeURIComponent(tier)+'#accessToken='+encodeURIComponent(paymentAccessToken);
+    var paymentPageUrl=publicUrl+'?page=payment-method&requestId='+encodeURIComponent(requestId)+'&country='+encodeURIComponent(country)+'&tier='+encodeURIComponent(tier)+'&accessToken='+encodeURIComponent(paymentAccessToken);
     return {success:true,message:'Your upgrade details were updated. Please review the payment amount before continuing.',requestId:requestId,paymentId:request.paymentId,amount:amount,currency:currency,redirectUrl:paymentPageUrl,updated:true};
   } catch(error) {
     console.error('updatePendingUpgradeRequest_ error:',error);
