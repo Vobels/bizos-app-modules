@@ -70,6 +70,28 @@ function provisionConfirmedUpgradeRequest(requestId) {
   });
 }
 
+function getUpgradeProvisioningStatus(requestId,sessionId,accessToken){
+  if(!requestId)return{success:false,code:'REQUEST_ID_REQUIRED',message:'Your setup request could not be found.'};
+  try{
+    var user=sessionId?validateUpgradeSession(sessionId):null;
+    if(!user&&accessToken){var access=validatePaymentAccessToken_(accessToken,requestId);if(access)user={email:access.email};}
+    if(!user)return{success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+    var request=getUpgradeRequest(requestId);
+    if(!request)return{success:false,code:'REQUEST_NOT_FOUND',message:'Your setup request could not be found.'};
+    if(String(request.email||'').trim().toLowerCase()!==String(user.email||'').trim().toLowerCase())return{success:false,code:'REQUEST_ACCESS_DENIED',message:'This setup request does not belong to the current BizOS account.'};
+    var status=String(request.status||'').trim().toLowerCase();
+    if(status==='provisioned'||status==='active'){
+      var existing=getExistingActiveClientDeployment_(request.workspaceEmail||request.email,request.businessName);
+      if(existing){var ready=returnExistingClientDeployment_(existing);if(ready&&ready.success)return ready;}
+      return{success:false,code:'PROVISIONED_URL_UNAVAILABLE',status:status,message:'Your workspace is provisioned, but its launch link is not available yet.'};
+    }
+    if(status==='provisioning')return{success:true,ready:false,processing:true,status:status,message:'Your payment is confirmed and your BizOS workspace is still being prepared.'};
+    if(status==='payment_confirmed')return{success:true,ready:false,processing:false,status:status,message:'Your payment is confirmed. Workspace setup has not finished yet.'};
+    if(status==='provisioning_failed')return{success:true,ready:false,processing:false,retryable:true,status:status,message:'Your payment is confirmed, but workspace setup needs to be continued.'};
+    return{success:false,code:'PAYMENT_NOT_CONFIRMED',status:status,message:'Your payment has not been confirmed for setup yet.'};
+  }catch(error){console.error('getUpgradeProvisioningStatus error:',error);return{success:false,code:'PROVISIONING_STATUS_ERROR',message:'We could not check workspace setup status right now.'};}
+}
+
 function continueConfirmedUpgradeSetup(requestId,sessionId,accessToken){
   if(!requestId)return{success:false,code:'REQUEST_ID_REQUIRED',message:'Your setup request could not be found.'};
   try{
