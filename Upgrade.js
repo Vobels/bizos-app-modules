@@ -12,6 +12,18 @@ function verifyPaystackPayment(reference, requestId) {
   return verifyPaystackPaymentAndProvisionSecure(reference, requestId);
 }
 
+function sendPaymentConfirmationEmailOnce_(email, businessName, requestId) {
+  try {
+    var key = 'PAYMENT_CONFIRMATION_EMAIL_SENT_' + String(requestId || '').trim();
+    var props = PropertiesService.getScriptProperties();
+    if (props.getProperty(key) === '1') return;
+    sendPaymentConfirmationEmail(email, businessName, requestId);
+    props.setProperty(key, '1');
+  } catch (error) {
+    console.error('sendPaymentConfirmationEmailOnce_ error:', error);
+  }
+}
+
 function sendPaymentConfirmationEmail(email, businessName, requestId) {
   try {
     var subject = 'BizOS - Payment Received for ' + businessName;
