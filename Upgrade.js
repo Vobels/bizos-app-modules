@@ -93,6 +93,29 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     ensureUpgradeRequestsSchema_();
     ensurePaymentsSchema_();
 
+    // A confirmed/paid request must never create a second checkout.
+    // This check runs before the pending-request check so even a previously
+    // failed/provisioning request cannot be paid for a second time.
+    var paidRequest = getLatestPaidUpgradeRequestForUser_(user.email);
+    if (paidRequest) {
+      var paidAccessToken = createPaymentAccessToken_(paidRequest.requestId, user.email);
+      var paidPublicUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
+      var paidStatusUrl = paidPublicUrl + '?page=deployment-status&requestId=' +
+        encodeURIComponent(paidRequest.requestId) + '&accessToken=' + encodeURIComponent(paidAccessToken);
+      return {
+        success:true,
+        alreadyPaid:true,
+        paymentConfirmed:true,
+        requestId:paidRequest.requestId,
+        paymentId:paidRequest.paymentId,
+        amount:paidRequest.amount,
+        currency:paidRequest.currency,
+        status:paidRequest.status,
+        redirectUrl:paidStatusUrl,
+        message:'Your payment is already confirmed. You do not need to pay again. Continue with your existing BizOS setup.'
+      };
+    }
+
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
     if (latestRequest && latestRequest.status === 'pending_payment' && latestRequest.expired) {
       markUpgradeRequestExpired_(latestRequest.requestId);
