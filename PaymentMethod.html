@@ -48,7 +48,7 @@
       var params=new URLSearchParams(window.location.search);
       var hashParams=new URLSearchParams(String(window.location.hash||'').replace(/^#/, ''));
       var requestId=<?!= JSON.stringify(requestId || '') ?> || params.get('requestId') || '';
-      var accessToken=params.get('accessToken') || hashParams.get('accessToken') || '';
+      var accessToken=<?!= JSON.stringify(accessToken || '') ?> || params.get('accessToken') || hashParams.get('accessToken') || '';
       function getStoredSession(){
         try { return localStorage.getItem('bizos_session') || ''; } catch(e) { return ''; }
       }
