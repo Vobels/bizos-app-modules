@@ -288,62 +288,99 @@ function getLatestUpgradeRequestForUser_(email) {
  * Get the authenticated user's latest upgrade. A pending upgrade is
  * resumable only when it is the latest request for that account.
  */
+function getLatestPaidUpgradeRequestForUser_(email) {
+  try {
+    ensureUpgradeRequestsSchema_();
+    ensurePaymentsSchema_();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
+    var paymentSheet = ss.getSheetByName('Payments');
+    if (!upgradeSheet || !paymentSheet) return null;
+
+    var targetEmail = String(email || '').trim().toLowerCase();
+    if (!targetEmail) return null;
+
+    var upgradeData = upgradeSheet.getDataRange().getValues();
+    var uh = upgradeData[0] || [];
+    var uEmail = uh.indexOf('Email'), uRequest = uh.indexOf('Request_ID'), uPayment = uh.indexOf('Payment_ID');
+    var uStatus = uh.indexOf('Status'), uWorkspace = uh.indexOf('Workspace_Email'), uBusiness = uh.indexOf('Business_Name');
+    var uTier = uh.indexOf('Tier'), uAmount = uh.indexOf('Amount'), uCurrency = uh.indexOf('Currency');
+    var uCountry = uh.indexOf('Country'), uCreated = uh.indexOf('Created_At');
+    if (uEmail === -1 || uRequest === -1 || uStatus === -1) return null;
+
+    var paidRequestIds = {};
+    var pd = paymentSheet.getDataRange().getValues();
+    var ph = pd[0] || [];
+    var pRequest = ph.indexOf('Request_ID'), pStatus = ph.indexOf('Status');
+    if (pRequest !== -1 && pStatus !== -1) {
+      for (var p = 1; p < pd.length; p++) {
+        if (String(pd[p][pStatus] || '').trim().toLowerCase() === 'success') {
+          paidRequestIds[String(pd[p][pRequest] || '').trim()] = true;
+        }
+      }
+    }
+
+    var tracked = ['payment_confirmed','provisioning','provisioning_failed','provisioned','active'];
+    var candidates = [];
+    for (var i = 1; i < upgradeData.length; i++) {
+      if (String(upgradeData[i][uEmail] || '').trim().toLowerCase() !== targetEmail) continue;
+      var requestId = String(upgradeData[i][uRequest] || '').trim();
+      var status = String(upgradeData[i][uStatus] || '').trim().toLowerCase();
+      if (!requestId) continue;
+
+      var paid = tracked.indexOf(status) !== -1 || !!paidRequestIds[requestId];
+      if (!paid) continue;
+
+      var createdValue = uCreated !== -1 ? upgradeData[i][uCreated] : '';
+      var createdDate = createdValue instanceof Date ? createdValue : new Date(createdValue);
+      var sortTime = isNaN(createdDate.getTime()) ? i : createdDate.getTime();
+
+      candidates.push({
+        rowNumber:i + 1,
+        requestId:requestId,
+        paymentId:uPayment !== -1 ? String(upgradeData[i][uPayment] || '') : '',
+        workspaceEmail:uWorkspace !== -1 ? String(upgradeData[i][uWorkspace] || '') : '',
+        businessName:uBusiness !== -1 ? String(upgradeData[i][uBusiness] || '') : '',
+        tier:uTier !== -1 ? String(upgradeData[i][uTier] || 'sovereign') : 'sovereign',
+        amount:uAmount !== -1 ? upgradeData[i][uAmount] : '',
+        currency:uCurrency !== -1 ? String(upgradeData[i][uCurrency] || '') : '',
+        country:uCountry !== -1 ? String(upgradeData[i][uCountry] || '') : '',
+        createdAt:createdValue,
+        status:status,
+        sortTime:sortTime,
+        reconciledFromPayment:!!paidRequestIds[requestId] && tracked.indexOf(status) === -1
+      });
+    }
+
+    if (!candidates.length) return null;
+    candidates.sort(function(a,b){ return b.sortTime - a.sortTime; });
+    var selected = candidates[0];
+
+    // Keep the upgrade row truthful when the payment row already says success.
+    if (selected.reconciledFromPayment) {
+      if (uStatus !== -1) upgradeSheet.getRange(selected.rowNumber, uStatus + 1).setValue('payment_confirmed');
+      selected.status = 'payment_confirmed';
+      selected.reconciledFromPayment = false;
+    }
+    return selected;
+  } catch (error) {
+    console.error('getLatestPaidUpgradeRequestForUser_ error:', error);
+    return null;
+  }
+}
+
 function getCurrentUpgradePaymentStatus(sessionId) {
   try {
     var user = validateUpgradeSession(sessionId);
     if (!user) return {success:false,code:'UNAUTHORIZED',message:'Session expired.'};
 
-    var latest = getLatestUpgradeRequestForUser_(user.email);
+    // Look across the account's upgrade/payment history, not only the newest
+    // upgrade row. This is important when a customer has an older confirmed
+    // payment and later created/resumed another request.
+    var latest = getLatestPaidUpgradeRequestForUser_(user.email);
     if (!latest) return {success:true,active:false};
 
     var status = String(latest.status || '').trim().toLowerCase();
-    var tracked = ['payment_confirmed','provisioning','provisioning_failed','provisioned','active'];
-
-    // Reconcile a previously verified payment if the payment row says success
-    // but the upgrade row was left in an older/non-paid state.
-    if (tracked.indexOf(status) === -1 && latest.requestId) {
-      try {
-        var paymentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
-        if (paymentSheet) {
-          var paymentData = paymentSheet.getDataRange().getValues();
-          var paymentHeaders = paymentData[0] || [];
-          var paymentRequestCol = paymentHeaders.indexOf('Request_ID');
-          var paymentStatusCol = paymentHeaders.indexOf('Status');
-          var paymentRefCol = paymentHeaders.indexOf('Transaction_Ref');
-          if (paymentRequestCol !== -1 && paymentStatusCol !== -1) {
-            for (var p = paymentData.length - 1; p >= 1; p--) {
-              if (String(paymentData[p][paymentRequestCol] || '') === String(latest.requestId) &&
-                  String(paymentData[p][paymentStatusCol] || '').trim().toLowerCase() === 'success') {
-                status = 'payment_confirmed';
-                var upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
-                if (upgradeSheet) {
-                  var upgradeData = upgradeSheet.getDataRange().getValues();
-                  var upgradeHeaders = upgradeData[0] || [];
-                  var upgradeRequestCol = upgradeHeaders.indexOf('Request_ID');
-                  var upgradeStatusCol = upgradeHeaders.indexOf('Status');
-                  var upgradeUpdatedCol = upgradeHeaders.indexOf('Updated_At');
-                  if (upgradeRequestCol !== -1 && upgradeStatusCol !== -1) {
-                    for (var u = 1; u < upgradeData.length; u++) {
-                      if (String(upgradeData[u][upgradeRequestCol] || '') === String(latest.requestId)) {
-                        upgradeSheet.getRange(u + 1, upgradeStatusCol + 1).setValue('payment_confirmed');
-                        if (upgradeUpdatedCol !== -1) upgradeSheet.getRange(u + 1, upgradeUpdatedCol + 1).setValue(new Date().toISOString());
-                        break;
-                      }
-                    }
-                  }
-                }
-                break;
-              }
-            }
-          }
-        }
-      } catch (reconcileError) {
-        console.error('getCurrentUpgradePaymentStatus payment reconciliation error:', reconcileError);
-      }
-    }
-
-    if (tracked.indexOf(status) === -1) return {success:true,active:false};
-
     var accessToken = createPaymentAccessToken_(latest.requestId, user.email);
     var resumeUrl = (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) +
       '?page=deployment-status&requestId=' + encodeURIComponent(latest.requestId);
@@ -363,14 +400,13 @@ function getCurrentUpgradePaymentStatus(sessionId) {
         ? 'Your payment is confirmed and your BizOS workspace is ready.'
         : status === 'provisioning_failed'
           ? 'Your payment is confirmed, but workspace setup still needs to be continued. You do not need to pay again.'
-          : 'Your payment is confirmed and your BizOS workspace is being prepared. You do not need to pay again.'
+          : 'Your payment is confirmed. Your BizOS workspace is being prepared. You do not need to pay again.'
     };
   } catch (error) {
     console.error('getCurrentUpgradePaymentStatus error:', error);
     return {success:false,code:'PAYMENT_STATUS_ERROR',message:'We could not check your upgrade payment status right now.'};
   }
 }
-
 function getPendingUpgradeRequestStatus(businessId, sessionId) {
   try {
     var user = validateUpgradeSession(sessionId);
