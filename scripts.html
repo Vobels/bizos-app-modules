@@ -1383,6 +1383,7 @@ function loadDashboard() {
   loadModuleSummary();
   loadModulesList();
   updateUserInfo();
+  loadUpgradePaymentStatus();
   addStaffManagementButton();
   addUpgradeButton();
   
@@ -1427,6 +1428,50 @@ function updateUserInfo() {
     if (userInitialSpan) userInitialSpan.textContent = (currentUser.name || currentUser.email)[0].toUpperCase();
     if (userTierSpan) userTierSpan.textContent = currentUser.subscriptionTier === 'free' ? 'Free Plan' : 'Tier 2 Pro';
   }
+}
+
+function loadUpgradePaymentStatus() {
+  const container = document.getElementById('upgrade-payment-status');
+  if (!container || !currentSessionId) return;
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      if (!response || !response.success || !response.active) {
+        container.className = 'hidden mb-6';
+        container.innerHTML = '';
+        return;
+      }
+
+      const ready = response.ready && (response.landingUrl || response.webAppUrl);
+      const retryable = response.status === 'provisioning_failed';
+      let action = '';
+
+      if (ready) {
+        const launchUrl = response.landingUrl || response.webAppUrl;
+        action = '<a href="' + String(launchUrl).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">Launch BizOS</a>';
+      } else if (response.resumeUrl) {
+        action = '<a href="' + String(response.resumeUrl).replace(/"/g, '&quot;') + '" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium">' +
+          (retryable ? 'Continue Setup' : 'View Payment Status') + '</a>';
+      }
+
+      const title = ready ? 'Payment confirmed' : 'Payment received';
+      const message = response.message || (ready
+        ? 'Your BizOS workspace is ready.'
+        : 'Your payment is confirmed and your BizOS workspace is being prepared. You do not need to pay again.');
+
+      container.className = 'mb-6 rounded-lg border p-4 ' + (ready ? 'bg-green-50 border-green-200' : retryable ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200');
+      container.innerHTML =
+        '<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">' +
+          '<div><p class="font-semibold ' + (ready ? 'text-green-800' : retryable ? 'text-yellow-800' : 'text-blue-800') + '">' + title + '</p>' +
+          '<p class="text-sm ' + (ready ? 'text-green-700' : retryable ? 'text-yellow-700' : 'text-blue-700') + ' mt-1">' + message + '</p></div>' +
+          '<div class="flex-shrink-0">' + action + '</div>' +
+        '</div>';
+    })
+    .withFailureHandler(function() {
+      container.className = 'hidden mb-6';
+      container.innerHTML = '';
+    })
+    .getCurrentUpgradePaymentStatus(currentSessionId);
 }
 
 function changeDashboardPeriod(period) {
