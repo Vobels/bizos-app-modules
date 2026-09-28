@@ -36,6 +36,31 @@ function rowHasAnyValue_(row) { for(var i=0;i<row.length;i++){if(String(row[i]==
 function ensureNewSheetHeaders_(sheet,headers){sheet.getRange(1,1,1,headers.length).setValues([headers]);sheet.getRange(1,1,1,headers.length).setFontWeight('bold');return{created:true,repaired:false,added:headers.slice(),shifted:false};}
 function findContiguousHeaderBlock_(normalized,requiredNormalized){if(normalized.length<requiredNormalized.length)return-1;for(var o=1;o<=normalized.length-requiredNormalized.length;o++){var ok=true;for(var i=0;i<requiredNormalized.length;i++){if(normalized[o+i]!==requiredNormalized[i]){ok=false;break;}}if(ok)return o;}return-1;}
 
+function isLikelyHeaderlessMasterData_(sheetName, row) {
+  if (!row || !row.length) return false;
+  if (sheetName === 'Upgrade_Requests') {
+    return /^UPG_[A-Z0-9]+$/i.test(String(row[0] || '').trim()) &&
+      /^\S+@\S+\.\S+$/.test(String(row[1] || '').trim()) &&
+      /^PAY_[A-Z0-9]+$/i.test(String(row[8] || '').trim()) &&
+      String(row[11] || '').trim() !== '';
+  }
+  if (sheetName === 'Payments') {
+    return /^PAY_[A-Z0-9]+$/i.test(String(row[0] || '').trim()) &&
+      /^UPG_[A-Z0-9]+$/i.test(String(row[1] || '').trim()) &&
+      /^\S+@\S+\.\S+$/.test(String(row[2] || '').trim()) &&
+      String(row[6] || '').trim() !== '';
+  }
+  return false;
+}
+
+function ensureUpgradeRequestsSchema_() {
+  return ensureSheetSchema_(SpreadsheetApp.getActiveSpreadsheet(), 'Upgrade_Requests', BIZOS_MASTER_SCHEMAS.Upgrade_Requests);
+}
+
+function ensurePaymentsSchema_() {
+  return ensureSheetSchema_(SpreadsheetApp.getActiveSpreadsheet(), 'Payments', BIZOS_MASTER_SCHEMAS.Payments);
+}
+
 function ensureSheetSchema_(ss,sheetName,requiredHeaders){
   var sheet=ss.getSheetByName(sheetName);
   if(!sheet){sheet=ss.insertSheet(sheetName);return ensureNewSheetHeaders_(sheet,requiredHeaders);}
@@ -79,6 +104,15 @@ function ensureSheetSchema_(ss,sheetName,requiredHeaders){
     sheet.getRange(1,1,1,requiredHeaders.length).setValues([requiredHeaders]);
     sheet.getRange(1,1,1,requiredHeaders.length).setFontWeight('bold');
     return{created:false,repaired:moved.length>0,added:moved,shifted:moved.length>0,mode:'reordered_existing_schema'};
+  }
+
+  // If a header row was accidentally deleted from these transactional sheets,
+  // repair it by inserting a new row 1. Never overwrite the first real request/payment.
+  if (isLikelyHeaderlessMasterData_(sheetName, headers)) {
+    sheet.insertRowsBefore(1, 1);
+    sheet.getRange(1, 1, 1, requiredHeaders.length).setValues([requiredHeaders]);
+    sheet.getRange(1, 1, 1, requiredHeaders.length).setFontWeight('bold');
+    return {created:false, repaired:true, added:requiredHeaders.slice(), shifted:true, mode:'restored_missing_header_row'};
   }
 
   if(sheet.getLastRow()>1||rowHasAnyValue_(headers))return{created:false,repaired:false,added:[],shifted:false,mode:'unrecognized_schema_left_untouched'};
