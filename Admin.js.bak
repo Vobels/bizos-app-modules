@@ -1,6 +1,5 @@
 //admin.gs
-function approveUpgradeRequest(requestId, adminEmail, sessionId) {
-  requireAdminSession_(sessionId);
+function approveUpgradeRequest(requestId, adminEmail, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!upgradeSheet) return { success: false, message: "No requests found" };
@@ -62,8 +61,7 @@ function approveUpgradeRequest(requestId, adminEmail, sessionId) {
 }
 
 
-function getPendingUpgradeRequests(sessionId) {
-  requireAdminSession_(sessionId);
+function getPendingUpgradeRequests(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!upgradeSheet) return [];
@@ -87,8 +85,7 @@ function getPendingUpgradeRequests(sessionId) {
 }
 
 
-function getPendingBusinesses(sessionId) {
-  requireAdminSession_(sessionId);
+function getPendingBusinesses(sessionId) {\n  requireAdminSession_(sessionId);
   const businessSheet = getOrCreateBusinessSheet();
   const data = businessSheet.getDataRange().getValues();
   const headers = data[0];
@@ -164,8 +161,7 @@ function adminLogin(password) {
 // ==================== ADMIN FUNCTIONS ====================
 // Add these to your Admin.gs file
 
-function getAdminStats(sessionId) {
-  requireAdminSession_(sessionId);
+function getAdminStats(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const businessSheet = getOrCreateBusinessSheet();
     const userSheet = getOrCreateUserSheet();
@@ -254,8 +250,7 @@ function getRecentActivity(limit = 10) {
   return activities.slice(0, limit);
 }
 
-function getAllBusinesses(sessionId) {
-  requireAdminSession_(sessionId);
+function getAllBusinesses(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -279,8 +274,7 @@ function getAllBusinesses(sessionId) {
   }
 }
 
-function getAllUsers(sessionId) {
-  requireAdminSession_(sessionId);
+function getAllUsers(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateUserSheet();
     const data = sheet.getDataRange().getValues();
@@ -303,8 +297,7 @@ function getAllUsers(sessionId) {
   }
 }
 
-function getAllFeatures(sessionId) {
-  requireAdminSession_(sessionId);
+function getAllFeatures(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) {
@@ -332,8 +325,7 @@ function getAllFeatures(sessionId) {
   }
 }
 
-function getAllModules(sessionId) {
-  requireAdminSession_(sessionId);
+function getAllModules(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const config = getConfig();  // ✅ Get CONFIG safely
     const modules = [];
@@ -361,8 +353,7 @@ function getAllModules(sessionId) {
   }
 }
 
-function addFeature(featureData, sessionId) {
-  requireAdminSession_(sessionId);
+function addFeature(featureData, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) {
@@ -381,8 +372,7 @@ function addFeature(featureData, sessionId) {
   }
 }
 
-function toggleFeature(featureId, sessionId) {
-  requireAdminSession_(sessionId);
+function toggleFeature(featureId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
@@ -403,8 +393,7 @@ function toggleFeature(featureId, sessionId) {
   }
 }
 
-function deleteFeature(featureId, sessionId) {
-  requireAdminSession_(sessionId);
+function deleteFeature(featureId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
@@ -421,8 +410,7 @@ function deleteFeature(featureId, sessionId) {
   }
 }
 
-function toggleBusinessStatus(businessId, sessionId) {
-  requireAdminSession_(sessionId);
+function toggleBusinessStatus(businessId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -442,8 +430,7 @@ function toggleBusinessStatus(businessId, sessionId) {
   }
 }
 
-function deleteBusiness(businessId, sessionId) {
-  requireAdminSession_(sessionId);
+function deleteBusiness(businessId, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -459,8 +446,7 @@ function deleteBusiness(businessId, sessionId) {
   }
 }
 
-function exportBusinessData(sessionId) {
-  requireAdminSession_(sessionId);
+function exportBusinessData(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
@@ -474,8 +460,7 @@ function exportBusinessData(sessionId) {
   }
 }
 
-function clearSystemCache(sessionId) {
-  requireAdminSession_(sessionId);
+function clearSystemCache(sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const cache = CacheService.getScriptCache();
     cache.remove('dashboard_fast_');
@@ -486,8 +471,7 @@ function clearSystemCache(sessionId) {
   }
 }
 
-function runSystemHealthCheck(sessionId) {
-  requireAdminSession_(sessionId);
+function runSystemHealthCheck(sessionId) {\n  requireAdminSession_(sessionId);
   const results = [];
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -507,8 +491,7 @@ function runSystemHealthCheck(sessionId) {
   return results;
 }
 
-function getSystemLogs(sessionId) {
-  requireAdminSession_(sessionId);
+function getSystemLogs(sessionId) {\n  requireAdminSession_(sessionId);
   return ['System logs: All systems operational', 'Last check: ' + new Date().toISOString()];
 }
 
@@ -582,8 +565,7 @@ function getWhiteLabelConfig() {
   }
 }
 
-function setWhiteLabelConfig(clientName, clientDomain, customCss = '', customLogo = '', customFavicon = '', sessionId) {
-  requireAdminSession_(sessionId);
+function setWhiteLabelConfig(clientName, clientDomain, customCss = '', customLogo = '', customFavicon = '', sessionId) {\n  requireAdminSession_(sessionId);
   try {
     const props = PropertiesService.getScriptProperties();
     const config = { enabled: true, clientName, clientDomain, customCss, customLogo, customFavicon, hideBranding: true };
@@ -619,8 +601,7 @@ function adminLogout(sessionId) {
 
 // ==================== MANUAL USER UPGRADE ====================
 
-function manuallyUpgradeUser(email, targetTier, sessionId) {
-  requireAdminSession_(sessionId);
+function manuallyUpgradeUser(email, targetTier, sessionId) {\n  requireAdminSession_(sessionId);
   try {
     // Validate tier
     const validTiers = ['free', 'starter', 'sovereign', 'professional', 'enterprise'];
