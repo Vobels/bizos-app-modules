@@ -4094,38 +4094,11 @@ if (document.getElementById('landing-page')) {
 
 // Add country selector to your existing upgrade modal
 function addCountrySelectorToUpgrade() {
-  // Check if already added
-  if (document.getElementById('upgrade-country-selector')) return;
-  
-  const modalContent = document.querySelector('#upgrade-modal .modal-content');
-  if (!modalContent) return;
-  
-  // Find the position to insert (after the benefits section)
-  const benefitsDiv = modalContent.querySelector('.bg-purple-50');
-  if (!benefitsDiv) return;
-  
-  const countrySelectorHtml = `
-    <div id="upgrade-country-selector" class="mb-4 p-4 bg-gray-50 rounded-lg">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Select Your Country</label>
-      <select id="upgrade-country-select" onchange="updatePricingDisplay()" class="w-full border rounded-lg p-2">
-        <option value="US">🇺🇸 United States ($)</option>
-        <option value="GB">🇬🇧 United Kingdom (£)</option>
-        <option value="NG" selected>🇳🇬 Nigeria (₦)</option>
-        <option value="KE">🇰🇪 Kenya (KSh)</option>
-        <option value="PH">🇵🇭 Philippines (₱)</option>
-        <option value="IN">🇮🇳 India (₹)</option>
-        <option value="ZA">🇿🇦 South Africa (R)</option>
-        <option value="AE">🇦🇪 UAE (د.إ)</option>
-        <option value="EU">🇪🇺 Europe (€)</option>
-      </select>
-      <p class="text-xs text-gray-500 mt-1">Prices adjust based on your country</p>
-    </div>
-  `;
-  
-  benefitsDiv.insertAdjacentHTML('afterend', countrySelectorHtml);
+  // The upgrade form already has the authoritative #upgrade-country field.
+  // Do not inject a second country selector that can diverge from the submitted value.
+  var countryInput = document.getElementById('upgrade-country');
+  if (countryInput) return;
 }
-
-
 
 // Update pricing display based on selected country
 function updatePricingDisplay() {
