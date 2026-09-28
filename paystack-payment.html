@@ -64,7 +64,7 @@
       'use strict';
       var requestId=<?!= JSON.stringify(requestId || '') ?> || new URLSearchParams(window.location.search).get('requestId') || '';
       var hashParams=new URLSearchParams(String(window.location.hash||'').replace(/^#/, ''));
-      var accessToken=hashParams.get('accessToken') || '';
+      var accessToken=new URLSearchParams(window.location.search).get('accessToken') || hashParams.get('accessToken') || '';
       var sessionId='';
       try { sessionId=localStorage.getItem('bizos_session') || ''; } catch(e) {}
       var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),amountEl=document.getElementById('amount');
