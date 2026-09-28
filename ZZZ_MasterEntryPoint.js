@@ -63,11 +63,12 @@ function doGet(e) {
       var message = callbackResult && callbackResult.message ? callbackResult.message : 'We could not confirm this payment.';
       return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Update - BizOS</title></head><body style="font-family:Arial;text-align:center;padding:60px"><h1 style="color:#5D2A86">Payment update</h1><p>' + String(message).replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p><p><a href="' + publicUrl.replace(/"/g,'&quot;') + '">Return to BizOS</a></p></body></html>').setTitle('Payment Update - BizOS');
     }
-    if (requestedPage === 'deployment-status' || requestedPage === 'deployment') {
+    if (requestedPage === 'deployment-status' || requestedPage === 'deployment' || requestedPage === 'deployment-confirmation') {
       var deploymentTemplate = HtmlService.createTemplateFromFile('DeploymentStatus');
       deploymentTemplate.requestId = String(params.requestId || '').trim();
+      deploymentTemplate.confirmationMode = requestedPage === 'deployment-confirmation';
       deploymentTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
-      return deploymentTemplate.evaluate().setTitle('BizOS Deployment Status').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      return deploymentTemplate.evaluate().setTitle(deploymentTemplate.confirmationMode ? 'BizOS Deployment Confirmation' : 'BizOS Deployment Status').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
     if (requestedPage === 'paystack-int' || requestedPage === 'payment') {
