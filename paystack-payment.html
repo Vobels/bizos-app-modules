@@ -65,7 +65,8 @@
       var requestId=<?!= JSON.stringify(requestId || '') ?> || new URLSearchParams(window.location.search).get('requestId') || '';
       var hashParams=new URLSearchParams(String(window.location.hash||'').replace(/^#/, ''));
       var accessToken=hashParams.get('accessToken') || '';
-      var sessionId=localStorage.getItem('bizos_session') || '';
+      var sessionId='';
+      try { sessionId=localStorage.getItem('bizos_session') || ''; } catch(e) {}
       var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),amountEl=document.getElementById('amount');
       var payBtn=document.getElementById('pay'),statusEl=document.getElementById('status'),checkoutView=document.getElementById('checkoutView');
       var resultEl=document.getElementById('result'),resultTitle=document.getElementById('resultTitle'),resultText=document.getElementById('resultText'),launchBtn=document.getElementById('launch');
