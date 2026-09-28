@@ -70,14 +70,36 @@ function provisionConfirmedUpgradeRequest(requestId) {
   });
 }
 
-function continueConfirmedUpgradeSetup(requestId){
+function continueConfirmedUpgradeSetup(requestId,sessionId,accessToken){
   if(!requestId)return{success:false,code:'REQUEST_ID_REQUIRED',message:'Your setup request could not be found.'};
   try{
+    var user=sessionId?validateUpgradeSession(sessionId):null;
+    if(!user&&accessToken){
+      var access=validatePaymentAccessToken_(accessToken,requestId);
+      if(access)user={email:access.email};
+    }
+    if(!user)return{success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+
     var request=getUpgradeRequest(requestId);
     if(!request)return{success:false,code:'REQUEST_NOT_FOUND',message:'Your setup request could not be found.'};
+    if(String(request.email||'').trim().toLowerCase()!==String(user.email||'').trim().toLowerCase()){
+      return{success:false,code:'REQUEST_ACCESS_DENIED',message:'This setup request does not belong to the current BizOS account.'};
+    }
+
     var status=String(request.status||'').toLowerCase();
-    if(status==='provisioned'||status==='active')return provisionConfirmedUpgradeRequest(requestId);
-    if(status!=='payment_confirmed'&&status!=='provisioning_failed'&&status!=='provisioning')return{success:false,code:'PAYMENT_NOT_CONFIRMED',message:'We have not confirmed this payment yet. Please wait a moment and try again.'};
-    return provisionConfirmedUpgradeRequest(requestId);
-  }catch(error){console.error('continueConfirmedUpgradeSetup error:',error);return{success:false,code:'SETUP_RETRY_ERROR',message:'We could not continue setup right now. Please try again.'};}
+    if(status==='provisioned'||status==='active'||status==='payment_confirmed'||status==='provisioning_failed'||status==='provisioning'){
+      var result=provisionConfirmedUpgradeRequest(requestId);
+      if(result&&result.success)return result;
+      return {
+        success:false,
+        code:result&&result.code||'SETUP_RETRY_ERROR',
+        paymentConfirmed:true,
+        message:result&&result.message||'Your payment is safe, but setup is not finished yet. Please try again in a moment.'
+      };
+    }
+    return{success:false,code:'PAYMENT_NOT_CONFIRMED',message:'We have not confirmed this payment yet. Please wait a moment and try again.'};
+  }catch(error){
+    console.error('continueConfirmedUpgradeSetup error:',error);
+    return{success:false,code:'SETUP_RETRY_ERROR',message:'We could not continue setup right now. Please try again.'};
+  }
 }
