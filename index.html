@@ -20,6 +20,7 @@
     window.__BIZOS_ROUTE_MODE = <?= routeMode ? JSON.stringify(routeMode) : '"landing"' ?>;
     window.__BIZOS_ROUTE_TARGET = <?= routeTarget ? JSON.stringify(routeTarget) : '"landing"' ?>;
     window.__BIZOS_INITIAL_ROUTE = <?= JSON.stringify(initialRoute || '/') ?>;
+    window.__BIZOS_OPEN_BILLING = <?= openBilling ? 'true' : 'false' ?>;
   </script>
 </head>
 <body class="bg-gray-50">
@@ -69,6 +70,9 @@
       showOnly(route==='/dashboard'?'dashboard-page':route==='/profile'?'profile-page':route==='/staff'?'staff-page':route==='/settings'?'settings-page':null);
       if(route==='/dashboard'&&typeof window.showDashboardHome==='function')window.showDashboardHome();else if(route==='/profile'&&typeof window.showProfilePage==='function')window.showProfilePage();else if(route==='/staff'&&typeof window.showStaffPage==='function')window.showStaffPage();else if(route==='/settings'&&typeof window.showSettingsPage==='function')window.showSettingsPage();
       publishRoute(route);
+      if(route==='/dashboard' && window.__BIZOS_OPEN_BILLING && typeof window.showUpgradeModal==='function'){
+        setTimeout(function(){ window.showUpgradeModal(); }, 150);
+      }
     }
     function initialRouteFromIframe(){let route=normalizeRoute(window.__BIZOS_INITIAL_ROUTE||'/');if(window.google&&google.script&&google.script.url&&typeof google.script.url.getLocation==='function'){google.script.url.getLocation(function(location){const hashRoute=normalizeRoute(location&&location.hash);if(hashRoute!=='/')route=hashRoute;applyRoute(route);});}else{const hashRoute=normalizeRoute(window.location.hash);if(hashRoute!=='/')route=hashRoute;applyRoute(route);}}
     window.addEventListener('message',function(event){if(!event||!event.data||event.data.type!=='bizos-shell-route')return;applyRoute(event.data.path||'/');});
