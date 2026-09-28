@@ -26,7 +26,8 @@ function getInitialPublicRoute_(params) {
 }
 function doGet(e) {
   try {
-    try { ensureBizOSReady_(); } catch (dbError) { console.error('Database readiness check failed:', dbError); }
+    // Public GET requests must not initialize or repair the private master database.
+    // Database access belongs in server-side operations that explicitly need it.
     var params = (e && e.parameter) ? e.parameter : {};
     var pathInfo = (e && e.pathInfo) ? String(e.pathInfo) : '';
     var pathRoute = pathInfo.replace(/^\/+|\/+$/g, '').toLowerCase();
