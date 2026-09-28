@@ -39,6 +39,8 @@ function getBankDetails() {
 function handleUpgradeRequest(upgradeData, sessionId) {
   var upgradeLock = null;
   try {
+    upgradeData = upgradeData || {};
+    if (upgradeData.editRequestId) return updatePendingUpgradeRequest_(upgradeData, sessionId, String(upgradeData.editRequestId));
     var user = validateUpgradeSession(sessionId);
     if (!user) return {success:false, message:'Session expired. Please login again.'};
 
@@ -292,6 +294,9 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
       currency:pending.currency,
       country:pending.country,
       workspaceEmail:pending.workspaceEmail,
+      businessDetails:(function(){var full=getUpgradeRequest(pending.requestId);return full&&full.businessDetails?full.businessDetails:{};})(),
+      certificateUrl:(function(){var full=getUpgradeRequest(pending.requestId);return full&&full.certificateUrl?full.certificateUrl:'';})(),
+      certificateName:(function(){var full=getUpgradeRequest(pending.requestId);return full&&full.certificateName?full.certificateName:'';})(),
       createdAt:pending.createdAt,
       status:pending.status,
       redirectUrl: (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '?page=payment-method&requestId=' + encodeURIComponent(pending.requestId) +
@@ -301,6 +306,94 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
     console.error('getPendingUpgradeRequestStatus error:', error);
     return {success:false, message:error.message || 'Unable to check upgrade status.'};
   }
+}
+
+/**
+ * Update an existing pending upgrade request in place.
+ * Keeps the one-active-request rule and recalculates pricing server-side.
+ */
+function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
+  var editLock = null;
+  try {
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false, message:'Session expired. Please login again.'};
+    if (user.subscriptionTier !== 'free' && user.subscriptionTier !== 'starter') return {success:false, message:'You are already on a higher tier!'};
+
+    upgradeData = upgradeData || {};
+    var country = String(upgradeData.country || '').trim();
+    var businessDetails = upgradeData.businessDetails || {};
+    var tier = String(upgradeData.tier || 'sovereign').trim() || 'sovereign';
+    var workspaceEmail = String(upgradeData.workspaceEmail || user.email || '').trim().toLowerCase();
+    if (!country) return {success:false, message:'Please select your business country'};
+    if (!/^\S+@\S+\.\S+$/.test(workspaceEmail)) return {success:false, message:'Please provide a valid workspace email.'};
+
+    var countryConfig = getCountryRequirements(country);
+    if (countryConfig && countryConfig.requiredFields) {
+      for (var i = 0; i < countryConfig.requiredFields.length; i++) {
+        var field = countryConfig.requiredFields[i];
+        if (!businessDetails[field]) return {success:false, message:'Missing required field: ' + ((countryConfig.fieldLabels && countryConfig.fieldLabels[field]) || field)};
+      }
+    }
+
+    editLock = LockService.getScriptLock();
+    editLock.waitLock(10000);
+    ensureUpgradeRequestsSchema_();
+    ensurePaymentsSchema_();
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false, message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false, message:'This upgrade request does not belong to the current BizOS account.'};
+    if (String(request.status || '').toLowerCase() !== 'pending_payment') return {success:false, message:'This upgrade request is no longer editable.'};
+    if (isUpgradeRequestExpired_(request.createdAt)) {
+      markUpgradeRequestExpired_(requestId);
+      return {success:false, message:'This upgrade request has expired. Please start a new upgrade request.'};
+    }
+
+    var pricing = getLocalizedPricing(country);
+    var amount = pricing.sovereign && Number(pricing.sovereign.price) || 499;
+    var currency = pricing.sovereign && String(pricing.sovereign.code || 'USD').toUpperCase() || 'USD';
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
+    var rows = upgradeSheet.getDataRange().getValues();
+    var headers = rows[0] || [];
+    var idCol=headers.indexOf('Request_ID'), workspaceCol=headers.indexOf('Workspace_Email'), countryCol=headers.indexOf('Country');
+    var detailsCol=headers.indexOf('Business_Details'), tierCol=headers.indexOf('Tier'), amountCol=headers.indexOf('Amount');
+    var currencyCol=headers.indexOf('Currency'), updatedCol=headers.indexOf('Updated_At');
+    var rowNumber=-1;
+    for(var r=1;r<rows.length;r++){if(idCol!==-1&&String(rows[r][idCol]||'')===String(requestId)){rowNumber=r+1;break;}}
+    if(rowNumber===-1) return {success:false, message:'Upgrade request not found.'};
+
+    if(workspaceCol!==-1) upgradeSheet.getRange(rowNumber,workspaceCol+1).setValue(workspaceEmail);
+    if(countryCol!==-1) upgradeSheet.getRange(rowNumber,countryCol+1).setValue(country);
+    if(detailsCol!==-1) upgradeSheet.getRange(rowNumber,detailsCol+1).setValue(JSON.stringify(businessDetails));
+    if(tierCol!==-1) upgradeSheet.getRange(rowNumber,tierCol+1).setValue(tier);
+    if(amountCol!==-1) upgradeSheet.getRange(rowNumber,amountCol+1).setValue(amount);
+    if(currencyCol!==-1) upgradeSheet.getRange(rowNumber,currencyCol+1).setValue(currency);
+    if(updatedCol!==-1) upgradeSheet.getRange(rowNumber,updatedCol+1).setValue(new Date().toISOString());
+
+    var paymentSheet=ss.getSheetByName('Payments');
+    if(paymentSheet){
+      var pdata=paymentSheet.getDataRange().getValues(), ph=pdata[0]||[];
+      var pReq=ph.indexOf('Request_ID'),pAmount=ph.indexOf('Amount'),pCurrency=ph.indexOf('Currency'),pStatus=ph.indexOf('Status'),pRef=ph.indexOf('Transaction_Ref'),pCompleted=ph.indexOf('Completed_At');
+      for(var p=1;p<pdata.length;p++) if(pReq!==-1&&String(pdata[p][pReq]||'')===String(requestId)){
+        var prow=p+1;
+        if(pAmount!==-1) paymentSheet.getRange(prow,pAmount+1).setValue(amount);
+        if(pCurrency!==-1) paymentSheet.getRange(prow,pCurrency+1).setValue(currency);
+        if(pStatus!==-1) paymentSheet.getRange(prow,pStatus+1).setValue('pending');
+        if(pRef!==-1) paymentSheet.getRange(prow,pRef+1).setValue('');
+        if(pCompleted!==-1) paymentSheet.getRange(prow,pCompleted+1).setValue('');
+        break;
+      }
+    }
+
+    var publicUrl=getAuthoritativeBizOSWebAppUrl_()||getPublicBizOSUrl_();
+    var paymentPageUrl=publicUrl+'?page=payment-method&requestId='+encodeURIComponent(requestId)+'&country='+encodeURIComponent(country)+'&tier='+encodeURIComponent(tier);
+    return {success:true,message:'Your upgrade details were updated. Please review the payment amount before continuing.',requestId:requestId,paymentId:request.paymentId,amount:amount,currency:currency,redirectUrl:paymentPageUrl,updated:true};
+  } catch(error) {
+    console.error('updatePendingUpgradeRequest_ error:',error);
+    return {success:false,message:error.message||'Unable to update your upgrade request.'};
+  } finally { if(editLock){try{editLock.releaseLock();}catch(ignore){}} }
 }
 
 function sendAdminUpgradeNotification(userEmail, userName, requestId, country, businessDetails, certificateUrl) {
