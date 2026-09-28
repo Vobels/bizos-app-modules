@@ -43,8 +43,10 @@ function doGet(e) {
     }
     if (requestedPage === 'payment-method' || requestedPage === 'paymentmethod') {
       var methodRequestId = String(params.requestId || '').trim();
+      var methodAccessToken = String(params.accessToken || '').trim();
       var methodTemplate = HtmlService.createTemplateFromFile('PaymentMethod');
       methodTemplate.requestId = methodRequestId;
+      methodTemplate.accessToken = methodAccessToken;
       methodTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
       return methodTemplate.evaluate().setTitle('Choose Payment Method - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
@@ -63,8 +65,10 @@ function doGet(e) {
     }
     if (requestedPage === 'paystack-int' || requestedPage === 'payment') {
       var requestId = String(params.requestId || '').trim();
+      var paymentAccessToken = String(params.accessToken || '').trim();
       var paymentTemplate = HtmlService.createTemplateFromFile('paystack-payment');
       paymentTemplate.requestId = requestId;
+      paymentTemplate.accessToken = paymentAccessToken;
       return paymentTemplate.evaluate().setTitle('Complete Payment - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
