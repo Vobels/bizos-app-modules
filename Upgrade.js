@@ -359,7 +359,7 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
     var headers = rows[0] || [];
     var idCol=headers.indexOf('Request_ID'), workspaceCol=headers.indexOf('Workspace_Email'), countryCol=headers.indexOf('Country');
     var detailsCol=headers.indexOf('Business_Details'), tierCol=headers.indexOf('Tier'), amountCol=headers.indexOf('Amount');
-    var currencyCol=headers.indexOf('Currency'), updatedCol=headers.indexOf('Updated_At');
+    var currencyCol=headers.indexOf('Currency'), certificateUrlCol=headers.indexOf('Certificate_URL'), certificateNameCol=headers.indexOf('Certificate_Name'), updatedCol=headers.indexOf('Updated_At');
     var rowNumber=-1;
     for(var r=1;r<rows.length;r++){if(idCol!==-1&&String(rows[r][idCol]||'')===String(requestId)){rowNumber=r+1;break;}}
     if(rowNumber===-1) return {success:false, message:'Upgrade request not found.'};
@@ -370,6 +370,21 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
     if(tierCol!==-1) upgradeSheet.getRange(rowNumber,tierCol+1).setValue(tier);
     if(amountCol!==-1) upgradeSheet.getRange(rowNumber,amountCol+1).setValue(amount);
     if(currencyCol!==-1) upgradeSheet.getRange(rowNumber,currencyCol+1).setValue(currency);
+
+    // A country change invalidates a previously uploaded country-specific
+    // certificate unless the user supplies a replacement in this edit.
+    var newCertificateUrl = '';
+    var newCertificateName = '';
+    if (upgradeData.certificateBase64 && upgradeData.certificateName) {
+      var uploadResult = uploadBusinessCertificate(upgradeData.certificateBase64, upgradeData.certificateName, country, user.businessId, user.businessName);
+      if (!uploadResult.success) return {success:false, message:uploadResult.message || 'Unable to upload the replacement certificate.'};
+      newCertificateUrl = uploadResult.fileUrl || '';
+      newCertificateName = uploadResult.fileName || String(upgradeData.certificateName);
+    }
+    if (country !== String(request.country || '').trim() || newCertificateUrl) {
+      if(certificateUrlCol!==-1) upgradeSheet.getRange(rowNumber,certificateUrlCol+1).setValue(newCertificateUrl);
+      if(certificateNameCol!==-1) upgradeSheet.getRange(rowNumber,certificateNameCol+1).setValue(newCertificateName);
+    }
     if(updatedCol!==-1) upgradeSheet.getRange(rowNumber,updatedCol+1).setValue(new Date().toISOString());
 
     var paymentSheet=ss.getSheetByName('Payments');
