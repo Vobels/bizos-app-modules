@@ -45,6 +45,7 @@ function doGet(e) {
       var methodRequestId = String(params.requestId || '').trim();
       var methodTemplate = HtmlService.createTemplateFromFile('PaymentMethod');
       methodTemplate.requestId = methodRequestId;
+      methodTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
       return methodTemplate.evaluate().setTitle('Choose Payment Method - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     if (requestedPage === 'flutterwave-callback') {
