@@ -4136,6 +4136,7 @@ function getPricingByCountryCode(countryCode) {
 // ==================== UPGRADE SYSTEM ====================
 function showUpgradeModal() {
   console.log('showUpgradeModal called');
+  if (typeof window.clearUpgradeEditMode === 'function') window.clearUpgradeEditMode();
   
   // Declare modal first
   const modal = document.getElementById('upgrade-modal');
