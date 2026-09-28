@@ -163,13 +163,20 @@
       function verify(reference){
         status('Payment received. We are confirming it and preparing your workspace...','info');setButton('<span class="spinner"></span>Confirming payment...',true);
         google.script.run.withSuccessHandler(function(r){
-          if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);}
-          else if(r&&r.paymentVerified){showPaidButNotReady();startProvisioningStatusPoll();continueSetup(true);}
-          else{showPaidButNotReady();startProvisioningStatusPoll();}
+          if(r&&r.success&&(r.landingUrl||r.webAppUrl)){
+            showReady(r.landingUrl||r.webAppUrl,r.idempotent);
+            return;
+          }
+          if(r&&r.paymentVerified){
+            showPaidButNotReady();
+            startProvisioningStatusPoll();
+            return;
+          }
+          showPaidButNotReady();
+          startProvisioningStatusPoll();
         }).withFailureHandler(function(){
           showPaidButNotReady();
           startProvisioningStatusPoll();
-          continueSetup(true);
         }).verifyPaystackPaymentAndProvisionSecure(reference,requestId,sessionId,accessToken);
       }
       function continueSetup(autoRetry){
