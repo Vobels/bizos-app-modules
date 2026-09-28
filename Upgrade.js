@@ -32,6 +32,8 @@ function sendPaymentConfirmationEmail(email, businessName, requestId) {
       '<p>We have received your payment for <strong>' + businessName + '</strong>.</p>' +
       '<p><strong>Request ID:</strong> ' + requestId + '</p>' +
       '<p>Your BizOS workspace is now being prepared. You will receive your workspace access once provisioning is complete.</p>' +
+      '<p><a href="' + (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '?page=deployment-status&requestId=' + encodeURIComponent(requestId) + '" style="display:inline-block;padding:11px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">View Deployment Status</a></p>' +
+      '<p>You do not need to pay again. You can return to this page at any time to see your deployment status and launch link when your workspace is ready.</p>' +
       '<br><p>Thank you for choosing BizOS!</p></div>';
     MailApp.sendEmail({to: email, subject: subject, htmlBody: body});
   } catch (error) {
@@ -300,8 +302,7 @@ function getCurrentUpgradePaymentStatus(sessionId) {
 
     var accessToken = createPaymentAccessToken_(latest.requestId, user.email);
     var resumeUrl = (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) +
-      '?page=payment&requestId=' + encodeURIComponent(latest.requestId) +
-      '&accessToken=' + encodeURIComponent(accessToken);
+      '?page=deployment-status&requestId=' + encodeURIComponent(latest.requestId);
 
     var setup = getUpgradeProvisioningStatus(latest.requestId, sessionId, accessToken);
     return {
