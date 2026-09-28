@@ -4505,12 +4505,27 @@ function handleNotificationClick(moduleName) {
 
 // ===== UPDATE loadDashboard =====
 function loadDashboard() {
-  // ... existing dashboard loading code ...
-  
-  // Load notifications (but don't show them yet)
-  loadNotifications();
-  
-  // ... rest of your code ...
+  // Keep the existing dashboard loading behavior intact.
+  // This function is the final loadDashboard declaration in this file,
+  // so post-payment status must be loaded here as well.
+  try {
+    if (typeof loadNotifications === 'function') {
+      loadNotifications();
+    }
+  } catch (e) {
+    console.error('loadDashboard notifications error:', e);
+  }
+
+  // Paid customers must see their payment/deployment state immediately
+  // after login and on dashboard reload. The status call is server-authoritative
+  // and only reveals the deployment card/sidebar when a confirmed upgrade exists.
+  try {
+    if (typeof loadUpgradePaymentStatus === 'function') {
+      loadUpgradePaymentStatus();
+    }
+  } catch (e) {
+    console.error('loadDashboard upgrade status error:', e);
+  }
 }
 
 
