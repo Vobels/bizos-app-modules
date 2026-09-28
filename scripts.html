@@ -1430,12 +1430,45 @@ function updateUserInfo() {
   }
 }
 
+function openDeploymentStatus() {
+  const base = (typeof publicBizOSUrl !== 'undefined' && publicBizOSUrl) ? String(publicBizOSUrl).replace(/\/$/, '') : '';
+  const target = (base ? base : '') + '?page=deployment-status';
+  try {
+    window.top.location.href = target;
+  } catch (e) {
+    window.location.href = target;
+  }
+}
+
+function updateDeploymentStatusSidebar(response) {
+  const link = document.getElementById('deployment-status-sidebar-link');
+  if (!link) return;
+
+  if (!response || !response.success || !response.active) {
+    link.classList.add('hidden');
+    return;
+  }
+
+  link.classList.remove('hidden');
+  link.classList.remove('bg-purple-50', 'text-purple-700');
+
+  if (response.status === 'provisioning' || response.status === 'payment_confirmed' || response.status === 'provisioning_failed') {
+    link.querySelector('span').textContent = response.status === 'provisioning_failed' ? 'Continue Setup' : 'Deployment Status';
+  } else if (response.ready) {
+    link.querySelector('span').textContent = 'Deployment Status';
+  } else {
+    link.querySelector('span').textContent = 'Deployment Status';
+  }
+}
+
 function loadUpgradePaymentStatus() {
   const container = document.getElementById('upgrade-payment-status');
   if (!container || !currentSessionId) return;
 
   google.script.run
     .withSuccessHandler(function(response) {
+      updateDeploymentStatusSidebar(response);
+
       if (!response || !response.success || !response.active) {
         container.className = 'hidden mb-6';
         container.innerHTML = '';
@@ -1468,6 +1501,7 @@ function loadUpgradePaymentStatus() {
         '</div>';
     })
     .withFailureHandler(function() {
+      updateDeploymentStatusSidebar(null);
       container.className = 'hidden mb-6';
       container.innerHTML = '';
     })
