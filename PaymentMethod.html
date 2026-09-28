@@ -18,6 +18,8 @@
       <div id="summary" class="summary">
         <div class="row"><span>Business</span><strong id="business">Loading...</strong></div>
         <div class="row"><span>Plan</span><strong id="plan">Loading...</strong></div>
+        <div class="row"><span>Country</span><strong id="country">Loading...</strong></div>
+        <div class="row"><span>Currency</span><strong id="currency">Loading...</strong></div>
         <div class="row total"><span>Total</span><strong id="amount">Loading...</strong></div>
       </div>
       <div class="methods">
@@ -25,7 +27,12 @@
         <button id="flutterwave" class="method" type="button" disabled><span><strong>Flutterwave</strong><span>Card, bank and other supported payment options</span></span><b class="arrow">›</b></button>
       </div>
       <div id="status" class="status"></div>
-      <a class="back" href="#" id="back-to-billing">← Back to Billing</a>
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:20px">
+        <a class="back" style="margin-top:0" href="#" id="edit-upgrade-details">Edit upgrade details</a>
+        <a class="back" style="margin-top:0" href="#" id="back-to-billing">← Back to Billing</a>
+      </div>
+      <div style="font-size:12px;color:#667085;margin-top:10px">Made a mistake? You can correct your country and business details before paying. Your existing upgrade request will be updated instead of creating another request.</div>
+      <a class="back" style="display:none" href="#" id="back-to-billing">← Back to Billing</a>
       <div class="small">You will be redirected to the selected provider's secure checkout. BizOS does not receive or store your card or bank details.</div>
     </section>
   </main>
@@ -33,11 +40,13 @@
     (function(){
       'use strict';
       var params=new URLSearchParams(window.location.search),requestId=<?!= JSON.stringify(requestId || '') ?> || params.get('requestId') || '';
-      var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),amountEl=document.getElementById('amount'),statusEl=document.getElementById('status');
+      var businessEl=document.getElementById('business'),planEl=document.getElementById('plan'),countryEl=document.getElementById('country'),currencyEl=document.getElementById('currency'),amountEl=document.getElementById('amount'),statusEl=document.getElementById('status');
       var paystack=document.getElementById('paystack'),flutterwave=document.getElementById('flutterwave');
       var details=null;
       var backToBilling=document.getElementById('back-to-billing');
+      var editUpgrade=document.getElementById('edit-upgrade-details');
       backToBilling.addEventListener('click',function(event){event.preventDefault();window.location.assign('?page=dashboard&billing=1');});
+      editUpgrade.addEventListener('click',function(event){event.preventDefault();window.location.assign('?page=dashboard&billing=1&editUpgrade=1&requestId='+encodeURIComponent(requestId));});
       function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
       function money(amount,currency){try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}}
       function setBusy(button,text){button.disabled=true;button.querySelector('strong').textContent=text;}
@@ -48,7 +57,7 @@
         // authenticated backend. This lets a resumed payment recover safely
         // even if the URL contains an older/stale requestId.
         if (r.requestId) requestId=String(r.requestId);
-        details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
+        details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';currencyEl.textContent=String(r.currency||'').toUpperCase();amountEl.textContent=money(r.displayAmount,r.currency);paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
       }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh and try again.','error');}).getUpgradePaymentDetails(requestId, localStorage.getItem('bizos_session') || '');
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
