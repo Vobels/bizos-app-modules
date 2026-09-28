@@ -314,7 +314,20 @@ function getUpgradeProvisioningStatus(requestId,sessionId,accessToken){
       return{success:false,code:'PROVISIONED_URL_UNAVAILABLE',status:status,message:'Your workspace is provisioned, but its launch link is not available yet.'};
     }
     if(status==='provisioning')return{success:true,ready:false,processing:true,status:status,message:'Your payment is confirmed and your BizOS workspace is still being prepared.'};
-    if(status==='payment_confirmed')return{success:true,ready:false,processing:false,status:status,message:'Your payment is confirmed. Workspace setup has not finished yet.'};
+    if(status==='payment_confirmed'){
+      var queuedStatus = queueConfirmedUpgradeProvisioning(requestId);
+      return {
+        success:true,
+        ready:false,
+        processing:!!queuedStatus.success,
+        status:status,
+        workerAvailable:!!queuedStatus.success,
+        setupQueued:!!queuedStatus.success,
+        message:queuedStatus.success
+          ? 'Your payment is confirmed. Workspace setup has been queued and will continue automatically.'
+          : 'Your payment is confirmed. Workspace setup worker is not active yet. You do not need to pay again.'
+      };
+    }
     if(status==='provisioning_failed')return{success:true,ready:false,processing:false,retryable:true,status:status,message:'Your payment is confirmed, but workspace setup needs to be continued.'};
     return{success:false,code:'PAYMENT_NOT_CONFIRMED',status:status,message:'Your payment has not been confirmed for setup yet.'};
   }catch(error){console.error('getUpgradeProvisioningStatus error:',error);return{success:false,code:'PROVISIONING_STATUS_ERROR',message:'We could not check workspace setup status right now.'};}
