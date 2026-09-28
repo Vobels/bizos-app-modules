@@ -75,11 +75,56 @@ function getDeploymentStatusPageData(requestId, sessionId) {
     var user = validateUpgradeSession(sessionId);
     if (!user) return {success:false,code:'UNAUTHORIZED',message:'Please sign in to view your deployment status.'};
 
-    var latest = getLatestUpgradeRequestForUser_(user.email);
+    // When a status link contains a requestId, resolve that exact request.
+    // Do not compare it with the user's newest request: a later unpaid request
+    // must never hide an older confirmed payment/deployment.
+    var latest = requestId ? getUpgradeRequest(String(requestId).trim()) : getLatestPaidUpgradeRequestForUser_(user.email);
     if (!latest) return {success:true,active:false,message:'No upgrade deployment was found for this account.'};
 
-    if (requestId && String(requestId).trim() !== String(latest.requestId).trim()) {
+    if (String(latest.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
       return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This deployment request does not belong to the current BizOS account.'};
+    }
+
+    // Reconcile a successful payment row even if the upgrade row was not yet
+    // updated. This keeps the deployment page consistent with the Payments sheet.
+    if (requestId) {
+      try {
+        ensurePaymentsSchema_();
+        var paymentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
+        if (paymentSheet) {
+          var paymentData = paymentSheet.getDataRange().getValues();
+          var paymentHeaders = paymentData[0] || [];
+          var pReq = paymentHeaders.indexOf('Request_ID');
+          var pStatus = paymentHeaders.indexOf('Status');
+          if (pReq !== -1 && pStatus !== -1) {
+            for (var pi = 1; pi < paymentData.length; pi++) {
+              if (String(paymentData[pi][pReq] || '').trim() === String(latest.requestId || '').trim() &&
+                  String(paymentData[pi][pStatus] || '').trim().toLowerCase() === 'success') {
+                if (String(latest.status || '').trim().toLowerCase() === 'pending_payment') {
+                  var upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+                  if (upgradeSheet) {
+                    var upgradeData = upgradeSheet.getDataRange().getValues();
+                    var uh = upgradeData[0] || [];
+                    var ur = uh.indexOf('Request_ID'), us = uh.indexOf('Status');
+                    if (ur !== -1 && us !== -1) {
+                      for (var ui = 1; ui < upgradeData.length; ui++) {
+                        if (String(upgradeData[ui][ur] || '').trim() === String(latest.requestId || '').trim()) {
+                          upgradeSheet.getRange(ui + 1, us + 1).setValue('payment_confirmed');
+                          latest.status = 'payment_confirmed';
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
+      } catch (reconcileError) {
+        console.error('Deployment status payment reconciliation error:', reconcileError);
+      }
     }
 
     var status = String(latest.status || '').trim().toLowerCase();
