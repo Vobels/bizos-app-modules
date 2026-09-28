@@ -21,9 +21,10 @@
             </button>
             <div id="settings-sidebar-menu" class="hidden mt-1 ml-3 pl-3 border-l border-gray-200 space-y-1">
               <button onclick="window.showProfilePage(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-user-circle text-gray-500 w-4"></i><span>Profile</span></button>
-              <button data-bizos-billing-link="1" onclick="window.showUpgradeModal(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-credit-card text-gray-500 w-4"></i><span>Billing</span></button>\n              <button id="deployment-status-sidebar-link" onclick="window.openDeploymentStatus()" class="hidden w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-rocket text-gray-500 w-4"></i><span>Deployment Status</span></button>
+              <button data-bizos-billing-link="1" onclick="window.showUpgradeModal(); closeSettingsSidebarMenu()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-sm"><i class="fas fa-credit-card text-gray-500 w-4"></i><span>Billing</span></button>
             </div>
           </div>
+          <button id="deployment-status-sidebar-link" onclick="window.openDeploymentStatus()" class="hidden w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-rocket text-gray-500"></i><span>Deployment Status</span></button>
           <div class="pt-4"><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Applications</p><div id="module-list" class="space-y-2"></div></div>
         </nav>
         <div class="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200"><button onclick="handleLogout()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 text-red-600"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></button></div>
