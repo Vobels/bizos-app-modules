@@ -41,6 +41,34 @@ function sendPaymentConfirmationEmail(email, businessName, requestId) {
   }
 }
 
+function sendDeploymentConfirmationEmailOnce_(email, businessName, requestId, launchUrl) {
+  try {
+    email = String(email || '').trim();
+    requestId = String(requestId || '').trim();
+    launchUrl = String(launchUrl || '').trim();
+    if (!email || !requestId || !launchUrl) return;
+    var key = 'DEPLOYMENT_CONFIRMATION_EMAIL_SENT_' + requestId;
+    var props = PropertiesService.getScriptProperties();
+    if (props.getProperty(key) === '1') return;
+    var publicUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
+    var statusUrl = publicUrl + '?page=deployment-confirmation&requestId=' + encodeURIComponent(requestId);
+    var safeBusiness = String(businessName || 'your business').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+    var safeLaunch = launchUrl.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    var body = '<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#1f2937">' +
+      '<h2>BizOS Workspace Deployed</h2>' +
+      '<p>Your BizOS workspace for <strong>' + safeBusiness + '</strong> has been successfully deployed.</p>' +
+      '<p><strong>Your payment has been confirmed and your workspace is ready.</strong></p>' +
+      '<p><a href="' + safeLaunch + '" style="display:inline-block;padding:12px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Launch My BizOS</a></p>' +
+      '<p><a href="' + statusUrl + '" style="color:#2563eb">View Deployment Confirmation</a></p>' +
+      '<p>Request ID: ' + requestId + '</p>' +
+      '</div>';
+    MailApp.sendEmail({to:email,subject:'BizOS Workspace Deployed - '+(businessName||'Your Business'),htmlBody:body});
+    props.setProperty(key,'1');
+  } catch(error) {
+    console.error('sendDeploymentConfirmationEmailOnce_ error:', error);
+  }
+}
+
 function getBankDetails() {
   return {success: true, bankName: 'Example Bank', accountName: 'BizOS Global', accountNumber: '1234567890'};
 }
