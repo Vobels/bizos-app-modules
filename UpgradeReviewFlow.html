@@ -8,8 +8,9 @@
 <script>
 (function(){
 'use strict';
-var installed=false,originalCallGoogleScript=null,workspaceEmail='',pendingUpgradeChecked=false,pendingUpgradeActive=false;
+var installed=false,originalCallGoogleScript=null,workspaceEmail='',pendingUpgradeChecked=false,pendingUpgradeActive=false,editingRequestId='';
 function notify(message,type){if(typeof window.showNotification==='function')window.showNotification(message,type||'info');else alert(message)}
+function getSessionId(){return localStorage.getItem('bizos_session')||'';}
 function getCurrentEmail(){if(window.currentUser&&window.currentUser.email)return String(window.currentUser.email).trim();try{var user=JSON.parse(localStorage.getItem('bizos_user')||'{}');return String(user.email||'').trim()}catch(e){return ''}}
 function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
 function checkPendingUpgrade(){
@@ -43,6 +44,51 @@ function injectReviewControls(){
  var submit=form.querySelector('button[type="submit"]');if(submit)submit.innerHTML='Review & Continue to Payment <i class="fas fa-arrow-right ml-2"></i>';
  var title=document.querySelector('#upgrade-modal h2');if(title)title.textContent='Review & Confirm Your Upgrade';
 }
+function prepareUpgradeEdit(requestId){
+ editingRequestId=String(requestId||'').trim();
+ if(!editingRequestId||typeof window.callGoogleScript!=='function')return;
+ window.__BIZOS_EDIT_UPGRADE_REQUEST_ID=editingRequestId;
+ window.callGoogleScript('getPendingUpgradeRequestStatus',[''],function(result){
+   if(!result||!result.success||!result.hasPending||String(result.requestId||'')!==editingRequestId){
+     notify('We could not load your pending upgrade details. Please return to Billing and try again.','error');return;
+   }
+   var form=document.getElementById('upgrade-form');
+   var emailInput=document.getElementById('bizos-workspace-email-form');
+   if(emailInput&&result.workspaceEmail)emailInput.value=result.workspaceEmail;
+   workspaceEmail=String(result.workspaceEmail||workspaceEmail||'').trim();
+   var countryInput=document.getElementById('upgrade-country');
+   var countrySelector=document.getElementById('upgrade-country-select');
+   if(countryInput)countryInput.value=String(result.country||'');
+   if(countrySelector)countrySelector.value=String(result.country||'');
+   var title=document.querySelector('#upgrade-modal h2');if(title)title.textContent='Correct Your Upgrade Details';
+   var submit=document.querySelector('#upgrade-form button[type="submit"]');if(submit)submit.innerHTML='Save & Continue to Payment <i class="fas fa-arrow-right ml-2"></i>';
+   var pendingBox=document.querySelector('[data-bizos-pending-upgrade]');if(pendingBox)pendingBox.remove();
+   if(typeof window.loadCountryRequirementsForUpgrade==='function'){
+     window.loadCountryRequirementsForUpgrade();
+     var attempts=0;
+     var timer=setInterval(function(){
+       attempts++;
+       if(window.currentCountryRequirements){
+         var details=result.businessDetails||{};
+         Object.keys(details).forEach(function(field){
+           var input=document.getElementById('upgrade-'+field);
+           if(input)input.value=details[field]==null?'':details[field];
+         });
+         clearInterval(timer);
+       }
+       if(attempts>40)clearInterval(timer);
+     },100);
+   }
+   var note=document.querySelector('#upgrade-form [data-bizos-edit-note]');
+   if(!note){
+     note=document.createElement('p');note.setAttribute('data-bizos-edit-note','1');note.className='text-xs text-gray-500 mt-2';
+     note.textContent='You are editing your existing upgrade request. Your request ID will remain the same.';
+     var submitBtn=document.querySelector('#upgrade-form button[type="submit"]');if(submitBtn&&submitBtn.parentNode)submitBtn.parentNode.appendChild(note);
+   }
+ },function(){notify('We could not load your pending upgrade details. Please refresh and try again.','error')});
+}
+window.prepareUpgradeEdit=prepareUpgradeEdit;
+
 function prepareAndSubmit(event){
  var form=event&&event.target&&event.target.closest?event.target.closest('#upgrade-form'):document.getElementById('upgrade-form');if(!form)return;
  event.preventDefault();event.stopImmediatePropagation();
@@ -80,7 +126,7 @@ function install(){
  originalCallGoogleScript=window.callGoogleScript;
  window.callGoogleScript=function(functionName,params,successHandler,errorHandler){
   var args=Array.prototype.slice.call(arguments);
-  if(functionName==='handleUpgradeRequest'&&params&&params[0]&&typeof params[0]==='object')args[1]=[Object.assign({},params[0],{workspaceEmail:workspaceEmail})];
+  if(functionName==='handleUpgradeRequest'&&params&&params[0]&&typeof params[0]==='object')args[1]=[Object.assign({},params[0],{workspaceEmail:workspaceEmail,editRequestId:editingRequestId||''})];
   if(functionName==='handleUpgradeRequest'&&typeof args[2]==='function'){var originalSuccess=args[2];args[2]=function(result){return originalSuccess(routeUpgradePaymentResult(result))}}
   return originalCallGoogleScript.apply(this,args);
  };
