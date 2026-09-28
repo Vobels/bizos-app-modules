@@ -101,6 +101,40 @@ function getPaystackCheckoutDetails(requestId, sessionId, accessToken) {
       return {success:false,code:'REQUEST_EXPIRED',message:'This upgrade request expired after 10 days. Please submit a new upgrade request.'};
     }
     if (status !== 'pending_payment') {
+      // The customer may be returning to the payment URL after Paystack already
+      // confirmed the transaction. Never present a confirmed payment as payable again.
+      if (status === 'payment_confirmed' || status === 'provisioning' || status === 'provisioning_failed' || status === 'provisioned' || status === 'active') {
+        var setupStatus = null;
+        try {
+          setupStatus = getUpgradeProvisioningStatus(requestId, sessionId, accessToken);
+        } catch (statusError) {
+          console.error('getPaystackCheckoutDetails setup status error:', statusError);
+        }
+        if (setupStatus && setupStatus.success && (setupStatus.webAppUrl || setupStatus.landingUrl)) {
+          return {
+            success:true,
+            requestId:requestId,
+            paymentConfirmed:true,
+            ready:true,
+            idempotent:true,
+            webAppUrl:setupStatus.webAppUrl || '',
+            landingUrl:setupStatus.landingUrl || setupStatus.webAppUrl || '',
+            status:status,
+            message:'Your payment was already confirmed and your BizOS workspace is ready.'
+          };
+        }
+        return {
+          success:true,
+          requestId:requestId,
+          paymentConfirmed:true,
+          ready:false,
+          retryable:status === 'provisioning_failed',
+          status:status,
+          message: status === 'provisioning_failed'
+            ? 'Your payment is confirmed, but workspace setup needs to be continued. You do not need to pay again.'
+            : 'Your payment is confirmed. Your BizOS workspace is still being prepared. You do not need to pay again.'
+        };
+      }
       return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is not awaiting payment.'};
     }
 
