@@ -87,20 +87,6 @@
         clearStatus();
       }
       function launch(){if(launchUrl)window.location.href=launchUrl;}
-      function showPaidButNotReady(){
-        checkoutView.style.display='none';
-        resultEl.classList.add('show');
-        resultTitle.textContent='Your payment was successful';
-        resultText.textContent='We received your payment, but your BizOS workspace needs a little more time to finish setting up.';
-        document.querySelector('.check').textContent='✓';
-        document.querySelector('.check').style.background='#fff4e5';
-        document.querySelector('.check').style.color='#b54708';
-        document.querySelector('.steps').innerHTML='<div class="step"><span class="num">1</span><span><b>Your payment is safe</b><br>You do not need to pay again.</span></div><div class="step"><span class="num">2</span><span><b>Continue setup</b><br>We will check your payment and finish preparing your workspace.</span></div><div class="step"><span class="num">3</span><span><b>Launch BizOS</b><br>When setup is complete, we will give you your launch link here.</span></div>';
-        launchBtn.textContent='Continue Setup';
-        launchBtn.disabled=false;
-        launchBtn.onclick=continueSetup;
-        status('Your payment is confirmed. No second payment is needed.','info');
-      }
       function loadCheckout(){
         if(!requestId){status('This payment page is missing your setup request. Please return to BizOS and start the upgrade again.','error');setButton('Payment unavailable',true);return;}
         google.script.run.withSuccessHandler(function(r){
