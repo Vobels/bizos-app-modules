@@ -48,7 +48,7 @@
       var params=new URLSearchParams(window.location.search);
       var hashParams=new URLSearchParams(String(window.location.hash||'').replace(/^#/, ''));
       var requestId=<?!= JSON.stringify(requestId || '') ?> || params.get('requestId') || '';
-      var accessToken=hashParams.get('accessToken') || '';
+      var accessToken=params.get('accessToken') || hashParams.get('accessToken') || '';
       function getStoredSession(){
         try { return localStorage.getItem('bizos_session') || ''; } catch(e) { return ''; }
       }
@@ -79,7 +79,7 @@
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
         var base=String(BIZOS_PUBLIC_URL||'').replace(/\/$/,'');
-        var paymentUrl=base+'?page=payment&requestId='+encodeURIComponent(requestId)+'#accessToken='+encodeURIComponent(accessToken);
+        var paymentUrl=base+'?page=payment&requestId='+encodeURIComponent(requestId)+'&accessToken='+encodeURIComponent(accessToken);
         try { window.top.location.href=paymentUrl; } catch(e) { window.location.href=paymentUrl; }
       });
       flutterwave.addEventListener('click',function(){
