@@ -16,13 +16,16 @@ function getPaystackPublicKey_() {
   return String(key).trim();
 }
 
-function getUpgradePaymentDetails(requestId, sessionId) {
+function getUpgradePaymentDetails(requestId, sessionId, accessToken) {
   try {
     if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Upgrade request ID is required.'};
-    if (!sessionId) return {success:false,code:'SESSION_REQUIRED',message:'Your BizOS session is required to view this payment request.'};
 
-    var user = validateUpgradeSession(sessionId);
-    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
 
     var request = getUpgradeRequest(requestId);
 
@@ -78,11 +81,15 @@ function getUpgradePaymentDetails(requestId, sessionId) {
   }
 }
 
-function getPaystackCheckoutDetails(requestId, sessionId) {
+function getPaystackCheckoutDetails(requestId, sessionId, accessToken) {
   try {
-    var user = validateUpgradeSession(sessionId);
-    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
     if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
 
     var request = getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
@@ -141,10 +148,14 @@ function savePaystackReference_(requestId, reference) {
   }
 }
 
-function verifyPaystackPaymentAndProvisionSecure(reference, requestId, sessionId) {
+function verifyPaystackPaymentAndProvisionSecure(reference, requestId, sessionId, accessToken) {
   try {
-    var user = validateUpgradeSession(sessionId);
-    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
     if (!reference || !requestId) {
       return {success:false,code:'INVALID_PAYMENT_COMPLETION',message:'Payment reference and request ID are required.'};
     }
