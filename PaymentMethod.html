@@ -74,7 +74,22 @@
         // authenticated backend. This lets a resumed payment recover safely
         // even if the URL contains an older/stale requestId.
         if (r.requestId) requestId=String(r.requestId);
-        details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';currencyEl.textContent=String(r.currency||'').toUpperCase();amountEl.textContent=money(r.displayAmount,r.currency);paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
+        details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';currencyEl.textContent=String(r.currency||'').toUpperCase();amountEl.textContent=money(r.displayAmount,r.currency);
+        if(r.paymentConfirmed){
+          paystack.disabled=true;flutterwave.disabled=true;
+          status(r.message||'Your payment is already confirmed. You do not need to pay again.','info');
+          var deploymentLink=document.createElement('a');
+          deploymentLink.className='back';
+          deploymentLink.href='#';
+          deploymentLink.textContent=r.ready?'View and Launch BizOS':'View Deployment Status';
+          deploymentLink.style.display='inline-flex';
+          deploymentLink.style.marginTop='12px';
+          deploymentLink.addEventListener('click',function(event){event.preventDefault();openBizOS('?page=deployment-status&requestId='+encodeURIComponent(requestId));});
+          statusEl.appendChild(document.createElement('br'));
+          statusEl.appendChild(deploymentLink);
+          return;
+        }
+        paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
       }).withFailureHandler(function(){clearLoading('We could not connect to BizOS. Please refresh and try again.');}).getUpgradePaymentDetails(requestId, getStoredSession(), accessToken);
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
