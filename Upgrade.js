@@ -86,8 +86,10 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     }
     if (latestRequest && latestRequest.status === 'pending_payment' && !latestRequest.expired) {
       var pendingPublicUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
+      var pendingPaymentAccessToken = createPaymentAccessToken_(latestRequest.requestId, user.email);
       var pendingPaymentPageUrl = pendingPublicUrl + '?page=payment-method&requestId=' + encodeURIComponent(latestRequest.requestId) +
-        '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier);
+        '&country=' + encodeURIComponent(latestRequest.country || country) + '&tier=' + encodeURIComponent(latestRequest.tier || tier) +
+        '#accessToken=' + encodeURIComponent(pendingPaymentAccessToken);
       return {
         success:true,
         message:'You already have an upgrade in progress. Continue with your existing payment request.',
@@ -148,8 +150,10 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     // Upgrade_Requests sheet. This preserves requestId and guarantees the
     // payment page reads the same backend/workspace that created the request.
     var publicUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
+    var paymentAccessToken = createPaymentAccessToken_(requestId, user.email);
     var paymentPageUrl = publicUrl + '?page=payment-method&requestId=' + encodeURIComponent(requestId) +
-      '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier);
+      '&country=' + encodeURIComponent(country) + '&tier=' + encodeURIComponent(tier) +
+      '#accessToken=' + encodeURIComponent(paymentAccessToken);
 
     return {
       success:true,
@@ -300,7 +304,8 @@ function getPendingUpgradeRequestStatus(businessId, sessionId) {
       createdAt:pending.createdAt,
       status:pending.status,
       redirectUrl: (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '?page=payment-method&requestId=' + encodeURIComponent(pending.requestId) +
-        '&country=' + encodeURIComponent(pending.country || '') + '&tier=' + encodeURIComponent(pending.tier || 'sovereign')
+        '&country=' + encodeURIComponent(pending.country || '') + '&tier=' + encodeURIComponent(pending.tier || 'sovereign') +
+        '#accessToken=' + encodeURIComponent(createPaymentAccessToken_(pending.requestId, user.email))
     };
   } catch (error) {
     console.error('getPendingUpgradeRequestStatus error:', error);
@@ -403,7 +408,8 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
     }
 
     var publicUrl=getAuthoritativeBizOSWebAppUrl_()||getPublicBizOSUrl_();
-    var paymentPageUrl=publicUrl+'?page=payment-method&requestId='+encodeURIComponent(requestId)+'&country='+encodeURIComponent(country)+'&tier='+encodeURIComponent(tier);
+    var paymentAccessToken=createPaymentAccessToken_(requestId,user.email);
+    var paymentPageUrl=publicUrl+'?page=payment-method&requestId='+encodeURIComponent(requestId)+'&country='+encodeURIComponent(country)+'&tier='+encodeURIComponent(tier)+'#accessToken='+encodeURIComponent(paymentAccessToken);
     return {success:true,message:'Your upgrade details were updated. Please review the payment amount before continuing.',requestId:requestId,paymentId:request.paymentId,amount:amount,currency:currency,redirectUrl:paymentPageUrl,updated:true};
   } catch(error) {
     console.error('updatePendingUpgradeRequest_ error:',error);
@@ -573,6 +579,43 @@ function validateUpgradeSession(sessionId) {
     };
   } catch (error) {
     console.error('validateUpgradeSession error:', error);
+    return null;
+  }
+}
+
+/**
+ * Short-lived payment-page access handoff.
+ * The token is stored only in Script Cache and is passed in the URL fragment,
+ * so it is not sent to the server as a query parameter or exposed as a referrer.
+ */
+var PAYMENT_ACCESS_TOKEN_TTL_SECONDS = 2 * 60 * 60;
+
+function createPaymentAccessToken_(requestId, email) {
+  var token = Utilities.getUuid().replace(/-/g, '');
+  var payload = {
+    requestId: String(requestId || ''),
+    email: String(email || '').trim().toLowerCase(),
+    createdAt: Date.now()
+  };
+  CacheService.getScriptCache().put(
+    'bizos_payment_access_' + token,
+    JSON.stringify(payload),
+    PAYMENT_ACCESS_TOKEN_TTL_SECONDS
+  );
+  return token;
+}
+
+function validatePaymentAccessToken_(token, requestId) {
+  if (!token) return null;
+  var raw = CacheService.getScriptCache().get('bizos_payment_access_' + String(token));
+  if (!raw) return null;
+  try {
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.requestId || !payload.email) return null;
+    if (String(payload.requestId) !== String(requestId || '')) return null;
+    return payload;
+  } catch (error) {
+    console.error('validatePaymentAccessToken_ error:', error);
     return null;
   }
 }
