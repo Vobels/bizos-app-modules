@@ -88,6 +88,7 @@ function prepareUpgradeEdit(requestId){
  },function(){notify('We could not load your pending upgrade details. Please refresh and try again.','error')});
 }
 window.prepareUpgradeEdit=prepareUpgradeEdit;
+window.clearUpgradeEditMode=function(){editingRequestId='';window.__BIZOS_EDIT_UPGRADE_REQUEST_ID='';};
 
 function prepareAndSubmit(event){
  var form=event&&event.target&&event.target.closest?event.target.closest('#upgrade-form'):document.getElementById('upgrade-form');if(!form)return;
