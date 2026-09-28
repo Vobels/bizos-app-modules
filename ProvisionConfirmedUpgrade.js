@@ -105,16 +105,39 @@ function ensureUpgradeProvisioningWorker_() {
   }
 }
 
+// Run this ONCE from the Apps Script editor as the deployment owner.
+// This is intentionally separate from customer requests because Apps Script
+// installable triggers require authorization from the account that creates them.
+function setupUpgradeProvisioningWorker() {
+  try {
+    if (typeof ScriptApp.requireScopes === 'function') {
+      ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, [
+        'https://www.googleapis.com/auth/script.scriptapp',
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/script.send_mail'
+      ]);
+    }
+    var ready = ensureUpgradeProvisioningWorker_();
+    if (!ready) return {success:false,code:'WORKER_INSTALL_FAILED',message:'The provisioning worker could not be installed. Check the Apps Script execution log.'};
+    return {success:true,message:'BizOS upgrade provisioning worker is installed and will process confirmed payments automatically.'};
+  } catch (error) {
+    console.error('setupUpgradeProvisioningWorker error:', error);
+    return {success:false,code:'WORKER_INSTALL_AUTH_REQUIRED',message:'Please authorize the Apps Script project once, then run setupUpgradeProvisioningWorker again.'};
+  }
+}
+
 function queueConfirmedUpgradeProvisioning(requestId) {
   if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
   var workerReady = ensureUpgradeProvisioningWorker_();
   return {
     success:workerReady,
-    processing:true,
+    processing:workerReady,
+    workerAvailable:workerReady,
     requestId:String(requestId),
     message:workerReady
       ? 'Your payment is confirmed. Workspace setup has been queued and will continue automatically.'
-      : 'Your payment is confirmed. Workspace setup will continue when the provisioning service is available.'
+      : 'Your payment is confirmed. Workspace setup is not yet active. You do not need to pay again.'
   };
 }
 
