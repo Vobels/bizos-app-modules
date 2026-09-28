@@ -10,10 +10,14 @@ function getFlutterwaveSecretKey_() {
   return String(key).trim();
 }
 
-function createFlutterwaveCheckout(requestId, sessionId) {
+function createFlutterwaveCheckout(requestId, sessionId, accessToken) {
   try {
-    var user=validateUpgradeSession(sessionId);
-    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your BizOS session has expired. Please login again.'};
+    var user=sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access=validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user={email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
     var request=getUpgradeRequest(requestId);
     if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
     if (String(request.email||'').trim().toLowerCase() !== String(user.email||'').trim().toLowerCase()) return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
