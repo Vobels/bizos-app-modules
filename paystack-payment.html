@@ -88,11 +88,24 @@
         clearStatus();
       }
       function launch(){if(launchUrl)window.location.href=launchUrl;}
+      function openDashboard(){
+        var base=String(publicBizOSUrl||'').replace(/\/$/,'');
+        var target=base ? base+'?page=dashboard' : '?page=dashboard';
+        try{window.top.location.href=target;}catch(e){window.location.href=target;}
+      }
+      document.getElementById('back-to-dashboard').addEventListener('click',function(e){e.preventDefault();openDashboard();});
       function loadCheckout(){
         if(!requestId){status('This payment page is missing your setup request. Please return to BizOS and start the upgrade again.','error');setButton('Payment unavailable',true);return;}
         google.script.run.withSuccessHandler(function(r){
           if(!r||!r.success){status(r&&r.message||'We could not prepare your payment. Please return to BizOS and try again.','error');setButton('Payment unavailable',true);return;}
-          checkout=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);setButton('Pay '+money(r.displayAmount,r.currency),false);status('Your payment is ready.','info');
+          if(r.paymentConfirmed){
+            if(r.ready && (r.landingUrl||r.webAppUrl)){showReady(r.landingUrl||r.webAppUrl,true);return;}
+            showPaidButNotReady();
+            status(r.message||'Your payment is confirmed. We are checking your workspace setup.','info');
+            startProvisioningStatusPoll();
+            return;
+          }
+                    checkout=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';amountEl.textContent=money(r.displayAmount,r.currency);setButton('Pay '+money(r.displayAmount,r.currency),false);status('Your payment is ready.','info');
         }).withFailureHandler(function(){status('We could not connect to BizOS. Please refresh this page and try again.','error');setButton('Payment unavailable',true);}).getPaystackCheckoutDetails(requestId,sessionId,accessToken);
       }
       var recoveryAttempts=0;
