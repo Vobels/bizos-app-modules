@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BizOS Deployment Status</title>
+  <style>
+    body{margin:0;background:#f7f8fa;font-family:Arial,sans-serif;color:#1f2937}
+    .wrap{max-width:760px;margin:40px auto;padding:20px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px;box-shadow:0 8px 30px rgba(0,0,0,.05)}
+    h1{margin:0 0 8px;font-size:28px}.sub{color:#6b7280;margin:0 0 24px}
+    .notice{padding:16px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;margin-bottom:24px}
+    .notice.ready{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+    .notice.warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
+    .steps{margin:24px 0}.step{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-bottom:1px solid #f0f0f0}
+    .dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e5e7eb;flex:0 0 26px;font-size:13px}
+    .done .dot{background:#16a34a;color:#fff}.active .dot{background:#2563eb;color:#fff}
+    .label{font-weight:600}.detail{font-size:13px;color:#6b7280;margin-top:3px}
+    .details{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
+    .detail-box{border:1px solid #e5e7eb;border-radius:10px;padding:13px}.detail-box strong{display:block;font-size:12px;color:#6b7280;margin-bottom:5px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+    button,a.btn{border:0;border-radius:9px;padding:11px 16px;text-decoration:none;cursor:pointer;font-weight:600;font-size:14px}
+    .primary{background:#2563eb;color:#fff}.secondary{background:#f3f4f6;color:#374151}
+    .small{font-size:12px;color:#6b7280;margin-top:20px}
+    @media(max-width:600px){.wrap{margin:15px auto}.card{padding:20px}.details{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>BizOS Deployment Status</h1>
+    <p class="sub">Track your payment and workspace setup in one place.</p>
+    <div id="notice" class="notice">Checking your deployment status...</div>
+    <div id="content"></div>
+    <div class="actions">
+      <a id="launch" class="btn primary" href="#" target="_blank" rel="noopener" style="display:none">Launch BizOS</a>
+      <button id="continue" class="primary" style="display:none">Continue Setup</button>
+      <a id="dashboard" class="btn secondary" href="#">Back to Dashboard</a>
+    </div>
+    <div class="small">If your payment has been confirmed, you do not need to pay again. This page reflects the server-side status of your BizOS upgrade request.</div>
+  </div>
+</div>
+<script>
+(function(){
+  var requestId=<?!= JSON.stringify(requestId || '') ?>;
+  var publicBizOSUrl=<?!= JSON.stringify(publicBizOSUrl || '') ?>;
+  var notice=document.getElementById('notice'),content=document.getElementById('content');
+  var launch=document.getElementById('launch'),cont=document.getElementById('continue'),dash=document.getElementById('dashboard');
+
+  function session(){try{return localStorage.getItem('bizos_session')||'';}catch(e){return '';}}
+  function money(amount,currency){if(amount===''||amount==null)return '';try{return new Intl.NumberFormat(undefined,{style:'currency',currency:currency||'USD',maximumFractionDigits:0}).format(Number(amount));}catch(e){return String(amount)+' '+(currency||'');}}
+  function dashboardUrl(){var b=String(publicBizOSUrl||'').replace(/\/$/,'');return b?b+'?page=dashboard':'?page=dashboard';}
+  dash.href=dashboardUrl();
+
+  function escapeHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  function step(done,active,title,detail,num){
+    return '<div class="step '+(done?'done ':'')+(active?'active':'')+'"><div class="dot">'+(done?'✓':num)+'</div><div><div class="label">'+title+'</div><div class="detail">'+detail+'</div></div></div>';
+  }
+
+  function render(r){
+    if(!r||!r.success){
+      notice.className='notice warn';
+      notice.textContent=(r&&r.message)||'Please sign in to view your deployment status.';
+      content.innerHTML='';
+      return;
+    }
+    if(!r.active){
+      notice.className='notice warn';
+      notice.textContent=r.message||'No upgrade deployment was found for this account.';
+      content.innerHTML='';
+      return;
+    }
+
+    var status=String(r.status||'').toLowerCase(), ready=!!r.ready, retryable=!!r.retryable;
+    notice.className='notice '+(ready?'ready':retryable?'warn':'');
+    notice.textContent=r.message||'Your deployment status is being checked.';
+
+    var paymentDone=r.paymentConfirmed;
+    var provisioningDone=ready;
+    var provisioningActive=status==='provisioning'||status==='provisioning_failed';
+    var linkDone=ready;
+
+    content.innerHTML=
+      '<div class="steps">'+
+      step(true,false,'Upgrade request','Request '+escapeHtml(r.requestId),1)+
+      step(paymentDone,false,'Payment','Payment confirmed — '+escapeHtml(money(r.amount,r.currency)),2)+
+      step(provisioningDone,false,'Workspace setup',provisioningDone?'Workspace setup completed.':provisioningActive?(retryable?'Setup needs to be continued.':'Your workspace is being prepared.'):'Waiting for workspace setup.',3)+
+      step(linkDone,!linkDone&&status==='provisioning','Launch link',linkDone?'Your BizOS launch link is ready.':'Your launch link will appear here when deployment is complete.',4)+
+      '</div>'+
+      '<div class="details">'+
+      '<div class="detail-box"><strong>Business</strong>'+escapeHtml(r.businessName||'—')+'</div>'+
+      '<div class="detail-box"><strong>Plan</strong>'+escapeHtml(r.tier||'—')+'</div>'+
+      '<div class="detail-box"><strong>Country</strong>'+escapeHtml(r.country||'—')+'</div>'+
+      '<div class="detail-box"><strong>Workspace email</strong>'+escapeHtml(r.workspaceEmail||'—')+'</div>'+
+      '<div class="detail-box"><strong>Payment ID</strong>'+escapeHtml(r.paymentId||'—')+'</div>'+
+      '<div class="detail-box"><strong>Request ID</strong>'+escapeHtml(r.requestId||'—')+'</div>'+
+      '</div>';
+
+    if(ready&&(r.landingUrl||r.webAppUrl)){
+      launch.href=r.landingUrl||r.webAppUrl; launch.style.display='inline-block';
+      cont.style.display='none';
+    }else{
+      launch.style.display='none';
+      if(retryable){cont.style.display='inline-block';}
+    }
+  }
+
+  function load(){
+    var s=session();
+    if(!s){render({success:false,message:'Please sign in to BizOS to view your deployment status.'});return;}
+    google.script.run.withSuccessHandler(render).withFailureHandler(function(){
+      render({success:false,message:'We could not load your deployment status right now. Please try again.'});
+    }).getDeploymentStatusPageData(requestId,s);
+  }
+
+  cont.addEventListener('click',function(){
+    var s=session(); if(!s)return;
+    cont.disabled=true; cont.textContent='Continuing setup...';
+    google.script.run.withSuccessHandler(function(r){cont.disabled=false;cont.textContent='Continue Setup';render(r);})
+      .withFailureHandler(function(){cont.disabled=false;cont.textContent='Continue Setup';})
+      .continueConfirmedUpgradeSetup(requestId,s,'');
+  });
+
+  load();
+  setInterval(load,10000);
+})();
+</script>
+</body>
+</html>
