@@ -91,6 +91,18 @@ function provisionConfirmedUpgradeRequest(requestId) {
   });
 }
 
+function isUpgradeProvisioningWorkerInstalled_() {
+  try {
+    var triggers = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'processConfirmedUpgradeProvisioningQueue_') return true;
+    }
+  } catch (error) {
+    console.error('isUpgradeProvisioningWorkerInstalled_ error:', error);
+  }
+  return false;
+}
+
 function ensureUpgradeProvisioningWorker_() {
   try {
     var triggers = ScriptApp.getProjectTriggers();
@@ -129,7 +141,11 @@ function setupUpgradeProvisioningWorker() {
 
 function queueConfirmedUpgradeProvisioning(requestId) {
   if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
-  var workerReady = ensureUpgradeProvisioningWorker_();
+
+  // Customer requests must never create installable triggers. The worker is
+  // installed once by the deployment owner and then processes all queued
+  // confirmed payments, including payments made before this recovery flow.
+  var workerReady = isUpgradeProvisioningWorkerInstalled_();
   return {
     success:workerReady,
     processing:workerReady,
@@ -141,8 +157,61 @@ function queueConfirmedUpgradeProvisioning(requestId) {
   };
 }
 
+function reconcileSuccessfulUpgradePaymentsForProvisioning_() {
+  try {
+    ensureUpgradeRequestsSchema_();
+    ensurePaymentsSchema_();
+
+    var ss=SpreadsheetApp.getActiveSpreadsheet();
+    var upgradeSheet=ss.getSheetByName('Upgrade_Requests');
+    var paymentSheet=ss.getSheetByName('Payments');
+    if(!upgradeSheet||!paymentSheet)return 0;
+
+    var upgradeData=upgradeSheet.getDataRange().getValues();
+    var upgradeHeaders=upgradeData[0]||[];
+    var reqCol=upgradeHeaders.indexOf('Request_ID');
+    var statusCol=upgradeHeaders.indexOf('Status');
+    var updatedCol=upgradeHeaders.indexOf('Updated_At');
+    if(reqCol===-1||statusCol===-1)return 0;
+
+    var paymentData=paymentSheet.getDataRange().getValues();
+    var paymentHeaders=paymentData[0]||[];
+    var pReqCol=paymentHeaders.indexOf('Request_ID');
+    var pStatusCol=paymentHeaders.indexOf('Status');
+    if(pReqCol===-1||pStatusCol===-1)return 0;
+
+    var successful={};
+    for(var p=1;p<paymentData.length;p++){
+      var paymentStatus=String(paymentData[p][pStatusCol]||'').trim().toLowerCase();
+      var paymentRequestId=String(paymentData[p][pReqCol]||'').trim();
+      if(paymentStatus==='success'&&paymentRequestId)successful[paymentRequestId]=true;
+    }
+
+    var repaired=0;
+    for(var i=1;i<upgradeData.length;i++){
+      var requestId=String(upgradeData[i][reqCol]||'').trim();
+      var status=String(upgradeData[i][statusCol]||'').trim().toLowerCase();
+      if(!requestId||!successful[requestId])continue;
+      if(status==='pending_payment'||!status){
+        upgradeSheet.getRange(i+1,statusCol+1).setValue('payment_confirmed');
+        if(updatedCol!==-1)upgradeSheet.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());
+        repaired++;
+      }
+    }
+    return repaired;
+  } catch(error){
+    console.error('reconcileSuccessfulUpgradePaymentsForProvisioning_ error:',error);
+    return 0;
+  }
+}
+
 function processConfirmedUpgradeProvisioningQueue_() {
   try {
+    // First recover historical successful payments whose upgrade row still
+    // says pending_payment. This makes recovery automatic even when the
+    // customer never revisits the original payment page.
+    reconcileSuccessfulUpgradePaymentsForProvisioning_();
+
     var ss=SpreadsheetApp.getActiveSpreadsheet();
     if(!ss) return;
     ensureUpgradeRequestsSchema_();
