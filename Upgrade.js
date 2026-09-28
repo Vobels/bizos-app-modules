@@ -72,6 +72,11 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     upgradeLock = LockService.getScriptLock();
     upgradeLock.waitLock(10000);
 
+    // Repair/validate the transactional schemas before duplicate detection.
+    // This also restores a deleted header row without overwriting request data.
+    ensureUpgradeRequestsSchema_();
+    ensurePaymentsSchema_();
+
     var latestRequest = getLatestUpgradeRequestForUser_(user.email);
     if (latestRequest && latestRequest.status === 'pending_payment' && latestRequest.expired) {
       markUpgradeRequestExpired_(latestRequest.requestId);
@@ -114,14 +119,8 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var symbol = pricing.sovereign && pricing.sovereign.currency || '$';
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    ensureUpgradeRequestsSchema_();
     var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
-    if (!upgradeSheet) {
-      upgradeSheet = ss.insertSheet('Upgrade_Requests');
-      upgradeSheet.appendRow([
-        'Request_ID','Email','Workspace_Email','Name','Business_Name','Country','Business_Details','Tier','Payment_ID',
-        'Amount','Currency','Status','Certificate_URL','Certificate_Name','Created_At','Updated_At'
-      ]);
-    }
 
     upgradeSheet.appendRow([
       requestId, user.email, workspaceEmail, user.name || user.email, user.businessName || '', country,
@@ -129,13 +128,8 @@ function handleUpgradeRequest(upgradeData, sessionId) {
       certificateUrl, uploadedCertificateName, timestamp.toISOString(), ''
     ]);
 
+    ensurePaymentsSchema_();
     var paymentSheet = ss.getSheetByName('Payments');
-    if (!paymentSheet) {
-      paymentSheet = ss.insertSheet('Payments');
-      paymentSheet.appendRow([
-        'Payment_ID','Request_ID','Email','Workspace_Email','Amount','Currency','Status','Transaction_Ref','Created_At','Completed_At'
-      ]);
-    }
     paymentSheet.appendRow([
       paymentId, requestId, user.email, workspaceEmail, amount, currency, 'pending', '', timestamp.toISOString(), ''
     ]);
@@ -190,6 +184,7 @@ function isUpgradeRequestExpired_(createdAt) {
 
 function markUpgradeRequestExpired_(requestId) {
   try {
+    ensureUpgradeRequestsSchema_();
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!sheet) return;
     var data = sheet.getDataRange().getValues();
@@ -215,6 +210,7 @@ function markUpgradeRequestExpired_(requestId) {
 
 function getLatestUpgradeRequestForUser_(email) {
   try {
+    ensureUpgradeRequestsSchema_();
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!sheet) return null;
     var data = sheet.getDataRange().getValues();
@@ -329,6 +325,7 @@ function sendAdminUpgradeNotification(userEmail, userName, requestId, country, b
 
 function getUpgradeRequest(requestId) {
   try {
+    ensureUpgradeRequestsSchema_();
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
     if (!sheet) return null;
     var data = sheet.getDataRange().getValues();
