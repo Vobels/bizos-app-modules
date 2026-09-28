@@ -71,6 +71,7 @@
       var payBtn=document.getElementById('pay'),statusEl=document.getElementById('status'),checkoutView=document.getElementById('checkoutView');
       var resultEl=document.getElementById('result'),resultTitle=document.getElementById('resultTitle'),resultText=document.getElementById('resultText'),launchBtn=document.getElementById('launch');
       var checkout=null,launchUrl='';
+       var publicBizOSUrl=<?!= JSON.stringify(publicBizOSUrl || '') ?>;
 
       function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
       function clearStatus(){statusEl.textContent='';statusEl.className='status';}
