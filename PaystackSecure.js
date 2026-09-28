@@ -277,28 +277,23 @@ var paymentWasAlreadyConfirmed = ['payment_confirmed','provisioning','provisioni
       sendPaymentConfirmationEmailOnce_(request.email, request.businessName, requestId);
     }
 
-    var provisioning = provisionConfirmedUpgradeRequest(requestId);
-    if (!provisioning || !provisioning.success) {
-      return {
-        success:false,
-        code:'PROVISIONING_FAILED_AFTER_PAYMENT',
-        paymentVerified:true,
-        message:'Payment was verified, but your BizOS workspace could not be finished yet. You can continue setup without paying again.',
-        provisioning:provisioning
-      };
-    }
+    // Payment confirmation must not depend on the long-running client deployment.
+    // Queue provisioning under the Apps Script deployment account and let the
+    // deployment-status page poll for the launch URL.
+    var queued = typeof queueConfirmedUpgradeProvisioning === 'function'
+      ? queueConfirmedUpgradeProvisioning(requestId)
+      : {success:false,processing:false};
 
     return {
       success:true,
       paymentVerified:true,
-      idempotent:!!provisioning.idempotent,
+      processing:true,
       requestId:requestId,
       reference:reference,
-      clientId:provisioning.clientId,
-      webAppUrl:provisioning.webAppUrl,
-      landingUrl:provisioning.landingUrl,
-      deploymentId:provisioning.deploymentId,
-      message:provisioning.message || 'Your BizOS workspace is ready.'
+      paymentId:request.paymentId,
+      message:queued && queued.message
+        ? queued.message
+        : 'Payment confirmed. Your BizOS workspace is being prepared. You do not need to pay again.'
     };
   } catch (error) {
     console.error('verifyPaystackPaymentAndProvisionSecure error:', error);
