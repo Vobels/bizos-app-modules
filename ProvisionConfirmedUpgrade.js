@@ -57,6 +57,17 @@ function provisionConfirmedUpgradeRequest(requestId) {
       if(!result||!result.success){
         sheet.getRange(rowIndex+1,statusCol+1).setValue('provisioning_failed');
         if(updatedCol!==-1)sheet.getRange(rowIndex+1,updatedCol+1).setValue(new Date().toISOString());
+        try {
+          PropertiesService.getScriptProperties().setProperty(
+            'BIZOS_PROVISION_ERROR_' + requestId,
+            JSON.stringify({
+              at:new Date().toISOString(),
+              code:result&&result.code||'PROVISIONING_FAILED',
+              message:result&&result.message||'Client provisioning failed.',
+              details:result&&result.details||null
+            })
+          );
+        } catch(ignoreProvisionError){}
         return{success:false,code:'PROVISIONING_FAILED',paymentConfirmed:true,provisioning:result,message:'Your payment is confirmed, but your BizOS workspace could not be finished yet. You can continue setup without paying again.'};
       }
 
@@ -65,9 +76,85 @@ function provisionConfirmedUpgradeRequest(requestId) {
       return{success:true,idempotent:!!result.idempotent,requestId:requestId,clientId:result.clientId,webAppUrl:result.webAppUrl,landingUrl:result.landingUrl,deploymentId:result.deploymentId,message:'Your BizOS workspace is ready.'};
     } catch(error){
       console.error('provisionConfirmedUpgradeRequest error:',error);
+      try {
+        PropertiesService.getScriptProperties().setProperty(
+          'BIZOS_PROVISION_ERROR_' + requestId,
+          JSON.stringify({
+            at:new Date().toISOString(),
+            code:'PROVISIONING_BRIDGE_ERROR',
+            message:error&&error.message||'We could not finish setting up your BizOS workspace yet.'
+          })
+        );
+      } catch(ignoreProvisionError){}
       return{success:false,code:'PROVISIONING_BRIDGE_ERROR',message:'We could not finish setting up your BizOS workspace yet.'};
     }
   });
+}
+
+function ensureUpgradeProvisioningWorker_() {
+  try {
+    var triggers = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'processConfirmedUpgradeProvisioningQueue_') return true;
+    }
+    ScriptApp.newTrigger('processConfirmedUpgradeProvisioningQueue_').timeBased().everyMinutes(1).create();
+    return true;
+  } catch (error) {
+    console.error('ensureUpgradeProvisioningWorker_ error:', error);
+    return false;
+  }
+}
+
+function queueConfirmedUpgradeProvisioning(requestId) {
+  if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Request ID is required.'};
+  var workerReady = ensureUpgradeProvisioningWorker_();
+  return {
+    success:workerReady,
+    processing:true,
+    requestId:String(requestId),
+    message:workerReady
+      ? 'Your payment is confirmed. Workspace setup has been queued and will continue automatically.'
+      : 'Your payment is confirmed. Workspace setup will continue when the provisioning service is available.'
+  };
+}
+
+function processConfirmedUpgradeProvisioningQueue_() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    var ss=SpreadsheetApp.getActiveSpreadsheet();
+    if(!ss) return;
+    ensureUpgradeRequestsSchema_();
+    var sheet=ss.getSheetByName('Upgrade_Requests');
+    if(!sheet)return;
+    var data=sheet.getDataRange().getValues(),headers=data[0]||[];
+    var reqCol=headers.indexOf('Request_ID'),statusCol=headers.indexOf('Status');
+    if(reqCol===-1||statusCol===-1)return;
+
+    // Process confirmed requests and interrupted provisioning attempts.
+    // Failed requests are retried only after the user explicitly presses Continue Setup.
+    var processed=0;
+    for(var i=1;i<data.length&&processed<2;i++){
+      var status=String(data[i][statusCol]||'').trim().toLowerCase();
+      if(status!=='payment_confirmed'&&status!=='provisioning')continue;
+      var requestId=String(data[i][reqCol]||'').trim();
+      if(!requestId)continue;
+      processed++;
+      var result=provisionConfirmedUpgradeRequest(requestId);
+      if(result&&result.success){
+        try {
+          if(typeof sendDeploymentConfirmationEmailOnce_==='function'){
+            var req=getUpgradeRequest(requestId);
+            sendDeploymentConfirmationEmailOnce_(req&&req.email||'',req&&req.businessName||'',requestId,result.webAppUrl||result.landingUrl||'');
+          }
+        } catch(emailError){console.error('Deployment confirmation email error:',emailError);}
+      }
+    }
+  } catch(error) {
+    console.error('processConfirmedUpgradeProvisioningQueue_ error:',error);
+  } finally {
+    try{lock.releaseLock();}catch(ignore){}
+  }
 }
 
 function getDeploymentStatusPageData(requestId, sessionId) {
@@ -128,6 +215,16 @@ function getDeploymentStatusPageData(requestId, sessionId) {
     }
 
     var status = String(latest.status || '').trim().toLowerCase();
+    var provisioningError = '';
+    if (status === 'provisioning_failed') {
+      try {
+        var rawProvisionError = PropertiesService.getScriptProperties().getProperty('BIZOS_PROVISION_ERROR_' + latest.requestId);
+        if (rawProvisionError) {
+          var parsedProvisionError = JSON.parse(rawProvisionError);
+          provisioningError = String(parsedProvisionError.message || '');
+        }
+      } catch(ignoreProvisionStatusError){}
+    }
     var result = {
       success:true,
       active:true,
@@ -143,7 +240,8 @@ function getDeploymentStatusPageData(requestId, sessionId) {
       status:status,
       paymentConfirmed:['payment_confirmed','provisioning','provisioning_failed','provisioned','active'].indexOf(status) !== -1,
       ready:false,
-      processing:status === 'provisioning'
+      processing:status === 'provisioning',
+      provisioningError:provisioningError
     };
 
     if (status === 'provisioned' || status === 'active') {
@@ -220,14 +318,31 @@ function continueConfirmedUpgradeSetup(requestId,sessionId,accessToken){
     }
 
     var status=String(request.status||'').toLowerCase();
-    if(status==='provisioned'||status==='active'||status==='payment_confirmed'||status==='provisioning_failed'||status==='provisioning'){
-      var result=provisionConfirmedUpgradeRequest(requestId);
-      if(result&&result.success)return result;
+    if(status==='provisioned'||status==='active'){
+      var existingResult = provisionConfirmedUpgradeRequest(requestId);
+      return existingResult;
+    }
+    if(status==='payment_confirmed'||status==='provisioning_failed'||status==='provisioning'){
+      if(status==='provisioning_failed'){
+        var upgradeSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+        if(upgradeSheet){
+          var ud=upgradeSheet.getDataRange().getValues(), uh=ud[0]||[], ur=uh.indexOf('Request_ID'), us=uh.indexOf('Status'), uu=uh.indexOf('Updated_At');
+          for(var ui=1;ui<ud.length;ui++){
+            if(String(ud[ui][ur]||'').trim()===String(requestId).trim()){
+              if(us!==-1)upgradeSheet.getRange(ui+1,us+1).setValue('payment_confirmed');
+              if(uu!==-1)upgradeSheet.getRange(ui+1,uu+1).setValue(new Date().toISOString());
+              break;
+            }
+          }
+        }
+      }
+      var queued=queueConfirmedUpgradeProvisioning(requestId);
       return {
-        success:false,
-        code:result&&result.code||'SETUP_RETRY_ERROR',
+        success:true,
         paymentConfirmed:true,
-        message:result&&result.message||'Your payment is safe, but setup is not finished yet. Please try again in a moment.'
+        processing:true,
+        requestId:requestId,
+        message:queued.message||'Your payment is confirmed. Workspace setup has been started. Keep this page open or return later to check your launch link.'
       };
     }
     return{success:false,code:'PAYMENT_NOT_CONFIRMED',message:'We have not confirmed this payment yet. Please wait a moment and try again.'};
