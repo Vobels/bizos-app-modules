@@ -70,6 +70,72 @@ function provisionConfirmedUpgradeRequest(requestId) {
   });
 }
 
+function getDeploymentStatusPageData(requestId, sessionId) {
+  try {
+    var user = validateUpgradeSession(sessionId);
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Please sign in to view your deployment status.'};
+
+    var latest = getLatestUpgradeRequestForUser_(user.email);
+    if (!latest) return {success:true,active:false,message:'No upgrade deployment was found for this account.'};
+
+    if (requestId && String(requestId).trim() !== String(latest.requestId).trim()) {
+      return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This deployment request does not belong to the current BizOS account.'};
+    }
+
+    var status = String(latest.status || '').trim().toLowerCase();
+    var result = {
+      success:true,
+      active:true,
+      requestId:latest.requestId,
+      paymentId:latest.paymentId,
+      businessName:latest.businessName,
+      tier:latest.tier,
+      amount:latest.amount,
+      currency:latest.currency,
+      country:latest.country,
+      workspaceEmail:latest.workspaceEmail || user.email,
+      createdAt:latest.createdAt,
+      status:status,
+      paymentConfirmed:['payment_confirmed','provisioning','provisioning_failed','provisioned','active'].indexOf(status) !== -1,
+      ready:false,
+      processing:status === 'provisioning'
+    };
+
+    if (status === 'provisioned' || status === 'active') {
+      var existing = getExistingActiveClientDeployment_(latest.workspaceEmail || latest.email || user.email, latest.businessName);
+      if (existing) {
+        var ready = returnExistingClientDeployment_(existing);
+        if (ready && ready.success) {
+          result.ready = true;
+          result.webAppUrl = ready.webAppUrl || '';
+          result.landingUrl = ready.landingUrl || ready.webAppUrl || '';
+          result.deploymentId = ready.deploymentId || '';
+        }
+      }
+    }
+
+    if (status === 'provisioning') {
+      result.message = 'Your payment is confirmed and your BizOS workspace is currently being prepared.';
+    } else if (status === 'provisioning_failed') {
+      result.retryable = true;
+      result.message = 'Your payment is confirmed, but workspace setup needs to be continued. You do not need to pay again.';
+    } else if (result.ready) {
+      result.message = 'Your payment is confirmed and your BizOS workspace is ready.';
+    } else if (result.paymentConfirmed) {
+      result.message = 'Your payment is confirmed. Your BizOS workspace is being prepared. You do not need to pay again.';
+    } else if (status === 'pending_payment') {
+      result.message = 'This upgrade request is waiting for payment.';
+    } else {
+      result.message = 'Your upgrade request is currently ' + status + '.';
+    }
+
+    return result;
+  } catch (error) {
+    console.error('getDeploymentStatusPageData error:', error);
+    return {success:false,code:'DEPLOYMENT_STATUS_ERROR',message:'We could not load your deployment status right now.'};
+  }
+}
+
 function getUpgradeProvisioningStatus(requestId,sessionId,accessToken){
   if(!requestId)return{success:false,code:'REQUEST_ID_REQUIRED',message:'Your setup request could not be found.'};
   try{
