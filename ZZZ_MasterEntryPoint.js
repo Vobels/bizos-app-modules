@@ -88,9 +88,12 @@ function doGet(e) {
       var title = ok ? 'Email Verified' : 'Verification Failed';
       return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=' + publicUrl + '"><title>' + title + ' - BizOS</title><script>window.top.location.replace(' + JSON.stringify(publicUrl) + ');</script></head><body style="font-family:Arial;text-align:center;padding:50px"><h1 style="color:#5D2A86">' + title + '</h1><p>' + message + '</p></body></html>').setTitle(title + ' - BizOS');
     }
+    var openBilling = requestedPage === 'billing' || String(params.billing || '').toLowerCase() === 'true' || String(params.billing || '') === '1';
+    if (requestedPage === 'billing') params = Object.assign({}, params, {page: 'dashboard'});
     var initialRoute = getInitialPublicRoute_(params);
     var template = HtmlService.createTemplateFromFile('index');
     template.showLogin = initialRoute === '/login';
+    template.openBilling = openBilling;
     template.initialRoute = initialRoute;
     template.routeMode = 'public';
     template.routeTarget = initialRoute === '/' || initialRoute === '/login' ? 'landing' : 'app';
