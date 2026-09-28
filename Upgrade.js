@@ -298,6 +298,50 @@ function getCurrentUpgradePaymentStatus(sessionId) {
 
     var status = String(latest.status || '').trim().toLowerCase();
     var tracked = ['payment_confirmed','provisioning','provisioning_failed','provisioned','active'];
+
+    // Reconcile a previously verified payment if the payment row says success
+    // but the upgrade row was left in an older/non-paid state.
+    if (tracked.indexOf(status) === -1 && latest.requestId) {
+      try {
+        var paymentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
+        if (paymentSheet) {
+          var paymentData = paymentSheet.getDataRange().getValues();
+          var paymentHeaders = paymentData[0] || [];
+          var paymentRequestCol = paymentHeaders.indexOf('Request_ID');
+          var paymentStatusCol = paymentHeaders.indexOf('Status');
+          var paymentRefCol = paymentHeaders.indexOf('Transaction_Ref');
+          if (paymentRequestCol !== -1 && paymentStatusCol !== -1) {
+            for (var p = paymentData.length - 1; p >= 1; p--) {
+              if (String(paymentData[p][paymentRequestCol] || '') === String(latest.requestId) &&
+                  String(paymentData[p][paymentStatusCol] || '').trim().toLowerCase() === 'success') {
+                status = 'payment_confirmed';
+                var upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+                if (upgradeSheet) {
+                  var upgradeData = upgradeSheet.getDataRange().getValues();
+                  var upgradeHeaders = upgradeData[0] || [];
+                  var upgradeRequestCol = upgradeHeaders.indexOf('Request_ID');
+                  var upgradeStatusCol = upgradeHeaders.indexOf('Status');
+                  var upgradeUpdatedCol = upgradeHeaders.indexOf('Updated_At');
+                  if (upgradeRequestCol !== -1 && upgradeStatusCol !== -1) {
+                    for (var u = 1; u < upgradeData.length; u++) {
+                      if (String(upgradeData[u][upgradeRequestCol] || '') === String(latest.requestId)) {
+                        upgradeSheet.getRange(u + 1, upgradeStatusCol + 1).setValue('payment_confirmed');
+                        if (upgradeUpdatedCol !== -1) upgradeSheet.getRange(u + 1, upgradeUpdatedCol + 1).setValue(new Date().toISOString());
+                        break;
+                      }
+                    }
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
+      } catch (reconcileError) {
+        console.error('getCurrentUpgradePaymentStatus payment reconciliation error:', reconcileError);
+      }
+    }
+
     if (tracked.indexOf(status) === -1) return {success:true,active:false};
 
     var accessToken = createPaymentAccessToken_(latest.requestId, user.email);
