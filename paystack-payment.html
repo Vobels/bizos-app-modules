@@ -203,7 +203,7 @@
           setupFinished=true;
           if(recoveryTimer){clearTimeout(recoveryTimer);recoveryTimer=null;}
           setupCallActive=false;
-          if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);return;}
+          if(r&&r.success&&(r.landingUrl||r.webAppUrl)){showReady(r.landingUrl||r.webAppUrl,r.idempotent);return;}
           launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
           if(r&&r.paymentConfirmed){status(r.message||'Your payment is safe. Workspace setup is still processing.','info');startProvisioningStatusPoll();}
           else{status(r&&r.message||'We could not finish setup yet. Your payment is safe. Please try again in a moment.','error');}
