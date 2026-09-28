@@ -110,40 +110,102 @@
       }
       var recoveryAttempts=0;
       var recoveryTimer=null;
+      var recoveryPolls=0;
+      var recoveryPollTimer=null;
+      var setupCallActive=false;
+      function showPaidButNotReady(){
+        checkoutView.style.display='none';
+        resultEl.classList.add('show');
+        resultTitle.textContent='Your payment was successful';
+        resultText.textContent='We received your payment, but your BizOS workspace needs a little more time to finish setting up.';
+        document.querySelector('.check').textContent='✓';
+        document.querySelector('.check').style.background='#fff4e5';
+        document.querySelector('.check').style.color='#b54708';
+        document.querySelector('.steps').innerHTML='<div class="step"><span class="num">1</span><span><b>Your payment is safe</b><br>You do not need to pay again.</span></div><div class="step"><span class="num">2</span><span><b>Continue setup</b><br>We will check your payment and finish preparing your workspace.</span></div><div class="step"><span class="num">3</span><span><b>Launch BizOS</b><br>When setup is complete, we will give you your launch link here.</span></div>';
+        launchBtn.textContent='Continue Setup';
+        launchBtn.disabled=false;
+        launchBtn.onclick=continueSetup;
+        status('Your payment is confirmed. No second payment is needed.','info');
+      }
+      function startProvisioningStatusPoll(){
+        if(recoveryPollTimer)return;
+        recoveryPolls=0;
+        function poll(){
+          recoveryPolls++;
+          google.script.run.withSuccessHandler(function(r){
+            if(r&&r.success&&(r.webAppUrl||r.landingUrl)){showReady(r.landingUrl||r.webAppUrl,r.idempotent);return;}
+            if(r&&r.retryable){
+              launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
+              status(r.message||'Your payment is safe. Please continue setup.','error');
+              return;
+            }
+            if(recoveryPolls<24){
+              recoveryPollTimer=setTimeout(function(){recoveryPollTimer=null;poll();},5000);
+            }else{
+              recoveryPollTimer=null;
+              launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
+              status('Your payment is confirmed. Workspace setup is still in progress. You can leave this page and return to this payment page later to continue setup.','info');
+            }
+          }).withFailureHandler(function(){
+            if(recoveryPolls<24){
+              recoveryPollTimer=setTimeout(function(){recoveryPollTimer=null;poll();},5000);
+            }else{
+              recoveryPollTimer=null;
+              launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
+              status('We could not check workspace setup right now. Your payment is safe. Please try again shortly.','error');
+            }
+          }).getUpgradeProvisioningStatus(requestId,sessionId,accessToken);
+        }
+        poll();
+      }
       function verify(reference){
         status('Payment received. We are confirming it and preparing your workspace...','info');setButton('<span class="spinner"></span>Confirming payment...',true);
         google.script.run.withSuccessHandler(function(r){
           if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);}
-          else if(r&&r.paymentVerified){showPaidButNotReady();scheduleRecovery();}
-          else{status(r&&r.message||'We could not confirm this payment. Please do not pay again until we know what happened.','error');setButton('Payment could not be confirmed',true);}
+          else if(r&&r.paymentVerified){showPaidButNotReady();startProvisioningStatusPoll();continueSetup(true);}
+          else{showPaidButNotReady();startProvisioningStatusPoll();}
         }).withFailureHandler(function(){
           showPaidButNotReady();
-          scheduleRecovery();
+          startProvisioningStatusPoll();
+          continueSetup(true);
         }).verifyPaystackPaymentAndProvisionSecure(reference,requestId,sessionId,accessToken);
       }
-      function scheduleRecovery(){
-        if(recoveryTimer||recoveryAttempts>=3)return;
-        recoveryTimer=setTimeout(function(){recoveryTimer=null;continueSetup(true);},5000);
-      }
       function continueSetup(autoRetry){
+        if(setupCallActive)return;
         if(!autoRetry){
           recoveryAttempts=0;
           if(recoveryTimer){clearTimeout(recoveryTimer);recoveryTimer=null;}
         }
         recoveryAttempts++;
+        setupCallActive=true;
         launchBtn.disabled=true;launchBtn.innerHTML='<span class="spinner"></span>Finishing setup...';
         status('Checking your payment and finishing your BizOS workspace setup. You do not need to pay again.','info');
+        var setupFinished=false;
+        recoveryTimer=setTimeout(function(){
+          if(setupFinished)return;
+          setupFinished=true;
+          setupCallActive=false;
+          launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
+          status('Your payment is safe. Workspace setup is still processing. We are checking for your launch link.','info');
+          startProvisioningStatusPoll();
+        },45000);
         google.script.run.withSuccessHandler(function(r){
+          if(setupFinished)return;
+          setupFinished=true;
+          if(recoveryTimer){clearTimeout(recoveryTimer);recoveryTimer=null;}
+          setupCallActive=false;
           if(r&&r.success){showReady(r.landingUrl||r.webAppUrl,r.idempotent);return;}
-          if(r&&r.paymentConfirmed){
-            if(recoveryAttempts<3){scheduleRecovery();return;}
-          }
           launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
-          status(r&&r.message||'We could not finish setup yet. Your payment is safe. Please try Continue Setup again in a moment.','error');
+          if(r&&r.paymentConfirmed){status(r.message||'Your payment is safe. Workspace setup is still processing.','info');startProvisioningStatusPoll();}
+          else{status(r&&r.message||'We could not finish setup yet. Your payment is safe. Please try again in a moment.','error');}
         }).withFailureHandler(function(){
-          if(recoveryAttempts<3){scheduleRecovery();return;}
+          if(setupFinished)return;
+          setupFinished=true;
+          if(recoveryTimer){clearTimeout(recoveryTimer);recoveryTimer=null;}
+          setupCallActive=false;
           launchBtn.disabled=false;launchBtn.textContent='Continue Setup';
-          status('We could not finish setup right now. Your payment is safe. Please try Continue Setup again in a moment.','error');
+          status('Your payment is safe. Workspace setup may still be processing. We are checking for your launch link.','info');
+          startProvisioningStatusPoll();
         }).continueConfirmedUpgradeSetup(requestId,sessionId,accessToken);
       }
       launchBtn.addEventListener('click',launch);
