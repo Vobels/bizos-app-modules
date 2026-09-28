@@ -22,16 +22,23 @@ function provisionConfirmedUpgradeRequest(requestId) {
       if(rowIndex===-1)return{success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
       var status=String(data[rowIndex][statusCol]||'').toLowerCase();
 
-      if(status==='provisioned'||status==='active'||status==='provisioning'){
-        var existingEmail=request.workspaceEmail||request.email;
-        var existing=getExistingActiveClientDeployment_(existingEmail,request.businessName);
-        if(!existing&&existingEmail!==request.email)existing=getExistingActiveClientDeployment_(request.email,request.businessName);
-        if(existing){
-          var existingResult=returnExistingClientDeployment_(existing);
-          if(existingResult&&existingResult.success){
-            if(status!=='provisioned'){sheet.getRange(rowIndex+1,statusCol+1).setValue('provisioned');if(updatedCol!==-1)sheet.getRange(rowIndex+1,updatedCol+1).setValue(new Date().toISOString());}
-            return{success:true,idempotent:true,requestId:requestId,clientId:existingResult.clientId,webAppUrl:existingResult.webAppUrl,landingUrl:existingResult.landingUrl,deploymentId:existingResult.deploymentId,message:'Your BizOS workspace is ready.'};
+      // Always check for an already-provisioned client before starting a new
+      // paid request. A customer can have more than one successful payment
+      // (for example after a duplicate checkout), but that must never create
+      // a second BizOS workspace.
+      var existingEmail=request.workspaceEmail||request.email;
+      var existing=getExistingActiveClientDeployment_(existingEmail,request.businessName);
+      if(!existing && String(request.email||'').trim().toLowerCase() !== String(existingEmail||'').trim().toLowerCase()){
+        existing=getExistingActiveClientDeployment_(request.email,request.businessName);
+      }
+      if(existing){
+        var existingResult=returnExistingClientDeployment_(existing);
+        if(existingResult&&existingResult.success){
+          if(status!=='provisioned'){
+            sheet.getRange(rowIndex+1,statusCol+1).setValue('provisioned');
+            if(updatedCol!==-1)sheet.getRange(rowIndex+1,updatedCol+1).setValue(new Date().toISOString());
           }
+          return{success:true,idempotent:true,reconciledDuplicatePayment:true,requestId:requestId,clientId:existingResult.clientId,webAppUrl:existingResult.webAppUrl,landingUrl:existingResult.landingUrl,deploymentId:existingResult.deploymentId,message:'Your payment is confirmed. Your existing BizOS workspace is ready. No second workspace was created.'};
         }
       }
 
