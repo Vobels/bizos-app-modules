@@ -39,7 +39,7 @@
     (function(){
       var BIZOS_PUBLIC_URL=<?!= JSON.stringify(publicBizOSUrl || '') ?>;
       function openBizOS(path){
-        var base=String(BIZOS_PUBLIC_URL||'').replace(/\\/$/,'');
+        var base=String(BIZOS_PUBLIC_URL||'').replace(/\/$/,'');
         if(!base){ status('BizOS navigation URL is unavailable. Please reopen BizOS and try again.','error'); return; }
         var target=base+path;
         try { window.top.location.href=target; } catch(e) { window.location.href=target; }
