@@ -240,7 +240,15 @@ function verifyPaystackPaymentAndProvisionSecure(reference, requestId, sessionId
       return {success:false,code:'PAYMENT_EMAIL_MISMATCH',message:'Payment email does not match the upgrade request.'};
     }
 
+var paymentWasAlreadyConfirmed = ['payment_confirmed','provisioning','provisioning_failed','provisioned','active'].indexOf(
+      String(request.status || '').trim().toLowerCase()
+    ) !== -1;
+
     markPaymentConfirmed_(requestId, reference, tx);
+
+    if (!paymentWasAlreadyConfirmed && typeof sendPaymentConfirmationEmailOnce_ === 'function') {
+      sendPaymentConfirmationEmailOnce_(request.email, request.businessName, requestId);
+    }
 
     var provisioning = provisionConfirmedUpgradeRequest(requestId);
     if (!provisioning || !provisioning.success) {
