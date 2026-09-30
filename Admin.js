@@ -493,6 +493,32 @@ function adminProvisionPaidRequest(requestId, sessionId) {
     }
     if (!paid) return {success:false,code:'PAYMENT_NOT_SUCCESSFUL',message:'No successful payment is recorded for this upgrade request.'};
 
+    // A confirmed payment can legitimately have an older request status
+    // (for example pending/pending_payment) when browser provisioning failed.
+    // Reconcile this exact request before calling the normal idempotent
+    // provisioning bridge. This never charges the customer again.
+    var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
+    if (!upgradeSheet) return {success:false,code:'UPGRADE_SHEET_MISSING',message:'Upgrade request sheet not found.'};
+
+    var udata = upgradeSheet.getDataRange().getValues();
+    var uh = udata[0] || [];
+    var uReq = uh.indexOf('Request_ID');
+    var uStatus = uh.indexOf('Status');
+    var uUpdated = uh.indexOf('Updated_At');
+    if (uReq < 0 || uStatus < 0) {
+      return {success:false,code:'UPGRADE_SCHEMA_INVALID',message:'Upgrade request sheet is missing required columns.'};
+    }
+
+    for (var ui = 1; ui < udata.length; ui++) {
+      if (String(udata[ui][uReq] || '').trim() !== String(requestId).trim()) continue;
+      var currentStatus = String(udata[ui][uStatus] || '').trim().toLowerCase();
+      if (currentStatus === 'pending' || currentStatus === 'pending_payment' || currentStatus === 'payment_pending') {
+        upgradeSheet.getRange(ui + 1, uStatus + 1).setValue('payment_confirmed');
+        if (uUpdated >= 0) upgradeSheet.getRange(ui + 1, uUpdated + 1).setValue(new Date().toISOString());
+      }
+      break;
+    }
+
     return provisionConfirmedUpgradeRequest(requestId);
   } catch (error) {
     console.error('adminProvisionPaidRequest error:', error);
