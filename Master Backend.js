@@ -60,7 +60,7 @@ function getClientById(clientId) {
   try {
     console.log('🔍 getClientById called for:', clientId);
     
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     const sheet = ss.getSheetByName('Clients');
     
     if (!sheet) {
@@ -121,7 +121,7 @@ function getClientById(clientId) {
 
 function getClientFromBusinessSheet(clientId) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     const sheet = ss.getSheetByName('Businesses');
     if (!sheet) return null;
     
@@ -173,7 +173,7 @@ function saveClientRecord(settings) {
   try {
     console.log('💾 saveClientRecord called for:', settings.clientId);
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     let sheet = ss.getSheetByName('Clients');
 
     if (!sheet) {
@@ -586,7 +586,7 @@ function getUserDataForMigration(email, businessId) {
   try {
     console.log('📋 Fetching user data for migration:', email);
     
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     const modules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     const userData = {};
     
@@ -1457,7 +1457,7 @@ console.log('✅ Client app loaded successfully');
 // ============================================================
 function checkDuplicateClient(email, businessName) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     const sheet = ss.getSheetByName('Clients');
     
     if (!sheet) {
@@ -1984,7 +1984,7 @@ function getAppScriptJson() {
 
 function getBusinessByEmail(email) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     const sheet = ss.getSheetByName('Businesses');
     if (!sheet) {
       console.log('⚠️ Businesses sheet not found');
@@ -2034,7 +2034,7 @@ function getBusinessByEmail(email) {
 
 function updateBusinessWithClientInfo(businessId, clientId, landingUrl) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getBizOSMasterSpreadsheet_();
     const sheet = ss.getSheetByName('Businesses');
     if (!sheet) return;
     
