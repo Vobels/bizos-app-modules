@@ -68,7 +68,9 @@ function autoSetupClientSafe(paymentData, skipLock) {
     }
 
     console.log('SAFE STEP 2: Generating V10 client package with self-service staff invitations');
-    var clientCode = generateClientCodeSafelyV10({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl()});
+    var clientLandingUrl = String(paymentData.landingUrl || '').trim();
+    var clientCustomDomain = String(paymentData.customDomain || '').trim();
+    var clientCode = generateClientCodeSafelyV10({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl(),landingUrl:clientLandingUrl,customDomain:clientCustomDomain});
     if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
     var packageCheck = validateClientDeploymentPackage_(clientCode,{clientId:clientId,sheetId:sheetResult.sheetId});
     if (!packageCheck || !packageCheck.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); return {success:false,code:packageCheck&&packageCheck.code?packageCheck.code:'PACKAGE_INVALID',message:packageCheck&&packageCheck.message?packageCheck.message:'Generated client package failed validation.',clientId:clientId,cleanedUp:true}; }
@@ -76,7 +78,9 @@ function autoSetupClientSafe(paymentData, skipLock) {
     scriptResult = createAndDeployClientScriptSafe(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor || '#2E7D32',paymentData.logoUrl || '');
     if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) { var deploymentMessage=scriptResult&&scriptResult.message?scriptResult.message:'The client application could not be deployed.'; cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: '+deploymentMessage,clientId:clientId,cleanedUp:true}; }
     console.log('SAFE STEP 4: Saving full registry metadata');
-    var saveResult = saveClientRecordV2({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain || paymentData.customDomain || '',customDomain:paymentData.customDomain || '',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',tier:paymentData.tier || 'sovereign',status:'active',sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,webAppUrl:scriptResult.webAppUrl,landingUrl:scriptResult.webAppUrl,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,provisioningVersion:'10.0'});
+    var clientApplicationUrl = String(scriptResult.webAppUrl || '').trim();
+    var clientLandingUrlFinal = String(clientLandingUrl || clientCustomDomain || clientApplicationUrl).trim();
+    var saveResult = saveClientRecordV2({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain || clientCustomDomain || '',customDomain:clientCustomDomain,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',tier:paymentData.tier || 'sovereign',status:'active',sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,webAppUrl:clientApplicationUrl,landingUrl:clientLandingUrlFinal,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,provisioningVersion:'10.0'});
     if (!saveResult || !saveResult.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true}; }
 
     // The paid client is now committed. Registry sync is secondary metadata;
@@ -90,8 +94,8 @@ function autoSetupClientSafe(paymentData, skipLock) {
         console.error('Business registry sync failed after successful provisioning:', syncError);
       }
     }
-    try { sendClientWelcomeEmail(paymentData.email,businessName,scriptResult.webAppUrl,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
-    return {success:true,idempotent:false,clientId:clientId,landingUrl:scriptResult.webAppUrl,webAppUrl:scriptResult.webAppUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
+    try { sendClientWelcomeEmail(paymentData.email,businessName,clientLandingUrlFinal,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
+    return {success:true,idempotent:false,clientId:clientId,landingUrl:clientLandingUrlFinal,webAppUrl:clientApplicationUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
   } catch(error) {
     console.error('SAFE CLIENT SETUP ERROR:',error);
     if(!committed){if(sheetResult&&sheetResult.success)cleanupFailedClientProvisioningSafe_(sheetResult,clientId);if(scriptResult&&scriptResult.scriptId)cleanupFailedClientDeploymentSafe_(scriptResult);}
