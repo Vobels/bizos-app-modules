@@ -469,3 +469,64 @@ function getFrontendConfig() {
 }
 
 console.log('✅ Config.gs loaded successfully');
+
+// ============================================================
+// MASTER SPREADSHEET CONTEXT
+// ============================================================
+// Time-based provisioning workers do not have an active spreadsheet
+// context. Store the authoritative master spreadsheet ID once so
+// background provisioning can always reach the same database.
+function getBizOSMasterSpreadsheet_() {
+  var props = PropertiesService.getScriptProperties();
+  var spreadsheetId = String(
+    props.getProperty('BIZOS_MASTER_SPREADSHEET_ID') || ''
+  ).trim();
+
+  if (spreadsheetId) {
+    try {
+      return SpreadsheetApp.openById(spreadsheetId);
+    } catch (error) {
+      console.error('Stored BizOS master spreadsheet could not be opened:', error);
+    }
+  }
+
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) {
+    try {
+      props.setProperty('BIZOS_MASTER_SPREADSHEET_ID', active.getId());
+    } catch (ignore) {}
+    return active;
+  }
+
+  throw new Error(
+    'BizOS master spreadsheet is not configured for background provisioning. ' +
+    'Open the master spreadsheet-bound Apps Script project once and authorize the provisioning worker.'
+  );
+}
+
+function configureBizOSMasterSpreadsheet_(spreadsheetId) {
+  spreadsheetId = String(spreadsheetId || '').trim();
+  if (!spreadsheetId) {
+    var active = SpreadsheetApp.getActiveSpreadsheet();
+    if (active) spreadsheetId = active.getId();
+  }
+  if (!spreadsheetId) {
+    return {
+      success: false,
+      code: 'MASTER_SPREADSHEET_ID_REQUIRED',
+      message: 'Open the master spreadsheet-bound Apps Script project and run this setup again.'
+    };
+  }
+
+  try {
+    var ss = SpreadsheetApp.openById(spreadsheetId);
+    PropertiesService.getScriptProperties().setProperty('BIZOS_MASTER_SPREADSHEET_ID', ss.getId());
+    return {success:true,spreadsheetId:ss.getId(),spreadsheetName:ss.getName()};
+  } catch (error) {
+    return {
+      success:false,
+      code:'MASTER_SPREADSHEET_INVALID',
+      message:error && error.message ? error.message : 'The master spreadsheet could not be opened.'
+    };
+  }
+}
