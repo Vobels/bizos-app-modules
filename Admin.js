@@ -824,3 +824,18 @@ function getFeatureNotifications(userTier, lastSeen) {
 }
 
 
+
+
+// ============================================================
+// ADMIN RECOVERY KEY BOOTSTRAP
+// Run this manually from the Apps Script editor when admin access
+// is unavailable. The generated key is written to the execution log
+// only; only its hash is stored in Script Properties.
+// ============================================================
+function generateAdminRecoveryKey() {
+  var props = PropertiesService.getScriptProperties();
+  var key = 'BIZOS-ADM-' + Utilities.getUuid().replace(/-/g, '').toUpperCase();
+  props.setProperty('ADMIN_RECOVERY_KEY_HASH', String(hashPassword(key) || '').toLowerCase());
+  console.log('ADMIN RECOVERY KEY (store securely, then remove this log entry): ' + key);
+  return { success: true, message: 'Recovery key generated. Check the execution log and store it securely.' };
+}
