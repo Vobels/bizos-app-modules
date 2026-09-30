@@ -75,6 +75,7 @@
     <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
       <input type="password" id="adminPassword" class="input-field" placeholder="Enter admin password" required>
       <button type="submit" class="btn-primary">Access Admin Panel</button>
+      <a id="continueAdmin" target="_top" style="display:none;width:100%;box-sizing:border-box;text-align:center;background:#5D2A86;color:white;font-weight:600;padding:12px;border-radius:8px;text-decoration:none;margin-top:12px;">Continue to Admin Panel</a>
       <a href="<?= publicBizOSUrl ?>?page=admin-reset" target="_top" style="display:block;text-align:center;margin-top:16px;color:#5D2A86;text-decoration:none;">Forgot admin password?</a>
       <div id="loginError" class="error">Invalid password. Please try again.</div>
     </form>
@@ -89,11 +90,19 @@
       google.script.run
         .withSuccessHandler(function(response) {
           if (response.success) {
-            // Store session and redirect
+            // Apps Script HTML Service runs inside a sandboxed iframe.
+            // Use a real target=_top link for the next navigation instead of
+            // forcing top-level navigation from an asynchronous callback.
             localStorage.setItem('admin_session', response.sessionId);
-            var adminUrl = <?= JSON.stringify(publicBizOSUrl) ?>;
+            var adminUrl = <?= JSON.stringify(adminUrl) ?>;
             var separator = adminUrl.indexOf('?') === -1 ? '?' : '&';
-            window.top.location.href = adminUrl + separator + 'admin=true&session=' + encodeURIComponent(response.sessionId);
+            var targetUrl = adminUrl + separator + 'admin=true&session=' + encodeURIComponent(response.sessionId);
+            var continueAdmin = document.getElementById('continueAdmin');
+            continueAdmin.href = targetUrl;
+            continueAdmin.style.display = 'block';
+            document.getElementById('adminLoginForm').querySelector('button[type="submit"]').style.display = 'none';
+            document.getElementById('adminPassword').disabled = true;
+            errorEl.style.display = 'none';
           } else {
             errorEl.style.display = 'block';
             document.getElementById('adminPassword').value = '';
