@@ -13,7 +13,7 @@ function generateClientCodeSafelyV2(settings){
 }
 
 function buildClientDeploymentFilesV2(c){
-  var cfg='var CLIENT_CONFIG='+JSON.stringify(c)+';\\n';
+  var cfg='var CLIENT_CONFIG='+JSON.stringify(c)+';\n';
   var code=cfg+`var MODULES=${JSON.stringify(CLIENT_MODULES_V2)};
 function doGet(e){var p=(e&&e.parameter&&e.parameter.page)||'login',t;if(p==='dashboard'){t=HtmlService.createTemplateFromFile('client-dashboard');t.sessionId=e.parameter.sessionId||'';}else{t=HtmlService.createTemplateFromFile('client-landing');}t.clientId=CLIENT_CONFIG.clientId;t.clientName=CLIENT_CONFIG.clientName;t.primaryColor=CLIENT_CONFIG.primaryColor;t.logoUrl=CLIENT_CONFIG.logoUrl;return t.evaluate().setTitle(CLIENT_CONFIG.clientName+' - BizOS').addMetaTag('viewport','width=device-width,initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}
 function getWorkspace_(){var ss=SpreadsheetApp.openById(CLIENT_CONFIG.sheetId),info=ss.getSheetByName('Client_Info');if(!info)throw new Error('Client workspace is not configured.');var r=info.getDataRange().getValues(),v={};for(var i=1;i<r.length;i++)if(r[i][0])v[String(r[i][0])]=r[i][1];if(String(v.Client_ID||'')!==String(CLIENT_CONFIG.clientId))throw new Error('Client workspace identity mismatch.');if(String(v.Business_ID||CLIENT_CONFIG.businessId)!==String(CLIENT_CONFIG.businessId))throw new Error('Client business identity mismatch.');if(String(v.Status||'active').toLowerCase()!=='active')throw new Error('Client workspace is inactive.');return ss;}
