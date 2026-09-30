@@ -272,7 +272,8 @@ function validateClientLicense(payload) {
     // All runtime bindings are mandatory and must match the same registry row.
     if (matched.businessId !== businessId ||
         matched.sheetId !== sheetId ||
-        (matched.workspaceId && matched.workspaceId !== sheetId) ||
+        !matched.workspaceId ||
+        matched.workspaceId !== sheetId ||
         matched.scriptId !== scriptId ||
         matched.deploymentId !== deploymentId) {
       console.warn('Client deployment binding mismatch for ' + clientId);
@@ -285,8 +286,8 @@ function validateClientLicense(payload) {
 
     // The registry URL is another persisted representation of the same
     // deployment. Require it to point at the registered deployment ID.
-    var expectedPath = '/s/' + deploymentId + '/exec';
-    if (!matched.webAppUrl || matched.webAppUrl.indexOf(expectedPath) < 0) {
+    var expectedUrl = 'https://script.google.com/macros/s/' + deploymentId + '/exec';
+    if (matched.webAppUrl !== expectedUrl) {
       return {
         success: false,
         code: 'CLIENT_URL_BINDING_MISMATCH',
