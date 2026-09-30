@@ -161,6 +161,41 @@ function adminLogin(password) {
   return { success: true, sessionId: createAdminSession_(3600) };
 }
 
+// Secure admin lockout recovery.
+// Recovery is deliberately controlled by a separate Script Property so the
+// public login page never becomes an unauthenticated password-reset backdoor.
+// Configure ADMIN_RECOVERY_KEY_HASH in the Master project's Script Properties.
+function resetAdminPassword(recoveryKey, newPassword) {
+  var suppliedKey = String(recoveryKey || '');
+  var password = String(newPassword || '');
+  if (!suppliedKey) return { success: false, message: 'Recovery key is required.' };
+  if (!password || password.length < 10) {
+    return { success: false, message: 'New password must be at least 10 characters.' };
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  var recoveryHash = String(props.getProperty('ADMIN_RECOVERY_KEY_HASH') || '').trim().toLowerCase();
+  if (!recoveryHash) {
+    return {
+      success: false,
+      message: 'Admin recovery is not configured. Set ADMIN_RECOVERY_KEY_HASH in Script Properties first.'
+    };
+  }
+
+  var suppliedHash = String(hashPassword(suppliedKey) || '').toLowerCase();
+  if (suppliedHash !== recoveryHash) {
+    return { success: false, message: 'Invalid recovery key.' };
+  }
+
+  props.setProperty('ADMIN_PASSWORD_HASH', String(hashPassword(password) || '').toLowerCase());
+  props.deleteProperty('ADMIN_PASSWORD');
+
+  return {
+    success: true,
+    message: 'Admin password reset successfully. You can now sign in with the new password.'
+  };
+}
+
 // ==================== ADMIN FUNCTIONS ====================
 // Add these to your Admin.gs file
 
