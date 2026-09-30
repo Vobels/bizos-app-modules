@@ -94,7 +94,7 @@
             // Use a real target=_top link for the next navigation instead of
             // forcing top-level navigation from an asynchronous callback.
             localStorage.setItem('admin_session', response.sessionId);
-            var adminUrl = <?= JSON.stringify(adminUrl) ?>;
+            var adminUrl = <?!= JSON.stringify(adminUrl) ?>;
             var separator = adminUrl.indexOf('?') === -1 ? '?' : '&';
             var targetUrl = adminUrl + separator + 'admin=true&session=' + encodeURIComponent(response.sessionId);
             var continueAdmin = document.getElementById('continueAdmin');
