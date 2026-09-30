@@ -4,6 +4,7 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <title>Admin Dashboard - BizOS</title>
   <?!= include('styles') ?>
   <style>
@@ -827,7 +828,7 @@
               <td>${biz.createdAt ? new Date(biz.createdAt).toLocaleDateString() : 'N/A'}</td>
               <td style="text-align: center;">
                 <button onclick="toggleBusinessStatus('${biz.businessId}')" style="background: none; border: none; color: #f59e0b; cursor: pointer;" title="Toggle Status"><i class="fas fa-toggle-on"></i></button>
-                <button onclick="redeployClient('${biz.businessId}')" style="background: none; border: none; color: #5D2A86; cursor: pointer;" title="Redeploy BizOS"><i class="fas fa-cloud-upload-alt"></i></button>
+                <button onclick="redeployClient('${biz.businessId}')" style="background: #f3e8ff; border: 1px solid #d8b4fe; color: #5D2A86; cursor: pointer; border-radius: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600;" title="Redeploy BizOS"><i class="fas fa-cloud-upload-alt"></i> Redeploy</button>
                 <button onclick="deleteBusiness('${biz.businessId}')" style="background: none; border: none; color: #ef4444; cursor: pointer;" title="Delete"><i class="fas fa-trash"></i></button>
               </td>
             </tr>
