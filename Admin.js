@@ -339,7 +339,7 @@ function getAllBusinesses(sessionId) {
         businessId: businessId,
         businessName: data[i][headers.indexOf('Business_Name')],
         ownerEmail: data[i][headers.indexOf('Owner_Email')],
-        subscriptionTier: data[i][headers.indexOf('Subscription_Tier')] || 'free',
+        subscriptionTier: data[i][headers.indexOf('Subscription_Tier')] || deployment.Subscription_Tier || deployment.Tier || 'free',
         verificationStatus: data[i][headers.indexOf('Verification_Status')] || 'pending',
         createdAt: data[i][headers.indexOf('Created_At')],
         status: data[i][headers.indexOf('Status')] || 'active',
