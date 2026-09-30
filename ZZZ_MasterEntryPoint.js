@@ -91,6 +91,7 @@ function doGet(e) {
       if (typeof validateAdminSession !== 'function' || !validateAdminSession(adminSessionId)) {
         var adminLoginTemplate = HtmlService.createTemplateFromFile('admin-login');
         adminLoginTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
+    adminLoginTemplate.adminUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
         return adminLoginTemplate.evaluate().setTitle('Admin Login - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
       }
 
