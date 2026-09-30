@@ -295,16 +295,66 @@ function getAllBusinesses(sessionId) {
     const sheet = getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
+
+    // Deployment details live in the Clients registry, not the Businesses sheet.
+    // Join them here so every existing admin view can display the real deployment
+    // state without exposing the registry directly to the browser.
+    const deploymentByBusinessId = {};
+    try {
+      const clientSheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+      if (clientSheet && clientSheet.getLastRow() >= 2) {
+        const clientData = clientSheet.getDataRange().getValues();
+        const clientHeaders = clientData[0].map(function(h) { return String(h || '').trim(); });
+        const businessIdCol = clientHeaders.indexOf('Business_ID');
+
+        if (businessIdCol >= 0) {
+          for (let c = 1; c < clientData.length; c++) {
+            const row = clientData[c];
+            const businessId = String(row[businessIdCol] || '').trim();
+            if (!businessId) continue;
+
+            const record = {};
+            clientHeaders.forEach(function(header, index) {
+              record[header] = row[index] === undefined ? '' : row[index];
+            });
+
+            // Prefer the active registry record when duplicates exist.
+            const current = deploymentByBusinessId[businessId];
+            if (!current || String(record.Status || '').toLowerCase() === 'active') {
+              deploymentByBusinessId[businessId] = record;
+            }
+          }
+        }
+      }
+    } catch (deploymentError) {
+      console.error('Unable to load client deployment registry:', deploymentError);
+    }
+
     const businesses = [];
     for (let i = 1; i < data.length; i++) {
+      const businessId = String(data[i][headers.indexOf('Business_ID')] || '').trim();
+      const deployment = deploymentByBusinessId[businessId] || {};
+
       businesses.push({
-        businessId: data[i][headers.indexOf('Business_ID')],
+        businessId: businessId,
         businessName: data[i][headers.indexOf('Business_Name')],
         ownerEmail: data[i][headers.indexOf('Owner_Email')],
         subscriptionTier: data[i][headers.indexOf('Subscription_Tier')] || 'free',
         verificationStatus: data[i][headers.indexOf('Verification_Status')] || 'pending',
         createdAt: data[i][headers.indexOf('Created_At')],
-        status: data[i][headers.indexOf('Status')] || 'active'
+        status: data[i][headers.indexOf('Status')] || 'active',
+
+        // Client deployment registry
+        clientId: deployment.Client_ID || '',
+        scriptId: deployment.Script_ID || '',
+        deploymentId: deployment.Deployment_ID || '',
+        launchUrl: deployment.Web_App_URL || '',
+        webAppUrl: deployment.Web_App_URL || '',
+        landingUrl: deployment.Landing_URL || '',
+        deploymentStatus: deployment.Status || '',
+        deployedAt: deployment.Updated_At || '',
+        deploymentVersion: deployment.Provisioning_Version || '',
+        workspaceId: deployment.Workspace_ID || deployment.Sheet_ID || ''
       });
     }
     return businesses;
