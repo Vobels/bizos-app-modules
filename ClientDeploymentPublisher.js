@@ -2,7 +2,7 @@
 // ClientDeploymentPublisher.js - AUTHORITATIVE SAFE PUBLISHER
 // ============================================================
 // Explicit function name. Does not override legacy publishers.
-// Uploads the exact validated V5 package and never grants the
+// Uploads the exact validated generated package and never grants the
 // customer editor access to the Apps Script project.
 // ============================================================
 
