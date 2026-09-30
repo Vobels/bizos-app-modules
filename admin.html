@@ -827,6 +827,7 @@
               <td>${biz.createdAt ? new Date(biz.createdAt).toLocaleDateString() : 'N/A'}</td>
               <td style="text-align: center;">
                 <button onclick="toggleBusinessStatus('${biz.businessId}')" style="background: none; border: none; color: #f59e0b; cursor: pointer;" title="Toggle Status"><i class="fas fa-toggle-on"></i></button>
+                <button onclick="redeployClient('${biz.businessId}')" style="background: none; border: none; color: #5D2A86; cursor: pointer;" title="Redeploy BizOS"><i class="fas fa-cloud-upload-alt"></i></button>
                 <button onclick="deleteBusiness('${biz.businessId}')" style="background: none; border: none; color: #ef4444; cursor: pointer;" title="Delete"><i class="fas fa-trash"></i></button>
               </td>
             </tr>
@@ -1034,6 +1035,26 @@
         .toggleBusinessStatus(id, localStorage.getItem('admin_session'));
     }
     
+    function redeployClient(id) {
+      if (!id) return;
+      if (!confirm('Redeploy this client with the current BizOS package? Their existing workspace and launch URL will be preserved.')) return;
+
+      showNotification('Redeploying client...', 'info');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response && response.success) {
+            showNotification('Client redeployed successfully. Existing launch URL preserved.', 'success');
+          } else {
+            showNotification((response && response.message) || 'Client redeployment failed.', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showNotification('Redeployment error: ' + ((error && error.message) || 'Unknown error'), 'error');
+        })
+        .redeployClientByBusinessId(id, localStorage.getItem('admin_session'));
+    }
+
     function deleteBusiness(id) {
       if (confirm('⚠️ Delete ALL data for this business? This cannot be undone!')) {
         const confirmText = prompt('Type "DELETE" to confirm:');
