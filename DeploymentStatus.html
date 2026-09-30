@@ -156,17 +156,17 @@
       ? 'Your BizOS workspace has been successfully deployed. Your launch link is ready.'
       : (r.message||'Your deployment status is being checked.');
 
-    var paymentDone=r.paymentConfirmed;
+    var paymentDone=!!r.paymentConfirmed;
     var provisioningDone=ready;
-    var provisioningActive=status==='provisioning'||status==='provisioning_failed';
+    var provisioningActive=!ready&&!retryable&&(status==='payment_confirmed'||status==='provisioning'||!!r.processing||!!r.setupQueued);
     var linkDone=ready;
 
     content.innerHTML=
       '<div class="steps">'+
       step(true,false,'Upgrade request','Request '+escapeHtml(r.requestId),1)+
       step(paymentDone,false,'Payment','Payment confirmed — '+escapeHtml(money(r.amount,r.currency)),2)+
-      step(provisioningDone,false,'Workspace setup',provisioningDone?'Workspace setup completed.':provisioningActive?(retryable?'Setup needs to be continued.':'Your workspace is being prepared.'):'Waiting for workspace setup.',3)+
-      step(linkDone,!linkDone&&status==='provisioning','Launch link',linkDone?'Your BizOS launch link is ready.':'Your launch link will appear here when deployment is complete.',4)+
+      step(provisioningDone,provisioningActive,'Workspace setup',provisioningDone?'Workspace setup completed.':retryable?'Setup needs to be continued.':provisioningActive?'Your BizOS workspace is being prepared.':'Waiting for workspace setup.',3)+
+      step(linkDone,false,'Launch link',linkDone?'Your BizOS launch link is ready.':'Your launch link will appear here when deployment is complete.',4)+
       '</div>'+
       '<div class="details">'+
       '<div class="detail-box"><strong>Business</strong>'+escapeHtml(r.businessName||'—')+'</div>'+
