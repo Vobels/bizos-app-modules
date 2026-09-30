@@ -5,7 +5,7 @@
 
 function getExistingActiveClientDeployment_(email, businessName) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getBizOSMasterSpreadsheet_();
     var sheet = ss.getSheetByName('Clients');
     if (!sheet || sheet.getLastRow() < 2) return null;
 
@@ -58,7 +58,7 @@ function normalizeExistingClientDeployment_(client) {
 }
 
 function ensureClientRegistryColumns_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getBizOSMasterSpreadsheet_();
   var sheet = ss.getSheetByName('Clients');
   if (!sheet) {
     sheet = ss.insertSheet('Clients');
