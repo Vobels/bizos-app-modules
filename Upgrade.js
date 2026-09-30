@@ -187,7 +187,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var currency = pricing.sovereign && pricing.sovereign.code || 'USD';
     var symbol = pricing.sovereign && pricing.sovereign.currency || '$';
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getBizOSMasterSpreadsheet_();
     ensureUpgradeRequestsSchema_();
     var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
 
@@ -256,7 +256,7 @@ function isUpgradeRequestExpired_(createdAt) {
 function markUpgradeRequestExpired_(requestId) {
   try {
     ensureUpgradeRequestsSchema_();
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+    var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Upgrade_Requests');
     if (!sheet) return;
     var data = sheet.getDataRange().getValues();
     if (!data.length) return;
@@ -282,7 +282,7 @@ function markUpgradeRequestExpired_(requestId) {
 function getLatestUpgradeRequestForUser_(email) {
   try {
     ensureUpgradeRequestsSchema_();
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+    var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Upgrade_Requests');
     if (!sheet) return null;
     var data = sheet.getDataRange().getValues();
     if (data.length < 2) return null;
@@ -343,7 +343,7 @@ function getLatestPaidUpgradeRequestForUser_(email) {
   try {
     ensureUpgradeRequestsSchema_();
     ensurePaymentsSchema_();
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getBizOSMasterSpreadsheet_();
     var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
     var paymentSheet = ss.getSheetByName('Payments');
     if (!upgradeSheet || !paymentSheet) return null;
@@ -542,7 +542,7 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
     var amount = pricing.sovereign && Number(pricing.sovereign.price) || 499;
     var currency = pricing.sovereign && String(pricing.sovereign.code || 'USD').toUpperCase() || 'USD';
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getBizOSMasterSpreadsheet_();
     var upgradeSheet = ss.getSheetByName('Upgrade_Requests');
     var rows = upgradeSheet.getDataRange().getValues();
     var headers = rows[0] || [];
@@ -624,7 +624,7 @@ function sendAdminUpgradeNotification(userEmail, userName, requestId, country, b
 function getUpgradeRequest(requestId) {
   try {
     ensureUpgradeRequestsSchema_();
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+    var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Upgrade_Requests');
     if (!sheet) return null;
     var data = sheet.getDataRange().getValues();
     if (!data.length) return null;
