@@ -39,6 +39,92 @@ function getExistingActiveClientDeployment_(email, businessName) {
   }
 }
 
+function getActiveClientByEmail_(email) {
+  try {
+    var wantedEmail = String(email || '').trim().toLowerCase();
+    if (!wantedEmail) {
+      return {
+        success: false,
+        code: 'INVALID_EMAIL',
+        message: 'Email is required.'
+      };
+    }
+
+    var ss = getBizOSMasterSpreadsheet_();
+    var sheet = ss.getSheetByName('Clients');
+    if (!sheet || sheet.getLastRow() < 2) {
+      return {
+        success: false,
+        code: 'CLIENT_REGISTRY_UNAVAILABLE',
+        message: 'The client registry is unavailable.'
+      };
+    }
+
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0].map(function (h) {
+      return String(h || '').trim();
+    });
+
+    var emailCol = headers.indexOf('Email');
+    var statusCol = headers.indexOf('Status');
+
+    if (emailCol < 0) {
+      return {
+        success: false,
+        code: 'CLIENT_REGISTRY_SCHEMA_INVALID',
+        message: 'The client registry is missing the Email column.'
+      };
+    }
+
+    for (var i = 1; i < values.length; i++) {
+      var row = values[i];
+      var rowEmail = String(row[emailCol] || '').trim().toLowerCase();
+      var status = statusCol >= 0
+        ? String(row[statusCol] || '').trim().toLowerCase()
+        : '';
+
+      if (rowEmail !== wantedEmail || status !== 'active') continue;
+
+      var client = {};
+      headers.forEach(function (header, index) {
+        client[header] = row[index] === undefined ? '' : row[index];
+      });
+
+      return {
+        success: true,
+        client: {
+          clientId: String(client.Client_ID || ''),
+          email: String(client.Email || ''),
+          clientName: String(client.Client_Name || ''),
+          businessId: String(client.Business_ID || ''),
+          sheetId: String(client.Workspace_ID || client.Sheet_ID || ''),
+          scriptId: String(client.Script_ID || ''),
+          deploymentId: String(client.Deployment_ID || ''),
+          webAppUrl: String(client.Web_App_URL || ''),
+          tier: String(client.Tier || ''),
+          status: String(client.Status || ''),
+          primaryColor: String(client.Primary_Color || ''),
+          logoUrl: String(client.Logo_Url || ''),
+          apiKey: String(client.API_Key || '')
+        }
+      };
+    }
+
+    return {
+      success: false,
+      code: 'CLIENT_NOT_FOUND',
+      message: 'No active paid client is registered for this account.'
+    };
+  } catch (error) {
+    console.error('getActiveClientByEmail_ error:', error);
+    return {
+      success: false,
+      code: 'CLIENT_LOOKUP_ERROR',
+      message: error && error.message ? error.message : String(error)
+    };
+  }
+}
+
 function normalizeExistingClientDeployment_(client) {
   if (!client) return null;
   return {
