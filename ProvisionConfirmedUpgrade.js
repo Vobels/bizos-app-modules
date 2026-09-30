@@ -11,7 +11,7 @@ function provisionConfirmedUpgradeRequest(requestId) {
       var request = getUpgradeRequest(requestId);
       if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
 
-      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+      var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Upgrade_Requests');
       if (!sheet) return {success:false,code:'UPGRADE_SHEET_MISSING',message:'Upgrade request sheet not found.'};
       var data = sheet.getDataRange().getValues(),headers=data[0]||[];
       var requestIdCol=headers.indexOf('Request_ID'),statusCol=headers.indexOf('Status'),updatedCol=headers.indexOf('Updated_At');
@@ -127,8 +127,10 @@ function ensureUpgradeProvisioningWorker_() {
 // Run this ONCE from the Apps Script editor as the deployment owner.
 // This is intentionally separate from customer requests because Apps Script
 // installable triggers require authorization from the account that creates them.
-function setupUpgradeProvisioningWorker() {
+function setupUpgradeProvisioningWorker(spreadsheetId) {
   try {
+    var spreadsheetSetup = configureBizOSMasterSpreadsheet_(spreadsheetId);
+    if (!spreadsheetSetup.success) return spreadsheetSetup;
     if (typeof ScriptApp.requireScopes === 'function') {
       ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, [
         'https://www.googleapis.com/auth/script.scriptapp',
@@ -169,7 +171,7 @@ function reconcileSuccessfulUpgradePaymentsForProvisioning_() {
     ensureUpgradeRequestsSchema_();
     ensurePaymentsSchema_();
 
-    var ss=SpreadsheetApp.getActiveSpreadsheet();
+    var ss=getBizOSMasterSpreadsheet_();
     var upgradeSheet=ss.getSheetByName('Upgrade_Requests');
     var paymentSheet=ss.getSheetByName('Payments');
     if(!upgradeSheet||!paymentSheet)return 0;
@@ -219,7 +221,7 @@ function processConfirmedUpgradeProvisioningQueue_() {
     // customer never revisits the original payment page.
     reconcileSuccessfulUpgradePaymentsForProvisioning_();
 
-    var ss=SpreadsheetApp.getActiveSpreadsheet();
+    var ss=getBizOSMasterSpreadsheet_();
     if(!ss) return;
     ensureUpgradeRequestsSchema_();
     var sheet=ss.getSheetByName('Upgrade_Requests');
@@ -290,7 +292,7 @@ function getDeploymentStatusPageData(requestId, sessionId) {
     if (requestId) {
       try {
         ensurePaymentsSchema_();
-        var paymentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
+        var paymentSheet = getBizOSMasterSpreadsheet_().getSheetByName('Payments');
         if (paymentSheet) {
           var paymentData = paymentSheet.getDataRange().getValues();
           var paymentHeaders = paymentData[0] || [];
@@ -301,7 +303,7 @@ function getDeploymentStatusPageData(requestId, sessionId) {
               if (String(paymentData[pi][pReq] || '').trim() === String(latest.requestId || '').trim() &&
                   String(paymentData[pi][pStatus] || '').trim().toLowerCase() === 'success') {
                 if (String(latest.status || '').trim().toLowerCase() === 'pending_payment') {
-                  var upgradeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+                  var upgradeSheet = getBizOSMasterSpreadsheet_().getSheetByName('Upgrade_Requests');
                   if (upgradeSheet) {
                     var upgradeData = upgradeSheet.getDataRange().getValues();
                     var uh = upgradeData[0] || [];
@@ -450,7 +452,7 @@ function continueConfirmedUpgradeSetup(requestId,sessionId,accessToken){
     }
     if(status==='payment_confirmed'||status==='provisioning_failed'||status==='provisioning'){
       if(status==='provisioning_failed'){
-        var upgradeSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Upgrade_Requests');
+        var upgradeSheet=getBizOSMasterSpreadsheet_().getSheetByName('Upgrade_Requests');
         if(upgradeSheet){
           var ud=upgradeSheet.getDataRange().getValues(), uh=ud[0]||[], ur=uh.indexOf('Request_ID'), us=uh.indexOf('Status'), uu=uh.indexOf('Updated_At');
           for(var ui=1;ui<ud.length;ui++){
