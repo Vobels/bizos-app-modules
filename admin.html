@@ -891,7 +891,8 @@
           var grid = document.getElementById('deploymentsGrid');
           var paid = (businesses || []).filter(function(biz) {
             var tier = String(biz.subscriptionTier || '').toLowerCase();
-            return tier && tier !== 'free';
+            var hasDeployment = !!(biz.clientId || biz.scriptId || biz.deploymentId || biz.launchUrl || biz.webAppUrl);
+            return (tier && tier !== 'free' && tier !== 'starter') || hasDeployment;
           });
 
           if (document.getElementById('deploymentCount')) {
