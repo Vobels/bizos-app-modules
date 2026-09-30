@@ -75,7 +75,7 @@
     <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
       <input type="password" id="adminPassword" class="input-field" placeholder="Enter admin password" required>
       <button type="submit" class="btn-primary">Access Admin Panel</button>
-      <a href="?page=admin-reset" style="display:block;text-align:center;margin-top:16px;color:#5D2A86;text-decoration:none;">Forgot admin password?</a>
+      <a href="<?= publicBizOSUrl ?>?page=admin-reset" target="_top" style="display:block;text-align:center;margin-top:16px;color:#5D2A86;text-decoration:none;">Forgot admin password?</a>
       <div id="loginError" class="error">Invalid password. Please try again.</div>
     </form>
   </div>
