@@ -7,6 +7,38 @@
 // master/client entry-point patterns.
 // ============================================================
 
+function validateGeneratedServerSourceSyntax_(source, fileName) {
+  source = String(source || '');
+  fileName = String(fileName || 'Code');
+
+  if (!source.trim()) {
+    return {
+      success: false,
+      code: 'GENERATED_SOURCE_EMPTY',
+      message: 'Generated ' + fileName + ' source is empty.'
+    };
+  }
+
+  try {
+    // Compile only. Function() parses the generated Apps Script V8 JavaScript
+    // without executing it, so Apps Script services are never invoked here.
+    new Function(source);
+    return {
+      success: true,
+      code: 'GENERATED_SOURCE_SYNTAX_VALID',
+      fileName: fileName
+    };
+  } catch (error) {
+    return {
+      success: false,
+      code: 'GENERATED_SOURCE_SYNTAX_INVALID',
+      fileName: fileName,
+      message: 'Generated ' + fileName + ' contains invalid JavaScript: ' +
+        (error && error.message ? error.message : String(error))
+    };
+  }
+}
+
 function validateClientDeploymentPackage_(pkg, expected) {
   try {
     expected = expected || {};
@@ -27,6 +59,11 @@ function validateClientDeploymentPackage_(pkg, expected) {
     var landing = String(byName['client-landing'].source || byName['client-landing'].content || '');
     var dashboard = String(byName['client-dashboard'].source || byName['client-dashboard'].content || '');
     var manifest = String(byName.appsscript.source || byName.appsscript.content || '');
+
+    // Syntax gate: reject malformed generated SERVER_JS before the
+    // Apps Script API ever receives the package.
+    var syntaxCheck = validateGeneratedServerSourceSyntax_(code, 'Code.gs');
+    if (!syntaxCheck.success) return syntaxCheck;
 
     var requiredCode = [
       'function doGet(e)',
