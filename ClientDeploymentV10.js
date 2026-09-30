@@ -207,6 +207,54 @@ function checkClientLicenseV10() {
 `;
 }
 
+function buildClientNavigationV10_(){
+  return `
+function getClientApplicationUrlV10_(){
+  try{
+    var urls=getClientPublicUrlsV10();
+    if(urls&&urls.applicationUrl)return String(urls.applicationUrl).replace(/\\/$/,'');
+  }catch(ignore){}
+  try{
+    return String(ScriptApp.getService().getUrl()||'').replace(/\\/$/,'');
+  }catch(ignoreUrl){}
+  return '';
+}
+
+function clientNavigateV10_(page,params){
+  var base=getClientApplicationUrlV10_();
+  if(!base)throw new Error('Client application URL is unavailable.');
+  var query=[];
+  params=params||{};
+  Object.keys(params).forEach(function(k){
+    if(params[k]!==undefined&&params[k]!==null&&String(params[k])!==''){
+      query.push(encodeURIComponent(k)+'='+encodeURIComponent(String(params[k])));
+    }
+  });
+  var target=base+'?page='+encodeURIComponent(String(page||'login'))+(query.length?'&'+query.join('&'):'');
+  return target;
+}
+
+function doGet(e){
+  var p=String(e&&e.parameter&&e.parameter.page||'login'),t;
+  if(p==='dashboard'){
+    t=HtmlService.createTemplateFromFile('client-dashboard');
+    t.sessionId=e&&e.parameter?e.parameter.sessionId||'':'';
+  }else{
+    t=HtmlService.createTemplateFromFile('client-landing');
+  }
+  t.clientId=CLIENT_CONFIG.clientId;
+  t.clientName=CLIENT_CONFIG.clientName;
+  t.primaryColor=CLIENT_CONFIG.primaryColor;
+  t.logoUrl=CLIENT_CONFIG.logoUrl;
+  t.applicationUrl=getClientApplicationUrlV10_();
+  return t.evaluate()
+    .setTitle(CLIENT_CONFIG.clientName+' - BizOS')
+    .addMetaTag('viewport','width=device-width,initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+`;
+}
+
 function generateClientCodeSafelyV10(settings){
   settings=settings||{};
   var base=generateClientCodeSafelyV9(settings);
@@ -218,8 +266,36 @@ function generateClientCodeSafelyV10(settings){
       var code=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
       code+=buildClientUrlConfigV10_(settings);
       code+=buildClientLicenseGuardV10_();
+      code+=buildClientNavigationV10_();
       file.source=code;
       if(typeof file.content==='string')file.content=code;
+      return file;
+    }
+
+    if(file.name==='client-landing'){
+      var landing=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
+      landing=landing.replace(
+        "<script>",
+        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page,params){var q=[];params=params||{};Object.keys(params).forEach(function(k){if(params[k]!==undefined&&params[k]!==null&&String(params[k])!=='')q.push(encodeURIComponent(k)+'='+encodeURIComponent(String(params[k])));});var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];var u=base+'?page='+encodeURIComponent(page)+(q.length?'&'+q.join('&'):'');window.open(u,'_top');}</script><script>"
+      );
+      landing=landing.replace(
+        "location.href='?page=dashboard&sessionId='+encodeURIComponent(r.sessionId)",
+        "openClientPage('dashboard',{sessionId:r.sessionId})"
+      );
+      file.source=landing;
+      if(typeof file.content==='string')file.content=landing;
+      return file;
+    }
+
+    if(file.name==='client-dashboard'){
+      var dashboard=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
+      dashboard=dashboard.replace(
+        "<script>",
+        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page){var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];window.open(base+'?page='+encodeURIComponent(page||'login'),'_top');}</script><script>"
+      );
+      dashboard=dashboard.replace(/location\.href='\\?page=login'/g,"openClientPage('login')");
+      file.source=dashboard;
+      if(typeof file.content==='string')file.content=dashboard;
       return file;
     }
 
