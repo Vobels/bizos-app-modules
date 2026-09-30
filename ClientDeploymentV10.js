@@ -10,7 +10,19 @@ function buildClientUrlConfigV10_(settings){
   var applicationUrl=String(settings.applicationUrl||settings.webAppUrl||'').trim();
   var landingUrl=String(settings.landingUrl||'').trim();
   var customDomain=String(settings.customDomain||'').trim();
-  return '\n// ============================================================\\n// CLIENT URL / LANDING CONFIGURATION - V10\\n// ============================================================\\nCLIENT_CONFIG.applicationUrl='+JSON.stringify(applicationUrl)+';\\nCLIENT_CONFIG.landingUrl='+JSON.stringify(landingUrl)+';\\nCLIENT_CONFIG.customDomain='+JSON.stringify(customDomain)+';\\nfunction getClientPublicUrlsV10(){\\n  var appUrl=String(CLIENT_CONFIG.applicationUrl||'').trim();\\n  try{if(!appUrl)appUrl=String(ScriptApp.getService().getUrl()||'').trim();}catch(ignore){}\\n  return {applicationUrl:appUrl,landingUrl:String(CLIENT_CONFIG.landingUrl||'').trim(),customDomain:String(CLIENT_CONFIG.customDomain||'').trim()};\\n}\\n';
+  return [
+    '// ============================================================',
+    '// CLIENT URL / LANDING CONFIGURATION - V10',
+    '// ============================================================',
+    'CLIENT_CONFIG.applicationUrl='+JSON.stringify(applicationUrl)+';',
+    'CLIENT_CONFIG.landingUrl='+JSON.stringify(landingUrl)+';',
+    'CLIENT_CONFIG.customDomain='+JSON.stringify(customDomain)+';',
+    'function getClientPublicUrlsV10(){',
+    '  var appUrl=String(CLIENT_CONFIG.applicationUrl||\'\').trim();',
+    '  try{if(!appUrl)appUrl=String(ScriptApp.getService().getUrl()||\'\').trim();}catch(ignore){}',
+    '  return {applicationUrl:appUrl,landingUrl:String(CLIENT_CONFIG.landingUrl||\'\').trim(),customDomain:String(CLIENT_CONFIG.customDomain||\'\').trim()};',
+    '}'
+  ].join(String.fromCharCode(10))+'\\n';
 }
 
 function buildClientLicenseGuardV10_() {
