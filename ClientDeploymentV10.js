@@ -5,6 +5,14 @@
 // manifest explicitly permits invitation emails through MailApp.
 // ============================================================
 
+function buildClientUrlConfigV10_(settings){
+  settings=settings||{};
+  var applicationUrl=String(settings.applicationUrl||settings.webAppUrl||'').trim();
+  var landingUrl=String(settings.landingUrl||'').trim();
+  var customDomain=String(settings.customDomain||'').trim();
+  return '\n// ============================================================\\n// CLIENT URL / LANDING CONFIGURATION - V10\\n// ============================================================\\nCLIENT_CONFIG.applicationUrl='+JSON.stringify(applicationUrl)+';\\nCLIENT_CONFIG.landingUrl='+JSON.stringify(landingUrl)+';\\nCLIENT_CONFIG.customDomain='+JSON.stringify(customDomain)+';\\nfunction getClientPublicUrlsV10(){\\n  var appUrl=String(CLIENT_CONFIG.applicationUrl||'').trim();\\n  try{if(!appUrl)appUrl=String(ScriptApp.getService().getUrl()||'').trim();}catch(ignore){}\\n  return {applicationUrl:appUrl,landingUrl:String(CLIENT_CONFIG.landingUrl||'').trim(),customDomain:String(CLIENT_CONFIG.customDomain||'').trim()};\\n}\\n';
+}
+
 function buildClientLicenseGuardV10_() {
   return `
   
@@ -188,6 +196,7 @@ function checkClientLicenseV10() {
 }
 
 function generateClientCodeSafelyV10(settings){
+  settings=settings||{};
   var base=generateClientCodeSafelyV9(settings);
   if(!base||!base.files)throw new Error('Client deployment package is empty.');
   base.files=base.files.map(function(file){
@@ -195,6 +204,7 @@ function generateClientCodeSafelyV10(settings){
 
     if(file.name==='Code'){
       var code=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
+      code+=buildClientUrlConfigV10_(settings);
       code+=buildClientLicenseGuardV10_();
       file.source=code;
       if(typeof file.content==='string')file.content=code;
