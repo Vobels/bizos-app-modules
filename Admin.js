@@ -431,7 +431,7 @@ function getAllBusinesses(sessionId) {
             // admin can see and continue the provisioning workflow.
             businesses.push({
               businessId: '',
-              businessName: u.businessName >= 0 ? upgradeData[ui][u.businessName] || u.name >= 0 ? upgradeData[ui][u.name] || 'Paid Customer' : 'Paid Customer' : 'Paid Customer',
+              businessName: (u.businessName >= 0 ? String(upgradeData[ui][u.businessName] || '').trim() : '') || (u.name >= 0 ? String(upgradeData[ui][u.name] || '').trim() : '') || 'Paid Customer',
               ownerEmail: email || workspaceEmail,
               subscriptionTier: u.tier >= 0 ? upgradeData[ui][u.tier] || 'sovereign' : 'sovereign',
               verificationStatus: 'paid',
