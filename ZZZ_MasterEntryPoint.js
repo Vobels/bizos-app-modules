@@ -82,6 +82,7 @@ function doGet(e) {
     }
     if (requestedPage === 'admin-reset') {
       var adminResetTemplate = HtmlService.createTemplateFromFile('admin-reset');
+      adminResetTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
       return adminResetTemplate.evaluate().setTitle('Reset Admin Password - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
@@ -89,6 +90,7 @@ function doGet(e) {
       var adminSessionId = String(params.session || '').trim();
       if (typeof validateAdminSession !== 'function' || !validateAdminSession(adminSessionId)) {
         var adminLoginTemplate = HtmlService.createTemplateFromFile('admin-login');
+        adminLoginTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
         return adminLoginTemplate.evaluate().setTitle('Admin Login - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
       }
 
