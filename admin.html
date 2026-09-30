@@ -1163,7 +1163,7 @@
       if (confirm('Logout from admin panel?')) {
         google.script.run
           .withSuccessHandler(function() { 
-            var adminUrl = <?= JSON.stringify(publicBizOSUrl) ?>;
+            var adminUrl = <?!= JSON.stringify(publicBizOSUrl) ?>;
             window.top.location.href = adminUrl + (adminUrl.indexOf('?') === -1 ? '?page=admin' : '&page=admin');
           })
           .adminLogout();
