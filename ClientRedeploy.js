@@ -45,7 +45,10 @@ function redeployClientByBusinessId(businessId, sessionId) {
       email: client.email,
       sheetId: client.sheetId,
       businessId: client.businessId,
-      masterApiUrl: getMasterApiUrl()
+      masterApiUrl: getMasterApiUrl(),
+      landingUrl: client.landingUrl || '',
+      customDomain: client.customDomain || '',
+      applicationUrl: client.webAppUrl || ''
     };
 
     console.log('CLIENT REDEPLOY START:', JSON.stringify({
@@ -283,7 +286,10 @@ function getActiveClientByBusinessIdForRedeploy_(businessId) {
       primaryColor:String(client.Primary_Color || ''),
       logoUrl:String(client.Logo_Url || ''),
       tier:String(client.Tier || 'sovereign'),
-      status:String(client.Status || '')
+      status:String(client.Status || ''),
+      landingUrl:String(client.Landing_URL || ''),
+      customDomain:String(client.Custom_Domain || ''),
+      domain:String(client.Domain || '')
     };
   }
 
