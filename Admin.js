@@ -336,11 +336,14 @@ function getAllBusinesses(sessionId) {
     }
 
     const businesses = [];
+    const businessByEmail = {};
+    const businessById = {};
+
     for (let i = 1; i < data.length; i++) {
       const businessId = String(data[i][headers.indexOf('Business_ID')] || '').trim();
+      const ownerEmail = String(data[i][headers.indexOf('Owner_Email')] || '').trim().toLowerCase();
       const deployment = deploymentByBusinessId[businessId] || {};
-
-      businesses.push({
+      const record = {
         businessId: businessId,
         businessName: data[i][headers.indexOf('Business_Name')],
         ownerEmail: data[i][headers.indexOf('Owner_Email')],
@@ -348,8 +351,6 @@ function getAllBusinesses(sessionId) {
         verificationStatus: data[i][headers.indexOf('Verification_Status')] || 'pending',
         createdAt: data[i][headers.indexOf('Created_At')],
         status: data[i][headers.indexOf('Status')] || 'active',
-
-        // Client deployment registry
         clientId: deployment.Client_ID || '',
         scriptId: deployment.Script_ID || '',
         deploymentId: deployment.Deployment_ID || '',
@@ -359,15 +360,146 @@ function getAllBusinesses(sessionId) {
         deploymentStatus: deployment.Status || '',
         deployedAt: deployment.Updated_At || '',
         deploymentVersion: deployment.Provisioning_Version || '',
-        workspaceId: deployment.Workspace_ID || deployment.Sheet_ID || ''
-      });
+        workspaceId: deployment.Workspace_ID || deployment.Sheet_ID || '',
+        upgradeRequestId: '',
+        paymentStatus: '',
+        deploymentAction: 'none'
+      };
+      businesses.push(record);
+      if (businessId) businessById[businessId] = record;
+      if (ownerEmail) businessByEmail[ownerEmail] = record;
     }
+
+    // A successful payment is the authoritative signal that a customer has
+    // paid. Provisioning may still be queued or failed, so do not hide that
+    // customer merely because the Businesses/Clients registries have not yet
+    // been updated.
+    try {
+      const upgradeSheet = masterSpreadsheet.getSheetByName('Upgrade_Requests');
+      const paymentSheet = masterSpreadsheet.getSheetByName('Payments');
+      if (upgradeSheet && paymentSheet) {
+        const upgradeData = upgradeSheet.getDataRange().getValues();
+        const uh = upgradeData[0] || [];
+        const paymentData = paymentSheet.getDataRange().getValues();
+        const ph = paymentData[0] || [];
+        const u = {
+          requestId: uh.indexOf('Request_ID'),
+          email: uh.indexOf('Email'),
+          workspaceEmail: uh.indexOf('Workspace_Email'),
+          name: uh.indexOf('Name'),
+          businessName: uh.indexOf('Business_Name'),
+          tier: uh.indexOf('Tier'),
+          status: uh.indexOf('Status'),
+          createdAt: uh.indexOf('Created_At')
+        };
+        const p = {
+          requestId: ph.indexOf('Request_ID'),
+          status: ph.indexOf('Status'),
+          reference: ph.indexOf('Transaction_Ref')
+        };
+        const successfulPayments = {};
+        if (p.requestId >= 0 && p.status >= 0) {
+          for (let pi = 1; pi < paymentData.length; pi++) {
+            if (String(paymentData[pi][p.status] || '').trim().toLowerCase() === 'success') {
+              const rid = String(paymentData[pi][p.requestId] || '').trim();
+              if (rid) successfulPayments[rid] = p.reference >= 0 ? String(paymentData[pi][p.reference] || '') : '';
+            }
+          }
+        }
+
+        if (u.requestId >= 0) {
+          for (let ui = 1; ui < upgradeData.length; ui++) {
+            const requestId = String(upgradeData[ui][u.requestId] || '').trim();
+            if (!requestId || !successfulPayments.hasOwnProperty(requestId)) continue;
+
+            const email = String(u.email >= 0 ? upgradeData[ui][u.email] || '' : '').trim().toLowerCase();
+            const workspaceEmail = String(u.workspaceEmail >= 0 ? upgradeData[ui][u.workspaceEmail] || '' : '').trim().toLowerCase();
+            const existing = businessByEmail[email] || businessByEmail[workspaceEmail];
+            const requestStatus = String(u.status >= 0 ? upgradeData[ui][u.status] || '' : '').trim().toLowerCase();
+
+            if (existing) {
+              existing.upgradeRequestId = requestId;
+              existing.paymentStatus = 'success';
+              if (!existing.clientId && !existing.scriptId) {
+                existing.deploymentStatus = requestStatus === 'provisioned' || requestStatus === 'active' ? 'Paid - deployment metadata missing' : requestStatus || 'payment_confirmed';
+                existing.deploymentAction = 'provision';
+              }
+              continue;
+            }
+
+            // No Businesses row yet: still surface the paid customer so the
+            // admin can see and continue the provisioning workflow.
+            businesses.push({
+              businessId: '',
+              businessName: u.businessName >= 0 ? upgradeData[ui][u.businessName] || u.name >= 0 ? upgradeData[ui][u.name] || 'Paid Customer' : 'Paid Customer' : 'Paid Customer',
+              ownerEmail: email || workspaceEmail,
+              subscriptionTier: u.tier >= 0 ? upgradeData[ui][u.tier] || 'sovereign' : 'sovereign',
+              verificationStatus: 'paid',
+              createdAt: u.createdAt >= 0 ? upgradeData[ui][u.createdAt] : '',
+              status: 'paid',
+              clientId: '',
+              scriptId: '',
+              deploymentId: '',
+              launchUrl: '',
+              webAppUrl: '',
+              landingUrl: '',
+              deploymentStatus: requestStatus || 'payment_confirmed',
+              deployedAt: '',
+              deploymentVersion: '',
+              workspaceId: '',
+              upgradeRequestId: requestId,
+              paymentStatus: 'success',
+              deploymentAction: 'provision'
+            });
+          }
+        }
+      }
+    } catch (paymentJoinError) {
+      console.error('Unable to join successful payments into admin deployment list:', paymentJoinError);
+    }
+
     return businesses;
   } catch (error) {
     console.error('Error getting businesses:', error);
     return [];
   }
 }
+
+function adminProvisionPaidRequest(requestId, sessionId) {
+  requireAdminSession_(sessionId);
+  if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Upgrade request ID is required.'};
+
+  try {
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+
+    var ss = getBizOSMasterSpreadsheet_();
+    var paymentSheet = ss.getSheetByName('Payments');
+    if (!paymentSheet) return {success:false,code:'PAYMENTS_SHEET_MISSING',message:'Payments sheet not found.'};
+
+    var pdata = paymentSheet.getDataRange().getValues();
+    var ph = pdata[0] || [];
+    var reqCol = ph.indexOf('Request_ID');
+    var statusCol = ph.indexOf('Status');
+    if (reqCol < 0 || statusCol < 0) return {success:false,code:'PAYMENTS_SCHEMA_INVALID',message:'Payments sheet is missing required columns.'};
+
+    var paid = false;
+    for (var i = 1; i < pdata.length; i++) {
+      if (String(pdata[i][reqCol] || '').trim() === String(requestId).trim() &&
+          String(pdata[i][statusCol] || '').trim().toLowerCase() === 'success') {
+        paid = true;
+        break;
+      }
+    }
+    if (!paid) return {success:false,code:'PAYMENT_NOT_SUCCESSFUL',message:'No successful payment is recorded for this upgrade request.'};
+
+    return provisionConfirmedUpgradeRequest(requestId);
+  } catch (error) {
+    console.error('adminProvisionPaidRequest error:', error);
+    return {success:false,code:'ADMIN_PROVISION_ERROR',message:error && error.message ? error.message : 'Could not continue client provisioning.'};
+  }
+}
+
 
 function getAllUsers(sessionId) {
   requireAdminSession_(sessionId);
