@@ -292,7 +292,12 @@ function getRecentActivity(limit = 10) {
 function getAllBusinesses(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const sheet = getOrCreateBusinessSheet();
+    // Admin and provisioning must read the same canonical master spreadsheet.
+    // Using SpreadsheetApp.getActiveSpreadsheet() here can point the web-app
+    // execution at a different bound spreadsheet, which makes real Clients
+    // records appear as if no paid deployments exist.
+    const masterSpreadsheet = getBizOSMasterSpreadsheet_();
+    const sheet = masterSpreadsheet.getSheetByName('Businesses') || getOrCreateBusinessSheet();
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
 
