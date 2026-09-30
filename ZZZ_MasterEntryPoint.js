@@ -80,6 +80,11 @@ function doGet(e) {
       paymentTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
       return paymentTemplate.evaluate().setTitle('Complete Payment - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
+    if (requestedPage === 'admin-reset') {
+      var adminResetTemplate = HtmlService.createTemplateFromFile('admin-reset');
+      return adminResetTemplate.evaluate().setTitle('Reset Admin Password - BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
     if (requestedPage === 'admin' || requestedPage === 'admin-settings') {
       var adminSessionId = String(params.session || '').trim();
       if (typeof validateAdminSession !== 'function' || !validateAdminSession(adminSessionId)) {
