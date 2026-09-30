@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Admin Password - BizOS</title>
+  <?!= include('styles') ?>
+  <style>
+    body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); padding:20px; }
+    .reset-box { background:#fff; border-radius:16px; padding:40px; max-width:400px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .reset-box h1 { text-align:center; color:#1f2937; font-size:28px; margin-bottom:8px; }
+    .reset-box p { text-align:center; color:#6b7280; margin-bottom:24px; }
+    .reset-box .lock-icon { text-align:center; font-size:48px; color:#5D2A86; margin-bottom:16px; }
+    .input-field { width:100%; box-sizing:border-box; padding:12px 16px; border:1px solid #d1d5db; border-radius:8px; font-size:16px; margin-bottom:14px; }
+    .input-field:focus { outline:none; border-color:#5D2A86; box-shadow:0 0 0 3px rgba(93,42,134,.1); }
+    .btn-primary { width:100%; padding:12px; font-size:16px; }
+    .message { font-size:14px; text-align:center; margin-top:14px; display:none; }
+    .error { color:#ef4444; }
+    .success { color:#16a34a; }
+    .back { display:block; text-align:center; margin-top:18px; color:#5D2A86; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="reset-box">
+    <div class="lock-icon"><i class="fas fa-key"></i></div>
+    <h1>Reset Admin Password</h1>
+    <p>Use the separate admin recovery key to set a new password.</p>
+
+    <form id="resetForm" onsubmit="handleReset(event)">
+      <input type="password" id="recoveryKey" class="input-field" placeholder="Recovery key" required>
+      <input type="password" id="newPassword" class="input-field" placeholder="New password (10+ characters)" minlength="10" required>
+      <input type="password" id="confirmPassword" class="input-field" placeholder="Confirm new password" minlength="10" required>
+      <button id="resetButton" type="submit" class="btn-primary">Reset Password</button>
+      <div id="message" class="message"></div>
+    </form>
+
+    <a class="back" href="?page=admin">Back to Admin Login</a>
+  </div>
+
+  <script>
+    function handleReset(event) {
+      event.preventDefault();
+      var message = document.getElementById('message');
+      var button = document.getElementById('resetButton');
+      var password = document.getElementById('newPassword').value;
+      var confirm = document.getElementById('confirmPassword').value;
+
+      message.style.display = 'block';
+      message.className = 'message';
+
+      if (password !== confirm) {
+        message.className += ' error';
+        message.textContent = 'Passwords do not match.';
+        return;
+      }
+
+      button.disabled = true;
+      message.textContent = 'Resetting password...';
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          button.disabled = false;
+          if (response && response.success) {
+            message.className = 'message success';
+            message.textContent = response.message;
+            document.getElementById('resetForm').reset();
+          } else {
+            message.className = 'message error';
+            message.textContent = (response && response.message) || 'Password reset failed.';
+          }
+        })
+        .withFailureHandler(function(error) {
+          button.disabled = false;
+          message.className = 'message error';
+          message.textContent = error && error.message ? error.message : 'Password reset failed.';
+        })
+        .resetAdminPassword(
+          document.getElementById('recoveryKey').value,
+          password
+        );
+    }
+  </script>
+</body>
+</html>
