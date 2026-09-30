@@ -933,7 +933,7 @@
               '</div>' +
               '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">' +
                 (launchUrl ? '<button onclick="openDeploymentUrl(\'' + String(launchUrl).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" class="btn-secondary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-external-link-alt mr-1"></i>Open</button>' : '') +
-                '<button onclick="redeployClient(\'' + safeId + '\')" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cloud-upload-alt mr-1"></i>Relaunch / Redeploy</button>' +
+            (biz.deploymentAction === 'provision' && biz.upgradeRequestId ? '<button onclick="provisionPaidRequest(\\\'' + String(biz.upgradeRequestId).replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'") + '\\\')" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cog mr-1"></i>Continue Setup</button>' : (biz.businessId ? '<button onclick="redeployClient(\\\'' + safeId + '\\\')" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cloud-upload-alt mr-1"></i>Relaunch / Redeploy</button>' : '')) +
               '</div>' +
               (launchUrl ? '<div style="margin-top:10px;font-size:11px;color:#6b7280;word-break:break-all;">' + safeUrl + '</div>' : '') +
             '</div>';
@@ -944,6 +944,28 @@
           showNotification('Error loading deployments: ' + ((error && error.message) || 'Unknown error'), 'error');
         })
         .getAllBusinesses(localStorage.getItem('admin_session'));
+    }
+
+    function provisionPaidRequest(requestId) {
+      if (!requestId) return;
+      if (!confirm('Continue setup for this confirmed paid customer? This will use the existing payment and will not charge them again.')) return;
+
+      showNotification('Continuing client setup...', 'info');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response && response.success) {
+            showNotification('Client setup completed. Refreshing deployments...', 'success');
+            loadDeployments();
+            loadBusinesses();
+          } else {
+            showNotification((response && response.message) || 'Client setup could not be completed.', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showNotification('Setup error: ' + ((error && error.message) || 'Unknown error'), 'error');
+        })
+        .adminProvisionPaidRequest(requestId, localStorage.getItem('admin_session'));
     }
 
     function openDeploymentUrl(url) {
