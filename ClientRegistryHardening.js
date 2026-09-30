@@ -181,3 +181,134 @@ function returnExistingClientDeployment_(client) {
     message: 'Existing active client deployment returned; no duplicate deployment created.'
   };
 }
+
+
+// ============================================================
+// 🔐 CLIENT LICENSE VALIDATION - V10 RUNTIME BINDING
+// ============================================================
+// Master-authoritative validation for generated client deployments.
+// The caller cannot choose a workspace by supplying arbitrary IDs:
+// every identity supplied by the client runtime must match one active
+// Clients registry row, including the actual Apps Script project and
+// deployment that are executing the request.
+function validateClientLicense(payload) {
+  try {
+    payload = payload || {};
+
+    var clientId = String(payload.clientId || '').trim();
+    var businessId = String(payload.businessId || '').trim();
+    var sheetId = String(payload.sheetId || '').trim();
+    var scriptId = String(payload.scriptId || '').trim();
+    var deploymentId = String(payload.deploymentId || '').trim();
+
+    if (!clientId || !businessId || !sheetId || !scriptId || !deploymentId) {
+      return {
+        success: false,
+        code: 'LICENSE_BINDING_INCOMPLETE',
+        message: 'Client deployment binding is incomplete.'
+      };
+    }
+
+    var ss = getBizOSMasterSpreadsheet_();
+    var sheet = ss.getSheetByName('Clients');
+    if (!sheet || sheet.getLastRow() < 2) {
+      return {
+        success: false,
+        code: 'CLIENT_REGISTRY_UNAVAILABLE',
+        message: 'The client registry is unavailable.'
+      };
+    }
+
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0].map(function (h) { return String(h || '').trim(); });
+    var required = ['Client_ID','Business_ID','Sheet_ID','Workspace_ID','Status','Script_ID','Deployment_ID','Web_App_URL'];
+    for (var r = 0; r < required.length; r++) {
+      if (headers.indexOf(required[r]) < 0) {
+        return {
+          success: false,
+          code: 'CLIENT_REGISTRY_SCHEMA_INVALID',
+          message: 'The client registry is missing required deployment metadata.'
+        };
+      }
+    }
+
+    var idx = {};
+    required.forEach(function (name) { idx[name] = headers.indexOf(name); });
+
+    var matched = null;
+    for (var i = 1; i < values.length; i++) {
+      var row = values[i];
+      if (String(row[idx.Client_ID] || '').trim() !== clientId) continue;
+
+      matched = {
+        clientId: String(row[idx.Client_ID] || '').trim(),
+        businessId: String(row[idx.Business_ID] || '').trim(),
+        sheetId: String(row[idx.Sheet_ID] || row[idx.Workspace_ID] || '').trim(),
+        workspaceId: String(row[idx.Workspace_ID] || '').trim(),
+        status: String(row[idx.Status] || '').trim().toLowerCase(),
+        scriptId: String(row[idx.Script_ID] || '').trim(),
+        deploymentId: String(row[idx.Deployment_ID] || '').trim(),
+        webAppUrl: String(row[idx.Web_App_URL] || '').trim()
+      };
+      break;
+    }
+
+    if (!matched) {
+      return {
+        success: false,
+        code: 'CLIENT_NOT_FOUND',
+        message: 'This BizOS client is not registered.'
+      };
+    }
+
+    if (matched.status !== 'active') {
+      return {
+        success: false,
+        code: 'CLIENT_INACTIVE',
+        message: 'This BizOS client workspace is inactive.'
+      };
+    }
+
+    // All runtime bindings are mandatory and must match the same registry row.
+    if (matched.businessId !== businessId ||
+        matched.sheetId !== sheetId ||
+        (matched.workspaceId && matched.workspaceId !== sheetId) ||
+        matched.scriptId !== scriptId ||
+        matched.deploymentId !== deploymentId) {
+      console.warn('Client deployment binding mismatch for ' + clientId);
+      return {
+        success: false,
+        code: 'CLIENT_DEPLOYMENT_MISMATCH',
+        message: 'This BizOS deployment is not authorized for this client.'
+      };
+    }
+
+    // The registry URL is another persisted representation of the same
+    // deployment. Require it to point at the registered deployment ID.
+    var expectedPath = '/s/' + deploymentId + '/exec';
+    if (!matched.webAppUrl || matched.webAppUrl.indexOf(expectedPath) < 0) {
+      return {
+        success: false,
+        code: 'CLIENT_URL_BINDING_MISMATCH',
+        message: 'The registered BizOS deployment URL does not match the runtime deployment.'
+      };
+    }
+
+    return {
+      success: true,
+      code: 'LICENSE_VALID',
+      clientId: matched.clientId,
+      businessId: matched.businessId,
+      sheetId: matched.sheetId,
+      scriptId: matched.scriptId,
+      deploymentId: matched.deploymentId
+    };
+  } catch (error) {
+    console.error('validateClientLicense error:', error);
+    return {
+      success: false,
+      code: 'LICENSE_VALIDATION_ERROR',
+      message: error && error.message ? error.message : 'Client license validation failed.'
+    };
+  }
+}
