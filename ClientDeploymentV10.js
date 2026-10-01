@@ -317,7 +317,7 @@ landing=landing.replace("<script>",clientNavScript);
 
     if(file.name==='client-dashboard'){
       var dashboard=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
-      dashboard=dashboard.replace("<script>",'<script>function openClientPage(page){google.script.run.withSuccessHandler(function(r){if(!r||!r.success){document.body.innerHTML="<div style=\"font-family:Arial;padding:32px;text-align:center\">Session ended. Please sign in again.</div>";return}document.open();document.write(r.html);document.close();}).withFailureHandler(function(){document.body.innerHTML="<div style=\"font-family:Arial;padding:32px;text-align:center\">Please sign in again.</div>";}).renderClientPageV10(page,"");}</script><script>');
+            dashboard=dashboard.replace("<script>",'<script>function openClientPage(page){google.script.run.withSuccessHandler(function(r){if(!r||!r.success){document.body.innerHTML='<div style="font-family:Arial;padding:32px;text-align:center">Session ended. Please sign in again.</div>';return}document.open();document.write(r.html);document.close();}).withFailureHandler(function(){document.body.innerHTML='<div style="font-family:Arial;padding:32px;text-align:center">Please sign in again.</div>';}).renderClientPageV10(page,"");}</script><script>');
       dashboard=dashboard.replace(/location\.href='\?page=login'/g,"openClientPage('login')");
       file.source=dashboard;
       if(typeof file.content==='string')file.content=dashboard;
