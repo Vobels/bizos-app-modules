@@ -252,6 +252,31 @@ function doGet(e){
     .addMetaTag('viewport','width=device-width,initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+function renderClientPageV10(page,sessionId){
+  try{
+    page=String(page||'login').toLowerCase();
+    var t;
+    if(page==='dashboard'){
+      if(!sessionId)return{success:false,message:'Session is required.',code:'SESSION_REQUIRED'};
+      var session=validateClientSession(String(sessionId));
+      if(!session)return{success:false,message:'Your session has expired. Please sign in again.',code:'SESSION_INVALID'};
+      t=HtmlService.createTemplateFromFile('client-dashboard');
+      t.sessionId=String(sessionId);
+    }else{
+      t=HtmlService.createTemplateFromFile('client-landing');
+      t.sessionId='';
+    }
+    t.clientId=CLIENT_CONFIG.clientId;
+    t.clientName=CLIENT_CONFIG.clientName;
+    t.primaryColor=CLIENT_CONFIG.primaryColor;
+    t.logoUrl=CLIENT_CONFIG.logoUrl;
+    t.applicationUrl=getClientApplicationUrlV10_();
+    return{success:true,html:t.evaluate().getContent()};
+  }catch(error){
+    return{success:false,message:error&&error.message?error.message:'Unable to load BizOS page.',code:'PAGE_RENDER_ERROR'};
+  }
+}
+
 `;
 }
 
@@ -274,10 +299,8 @@ function generateClientCodeSafelyV10(settings){
 
     if(file.name==='client-landing'){
       var landing=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
-      landing=landing.replace(
-        "<script>",
-        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page,params){var q=[];params=params||{};Object.keys(params).forEach(function(k){if(params[k]!==undefined&&params[k]!==null&&String(params[k])!=='')q.push(encodeURIComponent(k)+'='+encodeURIComponent(String(params[k])));});var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];var u=base+'?page='+encodeURIComponent(page)+(q.length?'&'+q.join('&'):'');var old=document.getElementById('bizosContinueNav');if(old)old.remove();if(typeof window.bizosHideLoader==='function')window.bizosHideLoader();var color='';try{var src=document.getElementById('b');if(src)color=getComputedStyle(src).backgroundColor;}catch(ignoreColor){}if(!color)color='#2E7D32';var box=document.createElement('div');box.id='bizosContinueNav';box.style.cssText='position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(255,255,255,.96)';box.innerHTML='<div style=\"width:min(360px,92vw);text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.12)\"><div style=\"font-weight:700;color:#17202a;margin-bottom:8px\">Sign-in successful</div><div style=\"font-size:13px;color:#667085;line-height:1.45;margin-bottom:18px\">Your BizOS workspace is ready.</div><a href=\"'+u.replace(/&/g,'&amp;').replace(/\"/g,'&quot;')+'\" target=\"_top\" style=\"display:inline-block;width:100%;box-sizing:border-box;padding:12px 16px;border-radius:8px;background:'+color+';color:#fff;text-decoration:none;font-weight:600\">Continue to Dashboard</a></div>';document.body.appendChild(box);}</script><script>"
-      );
+      var clientNavScript='<script>function openClientPage(page,params){params=params||{};var sid=String(params.sessionId||"");var b=document.getElementById("b");if(b){b.disabled=true;b.textContent="Opening workspace...";}google.script.run.withSuccessHandler(function(r){if(!r||!r.success){var m=document.getElementById("m");if(m)m.textContent=r&&r.message||"Unable to open BizOS.";if(b){b.disabled=false;b.textContent="Sign in";}return}document.open();document.write(r.html);document.close();}).withFailureHandler(function(){var m=document.getElementById("m");if(m)m.textContent="Unable to open BizOS. Please try again.";if(b){b.disabled=false;b.textContent="Sign in";}}).renderClientPageV10(page,sid);}</script><script>';
+landing=landing.replace("<script>",clientNavScript);
       landing=landing.replace(
         "location.href='?page=dashboard&sessionId='+encodeURIComponent(r.sessionId)",
         "openClientPage('dashboard',{sessionId:r.sessionId})"
@@ -289,10 +312,7 @@ function generateClientCodeSafelyV10(settings){
 
     if(file.name==='client-dashboard'){
       var dashboard=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
-      dashboard=dashboard.replace(
-        "<script>",
-        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page){var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];var target=base+'?page='+encodeURIComponent(page||'login');var old=document.getElementById('bizosContinueNav');if(old)old.remove();if(typeof window.bizosHideLoader==='function')window.bizosHideLoader();var color='';try{var src=document.getElementById('b');if(src)color=getComputedStyle(src).backgroundColor;}catch(ignoreColor){}if(!color)color='#2E7D32';var box=document.createElement('div');box.id='bizosContinueNav';box.style.cssText='position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(255,255,255,.96)';box.innerHTML='<div style=\"width:min(360px,92vw);text-align:center;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.12)\"><div style=\"font-weight:700;color:#17202a;margin-bottom:8px\">Continue</div><div style=\"font-size:13px;color:#667085;line-height:1.45;margin-bottom:18px\">Continue to your BizOS workspace.</div><a href=\"'+target.replace(/&/g,'&amp;').replace(/\"/g,'&quot;')+'\" target=\"_top\" style=\"display:inline-block;width:100%;box-sizing:border-box;padding:12px 16px;border-radius:8px;background:'+color+';color:#fff;text-decoration:none;font-weight:600\">Continue</a></div>';document.body.appendChild(box);}</script><script>"
-      );
+      dashboard=dashboard.replace("<script>",'<script>function openClientPage(page){google.script.run.withSuccessHandler(function(r){if(!r||!r.success){document.body.innerHTML="<div style=\"font-family:Arial;padding:32px;text-align:center\">Session ended. Please sign in again.</div>";return}document.open();document.write(r.html);document.close();}).withFailureHandler(function(){document.body.innerHTML="<div style=\"font-family:Arial;padding:32px;text-align:center\">Please sign in again.</div>";}).renderClientPageV10(page,"");}</script><script>');
       dashboard=dashboard.replace(/location\.href='\?page=login'/g,"openClientPage('login')");
       file.source=dashboard;
       if(typeof file.content==='string')file.content=dashboard;
