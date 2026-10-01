@@ -305,28 +305,39 @@ function getAllBusinesses(sessionId) {
     // Join them here so every existing admin view can display the real deployment
     // state without exposing the registry directly to the browser.
     const deploymentByBusinessId = {};
+    const deploymentByEmail = {};
     try {
       const clientSheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
       if (clientSheet && clientSheet.getLastRow() >= 2) {
         const clientData = clientSheet.getDataRange().getValues();
         const clientHeaders = clientData[0].map(function(h) { return String(h || '').trim(); });
         const businessIdCol = clientHeaders.indexOf('Business_ID');
+        const emailCol = clientHeaders.indexOf('Email');
 
-        if (businessIdCol >= 0) {
-          for (let c = 1; c < clientData.length; c++) {
-            const row = clientData[c];
-            const businessId = String(row[businessIdCol] || '').trim();
-            if (!businessId) continue;
+        for (let c = 1; c < clientData.length; c++) {
+          const row = clientData[c];
+          const businessId = businessIdCol >= 0 ? String(row[businessIdCol] || '').trim() : '';
+          const email = emailCol >= 0 ? String(row[emailCol] || '').trim().toLowerCase() : '';
+          if (!businessId && !email) continue;
 
-            const record = {};
-            clientHeaders.forEach(function(header, index) {
-              record[header] = row[index] === undefined ? '' : row[index];
-            });
+          const record = {};
+          clientHeaders.forEach(function(header, index) {
+            record[header] = row[index] === undefined ? '' : row[index];
+          });
 
-            // Prefer the active registry record when duplicates exist.
-            const current = deploymentByBusinessId[businessId];
-            if (!current || String(record.Status || '').toLowerCase() === 'active') {
+          // Prefer the active registry record when duplicates exist.
+          if (businessId) {
+            const currentById = deploymentByBusinessId[businessId];
+            if (!currentById || String(record.Status || '').toLowerCase() === 'active') {
               deploymentByBusinessId[businessId] = record;
+            }
+          }
+          // Email is a safe secondary join for legacy/orphaned records where
+          // Business_ID was not persisted consistently during provisioning.
+          if (email) {
+            const currentByEmail = deploymentByEmail[email];
+            if (!currentByEmail || String(record.Status || '').toLowerCase() === 'active') {
+              deploymentByEmail[email] = record;
             }
           }
         }
@@ -343,7 +354,7 @@ function getAllBusinesses(sessionId) {
     for (let i = 1; i < data.length; i++) {
       const businessId = String(data[i][headers.indexOf('Business_ID')] || '').trim();
       const ownerEmail = String(data[i][headers.indexOf('Owner_Email')] || '').trim().toLowerCase();
-      const deployment = deploymentByBusinessId[businessId] || {};
+      const deployment = deploymentByBusinessId[businessId] || deploymentByEmail[ownerEmail] || {};
       const record = {
         businessId: businessId,
         businessName: data[i][headers.indexOf('Business_Name')],
