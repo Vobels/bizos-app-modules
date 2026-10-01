@@ -923,7 +923,7 @@ function checkAdminSession(sessionId) {
   if (!sessionId) return false;
   const cache = CacheService.getScriptCache();
   const session = cache.get('admin_session_' + sessionId);
-  return session === 'authenticated';
+  return validateAdminSession(sessionId);
 }
 
 // Update your existing adminLogout function to clear session
