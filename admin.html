@@ -770,11 +770,14 @@
   </div>
 
   <script>
-      // Keep the server-validated session available inside the Apps Script iframe.\n      // localStorage remains a fallback for existing admin tabs.\n      var ADMIN_SESSION = <?!= JSON.stringify(adminSessionId || '') ?>;
+      // Keep the server-validated session available inside the Apps Script iframe.
+      // localStorage remains a fallback for existing admin tabs.
+      var ADMIN_SESSION = <?!= JSON.stringify(adminSessionId || '') ?>;
       if (ADMIN_SESSION) { try { localStorage.setItem('admin_session', ADMIN_SESSION); } catch (ignore) {} }
       function getAdminSession() {
         try { return ADMIN_SESSION || localStorage.getItem('admin_session') || ''; } catch (ignore) { return ADMIN_SESSION || ''; }
-      }\n    // ==================== ADMIN SCRIPT ====================
+      }
+    // ==================== ADMIN SCRIPT ====================
     
     // Sidebar toggle for mobile
     function toggleSidebar() {
