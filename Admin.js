@@ -457,27 +457,31 @@ function getAllBusinesses(sessionId) {
               'pending_payment': 1,
               'pending': 1
             };
+            // A paid customer may have no Businesses row yet, but provisioning
+            // can already have created a complete Clients registry record. Reuse
+            // that deployment metadata instead of rendering a blank synthetic card.
+            const paidDeployment = deploymentByEmail[email] || deploymentByEmail[workspaceEmail] || {};
             const candidate = {
-              businessId: '',
-              businessName: (u.businessName >= 0 ? String(upgradeData[ui][u.businessName] || '').trim() : '') || (u.name >= 0 ? String(upgradeData[ui][u.name] || '').trim() : '') || 'Paid Customer',
-              ownerEmail: email || workspaceEmail,
-              subscriptionTier: u.tier >= 0 ? upgradeData[ui][u.tier] || 'sovereign' : 'sovereign',
+              businessId: String(paidDeployment.Business_ID || '').trim(),
+              businessName: (u.businessName >= 0 ? String(upgradeData[ui][u.businessName] || '').trim() : '') || (u.name >= 0 ? String(upgradeData[ui][u.name] || '').trim() : '') || String(paidDeployment.Client_Name || '').trim() || 'Paid Customer',
+              ownerEmail: email || workspaceEmail || String(paidDeployment.Email || '').trim().toLowerCase(),
+              subscriptionTier: u.tier >= 0 ? upgradeData[ui][u.tier] || paidDeployment.Tier || 'sovereign' : paidDeployment.Tier || 'sovereign',
               verificationStatus: 'paid',
-              createdAt: u.createdAt >= 0 ? upgradeData[ui][u.createdAt] : '',
+              createdAt: u.createdAt >= 0 ? upgradeData[ui][u.createdAt] : (paidDeployment.Created_At || ''),
               status: 'paid',
-              clientId: '',
-              scriptId: '',
-              deploymentId: '',
-              launchUrl: '',
-              webAppUrl: '',
-              landingUrl: '',
-              deploymentStatus: requestStatus || 'payment_confirmed',
-              deployedAt: '',
-              deploymentVersion: '',
-              workspaceId: '',
+              clientId: paidDeployment.Client_ID || '',
+              scriptId: paidDeployment.Script_ID || '',
+              deploymentId: paidDeployment.Deployment_ID || '',
+              launchUrl: paidDeployment.Web_App_URL || '',
+              webAppUrl: paidDeployment.Web_App_URL || '',
+              landingUrl: paidDeployment.Landing_URL || '',
+              deploymentStatus: paidDeployment.Status || requestStatus || 'payment_confirmed',
+              deployedAt: paidDeployment.Updated_At || paidDeployment.Created_At || '',
+              deploymentVersion: paidDeployment.Provisioning_Version || '',
+              workspaceId: paidDeployment.Workspace_ID || paidDeployment.Sheet_ID || '',
               upgradeRequestId: requestId,
               paymentStatus: 'success',
-              deploymentAction: 'provision'
+              deploymentAction: (paidDeployment.Client_ID && paidDeployment.Script_ID && paidDeployment.Deployment_ID && paidDeployment.Web_App_URL) ? 'redeploy' : 'provision'
             };
 
             if (customerKey && paidCustomerByEmail[customerKey]) {
