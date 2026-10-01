@@ -305,6 +305,11 @@ landing=landing.replace("<script>",clientNavScript);
         "location.href='?page=dashboard&sessionId='+encodeURIComponent(r.sessionId)",
         "openClientPage('dashboard',{sessionId:r.sessionId})"
       );
+      // Final login override: do not depend on an exact generated login string.
+      // The client must remain inside its Apps Script page; dashboard rendering
+      // is performed server-side and written into the current document.
+      var safeLoginScript='<script>function login(){var e=document.getElementById("e").value.trim(),p=document.getElementById("p").value,b=document.getElementById("b"),m=document.getElementById("m");if(!e||!p){m.textContent="Enter your email and password.";return}b.disabled=true;b.textContent="Signing in...";google.script.run.withSuccessHandler(function(r){if(r&&r.success){try{localStorage.setItem("bizos_client_session",r.sessionId);localStorage.setItem("bizos_client_user",JSON.stringify(r.user||{}));}catch(ignore){}openClientPage("dashboard",{sessionId:r.sessionId});}else{m.textContent=r&&r.message||"Login failed";b.disabled=false;b.textContent="Sign in";}}).withFailureHandler(function(err){m.textContent=err&&err.message?"Login failed: "+err.message:"Login failed. Please try again.";b.disabled=false;b.textContent="Sign in";}).authenticateClient(e,p);}</script>';
+      landing=landing.replace('</body>',safeLoginScript+'</body>');
       file.source=landing;
       if(typeof file.content==='string')file.content=landing;
       return file;
