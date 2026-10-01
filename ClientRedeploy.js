@@ -279,7 +279,7 @@ function getActiveClientByBusinessIdForRedeploy_(businessId) {
       email:String(client.Email || '').toLowerCase(),
       clientName:String(client.Client_Name || ''),
       businessId:String(client.Business_ID || ''),
-      sheetId:String(client.Workspace_ID || client.Sheet_ID || ''),
+      sheetId:String(client.Sheet_ID || client.Workspace_ID || ''),
       scriptId:String(client.Script_ID || ''),
       deploymentId:String(client.Deployment_ID || ''),
       webAppUrl:String(client.Web_App_URL || ''),
