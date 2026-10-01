@@ -100,6 +100,7 @@ function doGet(e) {
       // Supply it explicitly; otherwise Apps Script template evaluation throws
       // a ReferenceError and the generic doGet() fallback displays "Unable to load BizOS".
       adminTemplate.publicBizOSUrl = getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_();
+      adminTemplate.adminSessionId = adminSessionId;
       adminTemplate.initialAdminTab = requestedPage === 'admin-settings' ? 'settings' : 'overview';
       var adminOutput = adminTemplate.evaluate().setTitle(requestedPage === 'admin-settings' ? 'BizOS Admin Settings' : 'BizOS Admin Dashboard').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
       if (requestedPage === 'admin-settings') adminOutput.append('<script>window.addEventListener("load",function(){if(typeof switchTab==="function")switchTab("settings");});</script>');
