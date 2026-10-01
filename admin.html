@@ -770,7 +770,7 @@
   </div>
 
   <script>
-    // ==================== ADMIN SCRIPT ====================
+      // Keep the server-validated session available inside the Apps Script iframe.\n      // localStorage remains a fallback for existing admin tabs.\n      var ADMIN_SESSION = <?!= JSON.stringify(adminSessionId || '') ?>;\n      if (ADMIN_SESSION) { try { localStorage.setItem('admin_session', ADMIN_SESSION); } catch (ignore) {} }\n      function getAdminSession() {\n        try { return ADMIN_SESSION || getAdminSession() || ''; } catch (ignore) { return ADMIN_SESSION || ''; }\n      }\n    // ==================== ADMIN SCRIPT ====================
     
     // Sidebar toggle for mobile
     function toggleSidebar() {
@@ -855,7 +855,7 @@
           }
         })
         .withFailureHandler(function() { showNotification('Error loading stats', 'error'); })
-        .getAdminStats(localStorage.getItem('admin_session'));
+        .getAdminStats(getAdminSession());
     }
     
     function loadBusinesses() {
@@ -882,7 +882,7 @@
           `).join('');
         })
         .withFailureHandler(function() { showNotification('Error loading businesses', 'error'); })
-        .getAllBusinesses(localStorage.getItem('admin_session'));
+        .getAllBusinesses(getAdminSession());
     }
     
     function loadDeployments() {
@@ -944,7 +944,7 @@
           document.getElementById('deploymentsGrid').innerHTML = '<div class="empty-state" style="grid-column:1 / -1;"><i class="fas fa-exclamation-triangle"></i><p>Unable to load deployment records</p></div>';
           showNotification('Error loading deployments: ' + ((error && error.message) || 'Unknown error'), 'error');
         })
-        .getAllBusinesses(localStorage.getItem('admin_session'));
+        .getAllBusinesses(getAdminSession());
     }
 
     function provisionPaidRequest(requestId) {
@@ -966,7 +966,7 @@
         .withFailureHandler(function(error) {
           showNotification('Setup error: ' + ((error && error.message) || 'Unknown error'), 'error');
         })
-        .adminProvisionPaidRequest(requestId, localStorage.getItem('admin_session'));
+        .adminProvisionPaidRequest(requestId, getAdminSession());
     }
 
     function openDeploymentUrl(url) {
@@ -1003,7 +1003,7 @@
           populateUserDropdown();
         })
         .withFailureHandler(function() { showNotification('Error loading users', 'error'); })
-        .getAllUsers(localStorage.getItem('admin_session'));
+        .getAllUsers(getAdminSession());
     }
     
     function loadFeatures() {
@@ -1039,7 +1039,7 @@
           `).join('');
         })
         .withFailureHandler(function() { showNotification('Error loading features', 'error'); })
-        .getAllFeatures(localStorage.getItem('admin_session'));
+        .getAllFeatures(getAdminSession());
     }
     
     function loadModules() {
@@ -1071,7 +1071,7 @@
           `).join('');
         })
         .withFailureHandler(function() { showNotification('Error loading modules', 'error'); })
-        .getAllModules(localStorage.getItem('admin_session'));
+        .getAllModules(getAdminSession());
     }
     
     function loadWhiteLabelConfig() {
@@ -1153,21 +1153,21 @@
           console.error('Error:', error);
           showNotification('Error: ' + error.message, 'error');
         })
-        .addFeature(data, localStorage.getItem('admin_session'));
+        .addFeature(data, getAdminSession());
     }
 
     
     function toggleFeature(id) {
       google.script.run
         .withSuccessHandler(function() { loadFeatures(); })
-        .toggleFeature(id, localStorage.getItem('admin_session'));
+        .toggleFeature(id, getAdminSession());
     }
     
     function deleteFeature(id) {
       if (confirm('Delete this feature?')) {
         google.script.run
           .withSuccessHandler(function() { loadFeatures(); })
-          .deleteFeature(id, localStorage.getItem('admin_session'));
+          .deleteFeature(id, getAdminSession());
       }
     }
     
@@ -1176,7 +1176,7 @@
     function toggleBusinessStatus(id) {
       google.script.run
         .withSuccessHandler(function() { loadBusinesses(); })
-        .toggleBusinessStatus(id, localStorage.getItem('admin_session'));
+        .toggleBusinessStatus(id, getAdminSession());
     }
     
     function redeployClient(id) {
@@ -1196,7 +1196,7 @@
         .withFailureHandler(function(error) {
           showNotification('Redeployment error: ' + ((error && error.message) || 'Unknown error'), 'error');
         })
-        .redeployClientByBusinessId(id, localStorage.getItem('admin_session'));
+        .redeployClientByBusinessId(id, getAdminSession());
     }
 
     function deleteBusiness(id) {
@@ -1205,7 +1205,7 @@
         if (confirmText === 'DELETE') {
           google.script.run
             .withSuccessHandler(function() { loadBusinesses(); loadOverview(); })
-            .deleteBusiness(id, localStorage.getItem('admin_session'));
+            .deleteBusiness(id, getAdminSession());
         }
       }
     }
@@ -1225,7 +1225,7 @@
         .withSuccessHandler(function(r) {
           if (r.success) showNotification('White label saved!', 'success');
         })
-        .setWhiteLabelConfig(data.clientName, data.clientDomain, data.customCss, data.customLogo, data.customFavicon, localStorage.getItem('admin_session'));
+        .setWhiteLabelConfig(data.clientName, data.clientDomain, data.customCss, data.customLogo, data.customFavicon, getAdminSession());
     }
 
     // ===== SETTINGS =====
@@ -1233,7 +1233,7 @@
     function clearCache() {
       google.script.run
         .withSuccessHandler(function() { showNotification('Cache cleared!', 'success'); })
-        .clearSystemCache(localStorage.getItem('admin_session'));
+        .clearSystemCache(getAdminSession());
     }
     
     function runHealthCheck() {
@@ -1247,7 +1247,7 @@
             console.warn('Health issues:', issues);
           }
         })
-        .runSystemHealthCheck(localStorage.getItem('admin_session'));
+        .runSystemHealthCheck(getAdminSession());
     }
     
     function viewLogs() {
@@ -1256,7 +1256,7 @@
           const win = window.open('', '_blank');
           win.document.write('<pre style="padding: 20px; font-family: monospace;">' + logs.join('\n') + '</pre>');
         })
-        .getSystemLogs(localStorage.getItem('admin_session'));
+        .getSystemLogs(getAdminSession());
     }
     
     function exportAllData() {
@@ -1272,7 +1272,7 @@
           URL.revokeObjectURL(url);
           showNotification('Export complete!', 'success');
         })
-        .exportBusinessData(localStorage.getItem('admin_session'));
+        .exportBusinessData(getAdminSession());
     }
     
     // ===== FILTERS =====
@@ -1334,7 +1334,7 @@
         .withFailureHandler(function() {
           showNotification('Error loading users', 'error');
         })
-        .getAllUsers(localStorage.getItem('admin_session'));
+        .getAllUsers(getAdminSession());
     }
 
     // ===== SHOW CURRENT TIER ON SELECT =====
@@ -1404,7 +1404,7 @@
             </div>
           `;
         })
-        .manuallyUpgradeUser(email, tier, localStorage.getItem('admin_session'));
+        .manuallyUpgradeUser(email, tier, getAdminSession());
     }
 
     // ===== NOTIFICATIONS =====
