@@ -540,7 +540,7 @@ function getRegisteredClientForLicense_(clientId) {
       return {
         clientId: String(client.Client_ID || ''),
         businessId: String(client.Business_ID || ''),
-        sheetId: String(client.Workspace_ID || client.Sheet_ID || ''),
+        sheetId: String(client.Sheet_ID || client.Workspace_ID || ''),
         scriptId: String(client.Script_ID || ''),
         deploymentId: String(client.Deployment_ID || ''),
         status: String(client.Status || ''),
