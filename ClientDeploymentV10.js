@@ -22,7 +22,7 @@ function buildClientUrlConfigV10_(settings){
     '  try{if(!appUrl)appUrl=String(ScriptApp.getService().getUrl()||\'\').trim();}catch(ignore){}',
     '  return {applicationUrl:appUrl,landingUrl:String(CLIENT_CONFIG.landingUrl||\'\').trim(),customDomain:String(CLIENT_CONFIG.customDomain||\'\').trim()};',
     '}'
-  ].join(String.fromCharCode(10))+'\\n';
+  ].join(String.fromCharCode(10)) + String.fromCharCode(10);
 }
 
 function buildClientLicenseGuardV10_() {
