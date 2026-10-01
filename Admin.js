@@ -338,6 +338,7 @@ function getAllBusinesses(sessionId) {
     const businesses = [];
     const businessByEmail = {};
     const businessById = {};
+    const paidCustomerByEmail = {};
 
     for (let i = 1; i < data.length; i++) {
       const businessId = String(data[i][headers.indexOf('Business_ID')] || '').trim();
@@ -418,18 +419,34 @@ function getAllBusinesses(sessionId) {
             const requestStatus = String(u.status >= 0 ? upgradeData[ui][u.status] || '' : '').trim().toLowerCase();
 
             if (existing) {
-              existing.upgradeRequestId = requestId;
               existing.paymentStatus = 'success';
-              if (!existing.clientId && !existing.scriptId) {
-                existing.deploymentStatus = requestStatus === 'provisioned' || requestStatus === 'active' ? 'Paid - deployment metadata missing' : requestStatus || 'payment_confirmed';
-                existing.deploymentAction = 'provision';
+              const existingPriority = ({'provisioned':5,'active':5,'provisioning':4,'payment_confirmed':3,'provisioning_failed':2,'pending_payment':1,'pending':1})[String(existing.deploymentStatus || '').toLowerCase()] || 0;
+              const requestPriority = ({'provisioned':5,'active':5,'provisioning':4,'payment_confirmed':3,'provisioning_failed':2,'pending_payment':1,'pending':1})[requestStatus] || 0;
+              if (!existing.upgradeRequestId || requestPriority >= existingPriority) {
+                existing.upgradeRequestId = requestId;
+                if (!existing.clientId && !existing.scriptId) {
+                  existing.deploymentStatus = requestStatus === 'provisioned' || requestStatus === 'active' ? 'Paid - deployment metadata missing' : requestStatus || 'payment_confirmed';
+                  existing.deploymentAction = 'provision';
+                }
               }
               continue;
             }
 
-            // No Businesses row yet: still surface the paid customer so the
-            // admin can see and continue the provisioning workflow.
-            businesses.push({
+            // No Businesses row yet: still surface the paid customer.
+            // Multiple successful upgrade requests can belong to the same
+            // customer. Keep ONE deployment card and prefer the request that
+            // is furthest through the provisioning lifecycle.
+            const customerKey = email || workspaceEmail;
+            const statusPriority = {
+              'provisioned': 5,
+              'active': 5,
+              'provisioning': 4,
+              'payment_confirmed': 3,
+              'provisioning_failed': 2,
+              'pending_payment': 1,
+              'pending': 1
+            };
+            const candidate = {
               businessId: '',
               businessName: (u.businessName >= 0 ? String(upgradeData[ui][u.businessName] || '').trim() : '') || (u.name >= 0 ? String(upgradeData[ui][u.name] || '').trim() : '') || 'Paid Customer',
               ownerEmail: email || workspaceEmail,
@@ -450,7 +467,26 @@ function getAllBusinesses(sessionId) {
               upgradeRequestId: requestId,
               paymentStatus: 'success',
               deploymentAction: 'provision'
-            });
+            };
+
+            if (customerKey && paidCustomerByEmail[customerKey]) {
+              const currentPaid = paidCustomerByEmail[customerKey];
+              const currentPriority = statusPriority[String(currentPaid.deploymentStatus || '').toLowerCase()] || 0;
+              const candidatePriority = statusPriority[requestStatus] || 0;
+
+              // Keep the more advanced request. If both have the same status,
+              // keep the newer request so the card always points to the latest
+              // confirmed request for that customer.
+              const candidateCreated = candidate.createdAt ? new Date(candidate.createdAt).getTime() : 0;
+              const currentCreated = currentPaid.createdAt ? new Date(currentPaid.createdAt).getTime() : 0;
+              if (candidatePriority > currentPriority ||
+                  (candidatePriority === currentPriority && candidateCreated >= currentCreated)) {
+                Object.assign(currentPaid, candidate);
+              }
+            } else {
+              businesses.push(candidate);
+              if (customerKey) paidCustomerByEmail[customerKey] = candidate;
+            }
           }
         }
       }
@@ -492,6 +528,29 @@ function adminProvisionPaidRequest(requestId, sessionId) {
       }
     }
     if (!paid) return {success:false,code:'PAYMENT_NOT_SUCCESSFUL',message:'No successful payment is recorded for this upgrade request.'};
+
+    // If the request says "provisioned" but there is no client deployment
+    // record, treat it as a recoverable paid request. This covers historical
+    // browser/provisioning failures without charging the customer again.
+    var requestStatus = String(request.status || '').trim().toLowerCase();
+    if (requestStatus === 'provisioned' || requestStatus === 'active') {
+      var existingRecoveryClient = getExistingActiveClientDeployment_(request.workspaceEmail || request.email, request.businessName);
+      if (!existingRecoveryClient) {
+        var recoverySheet = ss.getSheetByName('Upgrade_Requests');
+        var recoveryData = recoverySheet.getDataRange().getValues();
+        var recoveryHeaders = recoveryData[0] || [];
+        var recoveryReqCol = recoveryHeaders.indexOf('Request_ID');
+        var recoveryStatusCol = recoveryHeaders.indexOf('Status');
+        var recoveryUpdatedCol = recoveryHeaders.indexOf('Updated_At');
+        for (var ri = 1; ri < recoveryData.length; ri++) {
+          if (String(recoveryData[ri][recoveryReqCol] || '').trim() === String(requestId).trim()) {
+            if (recoveryStatusCol >= 0) recoverySheet.getRange(ri + 1, recoveryStatusCol + 1).setValue('payment_confirmed');
+            if (recoveryUpdatedCol >= 0) recoverySheet.getRange(ri + 1, recoveryUpdatedCol + 1).setValue(new Date().toISOString());
+            break;
+          }
+        }
+      }
+    }
 
     // A confirmed payment can legitimately have an older request status
     // (for example pending/pending_payment) when browser provisioning failed.
