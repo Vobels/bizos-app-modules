@@ -276,7 +276,7 @@ function generateClientCodeSafelyV10(settings){
       var landing=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
       landing=landing.replace(
         "<script>",
-        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page,params){var q=[];params=params||{};Object.keys(params).forEach(function(k){if(params[k]!==undefined&&params[k]!==null&&String(params[k])!=='')q.push(encodeURIComponent(k)+'='+encodeURIComponent(String(params[k])));});var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];var u=base+'?page='+encodeURIComponent(page)+(q.length?'&'+q.join('&'):'');window.open(u,'_top');}</script><script>"
+        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page,params){var q=[];params=params||{};Object.keys(params).forEach(function(k){if(params[k]!==undefined&&params[k]!==null&&String(params[k])!=='')q.push(encodeURIComponent(k)+'='+encodeURIComponent(String(params[k])));});var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];var u=base+'?page='+encodeURIComponent(page)+(q.length?'&'+q.join('&'):'');window.top.location.href=u;}</script><script>"
       );
       landing=landing.replace(
         "location.href='?page=dashboard&sessionId='+encodeURIComponent(r.sessionId)",
@@ -291,9 +291,9 @@ function generateClientCodeSafelyV10(settings){
       var dashboard=typeof file.source==='string'?file.source:(typeof file.content==='string'?file.content:'');
       dashboard=dashboard.replace(
         "<script>",
-        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page){var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];window.open(base+'?page='+encodeURIComponent(page||'login'),'_top');}</script><script>"
+        "<script>var APP_URL=<?= JSON.stringify(applicationUrl || '') ?>;function openClientPage(page){var base=String(APP_URL||'').replace(/\\/$/,'');if(!base)base=window.location.href.split('?')[0];window.top.location.href=base+'?page='+encodeURIComponent(page||'login');}</script><script>"
       );
-      dashboard=dashboard.replace(/location\.href='\\?page=login'/g,"openClientPage('login')");
+      dashboard=dashboard.replace(/location\.href='\?page=login'/g,"openClientPage('login')");
       file.source=dashboard;
       if(typeof file.content==='string')file.content=dashboard;
       return file;
