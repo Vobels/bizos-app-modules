@@ -26,11 +26,14 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
     var totalCopied = 0;
 
     modules.forEach(function(moduleName) {
-      results[moduleName] = migrateFreeModuleSheet_(source, target, moduleName);
+      results[moduleName] = migrateFreeModuleSheet_(source, target, moduleName, businessId);
       totalCopied += results[moduleName].copied || 0;
     });
 
     var staffResult = migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail);
+    if (staffResult && staffResult.success === false) {
+      throw new Error(staffResult.message || 'Staff migration failed.');
+    }
     migrateFreeBusinessMetadata_(source, target, businessId, businessName, ownerEmail, staffResult);
 
     return {
@@ -47,7 +50,7 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
   }
 }
 
-function migrateFreeModuleSheet_(source, target, moduleName) {
+function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
   var sheetName = moduleName === 'Finance' ? 'Financial_Data' : 'Ecommerce_Data';
   var sourceSheet = source.getSheetByName(sheetName);
   var targetSheet = target.getSheetByName(sheetName);
@@ -60,8 +63,14 @@ function migrateFreeModuleSheet_(source, target, moduleName) {
 
   var sourceHeaders = sourceValues[0].map(function(h){return String(h||'').trim();});
   var targetHeaders = targetSheet.getRange(1,1,1,targetSheet.getLastColumn()).getValues()[0].map(function(h){return String(h||'').trim();});
-  var targetIdHeader = moduleName === 'Finance' ? 'Transaction_ID' : 'Order_ID';
+  var targetIdHeaderMap = {
+    Finance:'Transaction_ID', Ecommerce:'Order_ID', Sales:'Deal_ID', CRM:'Contact_ID',
+    HR:'Employee_ID', Logistics:'Shipment_ID', Tax:'Tax_ID', Agro:'Activity_ID',
+    Productivity:'Task_ID', POS:'Sale_ID', Attendance:'Attendance_ID', Warehouse:'Item_ID'
+  };
+  var targetIdHeader = targetIdHeaderMap[moduleName] || '';
   var targetIdCol = targetHeaders.indexOf(targetIdHeader);
+  var sourceBusinessIdCol = sourceHeaders.indexOf('Business_ID');
 
   // Build an index of existing target records so retries cannot duplicate data.
   var existing = {};
@@ -78,6 +87,10 @@ function migrateFreeModuleSheet_(source, target, moduleName) {
   var rowsToAppend = [];
   var skipped = 0;
   sourceValues.slice(1).forEach(function(sourceRow, sourceIndex) {
+    // A workspace should normally contain only one business, but if a legacy
+    // sheet ever contains Business_ID values, enforce the exact business scope.
+    if (sourceBusinessIdCol >= 0 && String(sourceRow[sourceBusinessIdCol] || '') !== String(businessId || '')) return;
+
     var targetRow = targetHeaders.map(function(header) {
       var col = sourceHeaders.indexOf(header);
       return col === -1 ? '' : sourceRow[col];
