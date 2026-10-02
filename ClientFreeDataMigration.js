@@ -43,7 +43,8 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
       migrationVersion:'2.0',
       totalCopied:totalCopied,
       modules:results,
-      staff:staffResult
+      staff:staffResult,
+      notifications:notificationResult
     };
   } catch (error) {
     console.error('Free-to-paid migration failed:', error);
