@@ -105,26 +105,39 @@ function fetchMasterProjectContentV11_() {
 function selectClientSourceFilesV11_(masterFiles) {
   var byName = {};
   (masterFiles || []).forEach(function(file) {
-    if (file && file.name) byName[String(file.name)] = file;
+    if (!file || !file.name) return;
+    var rawName = String(file.name);
+    var normalizedName = rawName.replace(/\.(?:js|gs|html)$/i, '');
+    byName[rawName] = file;
+    byName[normalizedName] = file;
   });
+
+  function getMasterFile_(name) {
+    var key = String(name || '');
+    return byName[key] || byName[key.replace(/\.(?:js|gs|html)$/i, '')] || null;
+  }
 
   var selected = [];
 
   CLIENT_V11_UI_FILES_.forEach(function(name) {
-    var file = byName[name];
+    var file = getMasterFile_(name);
     if (!file || String(file.type || '') !== 'HTML') {
       throw new Error('Required BizOS UI file is missing from master: ' + name);
     }
-    selected.push({name:name,type:'HTML',source:String(file.source || '')});
+    selected.push({
+      name:String(name).replace(/\.html$/i,''),
+      type:'HTML',
+      source:String(file.source || '')
+    });
   });
 
   CLIENT_V11_SERVER_FILES_.forEach(function(name) {
-    var file = byName[name];
+    var file = getMasterFile_(name);
     if (!file || String(file.type || '') !== 'SERVER_JS') {
       throw new Error('Required BizOS client-safe server file is missing from master: ' + name);
     }
     selected.push({
-      name:name.replace(/\.js$/i,'').replace(/\.gs$/i,''),
+      name:String(name).replace(/\.js$/i,'').replace(/\.gs$/i,''),
       type:'SERVER_JS',
       source:String(file.source || '')
     });
