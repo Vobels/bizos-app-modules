@@ -37,52 +37,11 @@ function generateClientCodeSafelyV12(settings) {
     'function saveClientBusinessCenterCustomer(data,sid){return saveBusinessCenterCustomer(data,sid);}',
     'function getClientBusinessCenterSales(payload,sid){return clientSafeBusinessCenterResult_(getBusinessCenterSales(payload,sid));}',
     'function completeClientBusinessCenterSale(data,sid){return completeBusinessCenterSale(data,sid);}',
-    'function adjustClientBusinessCenterStock(data,sid){return adjustBusinessCenterStock(data,sid);}
-function clientFinanceAccessV12_(sid,write){
-  var user=getUserFromSession(sid);
-  if(!user)return{ok:false,message:'Session expired. Please login again.'};
-  var modules=Array.isArray(user.accessibleModules)?user.accessibleModules:[];
-  if(modules.indexOf('Finance')===-1)return{ok:false,message:'Finance is not available for this account.'};
-  if(write){
-    var role=String(user.role||'staff').toLowerCase();
-    if(user.isDemo==='YES')return{ok:false,message:'Demo accounts are view-only.'};
-    if(role!=='owner'&&role!=='admin'&&role!=='staff')return{ok:false,message:'You have view-only access to Finance.'};
-  }
-  return{ok:true,user:user};
-}
-function getClientFinanceData(sid){
-  var access=clientFinanceAccessV12_(sid,false); if(!access.ok)return{success:false,message:access.message};
-  var result=getModuleDataWithSync('Finance',sid);
-  if(!result||result.success===false)return result||{success:false,message:'Unable to load Finance.'};
-  var records=Array.isArray(result.records)?result.records:[];
-  var revenue=0,expenses=0;
-  records.forEach(function(row){
-    var type=String(row.Type||'').toLowerCase(), amount=Math.abs(Number(row.Amount)||0);
-    if(type==='revenue'||type==='income')revenue+=amount;
-    else if(type==='expense'||type==='expenses')expenses+=amount;
-  });
-  return{success:true,records:records.reverse(),summary:{revenue:revenue,expenses:expenses,profit:revenue-expenses,recordCount:records.length}};
-}
-function saveClientFinanceTransaction(data,sid){
-  var access=clientFinanceAccessV12_(sid,true); if(!access.ok)return{success:false,message:access.message};
-  data=data||{}; data.Type=String(data.Type||'').toLowerCase();
-  if(['revenue','expense'].indexOf(data.Type)===-1)return{success:false,message:'Transaction type must be income or expense.'};
-  if(!(Number(data.Amount)>0))return{success:false,message:'Amount must be greater than zero.'};
-  if(!String(data.Category||'').trim())return{success:false,message:'Category is required.'};
-  return saveRecord('Finance',data,sid);
-}
-function deleteClientFinanceTransaction(recordId,sid){
-  var access=clientFinanceAccessV12_(sid,true); if(!access.ok)return{success:false,message:access.message};
-  recordId=String(recordId||'').trim(); if(!recordId)return{success:false,message:'Transaction ID is required.'};
-  var workspace=getWorkspaceFile(sid), sheet=workspace.getSheetByName(MODULES.Finance.sheet);
-  if(!sheet||sheet.getLastRow()<2)return{success:false,message:'Transaction not found.'};
-  var values=sheet.getDataRange().getValues(), headers=values[0], idCol=headers.indexOf('Transaction_ID');
-  if(idCol<0)return{success:false,message:'Transaction ID column not found.'};
-  for(var i=1;i<values.length;i++){
-    if(String(values[i][idCol]||'')===recordId){sheet.deleteRow(i+1);return{success:true,message:'Transaction deleted successfully.'};}
-  }
-  return{success:false,message:'Transaction not found.'};
-}'
+    "function adjustClientBusinessCenterStock(data,sid){return adjustBusinessCenterStock(data,sid);}",
+    "function clientFinanceAccessV12_(sid,write){var user=getUserFromSession(sid);if(!user)return{ok:false,message:'Session expired. Please login again.'};var modules=Array.isArray(user.accessibleModules)?user.accessibleModules:[];if(modules.indexOf('Finance')===-1)return{ok:false,message:'Finance is not available for this account.'};if(write){var role=String(user.role||'staff').toLowerCase();if(user.isDemo==='YES')return{ok:false,message:'Demo accounts are view-only.'};if(role!=='owner'&&role!=='admin'&&role!=='staff')return{ok:false,message:'You have view-only access to Finance.'};}return{ok:true,user:user};}",
+    "function getClientFinanceData(sid){var access=clientFinanceAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};var result=getModuleDataWithSync('Finance',sid);if(!result||result.success===false)return result||{success:false,message:'Unable to load Finance.'};var records=Array.isArray(result.records)?result.records:[];var revenue=0,expenses=0;records.forEach(function(row){var type=String(row.Type||'').toLowerCase(),amount=Math.abs(Number(row.Amount)||0);if(type==='revenue'||type==='income')revenue+=amount;else if(type==='expense'||type==='expenses')expenses+=amount;});return{success:true,records:records.reverse(),summary:{revenue:revenue,expenses:expenses,profit:revenue-expenses,recordCount:records.length}};}",
+    "function saveClientFinanceTransaction(data,sid){var access=clientFinanceAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};data=data||{};data.Type=String(data.Type||'').toLowerCase();if(['revenue','expense'].indexOf(data.Type)===-1)return{success:false,message:'Transaction type must be income or expense.'};if(!(Number(data.Amount)>0))return{success:false,message:'Amount must be greater than zero.'};if(!String(data.Category||'').trim())return{success:false,message:'Category is required.'};return saveRecord('Finance',data,sid);}",
+    "function deleteClientFinanceTransaction(recordId,sid){var access=clientFinanceAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};recordId=String(recordId||'').trim();if(!recordId)return{success:false,message:'Transaction ID is required.'};var workspace=getWorkspaceFile(sid),sheet=workspace.getSheetByName(MODULES.Finance.sheet);if(!sheet||sheet.getLastRow()<2)return{success:false,message:'Transaction not found.'};var values=sheet.getDataRange().getValues(),headers=values[0],idCol=headers.indexOf('Transaction_ID');if(idCol<0)return{success:false,message:'Transaction ID column not found.'};for(var i=1;i<values.length;i++){if(String(values[i][idCol]||'')===recordId){sheet.deleteRow(i+1);return{success:true,message:'Transaction deleted successfully.'};}}return{success:false,message:'Transaction not found.'};}"
   ].join(String.fromCharCode(10));
   runtime = runtime.replace(/\nfunction doGet\(e\)\{/, '\n'+businessCenterSource+'\n'+businessCenterBridge+'\nfunction doGet(e){');
   var doGetStart = runtime.indexOf('function doGet(e){');
