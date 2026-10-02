@@ -84,6 +84,114 @@ function buildClientManifestV12_() {
   };
 }
 
+// ============================================================
+// MASTER-SIDE NON-DEPLOY SMOKE TEST
+// ============================================================
+// Run this from the Master BizOS Apps Script project.
+// It reads the active client from the Clients registry, generates
+// and validates the V12 package, and makes NO client deployment,
+// version, spreadsheet, or registry changes.
+// Optional businessId lets you test a specific active client.
+// With no argument it finds the active client by email.
+// ============================================================
+
+function testGenerateClientCodeSafelyV12(businessId) {
+  var targetBusinessId = String(businessId || '').trim();
+  var client = targetBusinessId
+    ? getActiveClientByBusinessIdForRedeploy_(targetBusinessId)
+    : getActiveClientByEmailForV12Test_('bizoshigroups@gmail.com');
+
+  if (!client) {
+    throw new Error(targetBusinessId
+      ? 'No active client deployment was found for business ID: ' + targetBusinessId
+      : 'No active client deployment was found for bizoshigroups@gmail.com.');
+  }
+
+  var settings = {
+    clientId:client.clientId,
+    clientName:client.clientName,
+    primaryColor:client.primaryColor || '#2E7D32',
+    logoUrl:client.logoUrl || '',
+    email:client.email,
+    sheetId:client.sheetId,
+    businessId:client.businessId,
+    masterApiUrl:getMasterApiUrl(),
+    landingUrl:client.landingUrl || '',
+    customDomain:client.customDomain || '',
+    applicationUrl:client.webAppUrl || ''
+  };
+
+  var packageResult = generateClientCodeSafelyV12(settings);
+  var packageCheck = validateClientDeploymentPackageV12_(packageResult,{
+    clientId:client.clientId,
+    sheetId:client.sheetId
+  });
+
+  var summary = {
+    success:!!(packageResult && packageResult.success && packageCheck && packageCheck.success),
+    test:'V12_PACKAGE_GENERATION_ONLY',
+    deploymentChanged:false,
+    clientRegistryChanged:false,
+    clientSpreadsheetChanged:false,
+    clientId:client.clientId,
+    businessId:client.businessId,
+    email:client.email,
+    scriptId:client.scriptId,
+    deploymentId:client.deploymentId,
+    packageVersion:packageResult.version,
+    packageCheck:packageCheck,
+    files:(packageResult.files || []).map(function(file){
+      return {name:String(file.name || ''),type:String(file.type || ''),sourceLength:String(file.source || '').length};
+    })
+  };
+
+  console.log('V12 NON-DEPLOY SMOKE TEST RESULT:',JSON.stringify(summary));
+  return summary;
+}
+
+function getActiveClientByEmailForV12Test_(email) {
+  var ss = getBizOSMasterSpreadsheet_();
+  var sheet = ss.getSheetByName('Clients');
+  if (!sheet || sheet.getLastRow() < 2) return null;
+
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(function(h){ return String(h || '').trim(); });
+  var emailCol = headers.indexOf('Email');
+  var statusCol = headers.indexOf('Status');
+
+  if (emailCol < 0) throw new Error('Client registry is missing Email.');
+  if (statusCol < 0) throw new Error('Client registry is missing Status.');
+
+  var wanted = String(email || '').trim().toLowerCase();
+
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (String(row[emailCol] || '').trim().toLowerCase() !== wanted) continue;
+    if (String(row[statusCol] || '').trim().toLowerCase() !== 'active') continue;
+
+    var client = {};
+    headers.forEach(function(header,index){ client[header] = row[index] === undefined ? '' : row[index]; });
+
+    return {
+      clientId:String(client.Client_ID || ''),
+      email:String(client.Email || '').toLowerCase(),
+      clientName:String(client.Client_Name || ''),
+      businessId:String(client.Business_ID || ''),
+      sheetId:String(client.Sheet_ID || client.Workspace_ID || ''),
+      scriptId:String(client.Script_ID || ''),
+      deploymentId:String(client.Deployment_ID || ''),
+      webAppUrl:String(client.Web_App_URL || ''),
+      primaryColor:String(client.Primary_Color || ''),
+      logoUrl:String(client.Logo_Url || ''),
+      landingUrl:String(client.Landing_URL || ''),
+      customDomain:String(client.Custom_Domain || ''),
+      domain:String(client.Domain || '')
+    };
+  }
+
+  return null;
+}
+
 function validateClientDeploymentPackageV12_(pkg, expected) {
   if(!pkg||!Array.isArray(pkg.files)||!pkg.files.length)return{success:false,code:'PACKAGE_EMPTY',message:'Generated V12 client package is empty.'};
   var names=pkg.files.map(function(f){return String(f.name||'');});
