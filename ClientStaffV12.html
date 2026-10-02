@@ -1,0 +1,70 @@
+<!-- Distinct client Staff workspace for V12 -->
+<div id="staff-v12-root" class="staff-v12-root">
+  <div class="staff-toolbar">
+    <div><span class="section-kicker">TEAM</span><h2>Staff</h2><p>Manage people who have access to this business workspace.</p></div>
+    <button class="staff-primary" onclick="staffV12OpenInvite()">Invite staff</button>
+  </div>
+  <div id="staff-v12-message" class="staff-message hidden"></div>
+  <div class="staff-summary" id="staff-v12-summary"></div>
+  <div class="staff-panel">
+    <div class="staff-panel-head"><div><h3>Team members</h3><span id="staff-v12-count"></span></div><button class="staff-refresh" onclick="staffV12Load()">Refresh</button></div>
+    <div id="staff-v12-list"></div>
+  </div>
+  <div id="staff-v12-modal" class="staff-modal hidden">
+    <div class="staff-modal-card">
+      <div class="staff-modal-head"><div><span class="section-kicker">NEW INVITATION</span><h3>Invite staff member</h3></div><button onclick="staffV12CloseInvite()">×</button></div>
+      <div class="staff-form">
+        <label>Name<input id="staff-invite-name" type="text" placeholder="Full name"></label>
+        <label>Email<input id="staff-invite-email" type="email" placeholder="staff@example.com"></label>
+        <label>Role<select id="staff-invite-role" onchange="staffV12RoleChanged()"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+        <div><span class="staff-label">Module access</span><div id="staff-module-options" class="staff-module-options"></div></div>
+        <div class="staff-form-actions"><button onclick="staffV12CloseInvite()">Cancel</button><button class="staff-primary" onclick="staffV12Invite()">Send invitation</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function call(name,args,ok,bad){try{google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(bad||function(e){console.error(e);}).[RUN](name); }catch(e){if(bad)bad(e);}}
+  // Apps Script's run API cannot be dynamically indexed; replace the helper at build time.
+  window.staffV12Init=function(){
+    var u=window.clientUser||window.user||{};
+    if(!['owner','admin'].includes(String(u.role||'').toLowerCase())){document.getElementById('staff-v12-root').innerHTML='<div class="empty-card"><h3>Staff management</h3><p>You do not have permission to manage team members.</p></div>';return;}
+    staffV12Load();
+  };
+  var modules=[];
+  window.staffV12Load=function(){
+    var root=document.getElementById('staff-v12-list'); if(!root)return;
+    root.innerHTML='<div class="staff-loading">Loading team members…</div>';
+    callStaff('getBusinessStaff',[window.clientBusinessId||'',window.clientSessionId||''],function(r){
+      var rows=Array.isArray(r)?r:(r&&r.success===false?[]:[]);
+      document.getElementById('staff-v12-count').textContent=rows.length+' member'+(rows.length===1?'':'s');
+      document.getElementById('staff-v12-summary').innerHTML='<div><b>'+rows.length+'</b><span>Total members</span></div><div><b>'+rows.filter(function(x){return String(x.invitationStatus||'').toLowerCase()==='accepted';}).length+'</b><span>Active</span></div><div><b>'+rows.filter(function(x){return String(x.invitationStatus||'').toLowerCase()==='pending';}).length+'</b><span>Pending</span></div>';
+      if(!rows.length){root.innerHTML='<div class="staff-empty"><h4>No staff members yet</h4><p>Invite your first team member to give them controlled access to this workspace.</p><button class="staff-primary" onclick="staffV12OpenInvite()">Invite staff</button></div>';return;}
+      root.innerHTML='<div class="staff-table"><div class="staff-row staff-head"><span>Person</span><span>Role</span><span>Status</span><span>Modules</span><span>Actions</span></div>'+rows.map(function(x){
+        var status=String(x.invitationStatus||'').toLowerCase()||'active';
+        var modules=Array.isArray(x.assignedModules)?x.assignedModules:[];
+        return '<div class="staff-row"><span><b>'+esc(x.name||x.email)+'</b><small>'+esc(x.email||'')+'</small></span><span>'+esc(x.role||'staff')+'</span><span><i class="staff-status '+status+'">'+esc(status)+'</i></span><span><small>'+esc(modules.join(', ')||'No modules')+'</small></span><span class="staff-actions">'+(status==='pending'?'<button onclick="staffV12Resend(\''+escAttr(x.email)+'\')">Resend</button>':'')+'<button onclick="staffV12Manage(\''+escAttr(x.email)+'\',\''+escAttr(x.name||'')+'\')">Manage</button><button class="danger" onclick="staffV12Remove(\''+escAttr(x.email)+'\')">Remove</button></span></div>';
+      }).join('')+'</div>';
+    });
+  };
+  window.staffV12OpenInvite=function(){document.getElementById('staff-v12-modal').classList.remove('hidden');staffV12LoadModules();};
+  window.staffV12CloseInvite=function(){document.getElementById('staff-v12-modal').classList.add('hidden');};
+  function staffV12LoadModules(){callStaff('getAvailableModulesForStaff',[],function(r){modules=Array.isArray(r)?r:[];renderModules();});}
+  function renderModules(){var c=document.getElementById('staff-module-options'),role=document.getElementById('staff-invite-role').value;if(role==='admin'){c.innerHTML='<span class="staff-admin-note">Admins receive access to all available modules.</span>';return;}c.innerHTML=modules.map(function(m){return '<label><input type="checkbox" value="'+escAttr(m)+'"> '+esc(m)+'</label>';}).join('');}
+  window.staffV12RoleChanged=renderModules;
+  window.staffV12Invite=function(){
+    var name=document.getElementById('staff-invite-name').value.trim(),email=document.getElementById('staff-invite-email').value.trim(),role=document.getElementById('staff-invite-role').value;
+    var selected=[].slice.call(document.querySelectorAll('#staff-module-options input:checked')).map(function(x){return x.value;});
+    if(role==='staff'&&!selected.length)return staffMsg('Select at least one module.','error');
+    callStaff('inviteStaffMember',[window.clientBusinessId||'',email,name,role,(window.clientUser||{}).email||'',selected,window.clientSessionId||''],function(r){if(r&&r.success){staffMsg(r.message||'Invitation sent.','success');staffV12CloseInvite();staffV12Load();}else staffMsg(r&&r.message||'Unable to send invitation.','error');});
+  };
+  window.staffV12Resend=function(email){if(!confirm('Resend the invitation to '+email+'?'))return;callStaff('resendStaffInvitation',[window.clientBusinessId||'',email,window.clientSessionId||''],function(r){staffMsg(r&&r.message||'Invitation updated.',r&&r.success?'success':'error');staffV12Load();});};
+  window.staffV12Remove=function(email){if(!confirm('Remove '+email+' from this business?'))return;callStaff('removeTeamMember',[window.clientBusinessId||'',email,window.clientSessionId||''],function(r){staffMsg(r&&r.message||(r&&r.success?'Team member removed.':'Unable to remove team member.'),r&&r.success?'success':'error');staffV12Load();});};
+  window.staffV12Manage=function(email,name){var mod=prompt('Enter one module to assign to '+(name||email)+':\\n\\n'+modules.join(', '));if(!mod)return;callStaff('assignModuleToStaff',[email,window.clientBusinessId||'',mod,(window.clientUser||{}).email||'',window.clientSessionId||''],function(r){staffMsg(r&&r.message||'Assignment updated.',r&&r.success?'success':'error');staffV12Load();});};
+  function callStaff(name,args,ok){google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(function(e){staffMsg(e&&e.message||'Request failed.','error');})[name].apply(google.script.run,args);}
+  function staffMsg(m,type){var c=document.getElementById('staff-v12-message');c.textContent=m;c.className='staff-message '+(type||'success');setTimeout(function(){c.className='staff-message hidden';},4000);}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function escAttr(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+})();
+</script>
