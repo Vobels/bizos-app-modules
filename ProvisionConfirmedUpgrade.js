@@ -82,8 +82,16 @@ function provisionConfirmedUpgradeRequest(requestId) {
       if(updatedCol!==-1)sheet.getRange(rowIndex+1,updatedCol+1).setValue(new Date().toISOString());
 
       try {
-        var provisionedBusinessId = String(result.businessId || request.Business_ID || request.businessId || '');
         var provisionedEmail = String(request.Email || request.email || '').trim().toLowerCase();
+        var provisionedBusinessId = String(result.businessId || request.Business_ID || request.businessId || '');
+        if (!provisionedBusinessId && provisionedEmail) {
+          try {
+            var provisionedBusiness = getBusinessByEmail(provisionedEmail);
+            provisionedBusinessId = String(provisionedBusiness && provisionedBusiness.businessId || '');
+          } catch (resolveBusinessError) {
+            console.error('Unable to resolve provisioned business ID for notification:', resolveBusinessError);
+          }
+        }
         var provisionedName = String(request.Business_Name || request.businessName || result.clientName || 'Your business');
         if (provisionedBusinessId) {
           createBizOSNotification_(provisionedBusinessId, 'all', 'success', 'BizOS workspace ready', 'Your paid BizOS workspace has been provisioned successfully.', 'BizOS', 'dashboard');
