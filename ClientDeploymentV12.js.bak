@@ -30,13 +30,13 @@ function generateClientCodeSafelyV12(settings) {
   var runtime = buildClientRuntimeV11_(config);
   // F security hardening: internal helpers must not be exposed through google.script.run.
   runtime = runtime
-    .replace(/\bgetOrCreateUserSheet\(/g,'getOrCreateUserSheet_(')
-    .replace(/\bgetOrCreateBusinessSheet\(/g,'getOrCreateBusinessSheet_(')
-    .replace(/\bgetBusinessStaff\(/g,'getBusinessStaffLegacy_(')
-    .replace(/\bresendStaffInvitation\(/g,'resendStaffInvitationLegacy_(')
-    .replace(/\bassignModuleToStaff\(/g,'assignModuleToStaffLegacy_(')
-    .replace(/\bremoveModuleFromStaff\(/g,'removeModuleFromStaffLegacy_(')
-    .replace(/\bgetClientModuleSummary\(/g,'getClientModuleSummaryLegacy_(');
+    .replace(/\\bgetOrCreateUserSheet\\(/g,'getOrCreateUserSheet_(')
+    .replace(/\\bgetOrCreateBusinessSheet\\(/g,'getOrCreateBusinessSheet_(')
+    .replace(/\\bgetBusinessStaff\\(/g,'getBusinessStaffLegacy_(')
+    .replace(/\\bresendStaffInvitation\\(/g,'resendStaffInvitationLegacy_(')
+    .replace(/\\bassignModuleToStaff\\(/g,'assignModuleToStaffLegacy_(')
+    .replace(/\\bremoveModuleFromStaff\\(/g,'removeModuleFromStaffLegacy_(')
+    .replace(/\\bgetClientModuleSummary\\(/g,'getClientModuleSummaryLegacy_(');
   runtime = runtime.replace(
     'accessibleModules:Object.keys(MODULES)',
     'accessibleModules:clientModulesForEntitlementV12_(x.user&&x.user.role,x.user&&x.user.subscriptionTier)'
