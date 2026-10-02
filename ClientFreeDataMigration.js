@@ -34,6 +34,7 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
     if (staffResult && staffResult.success === false) {
       throw new Error(staffResult.message || 'Staff migration failed.');
     }
+    var notificationResult = migrateBizOSNotificationsAndActivityToPaidClient_(businessId, target, ownerEmail);
     migrateFreeBusinessMetadata_(source, target, businessId, businessName, ownerEmail, staffResult);
 
     return {
@@ -298,6 +299,73 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
   } catch (error) {
     console.error('Free-to-paid staff migration failed:', error);
     return {success:false,copied:0,updated:0,skipped:0,reason:'STAFF_MIGRATION_FAILED',message:error.message || 'Staff migration failed.'};
+  }
+}
+
+function migrateBizOSNotificationsAndActivityToPaidClient_(businessId, target, ownerEmail) {
+  var result = {success:true,notificationsCopied:0,activityCopied:0,notificationsSkipped:0,activitySkipped:0};
+  try {
+    var master = getBizOSMasterSpreadsheet_();
+    var notificationSheet = master.getSheetByName('BizOS_Notifications');
+    var activitySheet = master.getSheetByName('BizOS_Activity');
+    var targetNotifications = ensureClientNotificationsSheetV12_(target);
+    var targetActivity = ensureClientActivitySheetV12_(target);
+
+    if (notificationSheet && notificationSheet.getLastRow() > 1) {
+      var nv=notificationSheet.getDataRange().getValues(), nh=nv[0]||[], ni={};
+      nh.forEach(function(h,i){ni[h]=i;});
+      var tv=targetNotifications.getDataRange().getValues(), th=tv[0]||[], ti={};
+      th.forEach(function(h,i){ti[h]=i;});
+      var existing={};
+      for(var r=1;r<tv.length;r++) existing[String(tv[r][ti.Notification_ID]||'')]=true;
+      for(var i=1;i<nv.length;i++){
+        if(String(nv[i][ni.Business_ID]||'')!==String(businessId||''))continue;
+        var id=String(nv[i][ni.Notification_ID]||'');
+        if(!id||existing[id]){result.notificationsSkipped++;continue;}
+        var row=new Array(th.length).fill('');
+        row[ti.Notification_ID]=id;
+        row[ti.Audience]=String(nv[i][ni.Audience]||'all');
+        row[ti.Type]=String(nv[i][ni.Type]||'system');
+        row[ti.Title]=String(nv[i][ni.Title]||'');
+        row[ti.Message]=String(nv[i][ni.Message]||'');
+        row[ti.Created_At]=nv[i][ni.Created_At]||'';
+        row[ti.Created_By]=String(nv[i][ni.Created_By]||'BizOS');
+        row[ti.Related_View]=String(nv[i][ni.Related_View]||'');
+        row[ti.Read_By_JSON]=String(nv[i][ni.Read_By_JSON]||'[]');
+        targetNotifications.appendRow(row);
+        existing[id]=true;
+        result.notificationsCopied++;
+      }
+    }
+
+    if (activitySheet && activitySheet.getLastRow() > 1) {
+      var av=activitySheet.getDataRange().getValues(), ah=av[0]||[], ai={};
+      ah.forEach(function(h,i){ai[h]=i;});
+      var tav=targetActivity.getDataRange().getValues(), tah=tav[0]||[], tai={};
+      tah.forEach(function(h,i){tai[h]=i;});
+      var existingActivity={};
+      for(var a=1;a<tav.length;a++) existingActivity[String(tav[a][tai.Activity_ID]||'')]=true;
+      for(var j=1;j<av.length;j++){
+        if(String(av[j][ai.Business_ID]||'')!==String(businessId||''))continue;
+        var activityId=String(av[j][ai.Activity_ID]||'');
+        if(!activityId||existingActivity[activityId]){result.activitySkipped++;continue;}
+        var activityRow=new Array(tah.length).fill('');
+        activityRow[tai.Activity_ID]=activityId;
+        activityRow[tai.Actor_Email]=String(av[j][ai.Actor_Email]||'');
+        activityRow[tai.Actor_Name]=String(av[j][ai.Actor_Name]||'');
+        activityRow[tai.Event_Type]=String(av[j][ai.Event_Type]||'activity');
+        activityRow[tai.Summary]=String(av[j][ai.Summary]||'');
+        activityRow[tai.Created_At]=av[j][ai.Created_At]||'';
+        activityRow[tai.Related_View]=String(av[j][ai.Related_View]||'');
+        targetActivity.appendRow(activityRow);
+        existingActivity[activityId]=true;
+        result.activityCopied++;
+      }
+    }
+    return result;
+  } catch(error) {
+    console.error('migrateBizOSNotificationsAndActivityToPaidClient_ error:',error);
+    return {success:false,code:'NOTIFICATION_ACTIVITY_MIGRATION_FAILED',message:error.message,notificationsCopied:0,activityCopied:0};
   }
 }
 
