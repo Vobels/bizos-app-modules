@@ -27,10 +27,12 @@ function generateClientCodeSafelyV12(settings) {
   };
 
   var runtime = buildClientRuntimeV11_(config);
-  runtime = runtime.replace(
-    /function doGet\(e\)\{[\s\S]*?\},'function include/,
-    'function doGet(e){var t=HtmlService.createTemplateFromFile("ClientShellV12");return t.evaluate().setTitle(CLIENT_CONFIG.clientName+" - BizOS").addMetaTag("viewport","width=device-width,initial-scale=1").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}\nfunction include'
-  );
+  var doGetStart = runtime.indexOf('function doGet(e){');
+  var includeStart = runtime.indexOf('function include', doGetStart);
+  if (doGetStart < 0 || includeStart < 0) throw new Error('Unable to isolate the V12 client doGet runtime.');
+  runtime = runtime.slice(0, doGetStart) +
+    'function doGet(e){var t=HtmlService.createTemplateFromFile("ClientShellV12");return t.evaluate().setTitle(CLIENT_CONFIG.clientName+" - BizOS").addMetaTag("viewport","width=device-width,initial-scale=1").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}\n' +
+    runtime.slice(includeStart);
 
   var files = [
     {name:'Code',type:'SERVER_JS',source:runtime},
@@ -48,9 +50,10 @@ function generateClientCodeSafelyV12(settings) {
 function buildClientShellV12_(config) {
   var source = String(getMasterSourceForV12_('ClientShellV12') || '');
   if(!source) throw new Error('ClientShellV12 source is missing.');
-  return source.replace(/__CLIENT_CONFIG_PLACEHOLDER__/g, JSON.stringify({
+  var clientConfig = JSON.stringify({
     isClient:true,id:config.clientId,name:config.clientName,primaryColor:config.primaryColor,logoUrl:config.logoUrl
-  })).replace(/<head>/i,'<head><script>window.__CLIENT=__CLIENT_CONFIG_PLACEHOLDER__;</script>');
+  });
+  return source.replace(/<head>/i,'<head><script>window.__CLIENT='+clientConfig+';</script>');
 }
 
 function buildClientStylesV12_() {
