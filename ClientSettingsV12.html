@@ -1,0 +1,51 @@
+<div id="settings-v12-root" class="settings-v12">
+  <div class="settings-toolbar"><div><span class="section-kicker">SETTINGS</span><h2>Workspace settings</h2><p>Manage your business setup and your personal workspace preferences.</p></div><button class="settings-save-top" onclick="window.settingsV12Save()">Save changes</button></div>
+  <div id="settings-v12-message"></div>
+  <div class="settings-grid">
+    <section class="settings-panel"><div class="settings-panel-head"><h3>Business profile</h3><p>Information used across your client workspace.</p></div><div class="settings-form-grid">
+      <label>Business name<input id="set-business-name" type="text"></label><label>Business type<input id="set-business-type" type="text"></label>
+      <label>Phone<input id="set-business-phone" type="tel"></label><label>Website<input id="set-business-website" type="url"></label>
+      <label>Address<input id="set-business-address" type="text"></label><label>City<input id="set-business-city" type="text"></label>
+      <label>Country<input id="set-business-country" type="text"></label><label>Currency<input id="set-business-currency" type="text" placeholder="NGN"></label>
+      <label class="wide">Business description<textarea id="set-business-description" rows="3"></textarea></label>
+    </div></section>
+    <section class="settings-panel"><div class="settings-panel-head"><h3>Branding</h3><p>Client-facing workspace identity.</p></div><div class="settings-form-grid">
+      <label>Display name<input id="set-display-name" type="text"></label><label>Primary colour<input id="set-primary-color" type="text" placeholder="#2E7D32"></label>
+      <label class="wide">Logo URL<input id="set-logo-url" type="url"></label>
+    </div><div class="settings-note">Subscription, deployment, client ID, licensing and workspace binding are controlled by BizOS administration and cannot be changed here.</div></section>
+    <section class="settings-panel"><div class="settings-panel-head"><h3>My profile</h3><p>Update the account details associated with your login.</p></div><div class="settings-form-grid">
+      <label>Full name<input id="set-profile-name" type="text"></label><label>Email<input id="set-profile-email" type="email" readonly></label><label>Phone<input id="set-profile-phone" type="tel"></label>
+    </div></section>
+    <section class="settings-panel"><div class="settings-panel-head"><h3>Security</h3><p>Change your workspace password without exposing it to the client registry.</p></div><div class="settings-form-grid">
+      <label>Current password<input id="set-current-password" type="password" autocomplete="current-password"></label><label>New password<input id="set-new-password" type="password" autocomplete="new-password"></label><label>Confirm new password<input id="set-confirm-password" type="password" autocomplete="new-password"></label>
+    </div><div class="settings-actions"><button class="settings-secondary" onclick="window.settingsV12ChangePassword()">Change password</button></div></section>
+  </div>
+</div>
+<script>
+(function(){
+  var loaded=false;
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function msg(text,error){var el=document.getElementById('settings-v12-message');if(!el)return;el.innerHTML='<div class="settings-message '+(error?'error':'success')+'">'+esc(text)+'</div>';setTimeout(function(){if(el)el.innerHTML='';},5000);}
+  function val(id,v){var e=document.getElementById(id);if(e)e.value=v==null?'':v;}
+  function collect(){
+    return {Business_Name:document.getElementById('set-business-name').value.trim(),Business_Type:document.getElementById('set-business-type').value.trim(),Phone:document.getElementById('set-business-phone').value.trim(),Website:document.getElementById('set-business-website').value.trim(),Address:document.getElementById('set-business-address').value.trim(),City:document.getElementById('set-business-city').value.trim(),Country:document.getElementById('set-business-country').value.trim(),Currency:document.getElementById('set-business-currency').value.trim().toUpperCase(),Business_Description:document.getElementById('set-business-description').value.trim(),Display_Name:document.getElementById('set-display-name').value.trim(),Primary_Color:document.getElementById('set-primary-color').value.trim(),Logo_Url:document.getElementById('set-logo-url').value.trim()};
+  }
+  function fill(r){
+    var s=r.settings||{}; val('set-business-name',s.Business_Name);val('set-business-type',s.Business_Type);val('set-business-phone',s.Phone);val('set-business-website',s.Website);val('set-business-address',s.Address);val('set-business-city',s.City);val('set-business-country',s.Country);val('set-business-currency',s.Currency||'NGN');val('set-business-description',s.Business_Description);val('set-display-name',s.Display_Name||s.Business_Name);val('set-primary-color',s.Primary_Color||'#2E7D32');val('set-logo-url',s.Logo_Url);
+    var u=r.user||window.clientUser||{};val('set-profile-name',u.name);val('set-profile-email',u.email);val('set-profile-phone',u.phone);
+  }
+  window.settingsV12Init=function(force){
+    if(loaded&&!force)return;
+    google.script.run.withSuccessHandler(function(r){if(!r||r.success===false){msg(r&&r.message||'Could not load settings.',true);return;}fill(r);loaded=true;}).withFailureHandler(function(e){msg(e&&e.message||'Could not load settings.',true);}).getClientSettingsData(window.clientSessionId);
+  };
+  window.settingsV12Save=function(){
+    var data=collect();if(!data.Business_Name){msg('Business name is required.',true);return;}
+    google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Settings could not be saved.',true);return;}msg('Workspace settings saved.');if(window.clientUser)window.clientUser.businessName=data.Business_Name;if(window.__CLIENT)window.__CLIENT.name=data.Display_Name||data.Business_Name;var n=document.getElementById('workspace-name');if(n)n.textContent=data.Display_Name||data.Business_Name;}).withFailureHandler(function(e){msg(e&&e.message||'Settings could not be saved.',true);}).saveClientSettings(data,window.clientSessionId);
+  };
+  window.settingsV12ChangePassword=function(){
+    var cur=document.getElementById('set-current-password').value,nw=document.getElementById('set-new-password').value,cf=document.getElementById('set-confirm-password').value;
+    if(!cur||!nw||nw.length<10||nw!==cf){msg('Use a new password of at least 10 characters and make sure both new-password fields match.',true);return;}
+    google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Password could not be changed.',true);return;}['set-current-password','set-new-password','set-confirm-password'].forEach(function(id){document.getElementById(id).value='';});msg('Password changed successfully.');}).withFailureHandler(function(e){msg(e&&e.message||'Password could not be changed.',true);}).changeClientPassword(cur,nw,window.clientSessionId);
+  };
+})();
+</script>
