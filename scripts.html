@@ -1,166 +1,12 @@
 <script>
 
 // ============================================================
-// 📁 scripts.html - ADD CLIENT MODE SUPPORT
-// Add this at the top of your scripts.html
+// CLIENT MODE - BizOS V11 bridge
 // ============================================================
-
+// Client package runtime owns the server-side client function names.
+// The shared callGoogleScript wrapper below performs the mapping so
+// session handling remains identical to the normal BizOS UI.
 // ============================================================
-// 🔧 CLIENT MODE - Override data functions
-// ============================================================
-
-(function() {
-  // Check if we're in client mode
-  const isClientMode = typeof window.__CLIENT !== 'undefined' && window.__CLIENT.isClient;
-  
-  if (isClientMode) {
-    console.log('🔧 Client mode enabled for:', window.__CLIENT.name);
-    
-    // Override the callGoogleScript function for client mode
-    const originalCall = window.callGoogleScript;
-    
-    window.callGoogleScript = function(functionName, params, successHandler, errorHandler) {
-      // Map regular functions to client versions
-      const clientFunctionMap = {
-        'getModuleData': 'getClientModuleData',
-        'saveRecord': 'saveClientRecord',
-        'getDashboardKPIs': 'getClientDashboardData',
-        'getRecentTransactions': 'getClientModuleData', // Will need adaptation
-        'getModuleSummary': 'getClientDashboardData',
-        'getEnhancedDashboardData': 'getClientDashboardData'
-      };
-      
-      const clientFunction = clientFunctionMap[functionName] || functionName;
-      
-      // If it's a data function, add module name as first param
-      if (functionName === 'getModuleData' || functionName === 'getRecentTransactions') {
-        if (params.length === 0) {
-          params = ['Finance']; // Default module
-        }
-      }
-      
-      // Call with client session
-      const sessionId = localStorage.getItem('bizos_session');
-      
-      // Use the original function but with client-aware params
-      originalCall(clientFunction, params, successHandler, errorHandler);
-    };
-    
-    // Override loadDashboard for client mode
-    window.loadDashboard = function() {
-      console.log('🔵 Client loadDashboard called');
-      
-      // Load client-specific dashboard data
-      const sessionId = localStorage.getItem('bizos_session');
-      
-      google.script.run
-        .withSuccessHandler(function(response) {
-          if (response.success && response.dashboard) {
-            updateClientDashboard(response.dashboard);
-          } else {
-            // Fallback to regular dashboard
-            loadDefaultDashboard();
-          }
-        })
-        .withFailureHandler(function(error) {
-          console.error('Client dashboard error:', error);
-          loadDefaultDashboard();
-        })
-        .getClientDashboard(sessionId);
-    };
-    
-    function updateClientDashboard(dashboard) {
-      // Update KPIs
-      const kpis = dashboard.kpis || {};
-      document.getElementById('kpi-revenue').textContent = formatCurrency(kpis.revenue || 0);
-      document.getElementById('kpi-expenses').textContent = formatCurrency(kpis.expenses || 0);
-      document.getElementById('kpi-profit').textContent = formatCurrency(kpis.profit || 0);
-      document.getElementById('kpi-margin').textContent = (kpis.margin || 0).toFixed(1) + '%';
-      
-      // Update modules list
-      const moduleList = document.getElementById('module-list');
-      if (moduleList && dashboard.modules) {
-        moduleList.innerHTML = '';
-        dashboard.modules.forEach(function(moduleName) {
-          const btn = document.createElement('button');
-          btn.className = 'w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3';
-          btn.innerHTML = `<i class="fas fa-folder text-gray-500 w-5"></i><span>${moduleName}</span>`;
-          btn.onclick = function() { openModule(moduleName); };
-          moduleList.appendChild(btn);
-        });
-      }
-      
-      // Update user info with client name
-      const userNameEl = document.getElementById('user-name');
-      if (userNameEl && window.__CLIENT) {
-        userNameEl.textContent = window.__CLIENT.name;
-      }
-      
-      // Update page title
-      const pageTitle = document.getElementById('page-title');
-      if (pageTitle && window.__CLIENT) {
-        pageTitle.textContent = window.__CLIENT.name + ' Dashboard';
-      }
-    }
-    
-    function loadDefaultDashboard() {
-      // Fallback to regular dashboard loading
-      if (typeof window.loadDefaultDashboard === 'function') {
-        window.loadDefaultDashboard();
-      }
-    }
-    
-    console.log('✅ Client mode ready');
-  }
-})();
-
-
-  // ==================== DEBUG - FIND THE ERROR ====================
-console.log('1. Script started');
-
-// Wrap all function calls in try-catch to find the error
-window.addEventListener('load', function() {
-  console.log('2. Window loaded');
-  
-  // Check what functions exist
-  console.log('3. Checking functions...');
-  console.log('  - typeof loadSession:', typeof loadSession);
-  console.log('  - typeof loadDashboard:', typeof loadDashboard);
-  console.log('  - typeof checkForInviteCode:', typeof checkForInviteCode);
-  
-  try {
-    console.log('4. Calling checkForInviteCode...');
-    checkForInviteCode();
-    console.log('5. checkForInviteCode done');
-  } catch(e) {
-    console.error('ERROR in checkForInviteCode:', e);
-  }
-  
-  try {
-    console.log('6. Calling loadSession...');
-    const hasSession = loadSession();
-    console.log('7. loadSession done, hasSession:', hasSession);
-    
-    if (hasSession) {
-      console.log('8. Has session, calling loadDashboard...');
-      loadDashboard();
-      console.log('9. loadDashboard done');
-      
-      // ============================================================
-      // FORCE ENHANCED DASHBOARD ON PAGE RELOAD/REFRESH
-      // ============================================================
-      setTimeout(function() {
-        console.log('🔄 Forcing enhanced dashboard on page reload');
-        loadEnhancedDashboard();
-      }, 800);
-      // ============================================================
-    }
-  } catch(e) {
-    console.error('ERROR in session/dashboard:', e);
-  }
-  
-  console.log('10. Initialization complete');
-});
 
 //===========1. GLOBAL STATE & CONFIGURATION ==========
 // ==================== GLOBAL STATE ====================
@@ -489,6 +335,39 @@ function callGoogleScript(functionName, params, successHandler, errorHandler) {
   const timeout = setTimeout(() => {
     errorHandler(new Error('Request timeout'));
   }, 30000);
+
+  // V11 client deployments use client-scoped server functions. Map the
+  // existing UI calls here instead of replacing loadDashboard or creating
+  // a second callGoogleScript implementation.
+  if (window.__CLIENT && window.__CLIENT.isClient) {
+    const clientMap = {
+      getModuleData: 'getClientModuleData',
+      getModuleDataWithSync: 'getClientModuleDataWithSync',
+      saveRecord: 'saveClientRecord',
+      updateRecord: 'updateClientRecord',
+      updateRecordField: 'updateClientRecordField',
+      deleteRecord: 'deleteClientRecord',
+      getDashboardKPIs: 'getClientDashboardData',
+      getEnhancedDashboardData: 'getClientDashboardData',
+      getRecentTransactions: 'getClientRecentTransactions',
+      getModuleSummary: 'getClientModuleSummary',
+      getRecordsDirectory: 'getClientRecordsDirectory',
+      getRecordRows: 'getClientRecordRows'
+    };
+
+    if (clientMap[functionName]) {
+      const mappedName = clientMap[functionName];
+
+      // Client dashboard data is session-scoped; the shared wrapper adds
+      // the session below. It does not need the normal period argument.
+      if (mappedName === 'getClientDashboardData' ||
+          mappedName === 'getClientModuleSummary') {
+        params = [];
+      }
+
+      functionName = mappedName;
+    }
+  }
 
   let finalParams = [...params];
 
