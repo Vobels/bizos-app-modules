@@ -1,0 +1,68 @@
+<div id="client-profile-v12" class="client-account-page">
+  <div class="client-account-head">
+    <div><span class="section-kicker">PROFILE</span><h2>Profile</h2><p>Manage your account, business identity and workspace access.</p></div>
+  </div>
+  <div id="profile-v12-message"></div>
+  <div class="client-profile-card">
+    <div class="client-profile-summary">
+      <div class="client-profile-avatar" id="profile-v12-avatar">B</div>
+      <div><strong id="profile-v12-name">—</strong><span id="profile-v12-role">—</span><div id="profile-v12-badges"></div></div>
+    </div>
+    <div class="client-profile-tabs" role="tablist">
+      <button class="client-profile-tab active" data-tab="account" onclick="window.clientProfileTab('account')">Account Info</button>
+      <button class="client-profile-tab" data-tab="business" onclick="window.clientProfileTab('business')">Business Details</button>
+      <button class="client-profile-tab" data-tab="team" onclick="window.clientProfileTab('team')">Team Members</button>
+      <button class="client-profile-tab" data-tab="security" onclick="window.clientProfileTab('security')">Security</button>
+    </div>
+    <div id="profile-v12-account" class="client-profile-panel">
+      <div class="client-profile-form">
+        <label>Full Name<input id="profile-v12-full-name" type="text"></label>
+        <label>Email Address<input id="profile-v12-email" type="email" readonly><small>Contact support to change email address.</small></label>
+        <label>Phone Number<input id="profile-v12-phone" type="tel"></label>
+      </div>
+      <div class="client-profile-actions"><button class="settings-secondary" onclick="window.clientProfileSave()">Update Profile</button></div>
+    </div>
+    <div id="profile-v12-business" class="client-profile-panel hidden">
+      <div class="client-profile-info-grid">
+        <div><small>Business Name</small><strong id="profile-v12-business-name">—</strong></div>
+        <div><small>Business ID</small><strong id="profile-v12-business-id" class="mono">—</strong></div>
+        <div><small>Subscription Tier</small><strong id="profile-v12-tier">—</strong></div>
+        <div><small>Verification Status</small><strong id="profile-v12-verification">—</strong></div>
+      </div>
+      <div class="client-profile-workspace">
+        <div><small>Workspace Access</small><strong>Your isolated workspace URL</strong><code id="profile-v12-workspace-url">Not available</code>
+        <div class="client-profile-actions"><button class="settings-secondary" onclick="window.clientProfileCopyWorkspace()">Copy URL</button><button class="settings-secondary" onclick="window.clientProfileOpenWorkspace()">Open workspace</button></div></div>
+      </div>
+      <div class="settings-note">Business identity, subscription and workspace binding are controlled by BizOS. Use Settings to update editable business details and branding.</div>
+    </div>
+    <div id="profile-v12-team" class="client-profile-panel hidden">
+      <div class="client-profile-panel-head"><div><h3>Team Members</h3><p>People with access to this client workspace.</p></div><button class="settings-secondary" onclick="selectView('staff')">Manage Staff</button></div>
+      <div id="profile-v12-team-list"><div class="settings-note">Loading team members…</div></div>
+    </div>
+    <div id="profile-v12-security" class="client-profile-panel hidden">
+      <div class="client-profile-form">
+        <label>Current Password<input id="profile-v12-current-password" type="password" autocomplete="current-password"></label>
+        <label>New Password<input id="profile-v12-new-password" type="password" autocomplete="new-password"></label>
+        <label>Confirm New Password<input id="profile-v12-confirm-password" type="password" autocomplete="new-password"></label>
+      </div>
+      <div class="client-profile-actions"><button class="settings-secondary" onclick="window.clientProfileChangePassword()">Update Password</button></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var loaded=false, data=null;
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function msg(t,e){var x=document.getElementById('profile-v12-message');if(x)x.innerHTML='<div class="settings-message '+(e?'error':'success')+'">'+esc(t)+'</div>';setTimeout(function(){if(x)x.innerHTML='';},4500);}
+  function showTab(tab){document.querySelectorAll('.client-profile-tab').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===tab);});['account','business','team','security'].forEach(function(k){var x=document.getElementById('profile-v12-'+k);if(x)x.classList.toggle('hidden',k!==tab);});if(tab==='team')loadTeam();}
+  window.clientProfileTab=showTab;
+  function fill(r){data=r||{};var u=data.user||{};document.getElementById('profile-v12-avatar').textContent=String(u.name||data.businessName||'B').charAt(0).toUpperCase();document.getElementById('profile-v12-name').textContent=u.name||'—';document.getElementById('profile-v12-role').textContent=u.role||'Owner';document.getElementById('profile-v12-full-name').value=u.name||'';document.getElementById('profile-v12-email').value=u.email||'';document.getElementById('profile-v12-phone').value=u.phone||'';document.getElementById('profile-v12-business-name').textContent=data.businessName||'—';document.getElementById('profile-v12-business-id').textContent=data.businessId||'—';document.getElementById('profile-v12-tier').textContent=data.subscriptionTier||'—';document.getElementById('profile-v12-verification').textContent=data.verificationStatus||'—';document.getElementById('profile-v12-workspace-url').textContent=data.workspaceUrl||'Not available';var badges=document.getElementById('profile-v12-badges');badges.innerHTML='<span class="client-profile-badge">'+esc(data.subscriptionTier||'Active')+'</span><span class="client-profile-badge">'+esc(data.verificationStatus||'Verified')+'</span>';}
+  window.clientProfileInit=function(force){if(loaded&&!force)return;google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Profile could not be loaded.',true);return;}fill(r);loaded=true;}).withFailureHandler(function(e){msg(e&&e.message||'Profile could not be loaded.',true);}).getClientProfileData(window.clientSessionId);};
+  window.clientProfileSave=function(){var name=document.getElementById('profile-v12-full-name').value.trim(),phone=document.getElementById('profile-v12-phone').value.trim();if(!name){msg('Full name is required.',true);return;}google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Profile could not be updated.',true);return;}msg('Profile updated successfully.');clientProfileInit(true);}).withFailureHandler(function(e){msg(e&&e.message||'Profile could not be updated.',true);}).updateClientProfile({name:name,phone:phone},window.clientSessionId);};
+  function loadTeam(){var box=document.getElementById('profile-v12-team-list');if(box)box.innerHTML='<div class="settings-note">Loading team members…</div>';google.script.run.withSuccessHandler(function(r){if(!r||!r.success){if(box)box.innerHTML='<div class="settings-message error">'+esc(r&&r.message||'Team members could not be loaded.')+'</div>';return;}var m=r.members||[];if(!m.length){box.innerHTML='<div class="settings-note">No team members have been added yet.</div>';return;}box.innerHTML='<div class="client-profile-team-table"><div class="client-profile-team-row head"><span>Name</span><span>Email</span><span>Role</span><span>Status</span></div>'+m.map(function(x){return '<div class="client-profile-team-row"><span>'+esc(x.name||'—')+'</span><span>'+esc(x.email||'—')+'</span><span>'+esc(x.role||'—')+'</span><span>'+esc(x.status||'—')+'</span></div>';}).join('')+'</div>';}).withFailureHandler(function(e){if(box)box.innerHTML='<div class="settings-message error">'+esc(e&&e.message||'Team members could not be loaded.')+'</div>';}).getBusinessStaff(window.clientBusinessId,window.clientSessionId);};
+  window.clientProfileChangePassword=function(){var c=document.getElementById('profile-v12-current-password').value,n=document.getElementById('profile-v12-new-password').value,p=document.getElementById('profile-v12-confirm-password').value;if(!c||n.length<10||n!==p){msg('Use a new password of at least 10 characters and make sure both new-password fields match.',true);return;}google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Password could not be changed.',true);return;}['profile-v12-current-password','profile-v12-new-password','profile-v12-confirm-password'].forEach(function(id){document.getElementById(id).value='';});msg('Password changed successfully.');}).withFailureHandler(function(e){msg(e&&e.message||'Password could not be changed.',true);}).changeClientPassword(c,n,window.clientSessionId);};
+  window.clientProfileCopyWorkspace=function(){var u=data&&data.workspaceUrl||'';if(!u){msg('Workspace URL is not available.',true);return;}navigator.clipboard.writeText(u).then(function(){msg('Workspace URL copied.');}).catch(function(){msg('Could not copy the workspace URL.',true);});};
+  window.clientProfileOpenWorkspace=function(){var u=data&&data.workspaceUrl||'';if(u)window.open(u,'_blank','noopener');};
+  showTab('account');
+})();
+</script>
