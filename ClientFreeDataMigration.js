@@ -85,6 +85,7 @@ function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
   }
 
   var rowsToAppend = [];
+  var migrationEntries = [];
   var skipped = 0;
   sourceValues.slice(1).forEach(function(sourceRow, sourceIndex) {
     // A workspace should normally contain only one business, but if a legacy
@@ -118,15 +119,42 @@ function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
     }
 
     rowsToAppend.push(targetRow);
+    migrationEntries.push({
+      moduleName:moduleName,
+      recordId:targetIdCol !== -1 ? String(targetRow[targetIdCol] || '') : '',
+      sourceRow:sourceIndex + 2,
+      headers:targetHeaders.slice(),
+      row:targetRow.slice()
+    });
     if (targetIdCol !== -1 && targetRow[targetIdCol]) existing['ID:'+String(targetRow[targetIdCol])] = true;
     existing['FP:'+migrationRowFingerprint_(targetHeaders,targetRow)] = true;
   });
 
   if (rowsToAppend.length) {
     targetSheet.getRange(targetSheet.getLastRow()+1,1,rowsToAppend.length,targetHeaders.length).setValues(rowsToAppend);
+    recordClientMigrationEntries_(target, source.getId(), migrationEntries);
   }
 
   return {copied:rowsToAppend.length,skipped:skipped,sourceRows:sourceValues.length-1};
+}
+
+function ensureClientMigrationIndex_(target) {
+  var s=target.getSheetByName('Client_Migration_Index');
+  if(!s){
+    s=target.insertSheet('Client_Migration_Index');
+    s.appendRow(['Migration_ID','Module','Record_ID','Source_Workspace_ID','Source_Row','Migrated_At','Status','Archived_At','Record_Headers_JSON','Record_Row_JSON']);
+  }
+  return s;
+}
+
+function recordClientMigrationEntries_(target, sourceWorkspaceId, entries) {
+  if(!entries || !entries.length)return;
+  var s=ensureClientMigrationIndex_(target), now=new Date().toISOString();
+  var rows=entries.map(function(e){
+    var migrationId='MIG_'+Utilities.getUuid().replace(/-/g,'').substring(0,16).toUpperCase();
+    return [migrationId,e.moduleName,e.recordId,String(sourceWorkspaceId||''),e.sourceRow,now,'active','',JSON.stringify(e.headers||[]),JSON.stringify(e.row||[])];
+  });
+  s.getRange(s.getLastRow()+1,1,rows.length,rows[0].length).setValues(rows);
 }
 
 function generateDeterministicMigrationId_(sourceWorkspaceId, moduleName, sourceRowNumber, idHeader) {
