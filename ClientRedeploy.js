@@ -58,13 +58,19 @@ function redeployClientByBusinessId(businessId, sessionId) {
       deploymentId: client.deploymentId
     }));
 
-    // V11 is the real BizOS client package. Keep V10 available as an
-    // explicit rollback path while V11 is validated in production.
+    // V12 is the distinct client-facing product package. V11 remains available
+    // as a rollback/reference package; V10 remains an older rollback path.
     var packageVersion = getClientPackageVersionForRedeploy_();
     var packageResult;
     var packageCheck;
 
-    if (packageVersion === 'v11') {
+    if (packageVersion === 'v12') {
+      packageResult = generateClientCodeSafelyV12(settings);
+      packageCheck = validateClientDeploymentPackageV12_(packageResult, {
+        clientId: client.clientId,
+        sheetId: client.sheetId
+      });
+    } else if (packageVersion === 'v11') {
       packageResult = generateClientCodeSafelyV11(settings);
       packageCheck = validateClientDeploymentPackageV11_(packageResult, {
         clientId: client.clientId,
@@ -272,16 +278,16 @@ function redeployClientByBusinessId(businessId, sessionId) {
 }
 
 function getClientPackageVersionForRedeploy_() {
-  // Default to V11. V10 remains available only as an explicit rollback.
+  // Default to V12. V11 and V10 remain available as explicit rollback paths.
   try {
     var configured = String(
       PropertiesService.getScriptProperties().getProperty('BIZOS_CLIENT_PACKAGE_VERSION') || ''
     ).trim().toLowerCase();
 
-    if (configured === 'v10' || configured === 'v11') return configured;
+    if (configured === 'v10' || configured === 'v11' || configured === 'v12') return configured;
   } catch (ignore) {}
 
-  return 'v11';
+  return 'v12';
 }
 
 function getActiveClientByBusinessIdForRedeploy_(businessId) {
