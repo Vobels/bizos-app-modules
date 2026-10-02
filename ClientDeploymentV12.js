@@ -57,6 +57,7 @@ function generateClientCodeSafelyV12(settings) {
     "function changeClientPassword(currentPassword,newPassword,sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};return changeUserPassword(String(access.user.email||''),String(currentPassword||''),String(newPassword||''),sid);}"
   ].join(String.fromCharCode(10));
   runtime = runtime.replace(/\nfunction doGet\(e\)\{/, '\n'+businessCenterSource+'\n'+businessCenterBridge+'\nfunction doGet(e){');
+  runtime += String.fromCharCode(10) + "function getClientModuleSummary(sid){var u=getUserFromSession(sid);if(!u)return{};var allowed={};var mods=Array.isArray(u.accessibleModules)?u.accessibleModules:[];mods.forEach(function(m){allowed[String(m)]=true;});var role=String(u.role||'staff').toLowerCase(),isAdmin=role==='owner'||role==='admin',out={},ws=null;try{ws=getWorkspaceFile(sid);}catch(e){ws=null;}Object.keys(MODULES).forEach(function(name){var def=MODULES[name]||{},count=0;try{var sh=ws&&ws.getSheetByName(def.sheet);count=sh&&sh.getLastRow()>1?sh.getLastRow()-1:0;}catch(e2){}out[name]={label:def.label||name,icon:def.icon||'',count:count,isAccessible:isAdmin||!!allowed[name],isReadOnly:false};});return out;}\nfunction getModuleSummary(sid){return getClientModuleSummary(sid);}" + String.fromCharCode(10);
   var doGetStart = runtime.indexOf('function doGet(e){');
   var includeStart = runtime.indexOf('function include', doGetStart);
   if (doGetStart < 0 || includeStart < 0) throw new Error('Unable to isolate the V12 client doGet runtime.');
