@@ -25,6 +25,7 @@ function generateClientCodeSafelyV12(settings) {
     landingUrl:String(settings.landingUrl || ''),
     customDomain:String(settings.customDomain || '')
   };
+  config.businessProfile = getMasterBusinessProfileForV12_(config.businessId, config.email);
 
   var runtime = buildClientRuntimeV11_(config);
   var businessCenterSource = String(getMasterSourceForV12_('BusinessHubGS') || '');
@@ -50,7 +51,7 @@ function generateClientCodeSafelyV12(settings) {
     "function deleteClientFinanceTransaction(recordId,sid){var access=clientFinanceAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};recordId=String(recordId||'').trim();if(!recordId)return{success:false,message:'Transaction ID is required.'};var workspace=getWorkspaceFile(sid),sheet=workspace.getSheetByName(MODULES.Finance.sheet);if(!sheet||sheet.getLastRow()<2)return{success:false,message:'Transaction not found.'};var values=sheet.getDataRange().getValues(),headers=values[0],idCol=headers.indexOf('Transaction_ID');if(idCol<0)return{success:false,message:'Transaction ID column not found.'};for(var i=1;i<values.length;i++){if(String(values[i][idCol]||'')===recordId){sheet.deleteRow(i+1);return{success:true,message:'Transaction deleted successfully.'};}}return{success:false,message:'Transaction not found.'};}",
     "function clientSettingsAccessV12_(sid,write){var user=getUserFromSession(sid);if(!user)return{ok:false,message:'Session expired. Please login again.'};var role=String(user.role||'staff').toLowerCase();if(write&&['owner','admin'].indexOf(role)<0)return{ok:false,message:'Only the business owner or an administrator can change business settings.'};if(write&&user.isDemo==='YES')return{ok:false,message:'Demo accounts are view-only.'};return{ok:true,user:user};}",
     "function getClientAppsData(sid){var user=getUserFromSession(sid);if(!user)return{success:false,message:'Session expired. Please login again.'};return{success:true,summary:getModuleSummary(sid)};}",
-    "function getClientSettingsData(sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};var ws=getWorkspaceFile(sid),sheet=ws.getSheetByName('Client_Info'),settings={};if(sheet&&sheet.getLastRow()>0){var rows=sheet.getDataRange().getValues(),h=rows[0]||[],p=h.indexOf('Property'),v=h.indexOf('Value');if(p>=0&&v>=0)for(var i=1;i<rows.length;i++){var k=String(rows[i][p]||'').trim();if(k)settings[k]=rows[i][v];}}return{success:true,settings:settings,user:access.user};}",
+    "function getClientSettingsData(sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};var bp=(typeof CLIENT_CONFIG!=='undefined'&&CLIENT_CONFIG.businessProfile)||{};var settings={Business_Name:String(bp.businessName||CLIENT_CONFIG.clientName||''),Business_Type:String(bp.businessType||''),Phone:String(bp.ownerPhone||''),Website:String(bp.website||''),Address:String(bp.address||''),City:String(bp.city||''),Country:String(bp.country||''),Currency:String(bp.currency||'NGN'),Business_Description:String(bp.businessDescription||''),Display_Name:String(CLIENT_CONFIG.clientName||bp.businessName||''),Primary_Color:String(CLIENT_CONFIG.primaryColor||'#2E7D32'),Logo_Url:String(CLIENT_CONFIG.logoUrl||'')};var ws=getWorkspaceFile(sid),sheet=ws.getSheetByName('Client_Info');if(sheet&&sheet.getLastRow()>0){var rows=sheet.getDataRange().getValues(),h=rows[0]||[],p=h.indexOf('Property'),v=h.indexOf('Value');if(p>=0&&v>=0)for(var i=1;i<rows.length;i++){var k=String(rows[i][p]||'').trim(),value=rows[i][v];if(!k||value===undefined||value===null||String(value).trim()==='')continue;if(['Business_Name','Business_Type','Phone','Website','Address','City','Country','Currency','Business_Description','Display_Name','Primary_Color','Logo_Url'].indexOf(k)>=0)settings[k]=value;}}var u=access.user||{};u={email:String(u.email||bp.ownerEmail||CLIENT_CONFIG.email||''),name:String(u.name||bp.ownerName||''),phone:String(u.phone||bp.ownerPhone||''),role:String(u.role||'owner'),businessId:String(u.businessId||CLIENT_CONFIG.businessId),businessName:String(u.businessName||settings.Business_Name||CLIENT_CONFIG.clientName||'')};return{success:true,settings:settings,user:u,source:{canonical:'BizOS master business/user data',custom:'client workspace settings'}};}",
     "function saveClientSettings(data,sid){var access=clientSettingsAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};data=data||{};var allowed=['Business_Name','Business_Type','Phone','Website','Address','City','Country','Currency','Business_Description','Display_Name','Primary_Color','Logo_Url'],clean={};allowed.forEach(function(k){if(data[k]!==undefined)clean[k]=String(data[k]||'').trim();});if(!clean.Business_Name)return{success:false,message:'Business name is required.'};if(clean.Currency&&!/^[A-Z]{3}$/.test(clean.Currency))return{success:false,message:'Currency must be a 3-letter code.'};if(clean.Primary_Color&&!/^#[0-9A-Fa-f]{6}$/.test(clean.Primary_Color))return{success:false,message:'Primary colour must be a 6-digit hex colour.'};var ws=getWorkspaceFile(sid),sheet=ws.getSheetByName('Client_Info');if(!sheet)return{success:false,message:'Client settings storage is unavailable.'};var rows=sheet.getDataRange().getValues(),h=rows[0]||[],p=h.indexOf('Property'),v=h.indexOf('Value'),idx={};if(p<0||v<0)return{success:false,message:'Client settings schema is unavailable.'};for(var i=1;i<rows.length;i++){var key=String(rows[i][p]||'').trim();if(key)idx[key]=i+1;}Object.keys(clean).forEach(function(k){if(idx[k])sheet.getRange(idx[k],v+1).setValue(clean[k]);else sheet.appendRow([k,clean[k]]);});return{success:true,settings:clean};}",
     "function updateClientProfile(data,sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};data=data||{};var sheet=getOrCreateUserSheet(),rows=sheet.getDataRange().getValues(),h=rows[0]||[],emailCol=h.indexOf('Email'),nameCol=h.indexOf('Name'),phoneCol=h.indexOf('Phone');if(emailCol<0)return{success:false,message:'User profile schema is unavailable.'};var wanted=String(access.user.email||'').toLowerCase(),row=-1;for(var i=1;i<rows.length;i++){if(String(rows[i][emailCol]||'').toLowerCase()===wanted){row=i+1;break;}}if(row<0)return{success:false,message:'User profile was not found.'};if(nameCol>=0)sheet.getRange(row,nameCol+1).setValue(String(data.name||''));if(phoneCol>=0)sheet.getRange(row,phoneCol+1).setValue(String(data.phone||''));return{success:true};}",
     "function changeClientPassword(currentPassword,newPassword,sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};return changeUserPassword(String(access.user.email||''),String(currentPassword||''),String(newPassword||''),sid);}"
@@ -79,6 +80,71 @@ function generateClientCodeSafelyV12(settings) {
     success:true,version:'12.0',config:config,files:files,
     source:{clientUi:'V12',copiedMasterUi:[],reusedBackendRuntime:'V11-safe-runtime',businessCenterBackend:'BusinessHubGS-safe-wrapped',businessCenterUi:'ClientBusinessCenterV12'}
   };
+}
+
+function getMasterBusinessProfileForV12_(businessId, email) {
+  var out = {
+    businessId:String(businessId || ''),
+    businessName:'',
+    ownerEmail:String(email || '').toLowerCase(),
+    ownerName:'',
+    ownerPhone:'',
+    address:'',
+    city:'',
+    country:'',
+    website:'',
+    businessType:'',
+    currency:'',
+    businessDescription:''
+  };
+  try {
+    var ss = getBizOSMasterSpreadsheet_();
+    var businessSheet = ss.getSheetByName('Businesses');
+    if (businessSheet && businessSheet.getLastRow() > 1) {
+      var data = businessSheet.getDataRange().getValues();
+      var h = data[0] || [];
+      var idCol=h.indexOf('Business_ID'), nameCol=h.indexOf('Business_Name'), emailCol=h.indexOf('Owner_Email'),
+          phoneCol=h.indexOf('Owner_Phone'), addressCol=h.indexOf('Address'), cityCol=h.indexOf('City'),
+          countryCol=h.indexOf('Country'), websiteCol=h.indexOf('Website'), tierCol=h.indexOf('Subscription_Tier');
+      var wantedId=String(businessId || '').trim(), wantedEmail=String(email || '').trim().toLowerCase(), row=null;
+      for(var i=1;i<data.length;i++){
+        var rid=idCol>=0?String(data[i][idCol]||'').trim():'';
+        var remail=emailCol>=0?String(data[i][emailCol]||'').trim().toLowerCase():'';
+        if((wantedId && rid===wantedId) || (!wantedId && wantedEmail && remail===wantedEmail)){ row=data[i]; break; }
+      }
+      if(row){
+        out.businessId=idCol>=0?String(row[idCol]||out.businessId):out.businessId;
+        out.businessName=nameCol>=0?String(row[nameCol]||''):''; 
+        out.ownerEmail=emailCol>=0?String(row[emailCol]||out.ownerEmail).toLowerCase():out.ownerEmail;
+        out.ownerPhone=phoneCol>=0?String(row[phoneCol]||''):'';
+        out.address=addressCol>=0?String(row[addressCol]||''):'';
+        out.city=cityCol>=0?String(row[cityCol]||''):'';
+        out.country=countryCol>=0?String(row[countryCol]||''):'';
+        out.website=websiteCol>=0?String(row[websiteCol]||''):'';
+        out.subscriptionTier=tierCol>=0?String(row[tierCol]||''):'';
+      }
+    }
+    var userSheet = ss.getSheetByName('Users');
+    if(!userSheet) userSheet = ss.getSheetByName('User_Data');
+    if(userSheet && userSheet.getLastRow() > 1){
+      var uv=userSheet.getDataRange().getValues(), uh=uv[0]||[];
+      var ue=uh.indexOf('Email'), ub=uh.indexOf('Business_ID'), un=uh.indexOf('Name'), up=uh.indexOf('Phone');
+      var wantedUserEmail=String(out.ownerEmail||email||'').trim().toLowerCase(), urow=null;
+      for(var j=1;j<uv.length;j++){
+        var em=ue>=0?String(uv[j][ue]||'').trim().toLowerCase():'';
+        var bid=ub>=0?String(uv[j][ub]||'').trim():'';
+        if((wantedUserEmail && em===wantedUserEmail) && (!businessId || !ub || bid===String(businessId))){urow=uv[j];break;}
+      }
+      if(urow){
+        if(un>=0) out.ownerName=String(urow[un]||'');
+        if(up>=0 && !out.ownerPhone) out.ownerPhone=String(urow[up]||'');
+        if(ue>=0 && !out.ownerEmail) out.ownerEmail=String(urow[ue]||'').toLowerCase();
+      }
+    }
+  } catch(e) {
+    console.warn('getMasterBusinessProfileForV12_ fallback:', e && e.message ? e.message : e);
+  }
+  return out;
 }
 
 function buildClientShellV12_(config) {
