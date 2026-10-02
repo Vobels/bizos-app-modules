@@ -1867,6 +1867,7 @@ function showAppsPage() {
   const profilePage = document.getElementById('profile-page');
   const appsPage = document.getElementById('apps-page');
   const settingsPage = document.getElementById('settings-page');
+  const notificationsPage = document.getElementById('notifications-page');
   const dashboardPage = document.getElementById('dashboard-page');
   
   // FORCE HIDE ALL OTHER PAGES
@@ -1885,6 +1886,10 @@ function showAppsPage() {
   if (settingsPage) {
     settingsPage.classList.add('hidden');
     settingsPage.style.display = 'none';
+  }
+  if (notificationsPage) {
+    notificationsPage.classList.add('hidden');
+    notificationsPage.style.display = 'none';
   }
   
   // SHOW APPS
@@ -1934,6 +1939,7 @@ function showDashboardHome() {
   const profilePage = document.getElementById('profile-page');
   const appsPage = document.getElementById('apps-page');
   const settingsPage = document.getElementById('settings-page');
+  const notificationsPage = document.getElementById('notifications-page');
   const dashboardPage = document.getElementById('dashboard-page');
   
   // FORCE HIDE ALL OTHER PAGES - using both class and style
@@ -1956,6 +1962,10 @@ function showDashboardHome() {
   if (settingsPage) {
     settingsPage.classList.add('hidden');
     settingsPage.style.display = 'none';
+  }
+  if (notificationsPage) {
+    notificationsPage.classList.add('hidden');
+    notificationsPage.style.display = 'none';
   }
   if (dashboardPage) {
     dashboardPage.classList.remove('hidden');
@@ -1990,6 +2000,7 @@ function showProfilePage() {
   const profilePage = document.getElementById('profile-page');
   const appsPage = document.getElementById('apps-page');
   const settingsPage = document.getElementById('settings-page');
+  const notificationsPage = document.getElementById('notifications-page');
   const dashboardPage = document.getElementById('dashboard-page');
   
   // FORCE HIDE ALL OTHER PAGES
@@ -2008,6 +2019,10 @@ function showProfilePage() {
   if (settingsPage) {
     settingsPage.classList.add('hidden');
     settingsPage.style.display = 'none';
+  }
+  if (notificationsPage) {
+    notificationsPage.classList.add('hidden');
+    notificationsPage.style.display = 'none';
   }
   
   // SHOW PROFILE
@@ -5527,6 +5542,7 @@ function showSettingsPage() {
   const profilePage = document.getElementById('profile-page');
   const appsPage = document.getElementById('apps-page');
   const settingsPage = document.getElementById('settings-page');
+  const notificationsPage = document.getElementById('notifications-page');
   const dashboardPage = document.getElementById('dashboard-page');
   
   // HIDE ALL VIEWS
@@ -5545,6 +5561,10 @@ function showSettingsPage() {
   if (appsPage) {
     appsPage.classList.add('hidden');
     appsPage.style.display = 'none';
+  }
+  if (notificationsPage) {
+    notificationsPage.classList.add('hidden');
+    notificationsPage.style.display = 'none';
   }
   
   // SHOW SETTINGS
