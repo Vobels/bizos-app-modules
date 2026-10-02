@@ -101,6 +101,7 @@
   function renderOverview(r,fromCache){
     var c=document.getElementById('client-standard-view'),d=r.dashboard||{},k=d.kpis||{},counts=d.counts||{},charts=d.charts||{},health=d.health||{},apps=Array.isArray(d.moduleSummary)?d.moduleSummary:Object.keys(d.moduleCounts||{});
     dashboardCache=r;
+    dashboardCacheAt=Date.now();
     var stale=fromCache?'<span class="live-note">Showing recent data · refreshing…</span>':'<span class="live-note">Updated just now</span>';
     var appNames=(Array.isArray(d.moduleSummary)?d.moduleSummary:Object.keys(d.moduleCounts||{})).slice(0,8);
     c.innerHTML='<div class="overview-topline"><div><p class="overview-welcome">Welcome back, '+esc((user&&user.name)||'there')+'</p><p class="overview-sub">Here is what is happening across '+esc((user&&user.businessName)||cfg().name||'your workspace')+'.</p></div>'+stale+'</div>'+
@@ -144,12 +145,23 @@
   function transactionsTable(rows){rows=Array.isArray(rows)?rows:[];if(!rows.length)return emptyState('₦','No transactions yet','Your financial transactions will appear here as you record them.','selectView("finance")','Add transaction');return '<div class="mini-table"><div class="mini-head-row"><span>Date</span><span>Description</span><span>Type</span><span>Amount</span></div>'+rows.slice(0,7).map(function(x){return '<div class="mini-row"><span>'+esc(x.date||'')+'</span><span>'+esc(x.description||x.category||'Transaction')+'</span><span>'+esc(x.type||'')+'</span><b>'+money(x.amount)+'</b></div>';}).join('')+'</div>';}
   function loadOverview(force){
     var c=document.getElementById('client-standard-view');
-    if(dashboardCache&&!force){renderOverview(dashboardCache,true);return;}
-    if(!dashboardCache)c.innerHTML='<div class="loading rich-loading"><div class="loading-spinner"></div><h3>Preparing your business overview</h3><p>Loading your latest business information…</p></div>';
+    var hasCache=!!dashboardCache;
+    var cacheAge=dashboardCacheAt?Date.now()-dashboardCacheAt:Infinity;
+    if(hasCache)renderOverview(dashboardCache,true);
+    else c.innerHTML='<div class="loading rich-loading"><div class="loading-spinner"></div><h3>Preparing your business overview</h3><p>Loading your latest business information…</p></div>';
+    if(!force&&hasCache&&cacheAge<15000)return;
     call('getClientDashboardData',[sessionId,!!force],function(r){
-      if(!r||!r.success){if(sessionExpired(r)){logout();return;}if(dashboardCache){renderOverview(dashboardCache,false);}else c.innerHTML='<div class="empty-card"><h3>Overview unavailable</h3><p>'+esc(r&&r.message?r.message:'No dashboard data is available yet.')+'</p></div>';return;}
+      if(!r||!r.success){
+        if(sessionExpired(r)){logout();return;}
+        if(hasCache){renderOverview(dashboardCache,false);}
+        else c.innerHTML='<div class="empty-card"><h3>Overview unavailable</h3><p>'+esc(r&&r.message?r.message:'No dashboard data is available yet.')+'</p></div>';
+        return;
+      }
       renderOverview(r,!!r.cached);
-    },function(e){if(dashboardCache)renderOverview(dashboardCache,false);else c.innerHTML='<div class="empty-card"><h3>Overview unavailable</h3><p>'+esc(e&&e.message?e.message:'Please try again.')+'</p></div>';});
+    },function(e){
+      if(hasCache)renderOverview(dashboardCache,false);
+      else c.innerHTML='<div class="empty-card"><h3>Overview unavailable</h3><p>'+esc(e&&e.message?e.message:'Please try again.')+'</p></div>';
+    });
   }
   window.logout=function(){var sid=sessionId;sessionId='';user=null;localStorage.removeItem(sessionKey);localStorage.removeItem(userKey);hideAll();document.getElementById('client-landing').classList.remove('hidden');if(sid)call('clientLogout',[sid],function(){});};
   function sessionExpired(r){return r&&(/session/i.test(String(r.message||''))||r.code==='SESSION_EXPIRED');}
