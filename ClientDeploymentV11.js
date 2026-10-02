@@ -238,9 +238,81 @@ function buildClientRuntimeV11_(c) {
 'function authenticateClient(email,password){try{email=String(email||"").trim().toLowerCase();password=String(password||"");var team=authenticateClientTeamMemberV11_(email,password);if(team&&team.success)return team;if(email!==String(CLIENT_CONFIG.email||"").toLowerCase())return{success:false,message:"This account is not a member of this business.",code:"NOT_CLIENT_ACCOUNT"};var r=UrlFetchApp.fetch(CLIENT_CONFIG.masterApiUrl,{method:"post",contentType:"application/json",muteHttpExceptions:true,payload:JSON.stringify({action:"clientLogin",payload:{clientId:CLIENT_CONFIG.clientId,email:email,password:password}})});if(r.getResponseCode()<200||r.getResponseCode()>=300)return{success:false,message:"Authentication service unavailable.",code:"AUTH_SERVICE"};var x=JSON.parse(r.getContentText()||"{}");if(!x||!x.success)return x||{success:false,message:"Invalid email or password"};if(!x.user||String(x.user.clientId||"")!==String(CLIENT_CONFIG.clientId))return{success:false,message:"This account is not authorized for this deployment.",code:"CLIENT_BINDING_MISMATCH"};var sid=createSession(email,CLIENT_CONFIG.businessId),cache=CacheService.getScriptCache(),session=JSON.parse(cache.get(sid));session.user={email:email,name:x.user.name||email.split("@")[0],role:x.user.role||"owner",businessId:CLIENT_CONFIG.businessId,businessName:CLIENT_CONFIG.clientName,subscriptionTier:x.user.subscriptionTier||"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:Object.keys(MODULES)};cache.put(sid,JSON.stringify(session),21600);return{success:true,sessionId:sid,user:session.user,message:"Login successful"};}catch(e){return{success:false,message:"Login error: "+e.message,code:"LOGIN_ERROR"};}}',
 'function logout(sid){if(sid)CacheService.getScriptCache().remove(String(sid));return{success:true,message:"Logged out successfully"};}',
 'function clientLogout(sid){return logout(sid);}',
-'function getClientDashboard(sid){try{var u=getUserFromSession(sid),ss=getWorkspaceFile(sid),f=ss.getSheetByName("Financial_Data"),revenue=0,expenses=0,recent=[];if(f&&f.getLastRow()>1){var v=f.getDataRange().getValues(),h=v[0],tc=h.indexOf("Type"),ac=h.indexOf("Amount"),dc=h.indexOf("Date"),xc=h.indexOf("Description");v.slice(1).forEach(function(r){var a=Number(r[ac])||0,t=String(r[tc]||"").toLowerCase();if(t==="revenue"||t==="income")revenue+=Math.abs(a);if(t==="expense")expenses+=Math.abs(a);});recent=v.slice(1).filter(function(r){return dc>=0&&r[dc];}).slice(-10).reverse().map(function(r){return{date:r[dc],description:xc>=0?r[xc]:"",amount:ac>=0?r[ac]:0,type:tc>=0?r[tc]:""};});}return{success:true,dashboard:{kpis:{revenue:revenue,expenses:expenses,profit:revenue-expenses,margin:revenue?((revenue-expenses)/revenue*100):0},modules:Object.keys(MODULES),recentTransactions:recent,clientName:CLIENT_CONFIG.clientName,primaryColor:CLIENT_CONFIG.primaryColor,logoUrl:CLIENT_CONFIG.logoUrl,workspaceId:CLIENT_CONFIG.sheetId,userEmail:u.email}};}catch(e){return{success:false,message:e.message,code:"CLIENT_DASHBOARD_ERROR"};}}',
-'function getClientDashboardData(sid){var b=getClientDashboard(sid);if(!b.success)return b;var d=b.dashboard;return{success:true,dashboard:{kpis:{revenue:{value:d.kpis.revenue,change:0},expenses:{value:d.kpis.expenses,change:0},netProfit:{value:d.kpis.profit,change:0},profitMargin:{value:d.kpis.margin,change:0}},trends:{categoryBreakdown:{},daily:{},weekly:{}},moduleSummary:d.modules,health:{overall:0,metrics:[],recommendations:[]},charts:{revenueVsExpenses:{labels:[],revenue:[],expenses:[]},expenseBreakdown:{labels:[],values:[]}},recentActivity:[],alerts:[],recentTransactions:d.recentTransactions}};}',
-'function getClientModuleSummary(sid){var out={};Object.keys(MODULES).forEach(function(k){out[k]={label:MODULES[k].label,icon:MODULES[k].icon};});return out;}',
+'function getClientDashboard(sid,forceRefresh){
+  try{
+    var u=getUserFromSession(sid);
+    var cacheKey="BIZOS_CLIENT_DASH_"+String(CLIENT_CONFIG.clientId).replace(/[^A-Za-z0-9_]/g,"_");
+    if(!forceRefresh){
+      var cached=CacheService.getScriptCache().get(cacheKey);
+      if(cached){try{return{success:true,dashboard:JSON.parse(cached),cached:true};}catch(ignore){}}
+    }
+    var ss=getWorkspaceFile(sid),finance=ss.getSheetByName("Financial_Data");
+    var revenue=0,expenses=0,recent=[],daily={},expenseCategories={},financeCount=0;
+    if(finance&&finance.getLastRow()>1){
+      var v=finance.getDataRange().getValues(),h=v[0]||[];
+      var tc=h.indexOf("Type"),ac=h.indexOf("Amount"),dc=h.indexOf("Date"),xc=h.indexOf("Description"),cc=h.indexOf("Category");
+      financeCount=Math.max(0,v.length-1);
+      v.slice(1).forEach(function(r){
+        var a=Number(r[ac])||0,t=String(r[tc]||"").toLowerCase(),d=r[dc],key="";
+        if(d instanceof Date)key=Utilities.formatDate(d,Session.getScriptTimeZone(),"yyyy-MM-dd");
+        else if(d)key=String(d).slice(0,10);
+        if(t==="revenue"||t==="income"){revenue+=Math.abs(a);if(key){daily[key]=daily[key]||{revenue:0,expenses:0};daily[key].revenue+=Math.abs(a);}}
+        if(t==="expense"){expenses+=Math.abs(a);if(key){daily[key]=daily[key]||{revenue:0,expenses:0};daily[key].expenses+=Math.abs(a);}var cat=String(cc>=0?r[cc]:"Uncategorized")||"Uncategorized";expenseCategories[cat]=(expenseCategories[cat]||0)+Math.abs(a);}
+      });
+      recent=v.slice(1).filter(function(r){return dc>=0&&r[dc];}).slice(-10).reverse().map(function(r){
+        return{date:r[dc],description:xc>=0?r[xc]:"",amount:ac>=0?r[ac]:0,type:tc>=0?r[tc]:"",category:cc>=0?r[cc]:""};
+      });
+    }
+    var moduleCounts={},moduleNames=Object.keys(MODULES);
+    moduleNames.forEach(function(name){try{var sh=ss.getSheetByName(MODULES[name].sheet);moduleCounts[name]=sh?Math.max(0,sh.getLastRow()-1):0;}catch(e){moduleCounts[name]=0;}});
+    var teamSheet=ss.getSheetByName("Client_Team"),teamCount=teamSheet&&teamSheet.getLastRow()>1?teamSheet.getLastRow()-1:0;
+    var profit=revenue-expenses,margin=revenue?profit/revenue*100:0;
+    var trendKeys=Object.keys(daily).sort().slice(-7),trend={labels:[],revenue:[],expenses:[]};
+    trendKeys.forEach(function(k){trend.labels.push(k);trend.revenue.push(daily[k].revenue||0);trend.expenses.push(daily[k].expenses||0);});
+    var expPairs=Object.keys(expenseCategories).sort(function(a,b){return expenseCategories[b]-expenseCategories[a];}).slice(0,6);
+    var breakdown={labels:expPairs,values:expPairs.map(function(k){return expenseCategories[k];})};
+    var alerts=[],recommendations=[];
+    if(financeCount===0)recommendations.push({type:"start",title:"Start tracking your finances",message:"Add your first income or expense to unlock financial insights."});
+    if(financeCount>0&&revenue===0)recommendations.push({type:"info",title:"Record your income",message:"Add revenue entries so BizOS can calculate profit and business trends."});
+    if(revenue>0&&expenses>revenue)alerts.push({type:"warning",title:"Expenses are above revenue",message:"Your recorded expenses currently exceed recorded revenue."});
+    var health=null;
+    if(financeCount>0){var marginScore=Math.max(0,Math.min(100,50+margin));health={overall:Math.round(marginScore),metrics:[{label:"Profit margin",value:margin.toFixed(1)+"%"},{label:"Financial records",value:String(financeCount)},{label:"Team members",value:String(teamCount)}],recommendations:recommendations};}
+    else health={overall:null,metrics:[],recommendations:recommendations};
+    var dashboard={
+      kpis:{revenue:revenue,expenses:expenses,profit:profit,margin:margin},
+      modules:moduleNames,
+      moduleCounts:moduleCounts,
+      counts:{finance:financeCount,products:(moduleCounts.Ecommerce||0)+(moduleCounts.POS||0),modules:moduleNames.length,team:teamCount},
+      charts:{revenueVsExpenses:trend,expenseBreakdown:breakdown},
+      health:health,
+      alerts:alerts,
+      recommendations:recommendations,
+      recentActivity:recent.slice(0,8).map(function(x){return{date:x.date,title:x.description||x.type||"Financial entry",type:String(x.type||"").toLowerCase(),amount:x.amount};}),
+      recentTransactions:recent,
+      clientName:CLIENT_CONFIG.clientName,
+      primaryColor:CLIENT_CONFIG.primaryColor,
+      logoUrl:CLIENT_CONFIG.logoUrl,
+      workspaceId:CLIENT_CONFIG.sheetId,
+      userEmail:u.email,
+      generatedAt:new Date().toISOString()
+    };
+    var payload=JSON.stringify(dashboard);
+    try{CacheService.getScriptCache().put(cacheKey,payload,60);}catch(ignore2){}
+    return{success:true,dashboard:dashboard,cached:false};
+  }catch(e){return{success:false,message:e.message,code:"CLIENT_DASHBOARD_ERROR"};}
+}
+function getClientDashboardData(sid,forceRefresh){
+  var b=getClientDashboard(sid,forceRefresh);
+  if(!b.success)return b;
+  var d=b.dashboard;
+  return{success:true,cached:!!b.cached,dashboard:{
+    kpis:{revenue:{value:d.kpis.revenue,change:0},expenses:{value:d.kpis.expenses,change:0},netProfit:{value:d.kpis.profit,change:0},profitMargin:{value:d.kpis.margin,change:0}},
+    counts:d.counts,moduleCounts:d.moduleCounts,moduleSummary:d.modules,
+    health:d.health,charts:d.charts,recentActivity:d.recentActivity,alerts:d.alerts,recommendations:d.recommendations,recentTransactions:d.recentTransactions,
+    clientName:d.clientName,primaryColor:d.primaryColor,logoUrl:d.logoUrl,workspaceId:d.workspaceId,userEmail:d.userEmail,generatedAt:d.generatedAt
+  }};
+}
+function getClientModuleSummary(sid){var out={};Object.keys(MODULES).forEach(function(k){out[k]={label:MODULES[k].label,icon:MODULES[k].icon};});return out;}',
 'function getModuleSummary(sid){return getClientModuleSummary(sid);}',
 'function getClientModuleData(m,sid){try{var r=getModuleData(String(m||"Finance"),sid)||[];return r.map(function(x,i){x._row=i+2;return x;});}catch(e){return[];}}',
 'function getClientModuleDataWithSync(m,sid){try{var r=getModuleData(String(m||"Finance"),sid)||[],h=getSheetHeaders(String(m||"Finance"),sid);return{success:true,headers:h,records:r.map(function(x,i){x._row=i+2;return x;})};}catch(e){return{success:false,message:e.message,records:[]};}}',
