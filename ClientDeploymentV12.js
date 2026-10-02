@@ -199,14 +199,26 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var missing=required.filter(function(n){return names.indexOf(n)<0;});
   if(missing.length)return{success:false,code:'V12_PACKAGE_MISSING_FILES',message:'V12 package is missing: '+missing.join(', ')};
   var shell=pkg.files.filter(function(f){return f.name==='ClientShellV12';})[0].source||'';
+  var styles=pkg.files.filter(function(f){return f.name==='ClientStylesV12';})[0].source||'';
   var code=pkg.files.filter(function(f){return f.name==='Code';})[0].source||'';
+  var manifestSource=pkg.files.filter(function(f){return f.name==='appsscript';})[0].source||'';
   var forbiddenUi=['id="landing-page"','id="dashboard-page"','id="admin-dashboard"','Admin Login','Client Registry','Deployment Status'];
   var leakedUi=forbiddenUi.filter(function(token){return shell.indexOf(token)>=0;});
   if(leakedUi.length)return{success:false,code:'V12_MASTER_UI_LEAK',message:'V12 client UI contains Master UI markers: '+leakedUi.join(', ')};
   var forbiddenRuntime=['function autoSetupClient','function redeployClientByBusinessId','function requireAdminSession_','function getBizOSMasterSpreadsheet_','function createAndDeployClientScriptSafe'];
   var leakedRuntime=forbiddenRuntime.filter(function(token){return code.indexOf(token)>=0;});
   if(leakedRuntime.length)return{success:false,code:'V12_MASTER_RUNTIME_LEAK',message:'V12 client runtime contains forbidden Master functions: '+leakedRuntime.join(', ')};
+  var requiredRuntime=['function doGet(e){','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_'];
+  var missingRuntime=requiredRuntime.filter(function(token){return code.indexOf(token)<0;});
+  if(missingRuntime.length)return{success:false,code:'V12_RUNTIME_DEPENDENCY_MISSING',message:'V12 client runtime is missing required functions: '+missingRuntime.join(', ')};
+  var requiredShell=['ClientStylesV12','authenticateClient','validateSession','getUserFromSession','clientLogout','getClientDashboardData','rich-kpi-grid','trendChart','breakdownChart','healthView'];
+  var missingShell=requiredShell.filter(function(token){return shell.indexOf(token)<0;});
+  if(missingShell.length)return{success:false,code:'V12_SHELL_DEPENDENCY_MISSING',message:'V12 client shell is missing required UI/runtime markers: '+missingShell.join(', ')};
+  var requiredStyles=['rich-kpi-grid','.bar-chart','.health-score','.mini-table'];
+  var missingStyles=requiredStyles.filter(function(token){return styles.indexOf(token)<0;});
+  if(missingStyles.length)return{success:false,code:'V12_STYLE_DEPENDENCY_MISSING',message:'V12 client styles are missing required dashboard styles: '+missingStyles.join(', ')};
+  try{var manifest=JSON.parse(manifestSource);if(!manifest||manifest.runtimeVersion!=='V8'||!manifest.webapp)return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is missing required V8/webapp configuration.'};}catch(e){return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is not valid JSON: '+e.message};}
   if(expected&&expected.clientId&&code.indexOf(String(expected.clientId))<0)return{success:false,code:'V12_CLIENT_ID_MISMATCH',message:'V12 runtime does not contain the expected client ID.'};
   if(expected&&expected.sheetId&&code.indexOf(String(expected.sheetId))<0)return{success:false,code:'V12_WORKSPACE_ID_MISMATCH',message:'V12 runtime does not contain the expected workspace ID.'};
-  return{success:true,code:'V12_PACKAGE_VALID',version:'12.0',fileCount:pkg.files.length,files:names};
+  return{success:true,code:'V12_PACKAGE_VALID',version:'12.0',fileCount:pkg.files.length,files:names,checks:{runtimeDependencies:true,shellDependencies:true,styleDependencies:true,manifest:true,masterUiLeak:false,masterRuntimeLeak:false}};
 }
