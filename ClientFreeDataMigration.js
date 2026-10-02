@@ -137,7 +137,12 @@ function generateDeterministicMigrationId_(sourceWorkspaceId, moduleName, source
     return ('0' + value.toString(16)).slice(-2);
   }).join('').substring(0,12).toUpperCase();
 
-  return (idHeader === 'Transaction_ID' ? 'TXN-MIGRATED-' : 'ORD-MIGRATED-') + hex;
+  var prefixMap = {
+    Transaction_ID:'TXN', Order_ID:'ORD', Deal_ID:'DEAL', Contact_ID:'CRM', Employee_ID:'EMP',
+    Shipment_ID:'SHIP', Tax_ID:'TAX', Activity_ID:'ACT', Task_ID:'TASK', Sale_ID:'SALE',
+    Attendance_ID:'ATT', Item_ID:'ITEM'
+  };
+  return (prefixMap[idHeader] || 'REC') + '-MIGRATED-' + hex;
 }
 
 function migrationRowFingerprint_(headers,row) {
