@@ -39,7 +39,7 @@ function generateClientCodeSafelyV12(settings) {
     'function completeClientBusinessCenterSale(data,sid){return completeBusinessCenterSale(data,sid);}',
     'function adjustClientBusinessCenterStock(data,sid){return adjustBusinessCenterStock(data,sid);}'
   ].join(String.fromCharCode(10));
-  runtime = runtime.replace(/\nfunction doGet\(e\)\{/, '\\n'+businessCenterSource+'\\n'+businessCenterBridge+'\\nfunction doGet(e){');
+  runtime = runtime.replace(/\nfunction doGet\(e\)\{/, '\n'+businessCenterSource+'\n'+businessCenterBridge+'\nfunction doGet(e){');
   var doGetStart = runtime.indexOf('function doGet(e){');
   var includeStart = runtime.indexOf('function include', doGetStart);
   if (doGetStart < 0 || includeStart < 0) throw new Error('Unable to isolate the V12 client doGet runtime.');
