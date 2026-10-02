@@ -1,0 +1,69 @@
+<!-- V12 CLIENT NOTIFICATIONS / TEAM ACTIVITY -->
+<style>
+.client-notifications-v12{display:block}
+.client-notifications-v12 .notif-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}
+.client-notifications-v12 .notif-actions{display:flex;gap:8px;flex-wrap:wrap}
+.client-notifications-v12 .notif-btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 13px;border-radius:10px;font-weight:600;cursor:pointer}
+.client-notifications-v12 .notif-btn:hover{border-color:var(--brand);color:var(--brand)}
+.client-notifications-v12 .notif-btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.client-notifications-v12 .notif-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.client-notifications-v12 .notif-tab{border:0;background:transparent;padding:10px 13px;color:var(--muted);font-weight:700;cursor:pointer;border-bottom:2px solid transparent}
+.client-notifications-v12 .notif-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.client-notifications-v12 .notif-list{display:grid;gap:10px}
+.client-notifications-v12 .notif-card{display:flex;gap:13px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+.client-notifications-v12 .notif-card.unread{border-color:var(--brand);background:var(--brand-pale)}
+.client-notifications-v12 .notif-icon{width:38px;height:38px;min-width:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--brand-soft);color:var(--brand);font-size:15px}
+.client-notifications-v12 .notif-main{min-width:0;flex:1}
+.client-notifications-v12 .notif-title{font-weight:750;color:var(--ink);font-size:14px}
+.client-notifications-v12 .notif-message{margin-top:4px;color:var(--muted);font-size:13px;line-height:1.5}
+.client-notifications-v12 .notif-meta{margin-top:8px;color:var(--muted);font-size:11px}
+.client-notifications-v12 .notif-mark{border:0;background:transparent;color:var(--brand);font-size:12px;font-weight:700;cursor:pointer}
+.client-notifications-v12 .activity-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+.client-notifications-v12 .activity-row{display:flex;gap:12px;align-items:flex-start}
+.client-notifications-v12 .activity-dot{width:9px;height:9px;min-width:9px;border-radius:50%;background:var(--brand);margin-top:6px}
+.client-notifications-v12 .activity-title{font-weight:650;color:var(--ink);font-size:13px}
+.client-notifications-v12 .activity-meta{margin-top:4px;color:var(--muted);font-size:11px}
+.client-notifications-v12 .notif-empty{padding:36px 18px;text-align:center;border:1px dashed var(--line);border-radius:14px;color:var(--muted);background:#fff}
+.client-notifications-v12 .notif-empty i{font-size:24px;color:var(--brand);margin-bottom:9px}
+</style>
+<div id="client-notifications-v12" class="client-notifications-v12">
+  <div class="notif-head">
+    <div>
+      <span class="section-kicker">WORKSPACE UPDATES</span>
+      <h2 style="margin:4px 0 0;color:var(--ink);font-size:22px">Notifications</h2>
+      <p style="margin:5px 0 0;color:var(--muted);font-size:13px">Important updates and activity from your business workspace.</p>
+    </div>
+    <div class="notif-actions">
+      <button class="notif-btn" type="button" onclick="clientNotificationsMarkAll()">Mark all read</button>
+      <button class="notif-btn primary" type="button" onclick="clientNotificationsRefresh()">Refresh</button>
+    </div>
+  </div>
+  <div class="notif-tabs">
+    <button id="client-notif-tab-notifications" class="notif-tab active" type="button" onclick="clientNotificationsTab('notifications')">Notifications <span id="client-notif-count"></span></button>
+    <button id="client-notif-tab-activity" class="notif-tab" type="button" onclick="clientNotificationsTab('activity')">Team activity</button>
+  </div>
+  <div id="client-notif-panel-notifications" class="notif-list"></div>
+  <div id="client-notif-panel-activity" class="notif-list hidden"></div>
+</div>
+<script>
+(function(){
+  var state={notifications:[],activity:[],tab:'notifications',loaded:false};
+  function call(name,args,ok,fail){google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(fail||function(e){if(window.showError)window.showError(e&&e.message?e.message:String(e));})[name].apply(null,args||[]);}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function when(v){if(!v)return'';try{return new Date(v).toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'});}catch(e){return String(v);}}
+  function icon(type){var t=String(type||'').toLowerCase();if(t.indexOf('staff')>=0)return'fa-users';if(t.indexOf('security')>=0)return'fa-shield-alt';if(t.indexOf('billing')>=0||t.indexOf('maintenance')>=0)return'fa-tools';if(t.indexOf('finance')>=0)return'fa-chart-line';return'fa-bell';}
+  function render(){
+    var unread=state.notifications.filter(function(n){return !n.read;}).length;
+    var count=document.getElementById('client-notif-count');if(count)count.textContent=unread?' · '+unread:'';
+    var np=document.getElementById('client-notif-panel-notifications'),ap=document.getElementById('client-notif-panel-activity');
+    if(np)np.innerHTML=state.notifications.length?state.notifications.map(function(n){return'<article class="notif-card '+(n.read?'':'unread')+'"><div class="notif-icon"><i class="fas '+icon(n.type)+'"></i></div><div class="notif-main"><div class="notif-title">'+esc(n.title)+'</div><div class="notif-message">'+esc(n.message)+'</div><div class="notif-meta">'+esc(n.type||'Update')+' · '+esc(when(n.createdAt))+'</div></div>'+(n.read?'':'<button class="notif-mark" type="button" onclick="clientNotificationsRead(\''+esc(n.id)+'\')">Mark read</button>')+'</article>';}).join(''): '<div class="notif-empty"><i class="fas fa-bell"></i><div>No notifications yet.</div><p style="margin:5px 0 0">New workspace updates will appear here.</p></div>';
+    if(ap)ap.innerHTML=state.activity.length?state.activity.map(function(a){return'<article class="activity-card"><div class="activity-row"><span class="activity-dot"></span><div><div class="activity-title">'+esc(a.summary||a.eventType||'Workspace activity')+'</div><div class="activity-meta">'+esc(a.actorName||a.actorEmail||'Workspace member')+' · '+esc(when(a.createdAt))+'</div></div></div></article>';}).join(''):'<div class="notif-empty"><i class="fas fa-users"></i><div>No team activity yet.</div><p style="margin:5px 0 0">Staff and workspace actions will appear here.</p></div>';
+  }
+  window.clientNotificationsTab=function(tab){state.tab=tab;['notifications','activity'].forEach(function(k){var b=document.getElementById('client-notif-tab-'+k),p=document.getElementById('client-notif-panel-'+k);if(b)b.classList.toggle('active',k===tab);if(p)p.classList.toggle('hidden',k!==tab);});};
+  window.clientNotificationsRead=function(id){call('markClientNotificationRead',[id,window.clientSessionId],function(r){if(r&&r.success){state.notifications.forEach(function(n){if(n.id===id)n.read=true;});render();}});};
+  window.clientNotificationsMarkAll=function(){call('markAllClientNotificationsRead',[window.clientSessionId],function(r){if(r&&r.success){state.notifications.forEach(function(n){n.read=true;});render();}});};
+  window.clientNotificationsRefresh=function(){call('getClientNotificationsData',[window.clientSessionId],function(r){if(!r||!r.success){render();return;}state.notifications=r.notifications||[];state.activity=r.activity||[];state.loaded=true;render();});};
+  window.clientNotificationsInit=function(){if(!window.clientSessionId){return;}clientNotificationsRefresh();};
+  clientNotificationsInit();
+})();
+</script>
