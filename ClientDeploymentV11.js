@@ -16,8 +16,8 @@ var CLIENT_V11_UI_FILES_ = [
 ];
 
 var CLIENT_V11_SERVER_FILES_ = [
-  'BusinessHubGS.gs','Dashboard.js','Modules.js','Records.js',
-  'Reference-data.js','Export.js','Profile.js'
+  'BusinessHubGS','Dashboard','Modules','Records',
+  'Reference-data','Export','Profile'
 ];
 
 function generateClientCodeSafelyV11(settings) {
