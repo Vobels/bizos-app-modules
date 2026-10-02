@@ -29,7 +29,11 @@ function generateClientCodeSafelyV12(settings) {
   var runtime = buildClientRuntimeV11_(config);
   var businessCenterSource = String(getMasterSourceForV12_('BusinessHubGS') || '');
   var staffSource = String(getMasterSourceForV12_('ClientStaffV12') || '');
+  var appsSource = String(getMasterSourceForV12_('ClientAppsV12') || '');
+  var settingsSource = String(getMasterSourceForV12_('ClientSettingsV12') || '');
   if(!staffSource) throw new Error('ClientStaffV12 source is missing.');
+  if(!appsSource) throw new Error('ClientAppsV12 source is missing.');
+  if(!settingsSource) throw new Error('ClientSettingsV12 source is missing.');
   if(!businessCenterSource) throw new Error('BusinessHubGS source is missing.');
   var businessCenterBridge = [
     'function clientSafeBusinessCenterResult_(result){try{return JSON.parse(JSON.stringify(result));}catch(e){return result;}}',
@@ -44,6 +48,12 @@ function generateClientCodeSafelyV12(settings) {
     "function getClientFinanceData(sid){var access=clientFinanceAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};var result=getModuleDataWithSync('Finance',sid);if(!result||result.success===false)return result||{success:false,message:'Unable to load Finance.'};var records=Array.isArray(result.records)?result.records:[];var revenue=0,expenses=0;records.forEach(function(row){var type=String(row.Type||'').toLowerCase(),amount=Math.abs(Number(row.Amount)||0);if(type==='revenue'||type==='income')revenue+=amount;else if(type==='expense'||type==='expenses')expenses+=amount;});return{success:true,records:records.reverse(),summary:{revenue:revenue,expenses:expenses,profit:revenue-expenses,recordCount:records.length}};}",
     "function saveClientFinanceTransaction(data,sid){var access=clientFinanceAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};data=data||{};data.Type=String(data.Type||'').toLowerCase();if(['revenue','expense'].indexOf(data.Type)===-1)return{success:false,message:'Transaction type must be income or expense.'};if(!(Number(data.Amount)>0))return{success:false,message:'Amount must be greater than zero.'};if(!String(data.Category||'').trim())return{success:false,message:'Category is required.'};return saveRecord('Finance',data,sid);}",
     "function deleteClientFinanceTransaction(recordId,sid){var access=clientFinanceAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};recordId=String(recordId||'').trim();if(!recordId)return{success:false,message:'Transaction ID is required.'};var workspace=getWorkspaceFile(sid),sheet=workspace.getSheetByName(MODULES.Finance.sheet);if(!sheet||sheet.getLastRow()<2)return{success:false,message:'Transaction not found.'};var values=sheet.getDataRange().getValues(),headers=values[0],idCol=headers.indexOf('Transaction_ID');if(idCol<0)return{success:false,message:'Transaction ID column not found.'};for(var i=1;i<values.length;i++){if(String(values[i][idCol]||'')===recordId){sheet.deleteRow(i+1);return{success:true,message:'Transaction deleted successfully.'};}}return{success:false,message:'Transaction not found.'};}"
+    "function clientSettingsAccessV12_(sid,write){var user=getUserFromSession(sid);if(!user)return{ok:false,message:'Session expired. Please login again.'};var role=String(user.role||'staff').toLowerCase();if(['owner','admin','staff'].indexOf(role)<0)return{ok:false,message:'You do not have access to client settings.'};if(write&&user.isDemo==='YES')return{ok:false,message:'Demo accounts are view-only.'};return{ok:true,user:user};}",
+    "function getClientAppsData(sid){var user=getUserFromSession(sid);if(!user)return{success:false,message:'Session expired. Please login again.'};return{success:true,summary:getModuleSummary(sid)};}",
+    "function getClientSettingsData(sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};var ws=getWorkspaceFile(sid),sheet=ws.getSheetByName('Client_Info'),settings={};if(sheet&&sheet.getLastRow()>0){var rows=sheet.getDataRange().getValues(),h=rows[0]||[],p=h.indexOf('Property'),v=h.indexOf('Value');if(p>=0&&v>=0)for(var i=1;i<rows.length;i++){var k=String(rows[i][p]||'').trim();if(k)settings[k]=rows[i][v];}}return{success:true,settings:settings,user:access.user};}",
+    "function saveClientSettings(data,sid){var access=clientSettingsAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};data=data||{};var allowed=['Business_Name','Business_Type','Phone','Website','Address','City','Country','Currency','Business_Description','Display_Name','Primary_Color','Logo_Url'],clean={};allowed.forEach(function(k){if(data[k]!==undefined)clean[k]=String(data[k]||'').trim();});if(!clean.Business_Name)return{success:false,message:'Business name is required.'};if(clean.Currency&&!/^[A-Z]{3}$/.test(clean.Currency))return{success:false,message:'Currency must be a 3-letter code.'};if(clean.Primary_Color&&!/^#[0-9A-Fa-f]{6}$/.test(clean.Primary_Color))return{success:false,message:'Primary colour must be a 6-digit hex colour.'};var ws=getWorkspaceFile(sid),sheet=ws.getSheetByName('Client_Info');if(!sheet)return{success:false,message:'Client settings storage is unavailable.'};var rows=sheet.getDataRange().getValues(),h=rows[0]||[],p=h.indexOf('Property'),v=h.indexOf('Value'),idx={};if(p<0||v<0)return{success:false,message:'Client settings schema is unavailable.'};for(var i=1;i<rows.length;i++){var key=String(rows[i][p]||'').trim();if(key)idx[key]=i+1;}Object.keys(clean).forEach(function(k){if(idx[k])sheet.getRange(idx[k],v+1).setValue(clean[k]);else sheet.appendRow([k,clean[k]]);});return{success:true,settings:clean};}",
+    "function updateClientProfile(data,sid){var access=clientSettingsAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};data=data||{};return updateUserProfile(String(access.user.businessId||''),String(data.name||''),String(data.phone||''),sid);}",
+    "function changeClientPassword(currentPassword,newPassword,sid){var access=clientSettingsAccessV12_(sid,true);if(!access.ok)return{success:false,message:access.message};return changeUserPassword(String(access.user.email||''),String(currentPassword||''),String(newPassword||''),sid);}"
   ].join(String.fromCharCode(10));
   runtime = runtime.replace(/\nfunction doGet\(e\)\{/, '\n'+businessCenterSource+'\n'+businessCenterBridge+'\nfunction doGet(e){');
   var doGetStart = runtime.indexOf('function doGet(e){');
@@ -59,6 +69,8 @@ function generateClientCodeSafelyV12(settings) {
     {name:'ClientBusinessCenterV12',type:'HTML',source:buildClientBusinessCenterV12_()},
     {name:'ClientFinanceV12',type:'HTML',source:buildClientFinanceV12_()},
     {name:'ClientStaffV12',type:'HTML',source:buildClientStaffV12_()},
+    {name:'ClientAppsV12',type:'HTML',source:buildClientAppsV12_()},
+    {name:'ClientSettingsV12',type:'HTML',source:buildClientSettingsV12_()},
     {name:'ClientStylesV12',type:'HTML',source:buildClientStylesV12_()},
     {name:'appsscript',type:'JSON',source:JSON.stringify(buildClientManifestV12_())}
   ];
@@ -90,6 +102,8 @@ function buildClientFinanceV12_() {
   return source;
 }
 
+function buildClientAppsV12_() { var source=String(getMasterSourceForV12_('ClientAppsV12')||''); if(!source) throw new Error('ClientAppsV12 source is missing.'); return source; }
+function buildClientSettingsV12_() { var source=String(getMasterSourceForV12_('ClientSettingsV12')||''); if(!source) throw new Error('ClientSettingsV12 source is missing.'); return source; }
 function buildClientStaffV12_() {
   var source = String(getMasterSourceForV12_('ClientStaffV12') || '');
   if(!source) throw new Error('ClientStaffV12 source is missing.');
@@ -234,13 +248,15 @@ function getActiveClientByEmailForV12Test_(email) {
 function validateClientDeploymentPackageV12_(pkg, expected) {
   if(!pkg||!Array.isArray(pkg.files)||!pkg.files.length)return{success:false,code:'PACKAGE_EMPTY',message:'Generated V12 client package is empty.'};
   var names=pkg.files.map(function(f){return String(f.name||'');});
-  var required=['Code','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientStylesV12','appsscript'];
+  var required=['Code','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientSettingsV12','ClientStylesV12','appsscript'];
   var missing=required.filter(function(n){return names.indexOf(n)<0;});
   if(missing.length)return{success:false,code:'V12_PACKAGE_MISSING_FILES',message:'V12 package is missing: '+missing.join(', ')};
   var shell=pkg.files.filter(function(f){return f.name==='ClientShellV12';})[0].source||'';
   var business=pkg.files.filter(function(f){return f.name==='ClientBusinessCenterV12';})[0].source||'';
   var finance=pkg.files.filter(function(f){return f.name==='ClientFinanceV12';})[0].source||'';
   var staff=pkg.files.filter(function(f){return f.name==='ClientStaffV12';})[0].source||'';
+  var apps=pkg.files.filter(function(f){return f.name==='ClientAppsV12';})[0].source||'';
+  var settings=pkg.files.filter(function(f){return f.name==='ClientSettingsV12';})[0].source||'';
   var styles=pkg.files.filter(function(f){return f.name==='ClientStylesV12';})[0].source||'';
   var code=pkg.files.filter(function(f){return f.name==='Code';})[0].source||'';
   var manifestSource=pkg.files.filter(function(f){return f.name==='appsscript';})[0].source||'';
@@ -250,14 +266,14 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var forbiddenRuntime=['function autoSetupClient','function redeployClientByBusinessId','function requireAdminSession_','function getBizOSMasterSpreadsheet_','function createAndDeployClientScriptSafe'];
   var leakedRuntime=forbiddenRuntime.filter(function(token){return code.indexOf(token)>=0;});
   if(leakedRuntime.length)return{success:false,code:'V12_MASTER_RUNTIME_LEAK',message:'V12 client runtime contains forbidden Master functions: '+leakedRuntime.join(', ')};
-  var requiredRuntime=['function doGet(e){','function clientFinanceAccessV12_','function getClientFinanceData','function saveClientFinanceTransaction','function deleteClientFinanceTransaction','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_','function getBusinessCenterData','function getClientBusinessCenterData','function saveClientBusinessCenterProduct','function saveClientBusinessCenterCustomer','function completeClientBusinessCenterSale','function adjustClientBusinessCenterStock'];
+  var requiredRuntime=['function doGet(e){','function clientFinanceAccessV12_','function getClientAppsData','function clientSettingsAccessV12_','function getClientSettingsData','function saveClientSettings','function changeClientPassword','function updateClientProfile','function getClientFinanceData','function saveClientFinanceTransaction','function deleteClientFinanceTransaction','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_','function getBusinessCenterData','function getClientBusinessCenterData','function saveClientBusinessCenterProduct','function saveClientBusinessCenterCustomer','function completeClientBusinessCenterSale','function adjustClientBusinessCenterStock'];
   var missingRuntime=requiredRuntime.filter(function(token){return code.indexOf(token)<0;});
   if(missingRuntime.length)return{success:false,code:'V12_RUNTIME_DEPENDENCY_MISSING',message:'V12 client runtime is missing required functions: '+missingRuntime.join(', ')};var securityRuntime=['function clientAssignedModulesV11_','CLIENT_LICENSE_INVALID','function removeTeamMember(bid,email,sid)','String(u.businessId)!==String(bid)','function updateUserProfile(bid,name,phone,sid)','function changeUserPassword(email,currentPassword,newPassword,sid)','function createClientSessionV11_'];var missingSecurity=securityRuntime.filter(function(token){return code.indexOf(token)<0;});if(missingSecurity.length)return{success:false,code:'V12_SECURITY_DEPENDENCY_MISSING',message:'V12 client runtime is missing hardened security markers: '+missingSecurity.join(', ')};if(code.indexOf('function createSession(')>=0)return{success:false,code:'V12_PUBLIC_SESSION_FACTORY_LEAK',message:'V12 client runtime still exposes the public session factory.'};
   var requiredShell=['ClientStylesV12','ClientStaffV12','ClientBusinessCenterV12','authenticateClient','validateSession','getUserFromSession','clientLogout','getClientDashboardData','rich-kpi-grid','trendChart','breakdownChart','healthView'];
   var requiredStaff=['staff-v12-root','getBusinessStaff','inviteStaffMember','resendStaffInvitation','removeTeamMember','assignModuleToStaff','getAvailableModulesForStaff'];
   var missingStaff=requiredStaff.filter(function(token){return staff.indexOf(token)<0;});
   if(missingStaff.length)return{success:false,code:'V12_STAFF_DEPENDENCY_MISSING',message:'V12 Staff workspace is missing required markers: '+missingStaff.join(', ')};
-  var requiredBusiness=['bc-v12-root','getClientBusinessCenterData','saveClientBusinessCenterProduct','saveClientBusinessCenterCustomer','completeClientBusinessCenterSale','adjustClientBusinessCenterStock'];
+  var requiredApps=['apps-v12-root','getClientAppsData'];var missingApps=requiredApps.filter(function(token){return apps.indexOf(token)<0;});if(missingApps.length)return{success:false,code:'V12_APPS_DEPENDENCY_MISSING',message:'V12 Apps workspace is missing required markers: '+missingApps.join(', ')};var requiredSettings=['settings-v12-root','getClientSettingsData','saveClientSettings','changeClientPassword'];var missingSettings=requiredSettings.filter(function(token){return settings.indexOf(token)<0;});if(missingSettings.length)return{success:false,code:'V12_SETTINGS_DEPENDENCY_MISSING',message:'V12 Settings workspace is missing required markers: '+missingSettings.join(', ')};var requiredBusiness=['bc-v12-root','getClientBusinessCenterData','saveClientBusinessCenterProduct','saveClientBusinessCenterCustomer','completeClientBusinessCenterSale','adjustClientBusinessCenterStock'];
   var missingBusiness=requiredBusiness.filter(function(token){return business.indexOf(token)<0;});
   if(missingBusiness.length)return{success:false,code:'V12_BUSINESS_CENTER_DEPENDENCY_MISSING',message:'V12 Business Center UI is missing required markers: '+missingBusiness.join(', ')};
   var missingShell=requiredShell.filter(function(token){return shell.indexOf(token)<0;});
@@ -268,5 +284,5 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   try{var manifest=JSON.parse(manifestSource);if(!manifest||manifest.runtimeVersion!=='V8'||!manifest.webapp)return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is missing required V8/webapp configuration.'};}catch(e){return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is not valid JSON: '+e.message};}
   if(expected&&expected.clientId&&code.indexOf(String(expected.clientId))<0)return{success:false,code:'V12_CLIENT_ID_MISMATCH',message:'V12 runtime does not contain the expected client ID.'};
   if(expected&&expected.sheetId&&code.indexOf(String(expected.sheetId))<0)return{success:false,code:'V12_WORKSPACE_ID_MISMATCH',message:'V12 runtime does not contain the expected workspace ID.'};
-  return{success:true,code:'V12_PACKAGE_VALID',version:'12.0',fileCount:pkg.files.length,files:names,checks:{runtimeDependencies:true,shellDependencies:true,businessCenterDependencies:true,staffDependencies:true,styleDependencies:true,manifest:true,masterUiLeak:false,masterRuntimeLeak:false}};
+  return{success:true,code:'V12_PACKAGE_VALID',version:'12.0',fileCount:pkg.files.length,files:names,checks:{runtimeDependencies:true,shellDependencies:true,businessCenterDependencies:true,staffDependencies:true,appsDependencies:true,settingsDependencies:true,styleDependencies:true,manifest:true,masterUiLeak:false,masterRuntimeLeak:false}};
 }
