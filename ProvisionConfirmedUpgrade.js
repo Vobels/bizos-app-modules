@@ -80,6 +80,19 @@ function provisionConfirmedUpgradeRequest(requestId) {
 
       sheet.getRange(rowIndex+1,statusCol+1).setValue('provisioned');
       if(updatedCol!==-1)sheet.getRange(rowIndex+1,updatedCol+1).setValue(new Date().toISOString());
+
+      try {
+        var provisionedBusinessId = String(result.businessId || request.Business_ID || request.businessId || '');
+        var provisionedEmail = String(request.Email || request.email || '').trim().toLowerCase();
+        var provisionedName = String(request.Business_Name || request.businessName || result.clientName || 'Your business');
+        if (provisionedBusinessId) {
+          createBizOSNotification_(provisionedBusinessId, 'all', 'success', 'BizOS workspace ready', 'Your paid BizOS workspace has been provisioned successfully.', 'BizOS', 'dashboard');
+          logBizOSActivity_(provisionedBusinessId, provisionedEmail, provisionedName, 'workspace_provisioned', 'Paid BizOS workspace provisioned successfully.', 'dashboard');
+        }
+      } catch (notificationError) {
+        console.error('Provisioning notification error:', notificationError);
+      }
+
       return{success:true,idempotent:!!result.idempotent,requestId:requestId,clientId:result.clientId,webAppUrl:result.webAppUrl,landingUrl:result.landingUrl,deploymentId:result.deploymentId,message:'Your BizOS workspace is ready.'};
     } catch(error){
       console.error('provisionConfirmedUpgradeRequest error:',error);
