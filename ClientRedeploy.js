@@ -58,18 +58,35 @@ function redeployClientByBusinessId(businessId, sessionId) {
       deploymentId: client.deploymentId
     }));
 
-    var packageResult = generateClientCodeSafelyV10(settings);
-    var packageCheck = validateClientDeploymentPackage_(packageResult, {
-      clientId: client.clientId,
-      sheetId: client.sheetId
-    });
+    // V11 is the real BizOS client package. Keep V10 available as an
+    // explicit rollback path while V11 is validated in production.
+    var packageVersion = getClientPackageVersionForRedeploy_();
+    var packageResult;
+    var packageCheck;
+
+    if (packageVersion === 'v11') {
+      packageResult = generateClientCodeSafelyV11(settings);
+      packageCheck = validateClientDeploymentPackageV11_(packageResult, {
+        clientId: client.clientId,
+        sheetId: client.sheetId
+      });
+    } else {
+      packageResult = generateClientCodeSafelyV10(settings);
+      packageCheck = validateClientDeploymentPackage_(packageResult, {
+        clientId: client.clientId,
+        sheetId: client.sheetId
+      });
+    }
 
     if (!packageCheck || !packageCheck.success) {
       return {
         success:false,
         code:packageCheck && packageCheck.code ? packageCheck.code : 'PACKAGE_INVALID',
-        message:packageCheck && packageCheck.message ? packageCheck.message : 'The generated V10 package failed validation.',
-        clientId:client.clientId
+        message:packageCheck && packageCheck.message
+          ? packageCheck.message
+          : 'The generated ' + packageVersion.toUpperCase() + ' package failed validation.',
+        clientId:client.clientId,
+        packageVersion:packageVersion
       };
     }
 
@@ -121,8 +138,8 @@ function redeployClientByBusinessId(businessId, sessionId) {
       };
     }
 
-    // UpdateContent replaces the project's files. The V10 generator is
-    // authoritative, so this intentionally publishes the complete package.
+    // UpdateContent replaces the project's files. The selected package generator
+    // is authoritative, so this intentionally publishes the complete package.
     var contentResponse = UrlFetchApp.fetch(base + '/content', {
       method:'put',
       headers:headers,
@@ -146,7 +163,7 @@ function redeployClientByBusinessId(businessId, sessionId) {
       method:'post',
       headers:headers,
       payload:JSON.stringify({
-        description:'BizOS V10 redeploy ' + client.clientId + ' - ' + new Date().toISOString()
+        description:'BizOS ' + packageVersion.toUpperCase() + ' redeploy ' + client.clientId + ' - ' + new Date().toISOString()
       }),
       muteHttpExceptions:true
     });
@@ -238,8 +255,9 @@ function redeployClientByBusinessId(businessId, sessionId) {
       scriptId:client.scriptId,
       deploymentId:client.deploymentId,
       versionNumber:versionNumber,
+      packageVersion:packageVersion,
       webAppUrl:expectedUrl,
-      message:'Client deployment updated successfully. The existing deployment URL was preserved.'
+      message:'Client deployment updated successfully with the ' + packageVersion.toUpperCase() + ' package. The existing deployment URL was preserved.'
     };
   } catch (error) {
     console.error('redeployClientByBusinessId error:', error);
@@ -251,6 +269,19 @@ function redeployClientByBusinessId(businessId, sessionId) {
   } finally {
     try { lock.releaseLock(); } catch (ignore) {}
   }
+}
+
+function getClientPackageVersionForRedeploy_() {
+  // Default to V11. V10 remains available only as an explicit rollback.
+  try {
+    var configured = String(
+      PropertiesService.getScriptProperties().getProperty('BIZOS_CLIENT_PACKAGE_VERSION') || ''
+    ).trim().toLowerCase();
+
+    if (configured === 'v10' || configured === 'v11') return configured;
+  } catch (ignore) {}
+
+  return 'v11';
 }
 
 function getActiveClientByBusinessIdForRedeploy_(businessId) {
