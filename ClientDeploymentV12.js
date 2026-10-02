@@ -36,7 +36,7 @@ function generateClientCodeSafelyV12(settings) {
     .replace(/\bresendStaffInvitation\(/g,'resendStaffInvitationLegacy_(')
     .replace(/\bassignModuleToStaff\(/g,'assignModuleToStaffLegacy_(')
     .replace(/\bremoveModuleFromStaff\(/g,'removeModuleFromStaffLegacy_(')
-    .replace(/\bgetClientModuleSummary\(/g,'getClientModuleSummaryLegacy_(');
+    .replace(/\bgetClientModuleSummary\(/g,'getClientModuleSummaryLegacy_(')
     .replace(/\bremoveTeamMember\(/g,'removeTeamMemberLegacy_(');
   runtime = runtime.replace(
     'accessibleModules:Object.keys(MODULES)',
