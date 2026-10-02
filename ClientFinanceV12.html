@@ -1,0 +1,112 @@
+<!-- Distinct client Finance workspace for BizOS V12 -->
+<div id="client-finance-v12" class="finance-v12">
+  <div class="finance-toolbar">
+    <div>
+      <span class="section-kicker">FINANCIAL MANAGEMENT</span>
+      <h2>Income, expenses and financial records</h2>
+      <p class="finance-muted">Keep your business finances organized and connected to your overview.</p>
+    </div>
+    <div class="finance-actions">
+      <button class="finance-secondary" onclick="financeV12Load()">Refresh</button>
+      <button class="finance-primary" onclick="financeV12OpenForm()">+ Add transaction</button>
+    </div>
+  </div>
+
+  <div id="finance-v12-message" class="finance-message hidden"></div>
+
+  <div class="finance-summary-grid">
+    <div class="finance-stat"><span>Revenue</span><strong id="finance-v12-revenue">₦0.00</strong><small>Recorded income</small></div>
+    <div class="finance-stat"><span>Expenses</span><strong id="finance-v12-expenses">₦0.00</strong><small>Recorded expenses</small></div>
+    <div class="finance-stat"><span>Net profit</span><strong id="finance-v12-profit">₦0.00</strong><small>Revenue less expenses</small></div>
+    <div class="finance-stat"><span>Records</span><strong id="finance-v12-count">0</strong><small>Financial entries</small></div>
+  </div>
+
+  <div class="finance-grid">
+    <section class="rich-panel">
+      <div class="rich-panel-head">
+        <div><span class="section-kicker">TRANSACTIONS</span><h3>Financial activity</h3></div>
+        <div class="finance-filters">
+          <select id="finance-v12-filter" onchange="financeV12Render()">
+            <option value="all">All transactions</option>
+            <option value="revenue">Income</option>
+            <option value="expense">Expenses</option>
+          </select>
+          <input id="finance-v12-search" type="search" placeholder="Search records" oninput="financeV12Render()">
+        </div>
+      </div>
+      <div id="finance-v12-table" class="finance-table-wrap"></div>
+    </section>
+
+    <section class="rich-panel finance-side-panel">
+      <div class="rich-panel-head"><div><span class="section-kicker">QUICK INSIGHT</span><h3>Financial position</h3></div></div>
+      <div id="finance-v12-insight"></div>
+      <div class="finance-side-note">
+        <strong>Keep records current</strong>
+        <p>Sales and other business activity can feed the financial picture through BizOS integrations.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="finance-v12-modal" class="finance-modal hidden">
+  <div class="finance-modal-card">
+    <div class="finance-modal-head"><div><span class="section-kicker">NEW RECORD</span><h3>Add financial transaction</h3></div><button onclick="financeV12CloseForm()">×</button></div>
+    <form onsubmit="financeV12Save(event)" class="finance-form">
+      <div class="finance-form-grid">
+        <label>Date<input id="finance-date" type="date" required></label>
+        <label>Type<select id="finance-type"><option value="revenue">Income</option><option value="expense">Expense</option></select></label>
+        <label>Category<input id="finance-category" placeholder="e.g. Sales, Rent, Transport" required></label>
+        <label>Amount<input id="finance-amount" type="number" min="0" step="0.01" placeholder="0.00" required></label>
+        <label class="wide">Description<input id="finance-description" placeholder="What was this transaction for?"></label>
+        <label>Payment method<select id="finance-payment"><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="card">Card</option><option value="mobile_money">Mobile money</option><option value="other">Other</option></select></label>
+        <label>Reference<input id="finance-reference" placeholder="Optional reference"></label>
+        <label>Status<select id="finance-status"><option value="completed">Completed</option><option value="pending">Pending</option></select></label>
+      </div>
+      <div id="finance-form-error" class="finance-form-error hidden"></div>
+      <div class="finance-form-actions"><button type="button" class="finance-secondary" onclick="financeV12CloseForm()">Cancel</button><button id="finance-save-button" class="finance-primary" type="submit">Save transaction</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  var rows=[], loaded=false;
+  function call(name,args,ok,fail){google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(fail||function(e){financeV12Message(e&&e.message?e.message:'Request failed.',true);})[name].apply(null,args||[]);}
+  function sid(){return window.__clientSessionIdV12||localStorage.getItem('bizos_client_session_v12')||'';}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function money(v){return new Intl.NumberFormat('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0);}
+  function setText(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  function financeV12Message(msg,error){var e=document.getElementById('finance-v12-message');if(!e)return;e.textContent=msg||'';e.classList.toggle('hidden',!msg);e.classList.toggle('error',!!error);if(msg)setTimeout(function(){e.classList.add('hidden');},5000);}
+  function normalize(r){return r&&r.success!==false?r:null;}
+  window.financeV12Init=function(){if(!loaded){loaded=true;financeV12Load();}else financeV12Render();};
+  window.financeV12Load=function(){
+    var box=document.getElementById('finance-v12-table');if(box)box.innerHTML='<div class="finance-empty">Loading financial records…</div>';
+    call('getClientFinanceData',[sid()],function(r){
+      if(!r||!r.success){if(box)box.innerHTML='<div class="finance-empty">'+esc(r&&r.message||'Finance is unavailable for this account.')+'</div>';return;}
+      rows=Array.isArray(r.records)?r.records:[];setText('finance-v12-revenue','₦'+money(r.summary&&r.summary.revenue));setText('finance-v12-expenses','₦'+money(r.summary&&r.summary.expenses));setText('finance-v12-profit','₦'+money(r.summary&&r.summary.profit));setText('finance-v12-count',String(rows.length));financeV12Render();financeV12Insight(r.summary||{});
+    });
+  };
+  window.financeV12Render=function(){
+    var box=document.getElementById('finance-v12-table'),filter=document.getElementById('finance-v12-filter'),search=document.getElementById('finance-v12-search');
+    if(!box)return;
+    var f=filter?filter.value:'all',q=search?String(search.value||'').toLowerCase().trim():'';
+    var filtered=rows.filter(function(x){var type=String(x.Type||'').toLowerCase();if(f!=='all'&&type!==f)return false;return !q||[x.Date,x.Type,x.Category,x.Description,x.Amount,x.Reference].join(' ').toLowerCase().indexOf(q)!==-1;});
+    if(!filtered.length){box.innerHTML='<div class="finance-empty"><div class="empty-icon">₦</div><h4>'+(rows.length?'No matching transactions':'No financial records yet')+'</h4><p>'+(rows.length?'Try another filter or search.':'Your workspace is ready. Add your first income or expense to start building your financial picture.')+'</p>'+(rows.length?'':'<button class="small-action" onclick="financeV12OpenForm()">Add transaction</button>')+'</div>';return;}
+    box.innerHTML='<table class="finance-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>'+filtered.map(function(x,i){
+      var type=String(x.Type||'').toLowerCase(),positive=type==='revenue'||type==='income',id=String(x.Transaction_ID||'');
+      return '<tr><td>'+esc(x.Date||'')+'</td><td><span class="finance-type '+(positive?'income':'expense')+'">'+(positive?'Income':'Expense')+'</span></td><td><strong>'+esc(x.Description||'Financial transaction')+'</strong><small>'+esc(x.Reference||'')+'</small></td><td>'+esc(x.Category||'—')+'</td><td class="'+(positive?'finance-positive':'finance-negative')+'">'+(positive?'+':'-')+'₦'+money(Math.abs(Number(x.Amount)||0))+'</td><td>'+esc(x.Status||'completed')+'</td><td><button class="finance-delete" onclick="financeV12Delete(\''+esc(id).replace(/'/g,"\\'")+'\')">Delete</button></td></tr>';
+    }).join('')+'</tbody></table>';
+  };
+  function financeV12Insight(s){
+    var e=document.getElementById('finance-v12-insight');if(!e)return;
+    var rev=Number(s.revenue)||0,exp=Number(s.expenses)||0,profit=rev-exp;
+    if(!rows.length){e.innerHTML='<div class="finance-insight-empty"><strong>Your financial workspace is ready</strong><p>Record income and expenses to unlock summaries, trends and business-health insights.</p></div>';return;}
+    var margin=rev?profit/rev*100:0;
+    e.innerHTML='<div class="finance-position"><span>Net position</span><strong>₦'+money(profit)+'</strong><small>'+margin.toFixed(1)+'% margin on recorded income</small></div><div class="finance-mini-bars"><div><span>Income</span><i style="width:'+Math.min(100,rev?100:0)+'%"></i></div><div><span>Expenses</span><i style="width:'+(rev?Math.min(100,exp/rev*100):(exp?100:0))+'%"></i></div></div>';
+  }
+  window.financeV12OpenForm=function(){var m=document.getElementById('finance-v12-modal');if(!m)return;document.getElementById('finance-date').value=new Date().toISOString().slice(0,10);document.getElementById('finance-form-error').classList.add('hidden');m.classList.remove('hidden');};
+  window.financeV12CloseForm=function(){var m=document.getElementById('finance-v12-modal');if(m)m.classList.add('hidden');};
+  window.financeV12Save=function(ev){ev.preventDefault();var b=document.getElementById('finance-save-button'),err=document.getElementById('finance-form-error');err.classList.add('hidden');b.disabled=true;b.textContent='Saving…';var data={Date:document.getElementById('finance-date').value,Type:document.getElementById('finance-type').value,Category:document.getElementById('finance-category').value.trim(),Amount:Number(document.getElementById('finance-amount').value||0),Description:document.getElementById('finance-description').value.trim(),Payment_Method:document.getElementById('finance-payment').value,Reference:document.getElementById('finance-reference').value.trim(),Status:document.getElementById('finance-status').value};call('saveClientFinanceTransaction',[data,sid()],function(r){b.disabled=false;b.textContent='Save transaction';if(!r||!r.success){err.textContent=r&&r.message||'Unable to save transaction.';err.classList.remove('hidden');return;}financeV12CloseForm();financeV12Message('Transaction saved successfully.');financeV12Load();if(window.loadOverview)window.loadOverview(true);},function(e){b.disabled=false;b.textContent='Save transaction';err.textContent=e&&e.message||'Unable to save transaction.';err.classList.remove('hidden');});};
+  window.financeV12Delete=function(id){if(!id)return;if(!confirm('Delete this financial transaction?'))return;call('deleteClientFinanceTransaction',[id,sid()],function(r){if(!r||!r.success){financeV12Message(r&&r.message||'Unable to delete transaction.',true);return;}financeV12Message('Transaction deleted.');financeV12Load();if(window.loadOverview)window.loadOverview(true);});};
+})();
+</script>
