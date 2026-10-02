@@ -140,6 +140,12 @@ function inviteStaffMember(businessId, email, name, role, invitedByEmail, assign
     // synchronized for legacy callers during the transition.
     syncStaffModules_(email, businessId, modules, invitedByEmail);
     sendInvitationEmail(email, name, invitationCode, role);
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_invited', 'Invited ' + email + ' as ' + role + '.', 'staff');
+      createBizOSNotification_(businessId, 'all', 'staff', 'New team invitation', actor.user.name + ' invited ' + email + ' to join the business.', actor.user.email, 'staff');
+    } catch (notificationError) {
+      console.error('Staff invitation notification error:', notificationError);
+    }
 
     return {
       success: true,
@@ -283,6 +289,12 @@ function resendStaffInvitation(businessId, email, sessionId) {
     const role = String(data[rowIndex][roleCol] || 'staff').toLowerCase();
     const name = String(data[rowIndex][nameCol] || '');
     sendInvitationEmail(email, name, code, role);
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_invitation_resent', 'Resent the invitation to ' + email + '.', 'staff');
+      createBizOSNotification_(businessId, 'all', 'staff', 'Staff invitation resent', actor.user.name + ' resent the invitation to ' + email + '.', actor.user.email, 'staff');
+    } catch (notificationError) {
+      console.error('Staff resend notification error:', notificationError);
+    }
     return { success: true, message: 'Invitation resent to ' + email, expiresAt: expiresAt };
   } catch (error) {
     console.error('Resend staff invitation error:', error);
@@ -316,6 +328,12 @@ function removeTeamMember(businessId, email, sessionId) {
     const assigned = getStaffModules(targetEmail, businessId);
     userSheet.deleteRow(rowIndex + 1);
     try { syncStaffModules_(targetEmail, businessId, [], actor.user.email); } catch (e) { console.error('Staff module cleanup error:', e); }
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_removed', 'Removed ' + targetEmail + ' from the team.', 'staff');
+      createBizOSNotification_(businessId, 'all', 'staff', 'Team member removed', actor.user.name + ' removed ' + targetEmail + ' from the team.', actor.user.email, 'staff');
+    } catch (notificationError) {
+      console.error('Staff removal notification error:', notificationError);
+    }
     return { success: true };
   } catch(error) {
     return { success: false, message: error.message };
@@ -424,6 +442,12 @@ function assignModuleToStaff(email, businessId, moduleName, assignedBy, sessionI
     if (current.indexOf(normalized[0]) === -1) current.push(normalized[0]);
     if (assignedCol >= 0) userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue(normalizeStaffModules_(current).join(','));
     syncStaffModules_(email, businessId, current, actor.user.email);
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_module_assigned', 'Assigned ' + normalized[0] + ' to ' + email + '.', 'staff');
+      createBizOSNotification_(businessId, 'all', 'staff', 'Module access updated', actor.user.name + ' assigned ' + normalized[0] + ' to ' + email + '.', actor.user.email, 'staff');
+    } catch (notificationError) {
+      console.error('Staff module notification error:', notificationError);
+    }
     return { success: true, message: 'Module ' + normalized[0] + ' assigned to ' + email };
   } catch (error) {
     return { success: false, message: error.message };
@@ -453,6 +477,12 @@ function removeModuleFromStaff(email, businessId, moduleName, sessionId) {
     if (rowIndex < 1) return { success: false, message: 'Staff member not found.' };
     if (assignedCol >= 0) userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue(remaining.join(','));
     syncStaffModules_(email, businessId, remaining, actor.user.email);
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_module_removed', 'Removed ' + moduleName + ' access from ' + email + '.', 'staff');
+      createBizOSNotification_(businessId, 'all', 'staff', 'Module access removed', actor.user.name + ' removed ' + moduleName + ' access from ' + email + '.', actor.user.email, 'staff');
+    } catch (notificationError) {
+      console.error('Staff module notification error:', notificationError);
+    }
     return { success: true, message: 'Module ' + moduleName + ' removed from ' + email };
   } catch (error) {
     return { success: false, message: error.message };
