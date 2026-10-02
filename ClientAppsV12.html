@@ -1,0 +1,29 @@
+<div id="apps-v12-root" class="apps-v12">
+  <div class="apps-toolbar"><div><span class="section-kicker">APPLICATIONS</span><h2>Apps</h2><p>Use the business tools available in your workspace.</p></div><button class="apps-refresh" onclick="window.appsV12Init(true)">Refresh</button></div>
+  <div id="apps-v12-message"></div><div id="apps-v12-grid" class="apps-grid"><div class="apps-loading">Loading your available apps…</div></div>
+</div>
+<script>
+(function(){
+  var loaded=false;
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  var routes={Finance:'finance',Ecommerce:'business',POS:'business',Warehouse:'business',Sales:'overview',CRM:'overview',HR:'staff',Attendance:'staff',Logistics:'overview',Tax:'overview',Agro:'overview',Productivity:'overview'};
+  function render(summary){
+    var grid=document.getElementById('apps-v12-grid'); if(!grid)return;
+    var names=Object.keys(summary||{}), accessible=names.filter(function(n){return summary[n]&&summary[n].isAccessible;});
+    if(!accessible.length){grid.innerHTML='<div class="apps-empty"><h3>No apps assigned</h3><p>Your account does not currently have any application modules assigned.</p></div>';return;}
+    grid.innerHTML=names.map(function(n){
+      var m=summary[n]||{}, ok=!!m.isAccessible, route=routes[n]||'overview';
+      return '<article class="app-module-card '+(ok?'':'disabled')+'"><div class="app-module-top"><span class="app-module-icon">'+esc(String((m.label||n).charAt(0)).toUpperCase())+'</span><span class="app-access '+(ok?'available':'locked')+'">'+(ok?'Available':'Unavailable')+'</span></div><h3>'+esc(n)+'</h3><p>'+esc(m.label||'Business application')+'</p><div class="app-module-meta"><span>'+Number(m.count||0).toLocaleString()+' records</span>'+(m.isReadOnly?'<span>View only</span>':'')+'</div>'+(ok?'<button class="app-open" onclick="selectView(\''+route+'\')">Open</button>':'<span class="app-unavailable">Not assigned to this account</span>')+'</article>';
+    }).join('');
+  }
+  window.appsV12Init=function(force){
+    var grid=document.getElementById('apps-v12-grid'); if(!grid)return;
+    if(loaded&&!force)return;
+    grid.innerHTML='<div class="apps-loading">Loading your available apps…</div>';
+    google.script.run.withSuccessHandler(function(r){
+      if(!r||r.success===false){grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(r&&r.message||'Could not load your applications.')+'</p></div>';return;}
+      render(r.summary||r);loaded=true;
+    }).withFailureHandler(function(e){grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(e&&e.message||'Could not load your applications.')+'</p></div>';}).getClientAppsData(window.clientSessionId);
+  };
+})();
+</script>
