@@ -4302,35 +4302,26 @@ async function handleUpgradeRequest(event) {
 
 let notificationCount = 0;
 let allNotifications = [];
+let allBizOSActivity = [];
 
 function loadNotifications() {
-  const userTier = currentUser?.subscriptionTier || 'free';
-  const lastSeen = localStorage.getItem('bizos_notifications_last_seen');
-  
-  callGoogleScript(
-    'getFeatureNotifications',
-    [userTier, lastSeen],
-    function(notifications) {
-      allNotifications = notifications;
-      notificationCount = notifications.length;
-      updateNotificationBadge();
-      renderNotifications();
-      
-      // Update last seen
-      if (notifications.length > 0) {
-        localStorage.setItem('bizos_notifications_last_seen', new Date().toISOString());
-      }
-    },
-    function(error) {
-      console.log('Error loading notifications:', error);
+  callGoogleScript('getBizOSNotifications', [80], function(response) {
+    if (!response || !response.success) {
+      console.log('Error loading BizOS notifications:', response && response.message);
+      return;
     }
-  );
+    allNotifications = response.notifications || [];
+    notificationCount = Number(response.unreadCount || 0);
+    updateNotificationBadge();
+    renderNotifications();
+  }, function(error) {
+    console.log('Error loading BizOS notifications:', error);
+  });
 }
 
 function updateNotificationBadge() {
   const badge = document.getElementById('notification-badge');
   if (!badge) return;
-  
   if (notificationCount > 0) {
     badge.textContent = notificationCount > 9 ? '9+' : notificationCount;
     badge.classList.remove('hidden');
@@ -4339,77 +4330,152 @@ function updateNotificationBadge() {
   }
 }
 
+function notificationIcon(type) {
+  const icons = {
+    success:'fa-check-circle',
+    warning:'fa-exclamation-triangle',
+    error:'fa-exclamation-circle',
+    security:'fa-shield-alt',
+    staff:'fa-users',
+    system:'fa-info-circle',
+    info:'fa-bell'
+  };
+  return icons[String(type || 'info').toLowerCase()] || icons.info;
+}
+
+function notificationTypeClass(type) {
+  const t=String(type||'info').toLowerCase();
+  if(t==='success') return 'bg-green-100 text-green-600';
+  if(t==='warning') return 'bg-yellow-100 text-yellow-600';
+  if(t==='error') return 'bg-red-100 text-red-600';
+  if(t==='security') return 'bg-blue-100 text-blue-600';
+  if(t==='staff') return 'bg-purple-100 text-purple-600';
+  return 'bg-gray-100 text-gray-600';
+}
+
+function formatNotificationTime(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return Math.floor(diff/60000) + ' min ago';
+  if (diff < 86400000) return Math.floor(diff/3600000) + ' hr ago';
+  if (diff < 604800000) return Math.floor(diff/86400000) + ' days ago';
+  return d.toLocaleDateString();
+}
+
 function renderNotifications() {
   const list = document.getElementById('notification-list');
   if (!list) return;
-  
-  if (!allNotifications || allNotifications.length === 0) {
-    list.innerHTML = `
-      <div class="p-4 text-center text-gray-400 text-sm">
-        <i class="fas fa-check-circle text-2xl block mb-2 text-green-500"></i>
-        All caught up!
-      </div>
-    `;
+  if (!allNotifications.length) {
+    list.innerHTML='<div class="p-4 text-center text-gray-400 text-sm"><i class="fas fa-check-circle text-2xl block mb-2 text-green-500"></i>All caught up!</div>';
     return;
   }
-  
-  list.innerHTML = allNotifications.map(n => `
-    <div class="p-3 hover:bg-gray-50 transition cursor-pointer ${n.isNew ? 'bg-purple-50' : ''}" onclick="handleNotificationClick('${n.module}')">
-      <div class="flex items-start gap-3">
-        <div class="w-8 h-8 rounded-full ${n.tier === 'free' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'} flex items-center justify-center flex-shrink-0">
-          <i class="fas ${getFeatureIcon(n.module)} text-sm"></i>
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="font-medium text-sm text-gray-900">${n.name}</span>
-            ${n.isNew ? '<span class="text-[10px] bg-purple-600 text-white px-1.5 py-0.5 rounded-full flex-shrink-0">New</span>' : ''}
-          </div>
-          <p class="text-xs text-gray-600 truncate">${n.description || 'New feature available'}</p>
-          <div class="flex items-center gap-2 mt-1">
-            <span class="text-[10px] text-gray-400">${n.module}</span>
-            <span class="text-[10px] ${n.tier === 'free' ? 'text-green-600' : 'text-purple-600'}">
-              ${n.tier === 'all' ? 'All Plans' : n.tier}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  `).join('');
+  list.innerHTML=allNotifications.slice(0,8).map(function(n){
+    return '<button type="button" class="w-full text-left p-3 hover:bg-gray-50 transition '+(n.isRead?'':'bg-purple-50')+'" onclick="handleNotificationClick(\''+String(n.relatedView||'') .replace(/'/g,"\\'")+'\',\''+String(n.id||'').replace(/'/g,"\\'")+'\')">'+
+      '<div class="flex items-start gap-3"><div class="w-8 h-8 rounded-full '+notificationTypeClass(n.type)+' flex items-center justify-center flex-shrink-0"><i class="fas '+notificationIcon(n.type)+' text-sm"></i></div>'+
+      '<div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="font-medium text-sm text-gray-900">'+escapeHtml(n.title)+'</span>'+(!n.isRead?'<span class="w-2 h-2 rounded-full bg-purple-600 flex-shrink-0"></span>':'')+'</div>'+
+      '<p class="text-xs text-gray-600 mt-1">'+escapeHtml(n.message)+'</p><span class="text-[10px] text-gray-400">'+formatNotificationTime(n.createdAt)+'</span></div></div></button>';
+  }).join('');
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});
 }
 
 function toggleNotificationCenter() {
-  const dropdown = document.getElementById('notification-dropdown');
-  if (dropdown) {
-    dropdown.classList.toggle('hidden');
-    // Load notifications when opened
-    if (!dropdown.classList.contains('hidden')) {
-      loadNotifications();
-    }
-  }
+  const dropdown=document.getElementById('notification-dropdown');
+  if(!dropdown)return;
+  dropdown.classList.toggle('hidden');
+  if(!dropdown.classList.contains('hidden')) loadNotifications();
 }
 
 function markAllNotificationsRead() {
-  localStorage.setItem('bizos_notifications_last_seen', new Date().toISOString());
-  notificationCount = 0;
-  updateNotificationBadge();
-  renderNotifications();
-  showNotification('All notifications marked as read', 'success');
+  callGoogleScript('markAllBizOSNotificationsRead', [], function(response){
+    if(response && response.success){
+      allNotifications.forEach(function(n){n.isRead=true;});
+      notificationCount=0;
+      updateNotificationBadge();
+      renderNotifications();
+      showNotification('All notifications marked as read','success');
+      if(typeof renderNotificationsPage==='function') renderNotificationsPage();
+    }else{
+      showNotification((response&&response.message)||'Could not update notifications.','error');
+    }
+  }, function(){showNotification('Could not update notifications.','error');});
 }
 
-function handleNotificationClick(moduleName) {
-  // Close dropdown
-  const dropdown = document.getElementById('notification-dropdown');
-  if (dropdown) dropdown.classList.add('hidden');
-  
-  // Open the module if it's not 'All' or 'General'
-  if (moduleName && moduleName !== 'All' && moduleName !== 'General') {
-    if (typeof openModule === 'function') {
-      openModule(moduleName);
-    }
-  } else {
-    // Just scroll to dashboard
-    showDashboardHome();
+function handleNotificationClick(relatedView, notificationId) {
+  const dropdown=document.getElementById('notification-dropdown');
+  if(dropdown)dropdown.classList.add('hidden');
+  if(notificationId){
+    callGoogleScript('markBizOSNotificationRead',[notificationId],function(response){
+      if(response&&response.success){
+        const n=allNotifications.find(function(item){return item.id===notificationId;});
+        if(n&&!n.isRead){n.isRead=true;notificationCount=Math.max(0,notificationCount-1);updateNotificationBadge();}
+      }
+    },function(){});
   }
+  if(relatedView){
+    if(relatedView==='notifications'){showNotificationsPage();return;}
+    if(relatedView==='profile'){showProfilePage();return;}
+    if(relatedView==='staff' && typeof showStaffPage==='function'){showStaffPage();return;}
+    if(typeof openModule==='function' && relatedView!=='dashboard') openModule(relatedView);
+  }
+}
+
+function showNotificationsPage() {
+  const pages=['dashboard-home','module-view','profile-page','apps-page','settings-page','notifications-page','business-center-page'];
+  pages.forEach(function(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}});
+  const page=document.getElementById('notifications-page');
+  const dashboardPage=document.getElementById('dashboard-page');
+  if(page){page.classList.remove('hidden');page.style.display='block';}
+  if(dashboardPage){dashboardPage.classList.remove('hidden');dashboardPage.style.display='block';}
+  const title=document.getElementById('page-title');
+  if(title)title.textContent='Notifications';
+  document.querySelectorAll('.sidebar nav button').forEach(function(btn){btn.classList.remove('bg-purple-50','text-purple-700');});
+  loadNotificationsPage();
+  window.scrollTo(0,0);
+}
+
+function loadNotificationsPage() {
+  callGoogleScript('getBizOSNotifications',[100],function(response){
+    if(response&&response.success) allNotifications=response.notifications||[];
+    callGoogleScript('getBizOSActivity',[100],function(activityResponse){
+      allBizOSActivity=(activityResponse&&activityResponse.success)?(activityResponse.activity||[]):[];
+      renderNotificationsPage();
+    },function(){renderNotificationsPage();});
+  },function(){renderNotificationsPage();});
+}
+
+function renderNotificationsPage() {
+  const list=document.getElementById('notifications-page-list');
+  const activity=document.getElementById('activity-page-list');
+  if(list){
+    if(!allNotifications.length) list.innerHTML='<div class="p-8 text-center text-gray-400"><i class="fas fa-check-circle text-3xl mb-2 text-green-500"></i><p>No notifications yet.</p></div>';
+    else list.innerHTML=allNotifications.map(function(n){
+      return '<div class="p-4 flex items-start gap-4 '+(n.isRead?'bg-white':'bg-purple-50')+' border-b border-gray-100"><div class="w-10 h-10 rounded-full '+notificationTypeClass(n.type)+' flex items-center justify-center flex-shrink-0"><i class="fas '+notificationIcon(n.type)+'"></i></div><div class="flex-1"><div class="flex items-center justify-between gap-3"><h3 class="font-semibold text-gray-900">'+escapeHtml(n.title)+'</h3><span class="text-xs text-gray-400">'+formatNotificationTime(n.createdAt)+'</span></div><p class="text-sm text-gray-600 mt-1">'+escapeHtml(n.message)+'</p><div class="mt-2 flex gap-3 text-xs text-gray-400"><span>'+escapeHtml(n.createdBy||'BizOS')+'</span>'+(!n.isRead?'<button type="button" class="text-purple-600 font-medium" onclick="handleNotificationClick(\'notifications\',\''+String(n.id).replace(/'/g,"\\'")+'\')">Mark read</button>':'')+'</div></div></div>';
+    }).join('');
+  }
+  if(activity){
+    if(!allBizOSActivity.length) activity.innerHTML='<div class="p-8 text-center text-gray-400"><i class="fas fa-users text-3xl mb-2"></i><p>No team activity yet.</p></div>';
+    else activity.innerHTML=allBizOSActivity.map(function(a){
+      return '<div class="p-4 flex items-start gap-4 border-b border-gray-100"><div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><i class="fas fa-user"></i></div><div class="flex-1"><div class="flex items-center justify-between gap-3"><h3 class="font-medium text-gray-900">'+escapeHtml(a.actorName||a.actorEmail||'Team member')+'</h3><span class="text-xs text-gray-400">'+formatNotificationTime(a.createdAt)+'</span></div><p class="text-sm text-gray-600 mt-1">'+escapeHtml(a.summary)+'</p><span class="text-xs text-gray-400">'+escapeHtml(a.eventType)+'</span></div></div>';
+    }).join('');
+  }
+}
+
+function switchNotificationsTab(tab) {
+  const notifications=document.getElementById('notifications-tab-panel');
+  const activity=document.getElementById('activity-tab-panel');
+  const nBtn=document.getElementById('notifications-tab-button');
+  const aBtn=document.getElementById('activity-tab-button');
+  const isActivity=tab==='activity';
+  if(notifications)notifications.classList.toggle('hidden',isActivity);
+  if(activity)activity.classList.toggle('hidden',!isActivity);
+  if(nBtn)nBtn.classList.toggle('text-purple-600',!isActivity);
+  if(aBtn)aBtn.classList.toggle('text-purple-600',isActivity);
 }
 
 // Helper function to convert file to base64
@@ -5535,41 +5601,30 @@ function closeSettingsSidebarMenu() {
 }
 
 function loadNotificationPreferences() {
-  const prefs = JSON.parse(localStorage.getItem('bizos_notification_prefs') || '{}');
-  
-  const toggles = {
-    'notif-features': prefs.features !== false,
-    'notif-system': prefs.system !== false,
-    'notif-weekly': prefs.weekly === true,
-    'notif-security': prefs.security !== false,
-    'notif-marketing': prefs.marketing === true
-  };
-  
-  for (const [id, checked] of Object.entries(toggles)) {
-    const el = document.getElementById(id);
-    if (el) el.checked = checked;
-  }
+  callGoogleScript('getBizOSNotificationPreferences', [], function(response) {
+    const prefs=(response&&response.success&&response.preferences)?response.preferences:{features:true,system:true,weekly:false,security:true,marketing:false};
+    const toggles={'notif-features':prefs.features,'notif-system':prefs.system,'notif-weekly':prefs.weekly,'notif-security':prefs.security,'notif-marketing':prefs.marketing};
+    Object.keys(toggles).forEach(function(id){const el=document.getElementById(id);if(el)el.checked=!!toggles[id];});
+  }, function(){});
 }
 
 function saveNotificationPreferences() {
-  const prefs = {
-    features: document.getElementById('notif-features').checked,
-    system: document.getElementById('notif-system').checked,
-    weekly: document.getElementById('notif-weekly').checked,
-    security: document.getElementById('notif-security').checked,
-    marketing: document.getElementById('notif-marketing').checked
+  const prefs={
+    features:!!document.getElementById('notif-features')?.checked,
+    system:!!document.getElementById('notif-system')?.checked,
+    weekly:!!document.getElementById('notif-weekly')?.checked,
+    security:!!document.getElementById('notif-security')?.checked,
+    marketing:!!document.getElementById('notif-marketing')?.checked
   };
-  
-  localStorage.setItem('bizos_notification_prefs', JSON.stringify(prefs));
-  
-  const status = document.getElementById('notif-save-status');
-  if (status) {
-    status.classList.remove('hidden');
-    status.textContent = 'Saved!';
-    setTimeout(() => status.classList.add('hidden'), 3000);
-  }
-  
-  showNotification('Preferences saved!', 'success');
+  callGoogleScript('saveBizOSNotificationPreferences',[prefs],function(response){
+    const status=document.getElementById('notif-save-status');
+    if(response&&response.success){
+      if(status){status.classList.remove('hidden');status.textContent='Saved!';setTimeout(function(){status.classList.add('hidden');},3000);}
+      showNotification('Preferences saved!','success');
+    }else{
+      showNotification((response&&response.message)||'Could not save preferences.','error');
+    }
+  },function(){showNotification('Could not save preferences.','error');});
 }
 
 function goToSecurityTab() {
@@ -5616,290 +5671,6 @@ function regenerateApiKey() {
     showNotification('API key regenerated!', 'success');
   }
 }
-
-
-// ===== NOTIFICATION DROPDOWN FUNCTIONS =====
-
-function toggleNotificationCenter() {
-  const dropdown = document.getElementById('notification-dropdown');
-  if (dropdown) {
-    dropdown.classList.toggle('hidden');
-    if (!dropdown.classList.contains('hidden')) {
-      loadNotificationsForDropdown();
-    }
-  }
-}
-
-function loadNotificationsForDropdown() {
-  const list = document.getElementById('notification-list');
-  if (!list) return;
-  
-  const prefs = JSON.parse(localStorage.getItem('bizos_notification_prefs') || '{}');
-  let notifications = [];
-  
-  // Welcome notification
-  if (!localStorage.getItem('bizos_welcome_seen')) {
-    notifications.push({
-      id: 1,
-      icon: 'fa-bell',
-      color: 'text-purple-600',
-      title: 'Welcome to BizOS!',
-      message: 'Get started with your new account',
-      time: 'Just now',
-      module: 'All'
-    });
-  }
-  
-  // Feature updates (if enabled)
-  if (prefs.features !== false) {
-    notifications.push({
-      id: 2,
-      icon: 'fa-rocket',
-      color: 'text-blue-600',
-      title: 'New Feature Available',
-      message: 'Check out the new Warehouse Management module',
-      time: '1 hour ago',
-      module: 'Warehouse'
-    });
-  }
-  
-  // Security alerts (if enabled)
-  if (prefs.security !== false) {
-    notifications.push({
-      id: 3,
-      icon: 'fa-shield-alt',
-      color: 'text-green-600',
-      title: 'Security Update',
-      message: 'Your account is secure. 2FA available.',
-      time: '2 hours ago',
-      module: 'Security'
-    });
-  }
-  
-  // Update badge
-  const badge = document.getElementById('notification-badge');
-  if (badge) {
-    if (notifications.length > 0) {
-      badge.textContent = notifications.length > 9 ? '9+' : notifications.length;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
-    }
-  }
-  
-  if (notifications.length === 0) {
-    list.innerHTML = `
-      <div class="p-4 text-center text-gray-400 text-sm">
-        <i class="fas fa-check-circle text-2xl block mb-2 text-green-500"></i>
-        All caught up!
-      </div>
-    `;
-    return;
-  }
-  
-  list.innerHTML = notifications.map(n => `
-    <div class="flex items-start p-3 hover:bg-gray-50 rounded-lg transition cursor-pointer" onclick="handleNotificationClick('${n.module}')">
-      <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center mr-3 flex-shrink-0">
-        <i class="fas ${n.icon} ${n.color}"></i>
-      </div>
-      <div class="flex-1 min-w-0">
-        <p class="font-medium text-gray-900 text-sm">${n.title}</p>
-        <p class="text-sm text-gray-500 truncate">${n.message}</p>
-        <p class="text-xs text-gray-400 mt-1">${n.time}</p>
-      </div>
-    </div>
-  `).join('');
-}
-
-function markAllNotificationsRead() {
-  const badge = document.getElementById('notification-badge');
-  if (badge) {
-    badge.classList.add('hidden');
-    badge.textContent = '0';
-  }
-  
-  const list = document.getElementById('notification-list');
-  if (list) {
-    list.innerHTML = `
-      <div class="p-4 text-center text-gray-400 text-sm">
-        <i class="fas fa-check-circle text-2xl block mb-2 text-green-500"></i>
-        All caught up!
-      </div>
-    `;
-  }
-  
-  localStorage.setItem('bizos_welcome_seen', 'true');
-  showNotification('All notifications cleared', 'success');
-}
-
-function handleNotificationClick(moduleName) {
-  const dropdown = document.getElementById('notification-dropdown');
-  if (dropdown) dropdown.classList.add('hidden');
-  
-  if (moduleName === 'Security') {
-    goToSecurityTab();
-  } else if (moduleName && moduleName !== 'All' && typeof openModule === 'function') {
-    const profilePage = document.getElementById('profile-page');
-    const settingsPage = document.getElementById('settings-page');
-    if (profilePage) profilePage.classList.add('hidden');
-    if (settingsPage) settingsPage.classList.add('hidden');
-    openModule(moduleName);
-  } else {
-    showDashboardHome();
-  }
-}
-
-
-
-// ===== NOTIFICATION DROPDOWN FUNCTIONS =====
-
-function toggleNotificationCenter() {
-  const dropdown = document.getElementById('notification-dropdown');
-  if (dropdown) {
-    dropdown.classList.toggle('hidden');
-    if (!dropdown.classList.contains('hidden')) {
-      loadNotificationsForDropdown();
-    }
-  }
-}
-
-function loadNotificationsForDropdown() {
-  const list = document.getElementById('notification-list');
-  if (!list) return;
-  
-  const prefs = JSON.parse(localStorage.getItem('bizos_notification_prefs') || '{}');
-  let notifications = [];
-  let badgeCount = 0;
-  
-  // Welcome notification
-  if (!localStorage.getItem('bizos_welcome_seen')) {
-    notifications.push({
-      id: 1,
-      icon: 'fa-bell',
-      color: 'text-purple-600',
-      title: 'Welcome to BizOS!',
-      message: 'Get started with your new account',
-      time: 'Just now',
-      module: 'All'
-    });
-    badgeCount++;
-  }
-  
-  // Feature updates (if enabled)
-  if (prefs.features !== false) {
-    notifications.push({
-      id: 2,
-      icon: 'fa-rocket',
-      color: 'text-blue-600',
-      title: 'New Feature Available',
-      message: 'Check out the new Warehouse Management module',
-      time: '1 hour ago',
-      module: 'Warehouse'
-    });
-    badgeCount++;
-  }
-  
-  // Security alerts (if enabled)
-  if (prefs.security !== false) {
-    notifications.push({
-      id: 3,
-      icon: 'fa-shield-alt',
-      color: 'text-green-600',
-      title: 'Security Update',
-      message: 'Your account is secure. 2FA available.',
-      time: '2 hours ago',
-      module: 'Security'
-    });
-    badgeCount++;
-  }
-  
-  // System alerts (if enabled)
-  if (prefs.system !== false) {
-    notifications.push({
-      id: 4,
-      icon: 'fa-info-circle',
-      color: 'text-yellow-600',
-      title: 'System Update',
-      message: 'BizOS v2.4.1 released with performance improvements',
-      time: '5 hours ago',
-      module: 'All'
-    });
-    badgeCount++;
-  }
-  
-  // Update badge
-  const badge = document.getElementById('notification-badge');
-  if (badge) {
-    if (badgeCount > 0) {
-      badge.textContent = badgeCount > 9 ? '9+' : badgeCount;
-      badge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden');
-    }
-  }
-  
-  if (notifications.length === 0) {
-    list.innerHTML = `
-      <div class="p-4 text-center text-gray-400 text-sm">
-        <i class="fas fa-check-circle text-2xl block mb-2 text-green-500"></i>
-        All caught up!
-      </div>
-    `;
-    return;
-  }
-  
-  list.innerHTML = notifications.map(n => `
-    <div class="flex items-start p-3 hover:bg-gray-50 rounded-lg transition cursor-pointer" onclick="handleNotificationClick('${n.module}')">
-      <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center mr-3 flex-shrink-0">
-        <i class="fas ${n.icon} ${n.color}"></i>
-      </div>
-      <div class="flex-1 min-w-0">
-        <p class="font-medium text-gray-900 text-sm">${n.title}</p>
-        <p class="text-sm text-gray-500 truncate">${n.message}</p>
-        <p class="text-xs text-gray-400 mt-1">${n.time}</p>
-      </div>
-    </div>
-  `).join('');
-}
-
-function markAllNotificationsRead() {
-  const badge = document.getElementById('notification-badge');
-  if (badge) {
-    badge.classList.add('hidden');
-    badge.textContent = '0';
-  }
-  
-  const list = document.getElementById('notification-list');
-  if (list) {
-    list.innerHTML = `
-      <div class="p-4 text-center text-gray-400 text-sm">
-        <i class="fas fa-check-circle text-2xl block mb-2 text-green-500"></i>
-        All caught up!
-      </div>
-    `;
-  }
-  
-  localStorage.setItem('bizos_welcome_seen', 'true');
-  showNotification('All notifications cleared', 'success');
-}
-
-function handleNotificationClick(moduleName) {
-  const dropdown = document.getElementById('notification-dropdown');
-  if (dropdown) dropdown.classList.add('hidden');
-  
-  if (moduleName === 'Security') {
-    goToSecurityTab();
-  } else if (moduleName && moduleName !== 'All' && typeof openModule === 'function') {
-    const profilePage = document.getElementById('profile-page');
-    const settingsPage = document.getElementById('settings-page');
-    if (profilePage) profilePage.classList.add('hidden');
-    if (settingsPage) settingsPage.classList.add('hidden');
-    openModule(moduleName);
-  } else {
-    showDashboardHome();
-  }
-}
-
 
 
 // ==================== MODAL SCROLL FIX (SAFE VERSION) ====================
