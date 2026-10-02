@@ -51,7 +51,12 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
 }
 
 function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
-  var sheetName = moduleName === 'Finance' ? 'Financial_Data' : 'Ecommerce_Data';
+  var moduleSheetMap = {
+    Finance:'Financial_Data', Ecommerce:'Ecommerce_Data', Sales:'Sales_Data', CRM:'CRM_Data',
+    HR:'HR_Data', Logistics:'Logistics_Data', Tax:'Tax_Data', Agro:'Agro_Data',
+    Productivity:'Productivity_Data', POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
+  };
+  var sheetName = moduleSheetMap[moduleName] || (moduleName + '_Data');
   var sourceSheet = source.getSheetByName(sheetName);
   var targetSheet = target.getSheetByName(sheetName);
 
