@@ -46,7 +46,7 @@ function clientFinanceAccessV12_(sid,write){
   if(write){
     var role=String(user.role||'staff').toLowerCase();
     if(user.isDemo==='YES')return{ok:false,message:'Demo accounts are view-only.'};
-    if(role!=='owner'&&role!=='admin')return{ok:false,message:'You have view-only access to Finance.'};
+    if(role!=='owner'&&role!=='admin'&&role!=='staff')return{ok:false,message:'You have view-only access to Finance.'};
   }
   return{ok:true,user:user};
 }
