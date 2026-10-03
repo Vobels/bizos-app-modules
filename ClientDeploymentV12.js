@@ -15,6 +15,9 @@ function generateClientCodeSafelyV12(settings) {
   settings = settings || {};
   if (!settings.clientId || !settings.sheetId || !settings.email) throw new Error('clientId, sheetId and email are required');
 
+  // Branding/config values are data, never executable source. Keep the
+  // object normalized here; the generated runtime embeds it with JSON.stringify
+  // so apostrophes, quotes, backslashes, newlines and URLs cannot break JS.
   var config = {
     clientId:String(settings.clientId),
     clientName:String(settings.clientName || 'My Business'),
