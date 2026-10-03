@@ -476,7 +476,13 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
       } else if (legacyStaffModules[email]) {
         assigned = legacyStaffModules[email].slice();
       }
-      if (role === 'admin') assigned = Object.keys(MODULES);
+      var allowedModules = Object.keys(MODULES);
+      assigned = assigned.map(function(moduleName) {
+        return String(moduleName || '').trim();
+      }).filter(function(moduleName, index, list) {
+        return moduleName && allowedModules.indexOf(moduleName) >= 0 && list.indexOf(moduleName) === index;
+      });
+      if (role === 'admin') assigned = allowedModules.slice();
 
       var now = new Date().toISOString();
       var rowData = {
