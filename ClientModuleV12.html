@@ -81,7 +81,7 @@
       var statuses=['active','on leave'];
       return '<select name="'+name+'">'+statuses.map(function(o){return '<option value="'+esc(o)+'"'+(value.toLowerCase()===o?' selected':'')+'>'+esc(o.replace(/_/g,' '))+'</option>';}).join('')+'</select>';
     }
-    if(/(^Date$|_Date$)/i.test(h)) return '<input type="date" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
+    if(/(^Date$|_Date$|^ETA$)/i.test(h)) return '<input type="date" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
     if(/(Amount|Price|Cost|Revenue|Tax|Quantity|Probability|Rate)/i.test(h)) return '<input type="number" step="any" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
     return '<input name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
   }
