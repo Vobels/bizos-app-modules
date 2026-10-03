@@ -154,7 +154,7 @@
       '<section class="rich-panel chart-panel"><div class="rich-panel-head"><div><span class="section-kicker">FINANCIAL OVERVIEW</span><h3>Revenue vs expenses</h3></div><span class="chart-note">Last 7 recorded days</span></div>'+trendChart(charts.revenueVsExpenses||{})+'</section>'+
       '<div class="overview-grid equal">'+
         '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">EXPENSES</span><h3>Expense breakdown</h3></div></div>'+breakdownChart(charts.expenseBreakdown||{})+'</section>'+
-        '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">BUSINESS HEALTH</span><h3>How your business is doing</h3></div></div>'+healthView(health)+'</section>'+
+        '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">BUSINESS HEALTH</span><h3>Financial health</h3></div></div>'+healthView(health)+'</section>'+
       '</div>'+
       '<div class="overview-grid equal">'+
         '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">ALERTS & RECOMMENDATIONS</span><h3>What needs your attention</h3></div></div>'+alertsView(d.alerts||[],d.recommendations||[])+'</section>'+
@@ -190,7 +190,6 @@
   window.logout=function(){var sid=sessionId;sessionId='';user=null;localStorage.removeItem(sessionKey);localStorage.removeItem(userKey);hideAll();document.getElementById('client-landing').classList.remove('hidden');if(sid)call('clientLogout',[sid],function(){});};
   function sessionExpired(r){return r&&(/session/i.test(String(r.message||''))||r.code==='SESSION_EXPIRED');}
   function showError(m){console.error(m);}
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   setBrand();
   if(sessionId)call('validateSession',[sessionId],function(email){if(email){call('getUserFromSession',[sessionId],function(u){user=u||user;localStorage.setItem(userKey,JSON.stringify(user||{}));openDashboard();},function(){showLanding();});}else{localStorage.removeItem(sessionKey);showLanding();}},function(){showLanding();});else showLanding();
 })();
