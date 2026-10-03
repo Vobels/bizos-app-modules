@@ -476,7 +476,6 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var recordsServer=pkg.files.filter(function(f){return f.name==='Records';})[0].source||'';
   var businessCenterEmbedded=code.indexOf('function getBusinessCenterConnectedData(')>=0 || code.indexOf('BUSINESS_CENTER_PRODUCT_HEADERS')>=0;
   if(!businessCenterEmbedded)return{success:false,code:'V12_BUSINESS_CENTER_BACKEND_MISSING',message:'V12 package is missing the embedded BusinessHubGS backend in Code.'};
-  var businessCenterServer=pkg.files.filter(function(f){return f.name==='BusinessHubGS';})[0].source||'';
   var manifestSource=pkg.files.filter(function(f){return f.name==='appsscript';})[0].source||'';
   var forbiddenUi=['id="landing-page"','id="dashboard-page"','id="admin-dashboard"','Admin Login','Client Registry','Deployment Status'];
   var leakedUi=forbiddenUi.filter(function(token){return shell.indexOf(token)>=0;});
@@ -493,7 +492,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var missingServerDeps=requiredServerDeps.filter(function(token){return modulesServer.indexOf(token)<0;});
   if(missingServerDeps.length)return{success:false,code:'V12_MODULE_SERVER_DEPENDENCY_MISSING',message:'V12 module server dependency is missing: '+missingServerDeps.join(', ')};
   if(recordsServer.indexOf('function getRecordsDirectory(')<0||recordsServer.indexOf('function getRecordRows(')<0)return{success:false,code:'V12_RECORDS_SERVER_DEPENDENCY_MISSING',message:'V12 Records server dependency is incomplete.'};
-  if(businessCenterServer.indexOf('function getBusinessCenterData(')<0||businessCenterServer.indexOf('function completeBusinessCenterSale(')<0)return{success:false,code:'V12_BUSINESS_CENTER_SERVER_DEPENDENCY_MISSING',message:'V12 Business Center server dependency is incomplete.'};
+  if(code.indexOf('function getBusinessCenterData(')<0||code.indexOf('function completeBusinessCenterSale(')<0)return{success:false,code:'V12_BUSINESS_CENTER_SERVER_DEPENDENCY_MISSING',message:'V12 embedded Business Center server dependency is incomplete.'};
   var missingModule=requiredModule.filter(function(token){return moduleWorkspace.indexOf(token)<0;});
   if(missingModule.length)return{success:false,code:'V12_MODULE_DEPENDENCY_MISSING',message:'V12 Module workspace is missing required markers: '+missingModule.join(', ')};
   var requiredStaff=['staff-v12-root','getBusinessStaff','inviteStaffMember','resendStaffInvitation','removeTeamMember','assignModuleToStaff','getAvailableModulesForStaff'];
