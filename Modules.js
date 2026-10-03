@@ -529,9 +529,18 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
 }
 
 
+function assertModuleWriteAccess_(moduleName, sessionId) {
+  if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
+  const user = getUserFromSession(sessionId);
+  if (!user) throw new Error("Session expired. Please login again.");
+  const role = String(user.role || "staff").toLowerCase();
+  if (role !== "owner" && role !== "admin") throw new Error("This module is read-only for staff accounts.");
+  return user;
+}
+
 function saveRecord(moduleName, data, sessionId) {
   try {
-    if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
+    const user = assertModuleWriteAccess_(moduleName, sessionId);
     
     const user = getUserFromSession(sessionId);
     
@@ -642,9 +651,7 @@ function saveRecord(moduleName, data, sessionId) {
 
 function updateRecord(moduleName, data, recordId, sessionId) {
   try {
-    if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
-    
-    const user = getUserFromSession(sessionId);
+    const user = assertModuleWriteAccess_(moduleName, sessionId);
     const workspace = getWorkspaceFile(sessionId);
     const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
@@ -700,7 +707,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
 
 function deleteRecord(moduleName, index, sessionId) {
   try {
-    if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
+    assertModuleWriteAccess_(moduleName, sessionId);
     
     const workspace = getWorkspaceFile(sessionId);
     const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
