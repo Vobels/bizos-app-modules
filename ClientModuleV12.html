@@ -66,6 +66,10 @@
       var methods=['pending','cash','bank_transfer','card','mobile_money','other'];
       return '<select name="'+name+'">'+methods.map(function(o){return '<option value="'+esc(o)+'"'+(value.toLowerCase()===o?' selected':'')+'>'+esc(o.replace(/_/g,' '))+'</option>';}).join('')+'</select>';
     }
+    if(state.module==='HR' && h==='Status'){
+      var statuses=['active','on leave'];
+      return '<select name="'+name+'">'+statuses.map(function(o){return '<option value="'+esc(o)+'"'+(value.toLowerCase()===o?' selected':'')+'>'+esc(o.replace(/_/g,' '))+'</option>';}).join('')+'</select>';
+    }
     if(/(^Date$|_Date$)/i.test(h)) return '<input type="date" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
     if(/(Amount|Price|Cost|Revenue|Tax|Quantity|Probability|Rate)/i.test(h)) return '<input type="number" step="any" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
     return '<input name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
