@@ -123,10 +123,10 @@ function getClientDashboard(sessionId) {
       success: true,
       dashboard: {
         kpis: {
-          revenue: Math.round(revenue * 100) / 100,
-          expenses: Math.round(expenses * 100) / 100,
-          profit: Math.round(profit * 100) / 100,
-          margin: Math.round(margin * 10) / 10
+          revenue: { value: Math.round(revenue * 100) / 100, change: Math.round(percentageChange(revenue, previousRevenue) * 10) / 10 },
+          expenses: { value: Math.round(expenses * 100) / 100, change: Math.round(percentageChange(expenses, previousExpenses) * 10) / 10 },
+          netProfit: { value: Math.round(profit * 100) / 100, change: Math.round(percentageChange(profit, previousProfit) * 10) / 10 },
+          profitMargin: { value: Math.round(margin * 10) / 10, change: Math.round(percentageChange(margin, previousMargin) * 10) / 10 }
         },
         modules: modules.map(name => ({
           name: name,
