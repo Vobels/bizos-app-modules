@@ -150,7 +150,7 @@ function generateClientCodeSafelyV12(settings) {
   if(!recordsSource) throw new Error('Records source is missing.');
   if(!businessCenterServerSource) throw new Error('BusinessHubGS source is missing.');
   // Proven BizOS server dependencies used by the real Business Center and module workspaces.
-  modulesSource = modulesSource.replace(/function\\s+getModuleSummary\\s*\\(/g,'function getModuleSummaryLegacy_(');
+  modulesSource = modulesSource.replace(/function\s+getModuleSummary\s*\(/g,'function getModuleSummaryLegacy_(');
 
   var files = [
     {name:'Code',type:'SERVER_JS',source:runtime},
