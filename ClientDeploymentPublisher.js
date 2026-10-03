@@ -17,7 +17,7 @@ function createAndDeployClientScriptSafe(email, clientId, code, businessName, pr
       return {name:String(f.name),type:String(f.type),source:String(f.source || f.content || '')};
     });
 
-    var required=['Code','client-landing','client-dashboard','appsscript'];
+    var required=['Code','ClientShellV12','appsscript'];
     var names=files.map(function(f){return f.name;});
     var missing=required.filter(function(n){return names.indexOf(n)<0;});
     if(missing.length) return {success:false,message:'Generated client package is missing: '+missing.join(', '),code:'PACKAGE_MISSING_FILES'};
