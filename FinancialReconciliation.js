@@ -31,6 +31,7 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
       scanned: 0,
       alreadyLinked: 0,
       added: 0,
+      wouldAdd: 0,
       skipped: 0,
       staleSourceLinks: 0,
       missingStableId: 0,
@@ -98,6 +99,7 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
         scanned: 0,
         alreadyLinked: 0,
         added: 0,
+        wouldAdd: 0,
         skipped: 0,
         staleSourceLinks: 0,
         missingStableId: 0,
@@ -241,6 +243,12 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
               existingLinks[linkKey] = transactionId;
               financeTransactionIds[transactionId] = true;
 
+              // Keep the source-side link consistent when the source schema
+              // actually provides Financial_Link_ID. Never add a new column.
+              if (sourceFinancialLinkCol >= 0 && !String(row[sourceFinancialLinkCol] || '').trim()) {
+                sheet.getRange(sourceRow, sourceFinancialLinkCol + 1).setValue(transactionId);
+              }
+
               moduleResult.added++;
               result.summary.added++;
               entryResult.newTransactionId = transactionId;
@@ -251,8 +259,8 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
               entryResult.reason = appendError.message || String(appendError);
             }
           } else {
-            moduleResult.skipped++;
-            result.summary.skipped++;
+            moduleResult.wouldAdd++;
+            result.summary.wouldAdd++;
           }
 
           result.entries.push(entryResult);
@@ -261,6 +269,17 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
     });
 
     result.success = result.summary.errors === 0;
+    result.report = {
+      scanned: result.summary.scanned,
+      wouldAdd: result.summary.wouldAdd,
+      added: result.summary.added,
+      alreadyLinked: result.summary.alreadyLinked,
+      skipped: result.summary.skipped,
+      staleSourceLinks: result.summary.staleSourceLinks,
+      missingStableId: result.summary.missingStableId,
+      ambiguous: result.summary.ambiguous,
+      errors: result.summary.errors
+    };
     result.completedAt = new Date().toISOString();
     result.message = applyChanges
       ? 'Historical financial reconciliation completed. Only explicit source-linked events were added.'
