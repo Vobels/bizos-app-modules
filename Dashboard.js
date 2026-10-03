@@ -215,10 +215,11 @@ function getEnhancedDashboardData(period, sessionId) {
     const useAccurate = (period === 'this_year' || period === 'last_month');
     const financialMetrics = getDetailedFinancialMetrics(workspace, period, useAccurate);
     const moduleSummary = getModuleSummary(sessionId);
-    const businessHealth = calculateBusinessHealth(workspace, financialMetrics);
+    const businessSnapshot = getDashboardBusinessSnapshot(workspace, moduleSummary);
+    const businessHealth = calculateBusinessHealth(workspace, financialMetrics, businessSnapshot);
     const chartData = getChartDataOptimized(workspace, period);
     const recentActivity = getRecentActivityAcrossModules(workspace, 10, moduleSummary);
-    const alerts = generateBusinessAlerts(workspace, financialMetrics, moduleSummary);
+    const alerts = generateBusinessAlerts(workspace, financialMetrics, moduleSummary, businessSnapshot);
     
     return {
       success: true,
