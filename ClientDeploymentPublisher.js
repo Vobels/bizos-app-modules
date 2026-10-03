@@ -121,6 +121,76 @@ function createAndDeployClientScriptSafe(email, clientId, code, businessName, pr
   }
 }
 
+/**
+ * Non-destructive audit for an already-provisioned client.
+ * This reads the existing deployment/version/content only; it does not
+ * regenerate, redeploy, delete, or modify the client project.
+ */
+function auditExistingClientV12Deployment(clientId,sessionId){
+  requireAdminSession_(sessionId);
+  try{
+    var wanted=String(clientId||'').trim();
+    if(!wanted)return{success:false,code:'CLIENT_ID_REQUIRED',message:'Client ID is required.'};
+    var client=getClientById(wanted);
+    if(!client)return{success:false,code:'CLIENT_NOT_FOUND',message:'Client deployment record was not found.'};
+    var scriptId=String(client.scriptId||client.Script_ID||'').trim();
+    var deploymentId=String(client.deploymentId||client.Deployment_ID||'').trim();
+    if(!scriptId||!deploymentId)return{success:false,code:'DEPLOYMENT_METADATA_INCOMPLETE',message:'The client record is missing Script_ID or Deployment_ID.',clientId:wanted,scriptId:scriptId,deploymentId:deploymentId};
+
+    var auth={Authorization:'Bearer '+ScriptApp.getOAuthToken()};
+    var deploymentUrl='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptId)+'/deployments/'+encodeURIComponent(deploymentId);
+    var dr=UrlFetchApp.fetch(deploymentUrl,{method:'GET',headers:auth,muteHttpExceptions:true});
+    if(dr.getResponseCode()<200||dr.getResponseCode()>=300)return{success:false,code:'DEPLOYMENT_LOOKUP_FAILED',message:'Existing deployment could not be read: '+dr.getContentText(),clientId:wanted,scriptId:scriptId,deploymentId:deploymentId};
+
+    var d=JSON.parse(dr.getContentText()||'{}'),cfg=d.deploymentConfig||{},versionNumber=String(cfg.versionNumber||d.versionNumber||'');
+    var entryUrl='';
+    (d.entryPoints||[]).forEach(function(ep){if(String(ep.entryPointType||'')==='WEB_APP'&&ep.webApp)entryUrl=String(ep.webApp.url||'');});
+    if(!versionNumber)return{success:false,code:'DEPLOYMENT_VERSION_MISSING',message:'Existing deployment has no version number.',clientId:wanted,scriptId:scriptId,deploymentId:deploymentId};
+
+    var contentUrl='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptId)+'/content?versionNumber='+encodeURIComponent(versionNumber);
+    var cr=UrlFetchApp.fetch(contentUrl,{method:'GET',headers:auth,muteHttpExceptions:true});
+    if(cr.getResponseCode()<200||cr.getResponseCode()>=300)return{success:false,code:'DEPLOYED_CONTENT_LOOKUP_FAILED',message:'The deployed version content could not be read: '+cr.getContentText(),clientId:wanted,scriptId:scriptId,deploymentId:deploymentId,versionNumber:versionNumber};
+
+    var body=JSON.parse(cr.getContentText()||'{}'),files=Array.isArray(body.files)?body.files:[],codeFile=null;
+    for(var i=0;i<files.length;i++){if(String(files[i].name||'')==='Code'){codeFile=files[i];break;}}
+    var src=codeFile?String(codeFile.source||''):'';
+    var markers={
+      v12Runtime:src.indexOf('CLIENT_V12_PACKAGE_VERSION_')>=0,
+      v1210:src.indexOf('12.1.0')>=0,
+      modules:src.indexOf('var MODULES=')>=0,
+      packageInfo:src.indexOf('function getClientPackageInfo')>=0,
+      smokeAudit:src.indexOf('function getClientV12ModuleSmokeAudit')>=0,
+      v12Shell:files.some(function(x){return String(x.name||'')==='ClientShellV12';}),
+      v12Manifest:files.some(function(x){return String(x.name||'')==='appsscript';})
+    };
+    var missing=[];Object.keys(markers).forEach(function(k){if(!markers[k])missing.push(k);});
+    var registryUrl=String(client.webAppUrl||client.Web_App_URL||'').trim();
+    var expectedUrl='https://script.google.com/macros/s/'+deploymentId+'/exec';
+    var urlMatches=!!entryUrl&&entryUrl===expectedUrl&&(!registryUrl||registryUrl===expectedUrl);
+    return{
+      success:true,
+      clientId:wanted,
+      scriptId:scriptId,
+      deploymentId:deploymentId,
+      versionNumber:versionNumber,
+      deploymentUpdateTime:String(d.updateTime||''),
+      deployedWebAppUrl:entryUrl||expectedUrl,
+      registryWebAppUrl:registryUrl,
+      webAppUrlMatchesRegistry:urlMatches,
+      packageRelease:markers.v1210?'V12.1.0':'unknown',
+      isV12:missing.length===0,
+      missingMarkers:missing,
+      markers:markers,
+      fileCount:files.length,
+      runtimeExecuted:false,
+      nonDestructive:true,
+      auditedAt:new Date().toISOString()
+    };
+  }catch(error){
+    return{success:false,code:'DEPLOYMENT_AUDIT_EXCEPTION',message:error&&error.message?error.message:String(error)};
+  }
+}
+
 function cleanupPublishedProjectSafe_(scriptId) {
   try {
     if(!scriptId) return;
