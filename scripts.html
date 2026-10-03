@@ -1261,6 +1261,7 @@ function loadDashboard() {
   
   loadRecentTransactions();
   loadModuleSummary();
+  loadDashboardRecentEntries('finance');
   loadModulesList();
   updateUserInfo();
   loadUpgradePaymentStatus();
@@ -1271,11 +1272,6 @@ function loadDashboard() {
   loadEnhancedDashboard();
   console.log("🟢 loadEnhancedDashboard called");
 
-  
-  // ADD THIS DELAY - wait 500ms before loading enhanced dashboard
-  setTimeout(function() {
-    loadEnhancedDashboard();
-  }, 500);
 }
 
 
@@ -1620,10 +1616,12 @@ function loadEnhancedDashboard() {
         console.log("✅ Enhanced dashboard loaded successfully");
        
         updateEnhancedKPIs(response.dashboard.kpis);
+        updateDashboardBusinessSnapshot(response.dashboard.businessSnapshot, response.dashboard.moduleSummary);
         updateBusinessHealth(response.dashboard.health);
         updateCharts(response.dashboard.charts);
         updateRecentActivity(response.dashboard.recentActivity);
         updateAlerts(response.dashboard.alerts);
+        updateFeaturedAppsFromSummary(response.dashboard.moduleSummary);
       } else if (response && response.message === "Unauthorized") {
         console.log("Session unauthorized, will retry on next refresh");
       } else {
@@ -1642,6 +1640,78 @@ function forceResetToDashboard() {
   sessionStorage.removeItem('paymentInProgress');
   const baseUrl = window.location.origin + window.location.pathname;
   window.location.href = baseUrl;
+}
+
+function updateDashboardBusinessSnapshot(snapshot, moduleSummary) {
+  const data = snapshot || {};
+  const summary = moduleSummary || {};
+
+  const financeCount = Number(summary.Finance?.count) || 0;
+  const ecommerceCount = Number(summary.Ecommerce?.count) || 0;
+  const posCount = Number(summary.POS?.count) || 0;
+  const activeModules = Number(data.activeModules) || Object.values(summary).filter(m => m && m.isAccessible).length;
+  const teamCount = Number(data.teamMembers) || Number(summary.HR?.count) || 0;
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(value);
+  };
+  setText('total-finance-count', financeCount.toLocaleString());
+  setText('total-products-count', (ecommerceCount + posCount).toLocaleString());
+  setText('total-modules-count', activeModules.toLocaleString());
+  setText('total-team-count', teamCount.toLocaleString());
+
+  const labels = document.querySelectorAll('#total-finance-count, #total-products-count, #total-modules-count, #total-team-count');
+  labels.forEach(el => {
+    const parent = el.parentElement;
+    const label = parent ? parent.querySelector('p.text-xs') : null;
+    if (!label) return;
+    if (el.id === 'total-finance-count') label.textContent = 'Financial Records';
+    if (el.id === 'total-products-count') label.textContent = 'Commerce Records';
+    if (el.id === 'total-modules-count') label.textContent = 'Active Modules';
+    if (el.id === 'total-team-count') label.textContent = 'Team Members';
+  });
+}
+
+function updateFeaturedAppsFromSummary(summary) {
+  const container = document.getElementById('featured-apps');
+  if (!container || !summary) return;
+
+  const moduleIcons = {
+    Finance:'fa-calculator', Sales:'fa-chart-line', Ecommerce:'fa-cart-shopping',
+    CRM:'fa-users', HR:'fa-briefcase', Logistics:'fa-truck', Tax:'fa-file-invoice',
+    Agro:'fa-seedling', Productivity:'fa-clock', POS:'fa-cash-register',
+    Attendance:'fa-fingerprint', Warehouse:'fa-warehouse'
+  };
+  const moduleColors = {
+    Finance:'from-purple-500 to-purple-700', Sales:'from-blue-500 to-blue-700',
+    Ecommerce:'from-orange-500 to-orange-700', CRM:'from-green-500 to-green-700',
+    HR:'from-red-500 to-red-700', Logistics:'from-teal-500 to-teal-700',
+    Tax:'from-yellow-500 to-yellow-700', Agro:'from-emerald-500 to-emerald-700',
+    Productivity:'from-indigo-500 to-indigo-700', POS:'from-pink-500 to-pink-700',
+    Attendance:'from-cyan-500 to-cyan-700', Warehouse:'from-slate-500 to-slate-700'
+  };
+
+  const modules = Object.keys(summary)
+    .filter(name => summary[name] && summary[name].isAccessible)
+    .sort((a,b) => (Number(summary[b].count)||0) - (Number(summary[a].count)||0))
+    .slice(0,4);
+
+  if (!modules.length) return;
+
+  container.innerHTML = modules.map(moduleName => {
+    const mod = summary[moduleName];
+    const icon = moduleIcons[moduleName] || 'fa-folder';
+    const color = moduleColors[moduleName] || 'from-gray-500 to-gray-700';
+    return `
+      <div onclick="openModule('${moduleName}')" class="bg-white rounded-lg p-3 text-center border border-gray-200 hover:shadow-md transition cursor-pointer group">
+        <div class="w-10 h-10 bg-gradient-to-br ${color} rounded-lg flex items-center justify-center mx-auto mb-2">
+          <i class="fas ${icon} text-white"></i>
+        </div>
+        <p class="font-medium text-gray-800 text-sm">${mod.label || moduleName}</p>
+        <p class="text-xs text-gray-400 mt-1">${Number(mod.count)||0} record(s)</p>
+      </div>`;
+  }).join('');
 }
 
 function updateEnhancedKPIs(kpis) {
@@ -5032,6 +5102,56 @@ function requestAccountDeletion() {
   }
 }
 
+function loadDashboardRecentEntries(tabType) {
+  const moduleMap = { finance: 'Finance', ecommerce: 'Ecommerce', sales: 'Sales', hr: 'HR' };
+  const moduleName = moduleMap[tabType];
+  const container = document.getElementById(`recent-${tabType}-records`);
+  if (!moduleName || !container) return;
+
+  container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>Loading recent entries...</p></div>';
+
+  callGoogleScript(
+    'getDashboardRecentEntries',
+    [moduleName, 5],
+    (entries) => {
+      if (!entries || !entries.length) {
+        const empty = {
+          finance: 'No financial records yet. Add your first transaction!',
+          ecommerce: 'No orders yet. Add products to start selling!',
+          sales: 'No sales deals yet. Create your first deal!',
+          hr: 'No employees added yet. Add team members!'
+        };
+        container.innerHTML = `<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>${empty[tabType] || 'No records yet.'}</p></div>`;
+        return;
+      }
+
+      container.innerHTML = entries.map(entry => {
+        const amount = entry.amount ? formatCurrency(entry.amount) : '';
+        const date = entry.date ? new Date(entry.date).toLocaleDateString() : '';
+        const status = entry.status ? String(entry.status).replace(/_/g, ' ') : '';
+        const statusClass = tabType === 'finance'
+          ? (String(entry.status).toLowerCase() === 'revenue' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')
+          : 'bg-gray-100 text-gray-600';
+
+        return `
+          <div class="flex items-center justify-between gap-4 p-3 border-b border-gray-100 hover:bg-gray-50 transition">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-800 truncate">${entry.title}</p>
+              <p class="text-xs text-gray-400 mt-1">${date}${entry.id ? ' · ' + entry.id : ''}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              ${status ? `<span class="inline-block px-2 py-1 rounded-full text-xs ${statusClass}">${status}</span>` : ''}
+              ${amount ? `<p class="text-sm font-medium mt-1">${amount}</p>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    },
+    () => {
+      container.innerHTML = '<div class="text-center py-8 text-red-400"><p>Unable to load recent entries.</p></div>';
+    }
+  );
+}
+
 function switchRecentTab(tabType) {
   console.log("switchRecentTab called:", tabType);
   
@@ -5057,6 +5177,7 @@ function switchRecentTab(tabType) {
   const targetList = document.getElementById(`recent-${tabType}-records`);
   if (targetList) {
     targetList.classList.remove('hidden');
+    loadDashboardRecentEntries(tabType);
   }
 }
 
