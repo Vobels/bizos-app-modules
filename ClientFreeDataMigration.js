@@ -38,6 +38,10 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
     if (notificationResult && notificationResult.success === false) {
       throw new Error(notificationResult.message || 'BizOS notifications and activity could not be migrated.');
     }
+    var preferenceResult = migrateBizOSNotificationPreferencesToPaidClient_(businessId, target, ownerEmail);
+    if (preferenceResult && preferenceResult.success === false) {
+      throw new Error(preferenceResult.message || 'Notification preferences could not be migrated.');
+    }
     migrateFreeBusinessMetadata_(source, target, businessId, businessName, ownerEmail, staffResult);
 
     return {
@@ -371,6 +375,29 @@ function migrateBizOSNotificationsAndActivityToPaidClient_(businessId, target, o
     console.error('migrateBizOSNotificationsAndActivityToPaidClient_ error:',error);
     return {success:false,code:'NOTIFICATION_ACTIVITY_MIGRATION_FAILED',message:error.message,notificationsCopied:0,activityCopied:0};
   }
+}
+
+function ensureClientNotificationPreferencesSheetV12_(target) {
+  var s=target.getSheetByName('Client_Notification_Preferences');
+  if(!s){s=target.insertSheet('Client_Notification_Preferences');s.appendRow(['Preference_ID','Business_ID','Email','Feature_Updates','System_Alerts','Weekly_Reports','Security_Alerts','Marketing_Updates','Updated_At']);}
+  return s;
+}
+
+function migrateBizOSNotificationPreferencesToPaidClient_(businessId, target, ownerEmail) {
+  try {
+    var source=getBizOSMasterSpreadsheet_(), sourceSheet=source.getSheetByName('BizOS_Notification_Preferences');
+    if(!sourceSheet || sourceSheet.getLastRow()<2)return{success:true,copied:0,updated:0,skipped:0};
+    var values=sourceSheet.getDataRange().getValues(),h=values[0]||[],idx={};h.forEach(function(k,i){idx[k]=i;});
+    if(idx.Business_ID===undefined||idx.Email===undefined)return{success:true,copied:0,updated:0,skipped:0,reason:'SOURCE_SCHEMA_MISSING'};
+    var email=String(ownerEmail||'').trim().toLowerCase(),matches=values.slice(1).filter(function(row){return String(row[idx.Business_ID]||'')===String(businessId||'')&&String(row[idx.Email]||'').trim().toLowerCase()===email;});
+    if(!matches.length)return{success:true,copied:0,updated:0,skipped:0,reason:'NO_PREFERENCES'};
+    var targetSheet=ensureClientNotificationPreferencesSheetV12_(target),tv=targetSheet.getDataRange().getValues(),th=tv[0]||[],tmap={};th.forEach(function(k,i){tmap[k]=i;});
+    var existingRow=-1;for(var i=1;i<tv.length;i++){if(String(tv[i][tmap.Email]||'').trim().toLowerCase()===email&&String(tv[i][tmap.Business_ID]||'')===String(businessId||'')){existingRow=i+1;break;}}
+    var row=matches[matches.length-1],out={Preference_ID:String(row[idx.Preference_ID]||'NP_MIGRATED_'+Utilities.getUuid().replace(/-/g,'').slice(0,12).toUpperCase()),Business_ID:String(businessId||''),Email:email,Feature_Updates:row[idx.Feature_Updates]!==false,System_Alerts:row[idx.System_Alerts]!==false,Weekly_Reports:row[idx.Weekly_Reports]===true,Security_Alerts:row[idx.Security_Alerts]!==false,Marketing_Updates:row[idx.Marketing_Updates]===true,Updated_At:row[idx.Updated_At]||new Date().toISOString()};
+    if(existingRow){th.forEach(function(k,j){if(out[k]!==undefined)targetSheet.getRange(existingRow,j+1).setValue(out[k]);});return{success:true,copied:0,updated:1,skipped:0};}
+    targetSheet.appendRow(th.map(function(k){return out[k]===undefined?'':out[k];}));
+    return{success:true,copied:1,updated:0,skipped:0};
+  }catch(error){console.error('Notification preference migration failed:',error);return{success:false,code:'NOTIFICATION_PREFERENCE_MIGRATION_FAILED',message:error.message};}
 }
 
 function migrateFreeBusinessMetadata_(source, target, businessId, businessName, ownerEmail, staffResult) {
