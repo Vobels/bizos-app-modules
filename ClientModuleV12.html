@@ -26,7 +26,7 @@
     Productivity:{label:'Productivity',description:'Tasks and productivity records.',kpis:[['Tasks','count'],['Completed','status:completed'],['Pending','status:pending'],['Overdue','status:overdue']]},
     POS:{label:'POS',description:'Point-of-sale transactions and records.',kpis:[['Transactions','count'],['Sales','sum:Total_Amount'],['Items sold','sum:Quantity'],['Cash','pos:cash']]},
     Attendance:{label:'Attendance',description:'Staff attendance and time records.',kpis:[['Records','count'],['Present','status:present'],['Absent','status:absent'],['Late','status:late']]},
-    Warehouse:{label:'Warehouse',description:'Inventory, stock and warehouse records.',kpis:[['Products','count'],['Stock units','sum:Quantity'],['Low stock','status:low'],['Inventory value','sum:Amount']]},
+    Warehouse:{label:'Warehouse',description:'Inventory, stock and warehouse records.',kpis:[['Products','count'],['Stock units','sum:Quantity'],['Low stock','warehouse:low'],['Inventory value','warehouse:value']]},
     };
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function def(){return defs[state.module]||{label:state.module,description:'Manage records for this application.',kpis:[['Records','count'],['Value','sum:Amount'],['Active','status:active'],['Completed','status:completed']]};}
@@ -45,6 +45,19 @@
     if(p[0]==='status')return String(statusCount(state.records,p[1]));
     if(p[0]==='unique')return String(uniqueCount(state.records,findHeader([p[1]])));
     if(p[0]==='net'){var h=findHeader(['Amount']);return money(sumField(state.records,h,'revenue')-sumField(state.records,h,'expense'));}
+    if(p[0]==='warehouse'){
+      var qtyHeader=findHeader(['Quantity']);
+      var minHeader=findHeader(['Min_Stock']);
+      var costHeader=findHeader(['Unit_Cost']);
+      if(p[1]==='low'){
+        if(!qtyHeader||!minHeader)return '0';
+        return String(state.records.filter(function(r){return num(val(r,qtyHeader))<num(val(r,minHeader));}).length);
+      }
+      if(p[1]==='value'){
+        if(!qtyHeader||!costHeader)return money(0);
+        return money(state.records.reduce(function(t,r){return t+(num(val(r,qtyHeader))*num(val(r,costHeader)));},0));
+      }
+    }
     if(p[0]==='pos'){
        if(p[1]==='cash'){
          var ph=findHeader(['Payment_Method']);
