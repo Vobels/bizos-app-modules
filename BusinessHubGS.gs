@@ -605,6 +605,26 @@ function completeBusinessCenterSale(data, sessionId) {
       throw writeError;
     }
 
+    // Post the completed Business Center sale to the same financial ledger
+    // used by the main dashboard. The source Sale_ID makes retries safe.
+    try {
+      const financialResult = autoSyncToFinancial('BusinessCenter', {
+        Sale_ID: saleId,
+        Date: data.Date || now.split('T')[0],
+        Customer_Name: resolvedCustomerName || String(data.Customer_Name || '').trim(),
+        Total: total,
+        Amount_Paid: amountPaid,
+        Payment_Method: data.Payment_Method || 'Cash',
+        Status: balanceDue > 0 ? 'Credit' : 'Paid',
+        Created_By: user.email || user.name || ''
+      }, workspace.getId(), sessionId);
+      if (!financialResult.success) {
+        console.warn('Business Center financial sync warning:', financialResult.message);
+      }
+    } catch (financialError) {
+      console.warn('Business Center financial sync error:', financialError.message);
+    }
+
     return {
       success: true, saleId: saleId, subtotal: subtotal, discount: discount,
       total: total, amountPaid: amountPaid, balanceDue: balanceDue,
