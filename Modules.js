@@ -400,8 +400,46 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
       // Payroll should only be synced from an explicit payroll transaction source.
     }
     
-    // Append all financial entries
+    // Reconcile existing linked financial events for this source record.
+    // A source edit can remove an event (for example, a Sales deal changing
+    // from closed_won to closed_lost, or an Ecommerce shipping cost becoming 0).
+    // Only rows explicitly linked to this module record are touched.
+    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Record_ID || recordData.Transaction_ID;
     const headers = getSheetHeadersBySheet(financeSheet);
+    if (sourceRecordId) {
+      const sourceCol = headers.indexOf('Module_Source');
+      const sourceRecordCol = headers.indexOf('Module_Record_ID');
+      const typeCol = headers.indexOf('Type');
+
+      if (sourceCol >= 0 && sourceRecordCol >= 0 && typeCol >= 0) {
+        const desiredTypes = {};
+        financialEntries.forEach(entry => { desiredTypes[String(entry.Type || '').toLowerCase()] = true; });
+
+        const currentValues = financeSheet.getDataRange().getValues();
+        const keptTypes = {};
+        const rowsToDelete = [];
+
+        for (let i = 1; i < currentValues.length; i++) {
+          const sameSource = String(currentValues[i][sourceCol] || '') === moduleName;
+          const sameRecord = String(currentValues[i][sourceRecordCol] || '') === String(sourceRecordId);
+          if (!sameSource || !sameRecord) continue;
+
+          const type = String(currentValues[i][typeCol] || '').toLowerCase();
+
+          // Remove stale linked events and duplicate linked events, while
+          // preserving one current event per financial type.
+          if (!desiredTypes[type] || keptTypes[type]) {
+            rowsToDelete.push(i + 1);
+          } else {
+            keptTypes[type] = true;
+          }
+        }
+
+        rowsToDelete.sort((a, b) => b - a).forEach(row => financeSheet.deleteRow(row));
+      }
+    }
+
+    // Reload after reconciliation so row indexes remain accurate.
     const financeValues = financeSheet.getDataRange().getValues();
     const sourceCol = headers.indexOf('Module_Source');
     const sourceRecordCol = headers.indexOf('Module_Record_ID');
