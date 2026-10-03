@@ -112,11 +112,74 @@ function createClientSheetInClientDrive(email, clientId, businessName, options) 
     const folder = getOrCreateClientFolder(email, businessName);
     const file = DriveApp.getFileById(sheetId);
     file.moveTo(folder);
-    
-    return { success:true, sheetId:sheetId, sheetUrl:sheetUrl, folderId:folder.getId() };
+
+    // The spreadsheet is the client's live workspace. Keep BizOS as an
+    // explicit editor/recovery operator, but transfer ownership when Google
+    // Drive permits it. For consumer accounts where ownership transfer
+    // requires client consent, create a pending-owner request instead.
+    var ownership = transferClientWorkspaceOwnership_(file, email);
+
+    return {
+      success:true,
+      sheetId:sheetId,
+      sheetUrl:sheetUrl,
+      folderId:folder.getId(),
+      ownershipStatus:ownership.status,
+      ownerEmail:ownership.ownerEmail || email,
+      ownershipMessage:ownership.message || ''
+    };
   } catch (error) {
     console.error('Create sheet error:', error);
     return { success:false, message:error.message };
+  }
+}
+
+function transferClientWorkspaceOwnership_(file, clientEmail) {
+  var email = String(clientEmail || '').trim().toLowerCase();
+  if (!file || !email) return {status:'ownership_not_requested',message:'Client email is required.'};
+
+  try {
+    // setOwner automatically keeps the previous owner as an editor when the
+    // transfer is supported (for example, Workspace accounts in the same org).
+    file.addEditor(email);
+    file.setOwner(email);
+    return {
+      status:'client_owned',
+      ownerEmail:email,
+      message:'Client workspace ownership transferred successfully. BizOS remains an editor for recovery and support.'
+    };
+  } catch (directTransferError) {
+    console.warn('Direct workspace ownership transfer unavailable for '+email+':', directTransferError);
+
+    // Consumer-account ownership transfers require the prospective owner to
+    // accept the transfer. The advanced Drive service is already enabled in
+    // appsscript.json, so initiate that handoff without blocking provisioning.
+    try {
+      Drive.Permissions.create(
+        {
+          role:'writer',
+          type:'user',
+          emailAddress:email,
+          pendingOwner:true
+        },
+        file.getId(),
+        {
+          sendNotificationEmail:true
+        }
+      );
+      return {
+        status:'ownership_pending_client_acceptance',
+        ownerEmail:email,
+        message:'Client workspace created and shared. Google Drive requires the client to accept the ownership transfer from their email before ownership changes.'
+      };
+    } catch (pendingTransferError) {
+      console.error('Client workspace ownership handoff failed:', pendingTransferError);
+      return {
+        status:'client_editor_only',
+        ownerEmail:email,
+        message:'Client workspace is shared with the client, but Google Drive did not allow automatic ownership transfer. BizOS remains the current owner and recovery backup remains enabled.'
+      };
+    }
   }
 }
 
