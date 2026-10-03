@@ -45,16 +45,17 @@ function getModuleDataWithSync(moduleName, sessionId) {
     if (!sheet) return { success: false, message: "Module not found" };
     
     const lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return { success: true, records: [], financialSummary: { totalRevenue: 0, totalExpenses: 0 }, recordCount: 0 };
+    const headers = getSheetHeadersBySheet(sheet);
+    if (lastRow <= 1) return { success: true, headers: headers, records: [], financialSummary: { totalRevenue: 0, totalExpenses: 0 }, recordCount: 0 };
     
-    // Limit to last 1000 rows for performance
-    const startRow = Math.max(1, lastRow - 1000);
+    // Keep the latest 1000 data rows while always reading headers from row 1.
+    const startRow = Math.max(2, lastRow - 999);
     const values = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
-    const headers = values[0];
     
-    const records = values.slice(1).map(row => {
+    const records = values.map((row, offset) => {
       const record = {};
       headers.forEach((h, i) => { record[h] = row[i]; });
+      record._row = startRow + offset;
       return record;
     });
     
@@ -85,6 +86,7 @@ function getModuleDataWithSync(moduleName, sessionId) {
     
     return {
       success: true,
+      headers: headers,
       records: records,
       financialSummary: financialSummary,
       recordCount: records.length
