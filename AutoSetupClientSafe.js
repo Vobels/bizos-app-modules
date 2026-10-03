@@ -41,7 +41,7 @@ function autoSetupClientSafe(paymentData, skipLock) {
     existingBusiness = getBusinessByEmail(paymentData.email);
     businessId = existingBusiness ? existingBusiness.businessId : clientId;
     console.log('SAFE STEP 1: Creating workspace:', clientId);
-    sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:'12.0'});
+    sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:CLIENT_V12_PACKAGE_VERSION_});
     if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
 
     console.log('SAFE STEP 1B: Verifying canonical workspace database schema');
@@ -121,7 +121,7 @@ function autoSetupClientSafe(paymentData, skipLock) {
       scriptId:scriptResult.scriptId,
       deploymentId:scriptResult.deploymentId,
       businessId:businessId,
-      provisioningVersion:'12.0',
+      provisioningVersion:CLIENT_V12_PACKAGE_VERSION_,
       recoveryBackupId:migrationResult && migrationResult.recoveryBackup ? migrationResult.recoveryBackup.backupId : '',
       recoveryBackupUrl:migrationResult && migrationResult.recoveryBackup ? migrationResult.recoveryBackup.backupUrl : '',
       workspaceOwnershipStatus:sheetResult.ownershipStatus || 'client_editor_only',
