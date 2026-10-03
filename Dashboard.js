@@ -217,8 +217,8 @@ function getEnhancedDashboardData(period, sessionId) {
     const moduleSummary = getModuleSummary(sessionId);
     const businessHealth = calculateBusinessHealth(workspace, financialMetrics);
     const chartData = getChartDataOptimized(workspace, period);
-    const recentActivity = getRecentActivityAcrossModules(workspace, 10);
-    const alerts = generateBusinessAlerts(workspace, financialMetrics);
+    const recentActivity = getRecentActivityAcrossModules(workspace, 10, moduleSummary);
+    const alerts = generateBusinessAlerts(workspace, financialMetrics, moduleSummary);
     
     return {
       success: true,
@@ -352,7 +352,395 @@ function getChartDataOptimized(workspace, period) {
   }
 }
 
-// Keep your existing helper functions (calculatePercentageChange, getDailyTrends, getWeeklyTrends, 
-// getRecentActivityAcrossModules, generateBusinessAlerts, calculateBusinessHealth, 
-// getDetailedFinancialMetrics, getPreviousPeriodMetricsOptimized, recalculateDashboardMetrics)
-// They should already exist in your file - keep them as is
+
+/**
+ * ==================== DASHBOARD SUPPORT HELPERS ====================
+ * These helpers are intentionally kept in Dashboard.js because the
+ * enhanced dashboard depends on them at runtime.
+ */
+
+function dashboardPeriodBounds_(period, now) {
+  const current = now ? new Date(now) : new Date();
+  current.setHours(0, 0, 0, 0);
+
+  let start = new Date(current);
+  let end = new Date(current);
+  let previousStart = new Date(current);
+  let previousEnd = new Date(current);
+
+  switch (period) {
+    case 'today':
+      end.setDate(end.getDate() + 1);
+      previousStart.setDate(previousStart.getDate() - 1);
+      previousEnd = new Date(current);
+      break;
+
+    case 'this_week': {
+      const day = current.getDay();
+      start.setDate(start.getDate() - day);
+      end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      previousEnd = new Date(start);
+      previousStart = new Date(start);
+      previousStart.setDate(previousStart.getDate() - 7);
+      break;
+    }
+
+    case 'this_year':
+      start = new Date(current.getFullYear(), 0, 1);
+      end = new Date(current.getFullYear() + 1, 0, 1);
+      previousStart = new Date(current.getFullYear() - 1, 0, 1);
+      previousEnd = new Date(current.getFullYear(), 0, 1);
+      break;
+
+    case 'last_month':
+      start = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+      end = new Date(current.getFullYear(), current.getMonth(), 1);
+      previousStart = new Date(current.getFullYear(), current.getMonth() - 2, 1);
+      previousEnd = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+      break;
+
+    case 'this_month':
+    default:
+      start = new Date(current.getFullYear(), current.getMonth(), 1);
+      end = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+      previousStart = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+      previousEnd = new Date(current.getFullYear(), current.getMonth(), 1);
+      break;
+  }
+
+  return { start, end, previousStart, previousEnd };
+}
+
+function dashboardReadFinancialPeriod_(sheet, start, end) {
+  const result = { revenue: 0, expenses: 0, count: 0, categories: {} };
+  if (!sheet || sheet.getLastRow() <= 1) return result;
+
+  const data = sheet.getDataRange().getValues();
+  if (!data.length) return result;
+
+  const headers = data[0];
+  const dateCol = headers.indexOf('Date');
+  const typeCol = headers.indexOf('Type');
+  const amountCol = headers.indexOf('Amount');
+  const categoryCol = headers.indexOf('Category');
+
+  if (dateCol < 0 || typeCol < 0 || amountCol < 0) return result;
+
+  for (let i = 1; i < data.length; i++) {
+    const rawDate = data[i][dateCol];
+    const rowDate = rawDate instanceof Date ? new Date(rawDate) : new Date(rawDate);
+    if (isNaN(rowDate.getTime()) || rowDate < start || rowDate >= end) continue;
+
+    const amount = Math.abs(parseFloat(data[i][amountCol]) || 0);
+    const type = String(data[i][typeCol] || '').toLowerCase();
+    result.count++;
+
+    if (type === 'revenue') {
+      result.revenue += amount;
+    } else if (type === 'expense') {
+      result.expenses += amount;
+      const category = String(data[i][categoryCol] || 'other');
+      result.categories[category] = (result.categories[category] || 0) + amount;
+    }
+  }
+
+  return result;
+}
+
+function calculatePercentageChange(current, previous) {
+  const currentValue = Number(current) || 0;
+  const previousValue = Number(previous) || 0;
+  if (previousValue === 0) return currentValue === 0 ? 0 : 100;
+  return ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
+}
+
+function getDailyTrends(workspace, period) {
+  const sheet = workspace && workspace.getSheetByName('Financial_Data');
+  const bounds = dashboardPeriodBounds_(period, new Date());
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 29);
+
+  const labels = [];
+  const revenue = {};
+  const expenses = {};
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    labels.push(key);
+    revenue[key] = 0;
+    expenses[key] = 0;
+  }
+
+  if (sheet && sheet.getLastRow() > 1) {
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const dateCol = headers.indexOf('Date');
+    const typeCol = headers.indexOf('Type');
+    const amountCol = headers.indexOf('Amount');
+
+    if (dateCol >= 0 && typeCol >= 0 && amountCol >= 0) {
+      for (let i = 1; i < data.length; i++) {
+        const rowDate = data[i][dateCol] instanceof Date ? new Date(data[i][dateCol]) : new Date(data[i][dateCol]);
+        if (isNaN(rowDate.getTime()) || rowDate < start || rowDate > now) continue;
+
+        const key = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        const amount = Math.abs(parseFloat(data[i][amountCol]) || 0);
+        const type = String(data[i][typeCol] || '').toLowerCase();
+
+        if (type === 'revenue' && revenue[key] !== undefined) revenue[key] += amount;
+        if (type === 'expense' && expenses[key] !== undefined) expenses[key] += amount;
+      }
+    }
+  }
+
+  return {
+    labels: labels,
+    revenue: labels.map(key => revenue[key]),
+    expenses: labels.map(key => expenses[key])
+  };
+}
+
+function getWeeklyTrends(workspace, period) {
+  const daily = getDailyTrends(workspace, period);
+  const weekly = {};
+
+  daily.labels.forEach((label, i) => {
+    const date = new Date(label + 'T00:00:00');
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - date.getDay());
+    const key = Utilities.formatDate(weekStart, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+    if (!weekly[key]) weekly[key] = { revenue: 0, expenses: 0 };
+    weekly[key].revenue += daily.revenue[i] || 0;
+    weekly[key].expenses += daily.expenses[i] || 0;
+  });
+
+  return weekly;
+}
+
+function getPreviousPeriodMetricsOptimized(workspace, period) {
+  const sheet = workspace && workspace.getSheetByName('Financial_Data');
+  const bounds = dashboardPeriodBounds_(period, new Date());
+  return dashboardReadFinancialPeriod_(sheet, bounds.previousStart, bounds.previousEnd);
+}
+
+function getDetailedFinancialMetrics(workspace, period, useAccurate) {
+  const sheet = workspace && workspace.getSheetByName('Financial_Data');
+  const bounds = dashboardPeriodBounds_(period || 'this_month', new Date());
+  const current = dashboardReadFinancialPeriod_(sheet, bounds.start, bounds.end);
+  const previous = getPreviousPeriodMetricsOptimized(workspace, period || 'this_month');
+
+  const currentProfit = current.revenue - current.expenses;
+  const previousProfit = previous.revenue - previous.expenses;
+  const currentMargin = current.revenue > 0 ? (currentProfit / current.revenue) * 100 : 0;
+  const previousMargin = previous.revenue > 0 ? (previousProfit / previous.revenue) * 100 : 0;
+
+  const daily = getDailyTrends(workspace, period);
+  const weekly = getWeeklyTrends(workspace, period);
+
+  return {
+    kpis: {
+      revenue: { value: current.revenue, change: calculatePercentageChange(current.revenue, previous.revenue) },
+      expenses: { value: current.expenses, change: calculatePercentageChange(current.expenses, previous.expenses) },
+      netProfit: { value: currentProfit, change: calculatePercentageChange(currentProfit, previousProfit) },
+      profitMargin: { value: currentMargin, change: calculatePercentageChange(currentMargin, previousMargin) }
+    },
+    trends: {
+      categoryBreakdown: current.categories,
+      daily: daily,
+      weekly: weekly
+    },
+    current: current,
+    previous: previous,
+    accurate: !!useAccurate
+  };
+}
+
+function calculateBusinessHealth(workspace, financialMetrics) {
+  const kpis = financialMetrics && financialMetrics.kpis ? financialMetrics.kpis : {};
+  const revenue = Number(kpis.revenue?.value) || 0;
+  const expenses = Number(kpis.expenses?.value) || 0;
+  const margin = Number(kpis.profitMargin?.value) || 0;
+
+  const expenseScore = revenue > 0
+    ? Math.max(0, Math.min(100, (1 - (expenses / revenue)) * 100))
+    : (expenses === 0 ? 100 : 0);
+  const marginScore = Math.max(0, Math.min(100, margin * 5));
+  const activityScore = financialMetrics?.current?.count > 0 ? 100 : 0;
+
+  const overall = Math.round((Math.max(0, expenseScore) + marginScore + activityScore) / 3);
+  const metrics = [
+    { name: 'Revenue', current: formatDashboardHealthValue_(revenue), score: revenue > 0 ? 100 : 0, target: 'Positive revenue' },
+    { name: 'Expense control', current: revenue > 0 ? ((expenses / revenue) * 100).toFixed(1) + '% of revenue' : 'No revenue', score: Math.round(expenseScore), target: 'Lower expense ratio' },
+    { name: 'Profit margin', current: margin.toFixed(1) + '%', score: Math.round(marginScore), target: '20%+' }
+  ];
+
+  const recommendations = [];
+  if (revenue === 0) {
+    recommendations.push({ priority: 'high', message: 'No revenue recorded for this period.', action: 'Review sales, ecommerce, POS and finance records.' });
+  }
+  if (expenses > revenue && expenses > 0) {
+    recommendations.push({ priority: 'high', message: 'Expenses exceed recorded revenue for this period.', action: 'Review recent expenses and revenue entries.' });
+  }
+  if (margin > 0 && margin < 10) {
+    recommendations.push({ priority: 'medium', message: 'Profit margin is below 10%.', action: 'Review pricing, costs and operating expenses.' });
+  }
+
+  return { overall: Math.max(0, Math.min(100, overall)), metrics, recommendations };
+}
+
+function formatDashboardHealthValue_(value) {
+  const n = Number(value) || 0;
+  try {
+    return typeof formatCurrency === 'function' ? formatCurrency(n) : n.toFixed(2);
+  } catch (e) {
+    return n.toFixed(2);
+  }
+}
+
+function getRecentActivityAcrossModules(workspace, limit, moduleSummary) {
+  const activities = [];
+  const allModules = {
+    Finance: 'Financial_Data',
+    Ecommerce: 'Ecommerce_Data',
+    Sales: 'Sales_Data',
+    CRM: 'CRM_Data',
+    HR: 'HR_Data',
+    Logistics: 'Logistics_Data',
+    Tax: 'Tax_Data',
+    Agro: 'Agro_Data',
+    Productivity: 'Productivity_Data',
+    POS: 'POS_Data',
+    Attendance: 'Attendance_Data',
+    Warehouse: 'Warehouse_Data'
+  };
+
+  Object.keys(allModules).forEach(moduleName => {
+    if (moduleSummary && moduleSummary[moduleName] && moduleSummary[moduleName].isAccessible === false) return;
+
+    try {
+      const sheet = workspace.getSheetByName(allModules[moduleName]);
+      if (!sheet || sheet.getLastRow() <= 1) return;
+
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const dateCol = headers.indexOf('Date');
+      const createdAtCol = headers.indexOf('Created_At');
+      const idCandidates = ['Transaction_ID','Order_ID','Deal_ID','Contact_ID','Employee_ID','Shipment_ID','Tax_ID','Record_ID','Item_ID'];
+
+      for (let i = Math.max(1, values.length - 25); i < values.length; i++) {
+        const row = values[i];
+        const rawDate = dateCol >= 0 && row[dateCol] ? row[dateCol] : (createdAtCol >= 0 ? row[createdAtCol] : null);
+        const date = rawDate instanceof Date ? new Date(rawDate) : new Date(rawDate);
+        if (isNaN(date.getTime())) continue;
+
+        let recordId = '';
+        for (const id of idCandidates) {
+          const idx = headers.indexOf(id);
+          if (idx >= 0 && row[idx]) {
+            recordId = String(row[idx]);
+            break;
+          }
+        }
+
+        const description = dashboardActivityDescription_(moduleName, row, headers, recordId);
+        const daysAgo = Math.max(0, Math.floor((new Date().getTime() - date.getTime()) / 86400000));
+        activities.push({ module: moduleName, description, date: date.toISOString(), daysAgo });
+      }
+    } catch (e) {
+      console.log('Recent activity skipped for ' + moduleName + ': ' + e.message);
+    }
+  });
+
+  return activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, limit || 10);
+}
+
+function dashboardActivityDescription_(moduleName, row, headers, recordId) {
+  const value = name => {
+    const idx = headers.indexOf(name);
+    return idx >= 0 ? row[idx] : '';
+  };
+
+  switch (moduleName) {
+    case 'Finance': return (value('Description') || 'Financial transaction') + (recordId ? ' (' + recordId + ')' : '');
+    case 'Ecommerce': return 'Order ' + (value('Order_ID') || recordId || 'record') + (value('Product_Name') ? ': ' + value('Product_Name') : '');
+    case 'Sales': return 'Deal ' + (value('Deal_ID') || recordId || 'record') + (value('Customer_Name') ? ': ' + value('Customer_Name') : '');
+    case 'CRM': return 'Contact ' + (value('Name') || recordId || 'record') + ' updated';
+    case 'HR': return 'Employee ' + (value('Name') || recordId || 'record') + ' updated';
+    case 'Logistics': return 'Shipment ' + (value('Shipment_ID') || recordId || 'record') + ' updated';
+    case 'Tax': return 'Tax record ' + (value('Tax_ID') || recordId || 'record') + ' updated';
+    case 'Agro': return 'Agro record ' + (value('Record_ID') || recordId || 'record') + ' updated';
+    case 'Productivity': return 'Task ' + (value('Record_ID') || recordId || 'record') + ' logged';
+    case 'POS': return 'POS transaction ' + (value('Transaction_ID') || recordId || 'record') + ' recorded';
+    case 'Attendance': return 'Attendance ' + (value('Record_ID') || recordId || 'record') + ' recorded';
+    case 'Warehouse': return 'Inventory item ' + (value('Item_Name') || value('Item_ID') || recordId || 'record') + ' updated';
+    default: return moduleName + ' activity';
+  }
+}
+
+function generateBusinessAlerts(workspace, financialMetrics, moduleSummary) {
+  const alerts = [];
+  const kpis = financialMetrics?.kpis || {};
+  const revenue = Number(kpis.revenue?.value) || 0;
+  const expenses = Number(kpis.expenses?.value) || 0;
+
+  if (revenue === 0 && expenses === 0) {
+    alerts.push({ type: 'info', priority: 'low', title: 'No financial activity', message: 'No revenue or expenses were recorded for this period.' });
+  } else if (expenses > revenue) {
+    alerts.push({ type: 'warning', priority: 'high', title: 'Expenses exceed revenue', message: 'Recorded expenses are higher than recorded revenue for this period.' });
+  }
+
+  if (!moduleSummary || moduleSummary.Warehouse?.isAccessible !== false) {
+    const sheet = workspace.getSheetByName('Warehouse_Data');
+    if (sheet && sheet.getLastRow() > 1) {
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const quantityCol = headers.indexOf('Quantity');
+      const minCol = headers.indexOf('Min_Stock');
+      if (quantityCol >= 0 && minCol >= 0) {
+        let lowStock = 0;
+        for (let i = 1; i < values.length; i++) {
+          const qty = parseFloat(values[i][quantityCol]) || 0;
+          const min = parseFloat(values[i][minCol]);
+          if (!isNaN(min) && qty < min) lowStock++;
+        }
+        if (lowStock > 0) {
+          alerts.push({ type: 'warning', priority: 'high', title: 'Low stock', message: lowStock + ' warehouse item(s) are below minimum stock.' });
+        }
+      }
+    }
+  }
+
+  if (!moduleSummary || moduleSummary.Ecommerce?.isAccessible !== false) {
+    const sheet = workspace.getSheetByName('Ecommerce_Data');
+    if (sheet && sheet.getLastRow() > 1) {
+      const values = sheet.getDataRange().getValues();
+      const headers = values[0];
+      const statusCol = headers.indexOf('Payment_Status');
+      if (statusCol >= 0) {
+        let pending = 0;
+        for (let i = 1; i < values.length; i++) {
+          if (String(values[i][statusCol] || '').toLowerCase() === 'pending') pending++;
+        }
+        if (pending > 0) {
+          alerts.push({ type: 'info', priority: 'medium', title: 'Pending ecommerce payments', message: pending + ' ecommerce order(s) have a pending payment status.' });
+        }
+      }
+    }
+  }
+
+  return alerts.slice(0, 8);
+}
+
+function recalculateDashboardMetrics(workspaceId) {
+  // Dashboard values are calculated from the workspace on demand.
+  // The existing short-lived caches expire automatically; this function
+  // remains as the post-sync hook used by module auto-sync.
+  return { success: true, workspaceId: workspaceId || null };
+}
+
