@@ -98,6 +98,17 @@ function generateClientCodeSafelyV12(settings) {
   if(!businessCenterSource) throw new Error('BusinessHubGS source is missing.');
   var businessCenterBridge = [
     'function clientSafeBusinessCenterResult_(result){try{return JSON.parse(JSON.stringify(result));}catch(e){return result;}}',
+    'function clientSafeBusinessCenterActorV12_(sid,write){var u=getUserFromSession(sid);if(!u)return{ok:false,message:"Session expired. Please login again."};if(String(u.businessId)!==String(CLIENT_CONFIG.businessId))return{ok:false,message:"Workspace access denied."};if(write&&String(u.isDemo||"").toUpperCase()==="YES")return{ok:false,message:"Demo accounts are view-only."};return{ok:true,user:u};}',
+    'function getClientBusinessCenterConnectedData(sid){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return clientSafeBusinessCenterResult_(getBusinessCenterConnectedData(sid));}',
+    'function getClientBusinessCenterProductImages(productIds,sid){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return clientSafeBusinessCenterResult_(getBusinessCenterProductImages(productIds,sid));}',
+    'function saveClientBusinessCenterProductsBulk(data,sid){var a=clientSafeBusinessCenterActorV12_(sid,true);if(!a.ok)return{success:false,message:a.message};return saveBusinessCenterProductsBulk(data,sid);}',
+    'function lookupClientBusinessCenterProduct(code,sid){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return lookupBusinessCenterProduct(code,sid);}',
+    'function getClientBusinessCenterCustomerLedger(customerId,sid){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return clientSafeBusinessCenterResult_(getBusinessCenterCustomerLedger(customerId,sid));}',
+    'function recordClientBusinessCenterCustomerPayment(data,sid){var a=clientSafeBusinessCenterActorV12_(sid,true);if(!a.ok)return{success:false,message:a.message};return recordBusinessCenterCustomerPayment(data,sid);}',
+    'function getClientBusinessCenterSaleDetails(saleId,sid){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return clientSafeBusinessCenterResult_(getBusinessCenterSaleDetails(saleId,sid));}',
+    'function getClientBusinessCenterStockMovements(sid,productId){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return clientSafeBusinessCenterResult_(getBusinessCenterStockMovements(sid,productId));}',
+    'function getClientBusinessCenterFinanceData(sid){var a=clientSafeBusinessCenterActorV12_(sid,false);if(!a.ok)return{success:false,message:a.message};return clientSafeBusinessCenterResult_(getBusinessCenterFinanceData(sid));}',
+    'function recordClientBusinessCenterExpense(data,sid){var a=clientSafeBusinessCenterActorV12_(sid,true);if(!a.ok)return{success:false,message:a.message};return recordBusinessCenterExpense(data,sid);}',
     'function getClientBusinessCenterData(sid){return clientSafeBusinessCenterResult_(getBusinessCenterData(sid));}',
     'function saveClientBusinessCenterProduct(data,sid){return saveBusinessCenterProduct(data,sid);}',
     'function updateClientBusinessCenterProduct(data,sid){return updateBusinessCenterProduct(data,sid);}',
@@ -150,7 +161,7 @@ function generateClientCodeSafelyV12(settings) {
 
   return {
     success:true,version:'12.0',config:config,files:files,
-    source:{clientUi:'V12',copiedMasterUi:[],reusedBackendRuntime:'V11-safe-runtime',businessCenterBackend:'BusinessHubGS-safe-wrapped',businessCenterUi:'ClientBusinessCenterV12'}
+    source:{clientUi:'V12-shell-with-BizOS-business-center',copiedMasterUi:['BusinessHubHTML'],reusedBackendRuntime:'V11-safe-runtime',businessCenterBackend:'BusinessHubGS-safe-wrapped',businessCenterUi:'BizOS-BusinessHubHTML-adapted'}
   };
 }
 
@@ -229,9 +240,52 @@ function buildClientShellV12_(config) {
 }
 
 function buildClientBusinessCenterV12_() {
-  var source = String(getMasterSourceForV12_('ClientBusinessCenterV12') || '');
-  if(!source) throw new Error('ClientBusinessCenterV12 source is missing.');
-  return source;
+  var source = String(getMasterSourceForV12_('BusinessHubHTML') || '');
+  if(!source) throw new Error('BusinessHubHTML source is missing.');
+
+  // Reuse the actual BizOS Business Center UI. Only the API boundary and
+  // client navigation are adapted; product wording/layout/features remain intact.
+  var adapter = [
+    '<script>',
+    '(function(){',
+    '  var actionMap={',
+    '    getBusinessCenterData:"getClientBusinessCenterData",',
+    '    getBusinessCenterConnectedData:"getClientBusinessCenterConnectedData",',
+    '    getBusinessCenterProductImages:"getClientBusinessCenterProductImages",',
+    '    saveBusinessCenterProduct:"saveClientBusinessCenterProduct",',
+    '    saveBusinessCenterProductsBulk:"saveClientBusinessCenterProductsBulk",',
+    '    saveBusinessCenterCustomer:"saveClientBusinessCenterCustomer",',
+    '    lookupBusinessCenterProduct:"lookupClientBusinessCenterProduct",',
+    '    completeBusinessCenterSale:"completeClientBusinessCenterSale",',
+    '    getBusinessCenterCustomerLedger:"getClientBusinessCenterCustomerLedger",',
+    '    recordBusinessCenterCustomerPayment:"recordClientBusinessCenterCustomerPayment",',
+    '    getBusinessCenterSales:"getClientBusinessCenterSales",',
+    '    getBusinessCenterSaleDetails:"getClientBusinessCenterSaleDetails",',
+    '    updateBusinessCenterProduct:"updateClientBusinessCenterProduct",',
+    '    adjustBusinessCenterStock:"adjustClientBusinessCenterStock",',
+    '    getBusinessCenterStockMovements:"getClientBusinessCenterStockMovements",',
+    '    getBusinessCenterFinanceData:"getClientBusinessCenterFinanceData",',
+    '    recordBusinessCenterExpense:"recordClientBusinessCenterExpense"',
+    '  };',
+    '  window.callGoogleScript=function(action,payload,done,fail){',
+    '    var name=actionMap[action]||action;',
+    '    if(typeof google!=="undefined"&&google.script&&google.script.run){',
+    '      google.script.run.withSuccessHandler(done||function(){}).withFailureHandler(fail||function(){} )[name].apply(null,payload||[]);',
+    '    }else if(typeof window.bizosClientCall==="function"){',
+    '      window.bizosClientCall(name,payload||[],done,fail);',
+    '    }else if(fail)fail({message:"BizOS client runtime is still loading."});',
+    '  };',
+    '  window.bcV12Init=function(){',
+    '    if(typeof window.showBusinessCenter==="function")window.showBusinessCenter();',
+    '    else if(typeof window.loadBusinessCenter==="function")window.loadBusinessCenter();',
+    '  };',
+    '  window.closeBusinessCenter=function(){',
+    '    if(typeof window.selectView==="function")window.selectView("overview");',
+    '  };',
+    '})();',
+    '</script>'
+  ].join(String.fromCharCode(10));
+  return source + String.fromCharCode(10) + adapter;
 }
 
 function buildClientFinanceV12_() {
@@ -414,7 +468,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var forbiddenRuntime=['function autoSetupClient','function redeployClientByBusinessId','function requireAdminSession_','function getBizOSMasterSpreadsheet_','function createAndDeployClientScriptSafe'];
   var leakedRuntime=forbiddenRuntime.filter(function(token){return code.indexOf(token)>=0;});
   if(leakedRuntime.length)return{success:false,code:'V12_MASTER_RUNTIME_LEAK',message:'V12 client runtime contains forbidden Master functions: '+leakedRuntime.join(', ')};
-  var requiredRuntime=['function doGet(e){','function clientFinanceAccessV12_','function getClientAppsData','function clientSettingsAccessV12_','function getClientSettingsData','function saveClientSettings','function changeClientPassword','function updateClientProfile','function getClientProfileData','function getClientBillingData','function submitClientMaintenanceRequest','function getClientNotificationsData','function markClientNotificationRead','function markAllClientNotificationsRead','function logClientActivityV12_','function createClientNotificationV12_','function getClientFinanceData','function saveClientFinanceTransaction','function deleteClientFinanceTransaction','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_','function getBusinessCenterData','function getClientBusinessCenterData','function saveClientBusinessCenterProduct','function saveClientBusinessCenterCustomer','function completeClientBusinessCenterSale','function adjustClientBusinessCenterStock'];
+  var requiredRuntime=['function doGet(e){','function clientFinanceAccessV12_','function getClientAppsData','function clientSettingsAccessV12_','function getClientSettingsData','function saveClientSettings','function changeClientPassword','function updateClientProfile','function getClientProfileData','function getClientBillingData','function submitClientMaintenanceRequest','function getClientNotificationsData','function markClientNotificationRead','function markAllClientNotificationsRead','function logClientActivityV12_','function createClientNotificationV12_','function getClientFinanceData','function saveClientFinanceTransaction','function deleteClientFinanceTransaction','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_','function getBusinessCenterData','function getClientBusinessCenterData','function getClientBusinessCenterConnectedData','function getClientBusinessCenterProductImages','function saveClientBusinessCenterProduct','function saveClientBusinessCenterProductsBulk','function saveClientBusinessCenterCustomer','function lookupClientBusinessCenterProduct','function completeClientBusinessCenterSale','function getClientBusinessCenterCustomerLedger','function recordClientBusinessCenterCustomerPayment','function getClientBusinessCenterSales','function getClientBusinessCenterSaleDetails','function updateClientBusinessCenterProduct','function adjustClientBusinessCenterStock','function getClientBusinessCenterStockMovements','function getClientBusinessCenterFinanceData','function recordClientBusinessCenterExpense'];
   var missingRuntime=requiredRuntime.filter(function(token){return code.indexOf(token)<0;});
   if(missingRuntime.length)return{success:false,code:'V12_RUNTIME_DEPENDENCY_MISSING',message:'V12 client runtime is missing required functions: '+missingRuntime.join(', ')};var securityRuntime=['function clientAssignedModulesV11_','CLIENT_LICENSE_INVALID','function removeTeamMemberLegacy_(bid,email,sid)','function getBusinessStaff(bid,sid)','function inviteStaffMember(bid,email,name,role,invitedBy,assignedModules,sid)','function resendStaffInvitation(bid,email,sid)','function assignModuleToStaff(email,bid,moduleName,assignedBy,sid)','function removeModuleFromStaff(email,bid,moduleName,sid)','String(u.businessId)!==String(bid)','function updateUserProfile(bid,name,phone,sid)','function changeUserPassword(email,currentPassword,newPassword,sid)','function createClientSessionV11_','function getOrCreateUserSheet_','function getOrCreateBusinessSheet_'];var missingSecurity=securityRuntime.filter(function(token){return code.indexOf(token)<0;});if(missingSecurity.length)return{success:false,code:'V12_SECURITY_DEPENDENCY_MISSING',message:'V12 client runtime is missing hardened security markers: '+missingSecurity.join(', ')};if(code.indexOf('function createSession(')>=0)return{success:false,code:'V12_PUBLIC_SESSION_FACTORY_LEAK',message:'V12 client runtime still exposes the public session factory.'};var forbiddenPublic=['function getOrCreateUserSheet(','function getOrCreateBusinessSheet('];var leakedPublic=forbiddenPublic.filter(function(token){return code.indexOf(token)>=0;});if(leakedPublic.length)return{success:false,code:'V12_INTERNAL_HELPER_EXPOSED',message:'V12 client runtime still exposes internal helper functions: '+leakedPublic.join(', ')};var requiredEntitlement=['function clientModulesForEntitlementV12_','function clientLicenseTierV12_','accessibleModules:clientModulesForEntitlementV12_'];var missingEntitlement=requiredEntitlement.filter(function(token){return code.indexOf(token)<0;});if(missingEntitlement.length)return{success:false,code:'V12_ENTITLEMENT_BRIDGE_MISSING',message:'V12 entitlement enforcement is incomplete: '+missingEntitlement.join(', ')};
   var requiredShell=['ClientStylesV12','ClientStaffV12','ClientAppsV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientBusinessCenterV12','authenticateClient','validateSession','getUserFromSession','clientLogout','getClientDashboardData','bizos-kpi-grid','trendChart','breakdownChart','healthView'];
@@ -424,7 +478,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var requiredStaff=['staff-v12-root','getBusinessStaff','inviteStaffMember','resendStaffInvitation','removeTeamMember','assignModuleToStaff','getAvailableModulesForStaff'];
   var missingStaff=requiredStaff.filter(function(token){return staff.indexOf(token)<0;});
   if(missingStaff.length)return{success:false,code:'V12_STAFF_DEPENDENCY_MISSING',message:'V12 Staff workspace is missing required markers: '+missingStaff.join(', ')};
-  var requiredApps=['apps-v12-root','getClientAppsData'];var missingApps=requiredApps.filter(function(token){return apps.indexOf(token)<0;});if(missingApps.length)return{success:false,code:'V12_APPS_DEPENDENCY_MISSING',message:'V12 Apps workspace is missing required markers: '+missingApps.join(', ')};var requiredSettings=['settings-v12-root','getClientSettingsData','saveClientSettings','changeClientPassword'];var missingSettings=requiredSettings.filter(function(token){return settings.indexOf(token)<0;});if(missingSettings.length)return{success:false,code:'V12_SETTINGS_DEPENDENCY_MISSING',message:'V12 Settings workspace is missing required markers: '+missingSettings.join(', ')};var requiredProfile=['client-profile-v12','getClientProfileData','clientProfileInit','clientProfileSave','clientProfileChangePassword'];var missingProfile=requiredProfile.filter(function(token){return profile.indexOf(token)<0;});if(missingProfile.length)return{success:false,code:'V12_PROFILE_DEPENDENCY_MISSING',message:'V12 Profile workspace is missing required markers: '+missingProfile.join(', ')};var requiredBilling=['client-billing-v12','getClientBillingData','submitClientMaintenanceRequest','clientBillingInit','clientBillingSubmit'];var requiredNotifications=['client-notifications-v12','getClientNotificationsData','markClientNotificationRead','markAllClientNotificationsRead','clientNotificationsInit','clientNotificationsTab'];var missingNotifications=requiredNotifications.filter(function(token){return notifications.indexOf(token)<0;});if(missingNotifications.length)return{success:false,code:'V12_NOTIFICATIONS_DEPENDENCY_MISSING',message:'V12 Notifications workspace is missing required markers: '+missingNotifications.join(', ')};var missingBilling=requiredBilling.filter(function(token){return billing.indexOf(token)<0;});if(missingBilling.length)return{success:false,code:'V12_BILLING_DEPENDENCY_MISSING',message:'V12 Billing workspace is missing required markers: '+missingBilling.join(', ')};var requiredBusiness=['bc-v12-root','getClientBusinessCenterData','saveClientBusinessCenterProduct','saveClientBusinessCenterCustomer','completeClientBusinessCenterSale','adjustClientBusinessCenterStock'];
+  var requiredApps=['apps-v12-root','getClientAppsData'];var missingApps=requiredApps.filter(function(token){return apps.indexOf(token)<0;});if(missingApps.length)return{success:false,code:'V12_APPS_DEPENDENCY_MISSING',message:'V12 Apps workspace is missing required markers: '+missingApps.join(', ')};var requiredSettings=['settings-v12-root','getClientSettingsData','saveClientSettings','changeClientPassword'];var missingSettings=requiredSettings.filter(function(token){return settings.indexOf(token)<0;});if(missingSettings.length)return{success:false,code:'V12_SETTINGS_DEPENDENCY_MISSING',message:'V12 Settings workspace is missing required markers: '+missingSettings.join(', ')};var requiredProfile=['client-profile-v12','getClientProfileData','clientProfileInit','clientProfileSave','clientProfileChangePassword'];var missingProfile=requiredProfile.filter(function(token){return profile.indexOf(token)<0;});if(missingProfile.length)return{success:false,code:'V12_PROFILE_DEPENDENCY_MISSING',message:'V12 Profile workspace is missing required markers: '+missingProfile.join(', ')};var requiredBilling=['client-billing-v12','getClientBillingData','submitClientMaintenanceRequest','clientBillingInit','clientBillingSubmit'];var requiredNotifications=['client-notifications-v12','getClientNotificationsData','markClientNotificationRead','markAllClientNotificationsRead','clientNotificationsInit','clientNotificationsTab'];var missingNotifications=requiredNotifications.filter(function(token){return notifications.indexOf(token)<0;});if(missingNotifications.length)return{success:false,code:'V12_NOTIFICATIONS_DEPENDENCY_MISSING',message:'V12 Notifications workspace is missing required markers: '+missingNotifications.join(', ')};var missingBilling=requiredBilling.filter(function(token){return billing.indexOf(token)<0;});if(missingBilling.length)return{success:false,code:'V12_BILLING_DEPENDENCY_MISSING',message:'V12 Billing workspace is missing required markers: '+missingBilling.join(', ')};var requiredBusiness=['business-center-page','bc-pos-page','openBCScanner','BarcodeDetector','getUserMedia','saveBusinessCenterProduct','saveBusinessCenterProductsBulk','lookupBusinessCenterProduct','completeBusinessCenterSale','getBusinessCenterCustomerLedger','recordBusinessCenterCustomerPayment','getBusinessCenterSaleDetails','getBusinessCenterFinanceData','recordBusinessCenterExpense','printBCReceipt'];
   var missingBusiness=requiredBusiness.filter(function(token){return business.indexOf(token)<0;});
   if(missingBusiness.length)return{success:false,code:'V12_BUSINESS_CENTER_DEPENDENCY_MISSING',message:'V12 Business Center UI is missing required markers: '+missingBusiness.join(', ')};
   var missingShell=requiredShell.filter(function(token){return shell.indexOf(token)<0;});
