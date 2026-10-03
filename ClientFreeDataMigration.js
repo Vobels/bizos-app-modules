@@ -172,17 +172,51 @@ function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
   var rowsToAppend = [];
   var migrationEntries = [];
   var skipped = 0;
+
+  // Translate known legacy source headers into the canonical paid schema.
+  // This is intentionally limited to documented legacy Finance names.
+  var sourceHeaderAliases = {
+    Finance: {
+      Transaction_ID: ['Transaction_ID', 'Transaction ID', 'Reference'],
+      Type: ['Type', 'Type(Income/Expenses)', 'Type (Income/Expenses)', 'Income/Expenses'],
+      Payment_Method: ['Payment_Method', 'Payment Method'],
+      Created_By: ['Created_By', 'Created By'],
+      Created_At: ['Created_At', 'Created At']
+    }
+  };
+
+  function sourceColumnForTargetHeader_(header) {
+    var direct = sourceHeaders.indexOf(header);
+    if (direct >= 0) return direct;
+    var aliases = sourceHeaderAliases[moduleName] && sourceHeaderAliases[moduleName][header];
+    if (!aliases) return -1;
+    for (var ai = 0; ai < aliases.length; ai++) {
+      var aliasIndex = sourceHeaders.indexOf(aliases[ai]);
+      if (aliasIndex >= 0) return aliasIndex;
+    }
+    return -1;
+  }
+
   sourceValues.slice(1).forEach(function(sourceRow, sourceIndex) {
     // A workspace should normally contain only one business, but if a legacy
     // sheet ever contains Business_ID values, enforce the exact business scope.
     if (sourceBusinessIdCol >= 0 && String(sourceRow[sourceBusinessIdCol] || '') !== String(businessId || '')) return;
 
     var targetRow = targetHeaders.map(function(header) {
-      var col = sourceHeaders.indexOf(header);
+      var col = sourceColumnForTargetHeader_(header);
       return col === -1 ? '' : sourceRow[col];
     });
 
-    var sourceIdCol = sourceHeaders.indexOf(targetIdHeader);
+    if (moduleName === 'Finance') {
+      var typeCol = targetHeaders.indexOf('Type');
+      if (typeCol >= 0) {
+        var legacyType = String(targetRow[typeCol] || '').trim().toLowerCase();
+        if (legacyType === 'income' || legacyType === 'revenue') targetRow[typeCol] = 'revenue';
+        else if (legacyType === 'expenses' || legacyType === 'expense') targetRow[typeCol] = 'expense';
+      }
+    }
+
+    var sourceIdCol = sourceColumnForTargetHeader_(targetIdHeader);
     var sourceId = sourceIdCol === -1 ? '' : String(sourceRow[sourceIdCol]||'').trim();
 
     // Legacy rows without IDs get a deterministic ID based on their stable
