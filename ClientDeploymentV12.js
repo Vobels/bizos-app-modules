@@ -156,7 +156,6 @@ function generateClientCodeSafelyV12(settings) {
     {name:'Code',type:'SERVER_JS',source:runtime},
     {name:'Modules',type:'SERVER_JS',source:modulesSource},
     {name:'Records',type:'SERVER_JS',source:recordsSource},
-    {name:'BusinessHubGS',type:'SERVER_JS',source:businessCenterServerSource},
     {name:'ClientShellV12',type:'HTML',source:buildClientShellV12_(config)},
     {name:'ClientBusinessCenterV12',type:'HTML',source:buildClientBusinessCenterV12_()},
     {name:'ClientFinanceV12',type:'HTML',source:buildClientFinanceV12_()},
@@ -173,7 +172,7 @@ function generateClientCodeSafelyV12(settings) {
 
   return {
     success:true,version:'12.0',config:config,files:files,
-    source:{clientUi:'V12-shell-with-BizOS-business-center',copiedMasterUi:['BusinessHubHTML'],reusedBackendRuntime:'V11-safe-runtime',businessCenterBackend:'BusinessHubGS-safe-wrapped',businessCenterUi:'BizOS-BusinessHubHTML-adapted'}
+    source:{clientUi:'V12-shell-with-BizOS-business-center',copiedMasterUi:['BusinessHubHTML'],reusedBackendRuntime:'V11-safe-runtime',businessCenterBackend:'BusinessHubGS-embedded-in-Code-and-safe-wrapped',businessCenterUi:'BizOS-BusinessHubHTML-adapted'}
   };
 }
 
