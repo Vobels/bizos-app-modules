@@ -30,6 +30,9 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
       totalCopied += results[moduleName].copied || 0;
     });
 
+    var businessCenterResult = migrateFreeBusinessCenterDataToPaidClient_(source, target);
+    totalCopied += Number(businessCenterResult.copied || 0);
+
     var staffResult = migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail);
     if (staffResult && staffResult.success === false) {
       throw new Error(staffResult.message || 'Staff migration failed.');
@@ -51,7 +54,8 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
       totalCopied:totalCopied,
       modules:results,
       staff:staffResult,
-      notifications:notificationResult
+      notifications:notificationResult,
+      businessCenter:businessCenterResult
     };
   } catch (error) {
     console.error('Free-to-paid migration failed:', error);
@@ -150,6 +154,87 @@ function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
   }
 
   return {copied:rowsToAppend.length,skipped:skipped,sourceRows:sourceValues.length-1};
+}
+
+function migrateFreeBusinessCenterDataToPaidClient_(source, target) {
+  var sheetNames = [
+    'BusinessCenter_Products',
+    'BusinessCenter_Customers',
+    'BusinessCenter_Sales',
+    'BusinessCenter_Sale_Items',
+    'BusinessCenter_Stock_Movements',
+    'BusinessCenter_Customer_Ledger',
+    'BusinessCenter_Finance_Transactions'
+  ];
+  var results = {success:true,copied:0,skipped:0,sheets:{}};
+  var targetFile = DriveApp.getFileById(target.getId());
+  var targetFolder = null;
+  try { targetFolder = targetFile.getParents().hasNext() ? targetFile.getParents().next() : null; } catch(ignore) {}
+
+  sheetNames.forEach(function(name) {
+    var sourceSheet = source.getSheetByName(name);
+    if (!sourceSheet || sourceSheet.getLastRow() < 1) {
+      results.sheets[name] = {copied:0,skipped:0,reason:'SOURCE_SHEET_MISSING'};
+      return;
+    }
+    var sourceValues = sourceSheet.getDataRange().getValues();
+    var headers = sourceValues[0] || [];
+    var targetSheet = target.getSheetByName(name);
+    if (!targetSheet) {
+      targetSheet = target.insertSheet(name);
+      targetSheet.getRange(1,1,1,headers.length).setValues([headers]);
+    }
+
+    var targetValues = targetSheet.getDataRange().getValues();
+    var targetHeaders = targetValues[0] || headers;
+    var idHeaders = ['Product_ID','Customer_ID','Sale_ID','Movement_ID','Entry_ID','Transaction_ID'];
+    var idHeader = idHeaders.find(function(h){return headers.indexOf(h)>=0 && targetHeaders.indexOf(h)>=0;}) || '';
+    var targetIdCol = idHeader ? targetHeaders.indexOf(idHeader) : -1;
+    var existing = {};
+    if (targetValues.length > 1 && targetIdCol >= 0) {
+      targetValues.slice(1).forEach(function(row){ var id=String(row[targetIdCol]||'').trim(); if(id)existing[id]=true; });
+    }
+
+    var copied=0, skipped=0, rows=[];
+    sourceValues.slice(1).forEach(function(sourceRow) {
+      var sourceBusinessCol=headers.indexOf('Business_ID');
+      if(sourceBusinessCol>=0 && String(sourceRow[sourceBusinessCol]||'')!==String(source.getId()||'') && String(sourceRow[sourceBusinessCol]||'')!=='') {
+        // Business Center sheets normally do not contain Business_ID. If they do,
+        // the source workspace/business boundary is still enforced by the workspace itself.
+      }
+      var row=targetHeaders.map(function(h){var i=headers.indexOf(h);return i>=0?sourceRow[i]:'';});
+      var id=targetIdCol>=0?String(row[targetIdCol]||'').trim():'';
+      if(id && existing[id]){skipped++;return;}
+      rows.push(row); if(id)existing[id]=true; copied++;
+    });
+    if(rows.length)targetSheet.getRange(targetSheet.getLastRow()+1,1,rows.length,targetHeaders.length).setValues(rows);
+    results.sheets[name]={copied:copied,skipped:skipped};
+    results.copied+=copied; results.skipped+=skipped;
+  });
+
+  // Product images live in Drive rather than in the sheet. Copy referenced
+  // files into the paid workspace folder when accessible and rewrite the IDs.
+  var srcProducts=source.getSheetByName('BusinessCenter_Products');
+  var dstProducts=target.getSheetByName('BusinessCenter_Products');
+  if(srcProducts && dstProducts && targetFolder) {
+    var sv=srcProducts.getDataRange().getValues(), sh=sv[0]||[], imageCol=sh.indexOf('Image_File_ID'), productCol=sh.indexOf('Product_ID');
+    var dv=dstProducts.getDataRange().getValues(), dh=dv[0]||[], dImage=dh.indexOf('Image_File_ID'), dProduct=dh.indexOf('Product_ID');
+    if(imageCol>=0 && productCol>=0 && dImage>=0 && dProduct>=0) {
+      for(var r=1;r<sv.length;r++){
+        var oldId=String(sv[r][imageCol]||'').trim(), pid=String(sv[r][productCol]||'').trim();
+        if(!oldId||!pid)continue;
+        var targetRow=-1; for(var dr=1;dr<dv.length;dr++){if(String(dv[dr][dProduct]||'')===pid){targetRow=dr+1;break;}}
+        if(targetRow<0)continue;
+        try {
+          var copiedFile=DriveApp.getFileById(oldId).makeCopy(DriveApp.getFileById(oldId).getName(),targetFolder);
+          dstProducts.getRange(targetRow,dImage+1).setValue(copiedFile.getId());
+        } catch(imageError) {
+          console.warn('Business Center image migration skipped for '+pid+': '+imageError.message);
+        }
+      }
+    }
+  }
+  return results;
 }
 
 function ensureClientMigrationIndex_(target) {
