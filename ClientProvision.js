@@ -153,20 +153,46 @@ function transferClientWorkspaceOwnership_(file, clientEmail) {
 
     // Consumer-account ownership transfers require the prospective owner to
     // accept the transfer. The advanced Drive service is already enabled in
-    // appsscript.json, so initiate that handoff without blocking provisioning.
+    // appsscript.json. The client already has a writer permission from the
+    // addEditor call above, so update that permission to pendingOwner rather
+    // than creating a duplicate permission.
     try {
-      Drive.Permissions.create(
-        {
-          role:'writer',
-          type:'user',
-          emailAddress:email,
-          pendingOwner:true
-        },
-        file.getId(),
-        {
-          sendNotificationEmail:true
-        }
-      );
+      var permissions = Drive.Permissions.list(file.getId(), {
+        fields:'permissions(id,emailAddress,type,role,pendingOwner)'
+      });
+      var clientPermission = null;
+      (permissions.permissions || []).some(function(permission) {
+        if (String(permission.type || '') !== 'user') return false;
+        if (String(permission.emailAddress || '').trim().toLowerCase() !== email) return false;
+        clientPermission = permission;
+        return true;
+      });
+
+      if (!clientPermission || !clientPermission.id) {
+        clientPermission = Drive.Permissions.create(
+          {
+            role:'writer',
+            type:'user',
+            emailAddress:email,
+            pendingOwner:true
+          },
+          file.getId(),
+          {sendNotificationEmail:true}
+        );
+      } else {
+        Drive.Permissions.update(
+          {
+            role:'writer',
+            type:'user',
+            emailAddress:email,
+            pendingOwner:true
+          },
+          file.getId(),
+          clientPermission.id,
+          {sendNotificationEmail:true}
+        );
+      }
+
       return {
         status:'ownership_pending_client_acceptance',
         ownerEmail:email,
