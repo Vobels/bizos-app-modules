@@ -47,19 +47,86 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
     }
     migrateFreeBusinessMetadata_(source, target, businessId, businessName, ownerEmail, staffResult);
 
+    // Create a BizOS-owned recovery snapshot only after the paid workspace
+    // contains the migrated data. This is recovery/backup storage, not the
+    // live client workspace.
+    var recoveryBackup = createClientRecoveryBackup_(target, businessName, businessId);
+    if (!recoveryBackup || !recoveryBackup.success) {
+      throw new Error(recoveryBackup && recoveryBackup.message
+        ? recoveryBackup.message
+        : 'The BizOS recovery backup could not be created.');
+    }
+
     return {
       success:true,
       migrated:true,
-      migrationVersion:'2.0',
+      migrationVersion:'2.1',
       totalCopied:totalCopied,
       modules:results,
       staff:staffResult,
       notifications:notificationResult,
-      businessCenter:businessCenterResult
+      businessCenter:businessCenterResult,
+      recoveryBackup:recoveryBackup
     };
   } catch (error) {
     console.error('Free-to-paid migration failed:', error);
     return {success:false,code:'FREE_DATA_MIGRATION_FAILED',message:error.message||'Free workspace data could not be migrated.'};
+  }
+}
+
+function createClientRecoveryBackup_(target, businessName, businessId) {
+  try {
+    var sourceFile = DriveApp.getFileById(target.getId());
+    var recoveryRoot = null;
+    var folders = DriveApp.getFoldersByName('BizOS_Client_Recovery');
+    recoveryRoot = folders.hasNext() ? folders.next() : DriveApp.createFolder('BizOS_Client_Recovery');
+
+    var safeName = String(businessName || businessId || 'Client').replace(/[^a-zA-Z0-9]/g, '_');
+    var clientFolders = recoveryRoot.getFoldersByName(safeName + '_' + String(businessId || '').replace(/[^a-zA-Z0-9]/g, '_'));
+    var clientFolder = clientFolders.hasNext()
+      ? clientFolders.next()
+      : recoveryRoot.createFolder(safeName + '_' + String(businessId || '').replace(/[^a-zA-Z0-9]/g, '_'));
+
+    var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Africa/Lagos', 'yyyyMMdd_HHmmss');
+    var backupFile = sourceFile.makeCopy('BizOS Recovery - ' + safeName + ' - ' + stamp, clientFolder);
+
+    // Business Center product images are external Drive files referenced by
+    // Image_File_ID, so preserve image copies alongside the spreadsheet backup.
+    var copiedImages = 0;
+    try {
+      var parents = sourceFile.getParents();
+      if (parents.hasNext()) {
+        var workspaceFolder = parents.next();
+        var files = workspaceFolder.getFiles();
+        while (files.hasNext()) {
+          var file = files.next();
+          if (file.getId() === sourceFile.getId()) continue;
+          var mime = String(file.getMimeType() || '').toLowerCase();
+          if (mime.indexOf('image/') !== 0) continue;
+          file.makeCopy('Recovery - ' + file.getName(), clientFolder);
+          copiedImages++;
+        }
+      }
+    } catch (imageError) {
+      console.error('Recovery image backup warning:', imageError);
+    }
+
+    return {
+      success:true,
+      backupId:backupFile.getId(),
+      backupUrl:backupFile.getUrl(),
+      recoveryFolderId:clientFolder.getId(),
+      recoveryFolderUrl:clientFolder.getUrl(),
+      copiedImages:copiedImages,
+      createdAt:new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('createClientRecoveryBackup_ error:', error);
+    return {
+      success:false,
+      code:'RECOVERY_BACKUP_FAILED',
+      message:'BizOS could not create the client recovery backup: ' + (error.message || error)
+    };
   }
 }
 
