@@ -1,0 +1,73 @@
+<div id="client-module-v12-root" class="client-module-v12">
+  <div class="module-v12-head">
+    <div><span class="section-kicker" id="client-module-kicker">APP WORKSPACE</span><h2 id="client-module-title">Module</h2><p id="client-module-description">Manage records and review your module activity.</p></div>
+    <div class="module-v12-actions"><button type="button" onclick="clientModuleV12Refresh()">Refresh</button><button type="button" class="primary" onclick="clientModuleV12New()">Add record</button></div>
+  </div>
+  <div id="client-module-message"></div>
+  <div id="client-module-kpis" class="client-module-kpis"></div>
+  <div class="client-module-panel">
+    <div class="client-module-toolbar"><div><strong id="client-module-record-title">Records</strong><span id="client-module-record-count"></span></div><input id="client-module-search" type="search" placeholder="Search records..." oninput="clientModuleV12RenderTable()"></div>
+    <div id="client-module-table" class="client-module-table"></div>
+  </div>
+  <div id="client-module-editor" class="client-module-editor hidden"></div>
+</div>
+<script>
+(function(){
+  var state={module:'',headers:[],records:[],editingRow:null,loaded:false};
+  var defs={
+    Finance:{label:'Finance',description:'Income, expenses and financial records.',kpis:[['Records','count'],['Revenue','sum:Amount:revenue'],['Expenses','sum:Amount:expense'],['Net result','net']]},
+    Ecommerce:{label:'E-commerce',description:'Orders, products and online sales records.',kpis:[['Orders','count'],['Sales','sum:Amount:sales'],['Pending','status:pending'],['Customers','unique:Customer']]},
+    Sales:{label:'Sales',description:'Sales pipeline and deal records.',kpis:[['Deals','count'],['Pipeline value','sum:Amount'],['Won','status:won'],['Lost','status:lost']]},
+    CRM:{label:'CRM',description:'Customers, leads and relationship records.',kpis:[['Customers','count'],['Leads','status:lead'],['Active','status:active'],['Follow-ups','status:follow-up']]},
+    HR:{label:'HR',description:'Employee and human resources records.',kpis:[['Employees','count'],['Active','status:active'],['On leave','status:on leave'],['Departments','unique:Department']]},
+    Logistics:{label:'Logistics',description:'Shipments, delivery and logistics records.',kpis:[['Shipments','count'],['In transit','status:in transit'],['Delivered','status:delivered'],['Pending','status:pending']]},
+    Tax:{label:'Tax',description:'Tax records, filings and compliance data.',kpis:[['Records','count'],['Taxable amount','sum:Amount'],['Tax due','sum:Tax_Due'],['Filed','status:filed']]},
+    Agro:{label:'Agro',description:'Agriculture activities, production and costs.',kpis:[['Records','count'],['Production','sum:Quantity'],['Revenue','sum:Amount:revenue'],['Costs','sum:Amount:expense']]},
+    Productivity:{label:'Productivity',description:'Tasks and productivity records.',kpis:[['Tasks','count'],['Completed','status:completed'],['Pending','status:pending'],['Overdue','status:overdue']]},
+    POS:{label:'POS',description:'Point-of-sale transactions and records.',kpis:[['Transactions','count'],['Sales','sum:Amount'],['Items sold','sum:Quantity'],['Cash','sum:Amount:cash']]},
+    Attendance:{label:'Attendance',description:'Staff attendance and time records.',kpis:[['Records','count'],['Present','status:present'],['Absent','status:absent'],['Late','status:late']]},
+    Warehouse:{label:'Warehouse',description:'Inventory, stock and warehouse records.',kpis:[['Products','count'],['Stock units','sum:Quantity'],['Low stock','status:low'],['Inventory value','sum:Amount']]},
+    };
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function def(){return defs[state.module]||{label:state.module,description:'Manage records for this application.',kpis:[['Records','count'],['Value','sum:Amount'],['Active','status:active'],['Completed','status:completed']]};}
+  function keyMatch(h,w){var x=String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');return String(w||'').toLowerCase().replace(/[^a-z0-9]/g,'')===x;}
+  function findHeader(words){for(var i=0;i<state.headers.length;i++){for(var j=0;j<words.length;j++)if(keyMatch(state.headers[i],words[j]))return state.headers[i];}return '';}
+  function val(r,h){return h?String(r&&r[h]!=null?r[h]:''):'';}
+  function num(v){var n=Number(String(v||'').replace(/,/g,''));return isFinite(n)?n:0;}
+  function money(v){var c=(window.__CLIENT&&window.__CLIENT.currency)||'NGN';try{return new Intl.NumberFormat('en-US',{style:'currency',currency:c,maximumFractionDigits:2}).format(num(v));}catch(e){return num(v).toLocaleString();}}
+  function statusCount(records,status){var h=findHeader(['Status','State']);if(!h)return 0;return records.filter(function(r){return val(r,h).trim().toLowerCase()===status;}).length;}
+  function sumField(records,h,filter){if(!h)return 0;return records.reduce(function(t,r){if(filter){var th=findHeader(['Type','Transaction_Type','Record_Type']);if(th&&val(r,th).toLowerCase()!==filter)return t;}return t+num(r[h]);},0);}
+  function uniqueCount(records,h){if(!h)return 0;var x={};records.forEach(function(r){var v=val(r,h).trim();if(v)x[v.toLowerCase()]=1;});return Object.keys(x).length;}
+  function kpiValue(kind){
+    if(kind==='count')return String(state.records.length);
+    var p=kind.split(':');
+    if(p[0]==='sum')return money(sumField(state.records,findHeader([p[1]]),p[2]));
+    if(p[0]==='status')return String(statusCount(state.records,p[1]));
+    if(p[0]==='unique')return String(uniqueCount(state.records,findHeader([p[1]])));
+    if(p[0]==='net'){var h=findHeader(['Amount']);return money(sumField(state.records,h,'revenue')-sumField(state.records,h,'expense'));}
+    return '—';
+  }
+  function renderKpis(){var d=def();document.getElementById('client-module-kpis').innerHTML=d.kpis.map(function(k){return '<div class="client-module-kpi"><span>'+esc(k[0])+'</span><strong>'+esc(kpiValue(k[1]))+'</strong></div>';}).join('');}
+  function filtered(){var q=String(document.getElementById('client-module-search').value||'').toLowerCase().trim();if(!q)return state.records;return state.records.filter(function(r){return state.headers.some(function(h){return String(r[h]==null?'':r[h]).toLowerCase().indexOf(q)>=0;});});}
+  function renderTable(){
+    var rows=filtered(), box=document.getElementById('client-module-table');document.getElementById('client-module-record-count').textContent=' · '+rows.length+' record'+(rows.length===1?'':'s');
+    if(!state.headers.length){box.innerHTML='<div class="client-module-empty">No fields were found for this module.</div>';return;}
+    var cols=state.headers.slice(0,8);
+    box.innerHTML='<div class="client-module-scroll"><table><thead><tr>'+cols.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'<th>Actions</th></tr></thead><tbody>'+rows.slice(0,100).map(function(r){return '<tr>'+cols.map(function(h){return '<td>'+esc(r[h])+'</td>';}).join('')+'<td class="client-module-row-actions"><button type="button" onclick="clientModuleV12Edit('+Number(r._row||0)+')">Edit</button><button type="button" onclick="clientModuleV12Delete('+Number(r._row||0)+')">Delete</button></td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>100?'<div class="client-module-more">Showing the first 100 matching records.</div>':'');
+  }
+  function showMessage(msg,error){var e=document.getElementById('client-module-message');e.className=error?'module-msg error':'module-msg';e.textContent=msg||'';}
+  function renderEditor(row){
+    var editing=!!row, html='<div class="client-module-editor-head"><div><span class="section-kicker">'+(editing?'EDIT RECORD':'NEW RECORD')+'</span><h3>'+(editing?'Update record':'Add record')+'</h3></div><button type="button" onclick="clientModuleV12CloseEditor()">Close</button></div><form onsubmit="clientModuleV12Save(event)"><div class="client-module-form-grid">';
+    state.headers.forEach(function(h){var v=editing?row[h]:'';html+='<label>'+esc(h)+'<input name="'+esc(h).replace(/"/g,'&quot;')+'" value="'+esc(v).replace(/"/g,'&quot;')+'"></label>';});
+    html+='</div><div class="client-module-editor-actions"><button type="button" onclick="clientModuleV12CloseEditor()">Cancel</button><button class="primary" type="submit">'+(editing?'Save changes':'Create record')+'</button></div></form>';
+    var e=document.getElementById('client-module-editor');e.innerHTML=html;e.classList.remove('hidden');e.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  window.clientModuleV12New=function(){renderEditor(null);};
+  window.clientModuleV12Edit=function(row){var r=state.records.find(function(x){return Number(x._row)===Number(row);});if(r)renderEditor(r);};
+  window.clientModuleV12CloseEditor=function(){document.getElementById('client-module-editor').classList.add('hidden');};
+  window.clientModuleV12Delete=function(row){if(!confirm('Delete this record?'))return;google.script.run.withSuccessHandler(function(r){if(r&&r.success===false){showMessage(r.message||'Could not delete record.',true);return;}showMessage('Record deleted.');clientModuleV12Refresh(true);}).withFailureHandler(function(e){showMessage(e&&e.message||'Could not delete record.',true);}).deleteClientRecord(state.module,row,window.clientSessionId);};
+  window.clientModuleV12Save=function(ev){ev.preventDefault();var form=ev.target,d={};state.headers.forEach(function(h){var el=form.elements[h];if(el)d[h]=el.value;});var done=function(r){if(r&&r.success===false){showMessage(r.message||'Could not save record.',true);return;}showMessage(state.editingRow?'Record updated.':'Record created.');state.editingRow=null;clientModuleV12CloseEditor();clientModuleV12Refresh(true);};if(state.editingRow){google.script.run.withSuccessHandler(done).withFailureHandler(function(e){showMessage(e&&e.message||'Could not update record.',true);}).updateClientRecord(state.module,state.editingRow,d,window.clientSessionId);}else{google.script.run.withSuccessHandler(done).withFailureHandler(function(e){showMessage(e&&e.message||'Could not create record.',true);}).saveClientRecord(state.module,d,window.clientSessionId);}};
+  window.clientModuleV12Refresh=function(force){if(!state.module)return;google.script.run.withSuccessHandler(function(r){if(!r||r.success===false){showMessage(r&&r.message||'Could not load module data.',true);return;}state.headers=Array.isArray(r.headers)?r.headers:[];state.records=Array.isArray(r.records)?r.records:[];state.loaded=true;renderKpis();renderTable();}).withFailureHandler(function(e){showMessage(e&&e.message||'Could not load module data.',true);}).getClientModuleDataWithSync(state.module,window.clientSessionId);};
+  window.clientModuleV12Open=function(moduleName){state.module=String(moduleName||'');state.editingRow=null;var d=def();document.getElementById('client-module-kicker').textContent='APP WORKSPACE';document.getElementById('client-module-title').textContent=d.label;document.getElementById('client-module-description').textContent=d.description;document.getElementById('client-module-record-title').textContent=d.label+' records';document.getElementById('client-module-search').value='';clientModuleV12CloseEditor();clientModuleV12Refresh();};
+})();
+</script>
