@@ -41,7 +41,7 @@ function autoSetupClientSafe(paymentData, skipLock) {
     existingBusiness = getBusinessByEmail(paymentData.email);
     businessId = existingBusiness ? existingBusiness.businessId : clientId;
     console.log('SAFE STEP 1: Creating workspace:', clientId);
-    sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:'10.0'});
+    sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:'12.0'});
     if (!sheetResult || !sheetResult.success || !sheetResult.sheetId) return {success:false,code:'WORKSPACE_CREATION_FAILED',message:'Client workspace could not be created: '+((sheetResult&&sheetResult.message)||'Unknown error')};
 
     console.log('SAFE STEP 1B: Verifying canonical workspace database schema');
@@ -67,14 +67,14 @@ function autoSetupClientSafe(paymentData, skipLock) {
       console.log('SAFE STEP 1C: No separate free workspace found; no data migration required.');
     }
 
-    console.log('SAFE STEP 2: Generating V10 client package with self-service staff invitations');
+    console.log('SAFE STEP 2: Generating V12 client package with self-service staff invitations');
     var clientLandingUrl = String(paymentData.landingUrl || '').trim();
     var clientCustomDomain = String(paymentData.customDomain || '').trim();
-    var clientCode = generateClientCodeSafelyV10({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl(),landingUrl:clientLandingUrl,customDomain:clientCustomDomain});
+    var clientCode = generateClientCodeSafelyV12({clientId:clientId,clientName:businessName,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',email:paymentData.email,sheetId:sheetResult.sheetId,businessId:businessId,masterApiUrl:getMasterApiUrl(),landingUrl:clientLandingUrl,customDomain:clientCustomDomain});
     if (!clientCode || !clientCode.files || !clientCode.files.length) throw new Error('Client deployment package is empty.');
-    var packageCheck = validateClientDeploymentPackage_(clientCode,{clientId:clientId,sheetId:sheetResult.sheetId});
+    var packageCheck = validateClientDeploymentPackageV12_(clientCode,{clientId:clientId,sheetId:sheetResult.sheetId});
     if (!packageCheck || !packageCheck.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); return {success:false,code:packageCheck&&packageCheck.code?packageCheck.code:'PACKAGE_INVALID',message:packageCheck&&packageCheck.message?packageCheck.message:'Generated client package failed validation.',clientId:clientId,cleanedUp:true}; }
-    console.log('SAFE STEP 3: Publishing exact V10 package');
+    console.log('SAFE STEP 3: Publishing exact V12 package');
     scriptResult = createAndDeployClientScriptSafe(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor || '#2E7D32',paymentData.logoUrl || '');
     if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) { var deploymentMessage=scriptResult&&scriptResult.message?scriptResult.message:'The client application could not be deployed.'; cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: '+deploymentMessage,clientId:clientId,cleanedUp:true}; }
     console.log('SAFE STEP 4: Saving full registry metadata');
