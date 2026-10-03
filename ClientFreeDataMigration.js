@@ -402,6 +402,33 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
     var createdCol = headers.indexOf('Created_At');
     var assignedCol = headers.indexOf('Assigned_Modules');
 
+    // Preserve the same legacy module-assignment fallback used by the master
+    // Staff runtime. Older Users sheets may not have Assigned_Modules yet and
+    // keep staff access in Staff_Modules instead.
+    var legacyStaffModules = {};
+    if (assignedCol < 0) {
+      var legacySheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff_Modules');
+      if (legacySheet && legacySheet.getLastRow() > 1) {
+        var legacyValues = legacySheet.getDataRange().getValues();
+        var legacyHeaders = legacyValues[0] || [];
+        var legacyEmailCol = legacyHeaders.indexOf('Staff_Email');
+        var legacyBusinessCol = legacyHeaders.indexOf('Business_ID');
+        var legacyModuleCol = legacyHeaders.indexOf('Module_Access');
+        if (legacyEmailCol >= 0 && legacyBusinessCol >= 0 && legacyModuleCol >= 0) {
+          legacyValues.slice(1).forEach(function(legacyRow) {
+            var legacyEmail = String(legacyRow[legacyEmailCol] || '').trim().toLowerCase();
+            var legacyBusiness = String(legacyRow[legacyBusinessCol] || '');
+            var legacyModule = String(legacyRow[legacyModuleCol] || '').trim();
+            if (!legacyEmail || legacyBusiness !== String(businessId || '') || !legacyModule) return;
+            legacyStaffModules[legacyEmail] = legacyStaffModules[legacyEmail] || [];
+            if (legacyStaffModules[legacyEmail].indexOf(legacyModule) === -1) {
+              legacyStaffModules[legacyEmail].push(legacyModule);
+            }
+          });
+        }
+      }
+    }
+
     if (emailCol < 0 || businessIdCol < 0) {
       return {copied:0,updated:0,skipped:0,reason:'MASTER_USERS_SCHEMA_INCOMPLETE'};
     }
@@ -446,6 +473,8 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
         } catch (ignore) {
           assigned = String(row[assignedCol]).split(',').map(function(x){return String(x || '').trim();}).filter(Boolean);
         }
+      } else if (legacyStaffModules[email]) {
+        assigned = legacyStaffModules[email].slice();
       }
       if (role === 'admin') assigned = Object.keys(MODULES);
 
