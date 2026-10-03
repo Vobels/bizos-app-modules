@@ -34,25 +34,38 @@ function getClientDashboard(sessionId) {
       return { success: false, dashboard: getDefaultDashboardData(client.clientName) };
     }
     
-    // Get financial data
+    // Match the main BizOS dashboard KPI period: current month,
+    // with percentage change against the previous month.
     const financeSheet = ss.getSheetByName('Financial_Data');
-    let revenue = 0, expenses = 0;
+    let revenue = 0, expenses = 0, previousRevenue = 0, previousExpenses = 0;
     
     if (financeSheet) {
       const data = financeSheet.getDataRange().getValues();
       if (data.length > 1) {
         const headers = data[0];
+        const dateCol = headers.indexOf('Date');
         const typeCol = headers.indexOf('Type');
         const amountCol = headers.indexOf('Amount');
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const previousMonthEnd = monthStart;
         
         if (typeCol !== -1 && amountCol !== -1) {
           for (let i = 1; i < data.length; i++) {
+            const rowDate = dateCol !== -1 ? new Date(data[i][dateCol]) : null;
+            if (!rowDate || isNaN(rowDate.getTime())) continue;
             const amount = parseFloat(data[i][amountCol]) || 0;
-            const type = (data[i][typeCol] || '').toLowerCase();
-            if (type === 'revenue' || type === 'income') {
-              revenue += Math.abs(amount);
-            } else if (type === 'expense') {
-              expenses += Math.abs(amount);
+            const type = String(data[i][typeCol] || '').toLowerCase();
+            const isRevenue = type === 'revenue' || type === 'income';
+            const isExpense = type === 'expense';
+            
+            if (rowDate >= monthStart) {
+              if (isRevenue) revenue += Math.abs(amount);
+              else if (isExpense) expenses += Math.abs(amount);
+            } else if (rowDate >= previousMonthStart && rowDate < previousMonthEnd) {
+              if (isRevenue) previousRevenue += Math.abs(amount);
+              else if (isExpense) previousExpenses += Math.abs(amount);
             }
           }
         }
@@ -60,7 +73,13 @@ function getClientDashboard(sessionId) {
     }
     
     const profit = revenue - expenses;
+    const previousProfit = previousRevenue - previousExpenses;
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+    const previousMargin = previousRevenue > 0 ? (previousProfit / previousRevenue) * 100 : 0;
+    const percentageChange = function(current, previous) {
+      if (previous === 0) return current === 0 ? 0 : 100;
+      return ((current - previous) / Math.abs(previous)) * 100;
+    };
     
     // Get module counts
     const modules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
