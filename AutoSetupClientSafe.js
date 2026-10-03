@@ -80,16 +80,6 @@ function autoSetupClientSafe(paymentData, skipLock) {
       }
     }
 
-    // Complete the live-workspace ownership handoff only after migration and
-    // the BizOS recovery snapshot have succeeded. This keeps BizOS able to finish
-    // provisioning even if Google Drive requires client acceptance.
-    console.log('SAFE STEP 1D: Completing client workspace ownership handoff');
-    var ownershipResult = transferClientWorkspaceOwnership_(DriveApp.getFileById(sheetResult.sheetId),paymentData.email);
-    sheetResult.ownershipStatus = ownershipResult && ownershipResult.status ? ownershipResult.status : 'client_editor_only';
-    sheetResult.ownerEmail = ownershipResult && ownershipResult.ownerEmail ? ownershipResult.ownerEmail : paymentData.email;
-    sheetResult.ownershipMessage = ownershipResult && ownershipResult.message ? ownershipResult.message : '';
-    console.log('SAFE STEP 1D COMPLETE:',JSON.stringify(ownershipResult));
-
     console.log('SAFE STEP 2: Generating V12 client package with self-service staff invitations');
     var clientLandingUrl = String(paymentData.landingUrl || '').trim();
     var clientCustomDomain = String(paymentData.customDomain || '').trim();
@@ -100,6 +90,16 @@ function autoSetupClientSafe(paymentData, skipLock) {
     console.log('SAFE STEP 3: Publishing exact V12 package');
     scriptResult = createAndDeployClientScriptSafe(paymentData.email,clientId,clientCode,businessName,paymentData.primaryColor || '#2E7D32',paymentData.logoUrl || '');
     if (!scriptResult || !scriptResult.success || !scriptResult.webAppUrl || !scriptResult.scriptId || !scriptResult.deploymentId) { var deploymentMessage=scriptResult&&scriptResult.message?scriptResult.message:'The client application could not be deployed.'; cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'DEPLOYMENT_FAILED',message:'Client provisioning failed: '+deploymentMessage,clientId:clientId,cleanedUp:true}; }
+    // Only hand ownership of the live workspace to the client after the
+    // V12 deployment itself is confirmed. The recovery snapshot already exists,
+    // so a deployment failure cannot strand an incompletely provisioned client workspace.
+    console.log('SAFE STEP 3B: Completing client workspace ownership handoff');
+    var ownershipResult = transferClientWorkspaceOwnership_(DriveApp.getFileById(sheetResult.sheetId),paymentData.email);
+    sheetResult.ownershipStatus = ownershipResult && ownershipResult.status ? ownershipResult.status : 'client_editor_only';
+    sheetResult.ownerEmail = ownershipResult && ownershipResult.ownerEmail ? ownershipResult.ownerEmail : paymentData.email;
+    sheetResult.ownershipMessage = ownershipResult && ownershipResult.message ? ownershipResult.message : '';
+    console.log('SAFE STEP 3B COMPLETE:',JSON.stringify(ownershipResult));
+
     console.log('SAFE STEP 4: Saving full registry metadata');
     var clientApplicationUrl = String(scriptResult.webAppUrl || '').trim();
     var clientLandingUrlFinal = String(clientLandingUrl || clientCustomDomain || clientApplicationUrl).trim();
