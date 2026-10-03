@@ -37,7 +37,7 @@
     </section>
   </section>
 
-  <section id="client-login" class="screen hidden">
+  <section id="client-login" class="screen hidden" style="display:none!important">
     <div class="auth-wrap">
       <button class="back-button" onclick="showLanding()">← Back</button>
       <div class="auth-card">
@@ -54,7 +54,7 @@
     </div>
   </section>
 
-  <section id="client-dashboard" class="screen hidden">
+  <section id="client-dashboard" class="screen hidden" style="display:none!important">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand side-brand"><span class="brand-mark">B</span><span id="side-brand">BizOS</span></div>
@@ -94,11 +94,11 @@
   function call(name,args,ok,fail){google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(fail||function(e){showError(e&&e.message?e.message:String(e));})[name].apply(null,args||[]);}
   function cfg(){return window.__CLIENT||{};}
   function setBrand(){var c=cfg();var n=c.name||'BizOS';var brand=String(c.primaryColor||'#2E7D32');document.documentElement.style.setProperty('--brand',brand);document.documentElement.style.setProperty('--brand-dark',brand);document.documentElement.style.setProperty('--brand-soft','color-mix(in srgb,'+brand+' 10%,white)');document.documentElement.style.setProperty('--brand-pale','color-mix(in srgb,'+brand+' 4%,white)');['brand-name','login-brand','side-brand'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=n;});var p=document.getElementById('preview-business');if(p)p.textContent=n;['brand-mark'].forEach(function(cls){document.querySelectorAll('.'+cls).forEach(function(el){if(c.logoUrl){el.innerHTML='<img src="'+String(c.logoUrl).replace(/"/g,'&quot;')+'" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:inherit">';el.style.background='#fff';}});});}
-  function hideAll(){['client-landing','client-login','client-dashboard'].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.add('hidden');});}
-  window.showLanding=function(){hideAll();document.getElementById('client-landing').classList.remove('hidden');};
-  window.showLogin=function(){hideAll();document.getElementById('client-login').classList.remove('hidden');setTimeout(function(){document.getElementById('login-email').focus();},50);};
+  function hideAll(){['client-landing','client-login','client-dashboard'].forEach(function(id){var e=document.getElementById(id);if(e){e.classList.add('hidden');e.style.setProperty('display','none','important');}});}
+  window.showLanding=function(){hideAll();var e=document.getElementById('client-landing');if(e){e.classList.remove('hidden');e.style.setProperty('display','block','important');}};
+  window.showLogin=function(){hideAll();var e=document.getElementById('client-login');if(e){e.classList.remove('hidden');e.style.setProperty('display','block','important');}setTimeout(function(){var input=document.getElementById('login-email');if(input)input.focus();},50);};
   window.login=function(ev){ev.preventDefault();var email=document.getElementById('login-email').value.trim();var pass=document.getElementById('login-password').value;var b=document.getElementById('login-button');var err=document.getElementById('login-error');err.classList.add('hidden');b.disabled=true;b.textContent='Signing in…';call('authenticateClient',[email,pass],function(r){b.disabled=false;b.textContent='Sign in';if(!r||!r.success){err.textContent=(r&&r.message)||'Unable to sign in.';err.classList.remove('hidden');return;}sessionId=r.sessionId||'';user=r.user||null;if(!sessionId){err.textContent='The server did not return a valid session.';err.classList.remove('hidden');return;}localStorage.setItem(sessionKey,sessionId);localStorage.setItem(userKey,JSON.stringify(user||{}));openDashboard();},function(e){b.disabled=false;b.textContent='Sign in';err.textContent=e&&e.message?e.message:'Unable to sign in.';err.classList.remove('hidden');});};
-  function openDashboard(){window.clientSessionId=sessionId;window.clientUser=user||{};window.clientBusinessId=(cfg().businessId||cfg().id||'');hideAll();document.getElementById('client-dashboard').classList.remove('hidden');document.getElementById('workspace-name').textContent=(user&&user.businessName)||cfg().name||'Business';var staffNav=document.getElementById('client-staff-nav');if(staffNav)staffNav.classList.toggle('hidden',!['owner','admin'].includes(String((user&&user.role)||'').toLowerCase()));selectView('overview');refreshClientNotificationBadge();}
+  function openDashboard(){if(!sessionId){showLanding();return;}window.clientSessionId=sessionId;window.clientUser=user||{};window.clientBusinessId=(cfg().businessId||cfg().id||'');hideAll();var dashboard=document.getElementById('client-dashboard');if(dashboard){dashboard.classList.remove('hidden');dashboard.style.setProperty('display','block','important');}var workspaceName=document.getElementById('workspace-name');if(workspaceName)workspaceName.textContent=(user&&user.businessName)||cfg().name||'Business';var staffNav=document.getElementById('client-staff-nav');if(staffNav)staffNav.classList.toggle('hidden',!['owner','admin'].includes(String((user&&user.role)||'').toLowerCase()));selectView('overview');refreshClientNotificationBadge();}
   function refreshClientNotificationBadge(){if(!window.clientSessionId)return;call('getClientNotificationsData',[window.clientSessionId],function(r){var b=document.getElementById('client-notification-badge');if(!b)return;var unread=r&&r.success&&Array.isArray(r.notifications)?r.notifications.filter(function(n){return !n.read;}).length:0;b.textContent=unread?String(unread):'';});}
   window.toggleClientSettingsMenu=function(){var m=document.getElementById('client-settings-menu');if(m)m.classList.toggle('open');var c=document.getElementById('client-settings-chevron');if(c)c.classList.toggle('open',!!(m&&m.classList.contains('open')));};
   window.closeClientSettingsMenu=function(){var m=document.getElementById('client-settings-menu');if(m)m.classList.remove('open');var c=document.getElementById('client-settings-chevron');if(c)c.classList.remove('open');};
@@ -193,7 +193,31 @@
   function sessionExpired(r){return r&&(/session/i.test(String(r.message||''))||r.code==='SESSION_EXPIRED');}
   function showError(m){console.error(m);}
   setBrand();
-  if(sessionId)call('validateSession',[sessionId],function(email){if(email){call('getUserFromSession',[sessionId],function(u){user=u||user;localStorage.setItem(userKey,JSON.stringify(user||{}));openDashboard();},function(){showLanding();});}else{localStorage.removeItem(sessionKey);showLanding();}},function(){showLanding();});else showLanding();
+  // Restore only an authoritative CLIENT session. The previous boot path used
+  // the legacy validateSession/getUserFromSession pair, which could accept a
+  // stale master session and briefly open the dashboard before the client
+  // session validator rejected it. Client deployments must use the same
+  // validateClientSession boundary used by dashboard/data operations.
+  showLanding();
+  if(sessionId){
+    call('getClientUserFromSession',[sessionId],function(u){
+      if(u&&u.isClient){
+        user=u;
+        localStorage.setItem(userKey,JSON.stringify(user));
+        openDashboard();
+      }else{
+        sessionId='';
+        localStorage.removeItem(sessionKey);
+        localStorage.removeItem(userKey);
+        showLanding();
+      }
+    },function(){
+      sessionId='';
+      localStorage.removeItem(sessionKey);
+      localStorage.removeItem(userKey);
+      showLanding();
+    });
+  }
 })();
 </script>
 </body>
