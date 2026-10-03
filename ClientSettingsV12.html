@@ -110,6 +110,16 @@
   function collect(){
     return {Business_Name:document.getElementById('set-business-name').value.trim(),Business_Type:document.getElementById('set-business-type').value.trim(),Phone:document.getElementById('set-business-phone').value.trim(),Website:document.getElementById('set-business-website').value.trim(),Address:document.getElementById('set-business-address').value.trim(),City:document.getElementById('set-business-city').value.trim(),Country:document.getElementById('set-business-country').value.trim(),Currency:document.getElementById('set-business-currency').value.trim().toUpperCase(),Business_Description:document.getElementById('set-business-description').value.trim(),Display_Name:document.getElementById('set-display-name').value.trim(),Primary_Color:document.getElementById('set-primary-color').value.trim(),Logo_Url:document.getElementById('set-logo-url').value.trim()};
   }
+  window.settingsV12Tab=function(tab){
+    tab=String(tab||'business');
+    document.querySelectorAll('.settings-tab').forEach(function(b){
+      b.classList.toggle('active',b.getAttribute('data-settings-tab')===tab);
+    });
+    document.querySelectorAll('.settings-view').forEach(function(v){
+      v.classList.toggle('active',v.getAttribute('data-settings-view')===tab);
+    });
+    if(tab==='data')window.settingsV12LoadMigrated();
+  };
   window.settingsV12ChooseBrand=function(color){
     color=String(color||'').trim();
     if(!/^#[0-9A-Fa-f]{6}$/.test(color))return;
