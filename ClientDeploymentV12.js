@@ -379,12 +379,12 @@ function testGenerateClientCodeSafelyV12(businessId) {
   var targetBusinessId = String(businessId || '').trim();
   var client = targetBusinessId
     ? getActiveClientByBusinessIdForRedeploy_(targetBusinessId)
-    : getActiveClientForV12Test_(businessId);
+    : getActiveClientForV12Test_();
 
   if (!client) {
     throw new Error(targetBusinessId
       ? 'No active client deployment was found for business ID: ' + targetBusinessId
-      : 'No active client deployment was found for bizoshigroups@gmail.com.');
+      : 'No active active client deployment was found in the Clients registry.');
   }
 
   var settings = {
@@ -427,6 +427,146 @@ function testGenerateClientCodeSafelyV12(businessId) {
 
   console.log('V12 NON-DEPLOY SMOKE TEST RESULT:',JSON.stringify(summary));
   return summary;
+}
+
+function getActiveClientForV12Test_() {
+  var ss = getBizOSMasterSpreadsheet_();
+  var sheet = ss.getSheetByName('Clients');
+  if (!sheet || sheet.getLastRow() < 2) return null;
+
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(function(h){ return String(h || '').trim(); });
+  var statusCol = headers.indexOf('Status');
+  var businessIdCol = headers.indexOf('Business_ID');
+  if (statusCol < 0) throw new Error('Client registry is missing Status.');
+
+  // Prefer the most recently updated active deployment when the caller
+  // does not specify a Business_ID. This keeps the smoke test generic and
+  // avoids coupling it to a test email or a specific customer.
+  var updatedCol = headers.indexOf('Updated_At');
+  var createdCol = headers.indexOf('Created_At');
+  var best = null, bestTime = -1;
+
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (String(row[statusCol] || '').trim().toLowerCase() !== 'active') continue;
+    var stamp = updatedCol >= 0 ? row[updatedCol] : (createdCol >= 0 ? row[createdCol] : '');
+    var time = stamp ? new Date(stamp).getTime() : i;
+    if (!isFinite(time)) time = i;
+    if (time >= bestTime) {
+      bestTime = time;
+      best = row;
+    }
+  }
+
+  if (!best) return null;
+  var client = {};
+  headers.forEach(function(header,index){ client[header] = best[index] === undefined ? '' : best[index]; });
+
+  return {
+    clientId:String(client.Client_ID || ''),
+    email:String(client.Email || '').toLowerCase(),
+    clientName:String(client.Client_Name || ''),
+    businessId:String(client.Business_ID || ''),
+    sheetId:String(client.Sheet_ID || client.Workspace_ID || ''),
+    scriptId:String(client.Script_ID || ''),
+    deploymentId:String(client.Deployment_ID || ''),
+    webAppUrl:String(client.Web_App_URL || ''),
+    primaryColor:String(client.Primary_Color || ''),
+    logoUrl:String(client.Logo_Url || ''),
+    landingUrl:String(client.Landing_URL || ''),
+    customDomain:String(client.Custom_Domain || ''),
+    domain:String(client.Domain || '')
+  };
+}
+
+// ============================================================
+// MASTER-SIDE V12 12-MODULE SMOKE AUDIT
+// ============================================================
+// Non-destructive audit of the selected active client's generated
+// package plus its 12 module workspace sheets. It does not deploy,
+// write client data, or modify the registry.
+// ============================================================
+
+function testV12TwelveModuleSmokeAudit(businessId) {
+  var targetBusinessId = String(businessId || '').trim();
+  var client = targetBusinessId
+    ? getActiveClientByBusinessIdForRedeploy_(targetBusinessId)
+    : getActiveClientForV12Test_();
+
+  if (!client) throw new Error(targetBusinessId
+    ? 'No active client deployment was found for business ID: ' + targetBusinessId
+    : 'No active client deployment was found in the Clients registry.');
+
+  var packageResult = generateClientCodeSafelyV12({
+    clientId:client.clientId,
+    clientName:client.clientName,
+    primaryColor:client.primaryColor || '#2E7D32',
+    logoUrl:client.logoUrl || '',
+    email:client.email,
+    sheetId:client.sheetId,
+    businessId:client.businessId,
+    masterApiUrl:getMasterApiUrl(),
+    landingUrl:client.landingUrl || '',
+    customDomain:client.customDomain || '',
+    applicationUrl:client.webAppUrl || ''
+  });
+  var packageCheck = validateClientDeploymentPackageV12_(packageResult,{
+    clientId:client.clientId,
+    sheetId:client.sheetId
+  });
+
+  var names=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"];
+  var ws=SpreadsheetApp.openById(String(client.sheetId || ''));
+  var modules=[];
+  names.forEach(function(name){
+    var def=MODULES[name] || {};
+    var sh=def.sheet ? ws.getSheetByName(def.sheet) : null;
+    var headers=[];
+    var recordCount=0;
+    if(sh){
+      var lastCol=sh.getLastColumn(), lastRow=sh.getLastRow();
+      if(lastCol>0) headers=sh.getRange(1,1,1,lastCol).getValues()[0].map(function(x){return String(x||'');});
+      recordCount=Math.max(0,lastRow-1);
+    }
+    modules.push({
+      module:name,
+      expectedSheet:String(def.sheet || ''),
+      sheetExists:!!sh,
+      headersPresent:headers.length>0,
+      recordCount:recordCount,
+      headerCount:headers.length
+    });
+  });
+
+  var codeFile=(packageResult.files||[]).filter(function(f){return f.name==='Code';})[0];
+  var runtime=String(codeFile&&codeFile.source||'');
+  var runtimeChecks={
+    moduleRegistry:runtime.indexOf('var MODULES=')>=0,
+    moduleReadPath:runtime.indexOf('getModuleDataWithSync(name,sid)')>=0,
+    sessionGuard:runtime.indexOf('getClientUserFromSession(sid)')>=0,
+    entitlementGuard:runtime.indexOf('clientModulesForEntitlementV12_')>=0,
+    smokeAuditEmbedded:runtime.indexOf('function getClientV12ModuleSmokeAudit(sid)')>=0
+  };
+
+  var failures=modules.filter(function(m){return !m.sheetExists || !m.headersPresent;});
+  var result={
+    success:!!(packageCheck && packageCheck.success && runtimeChecks.moduleRegistry && runtimeChecks.moduleReadPath && runtimeChecks.sessionGuard && runtimeChecks.entitlementGuard && runtimeChecks.smokeAuditEmbedded && !failures.length),
+    test:'V12_12_MODULE_SMOKE_AUDIT',
+    liveClientRuntimeExecuted:false,
+    note:'This master-side audit is non-destructive. It verifies the generated runtime and the client workspace data structure; the embedded client audit still requires a real client session to execute.',
+    packageVersion:packageResult.version,
+    clientId:client.clientId,
+    businessId:client.businessId,
+    email:client.email,
+    scriptId:client.scriptId,
+    deploymentId:client.deploymentId,
+    packageCheck:packageCheck,
+    runtimeChecks:runtimeChecks,
+    modules:modules
+  };
+  console.log('V12 12-MODULE SMOKE AUDIT:',JSON.stringify(result));
+  return result;
 }
 
 function getActiveClientByEmailForV12Test_(email) {
