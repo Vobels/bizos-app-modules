@@ -595,6 +595,20 @@ function updateRecord(moduleName, data, recordId, sessionId) {
         sheet.getRange(rowIndex + 1, colIndex + 1).setValue(value);
       }
     }
+
+    // Keep linked financial events in sync with the edited source record.
+    // This only applies to modules that already have an authoritative financial
+    // sync path; ordinary Finance entries and unrelated module records are untouched.
+    if (moduleName !== 'Finance' &&
+        (moduleName === 'Sales' || moduleName === 'Ecommerce' || moduleName === 'Agro' || moduleName === 'POS')) {
+      const updatedValues = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
+      const updatedRecord = {};
+      headers.forEach((header, i) => { updatedRecord[header] = updatedValues[i]; });
+      const syncResult = autoSyncToFinancial(moduleName, updatedRecord, workspace.getId(), sessionId);
+      if (!syncResult.success) {
+        console.warn('Financial sync warning after update:', syncResult.message);
+      }
+    }
     
     return { success: true, message: "Record updated successfully" };
     
