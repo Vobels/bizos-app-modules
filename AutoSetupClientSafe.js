@@ -66,6 +66,18 @@ function autoSetupClientSafe(paymentData, skipLock) {
       console.log('SAFE STEP 1C COMPLETE:',JSON.stringify(migrationResult));
     } else {
       console.log('SAFE STEP 1C: No separate free workspace found; no data migration required.');
+      // New paid clients still receive an initial BizOS recovery snapshot of
+      // their empty/canonical workspace so the recovery chain starts at setup.
+      migrationResult = {
+        success:true,
+        migrated:false,
+        migrationVersion:'2.1',
+        recoveryBackup:createClientRecoveryBackup_(SpreadsheetApp.openById(sheetResult.sheetId),businessName,businessId)
+      };
+      if (!migrationResult.recoveryBackup || !migrationResult.recoveryBackup.success) {
+        cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
+        return {success:false,code:'RECOVERY_BACKUP_FAILED',message:'The client workspace was created, but its BizOS recovery backup could not be created.',clientId:clientId,cleanedUp:true};
+      }
     }
 
     console.log('SAFE STEP 2: Generating V12 client package with self-service staff invitations');
