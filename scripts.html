@@ -5113,7 +5113,7 @@ function loadDashboardRecentEntries(tabType) {
   const clientMode = !!(window.__CLIENT && window.__CLIENT.isClient);
   callGoogleScript(
     clientMode ? 'getModuleData' : 'getDashboardRecentEntries',
-    [moduleName, 5],
+    clientMode ? [moduleName] : [moduleName, 5],
     (result) => {
       const entries = clientMode
         ? (result && result.success ? (result.data || []).map(row => ({
