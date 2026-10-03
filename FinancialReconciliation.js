@@ -449,3 +449,14 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
 
   return entries;
 }
+
+
+/**
+ * Apps Script editor entry point for a safe dry-run audit.
+ * Uses the active client workspace and performs no Finance writes.
+ */
+function runHistoricalReconciliationAudit() {
+  var result = reconcileCurrentWorkspaceHistoricalFinancials(false);
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
