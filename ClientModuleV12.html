@@ -60,7 +60,13 @@
     var editing=!!row, html='<div class="client-module-editor-head"><div><span class="section-kicker">'+(editing?'EDIT RECORD':'NEW RECORD')+'</span><h3>'+(editing?'Update record':'Add record')+'</h3></div><button type="button" onclick="clientModuleV12CloseEditor()">Close</button></div><form onsubmit="clientModuleV12Save(event)"><div class="client-module-form-grid">';
     state.headers.forEach(function(h){var v=editing?row[h]:'';html+='<label>'+esc(h)+'<input name="'+esc(h).replace(/"/g,'&quot;')+'" value="'+esc(v).replace(/"/g,'&quot;')+'"></label>';});
     html+='</div><div class="client-module-editor-actions"><button type="button" onclick="clientModuleV12CloseEditor()">Cancel</button><button class="primary" type="submit">'+(editing?'Save changes':'Create record')+'</button></div></form>';
-    var e=document.getElementById('client-module-editor');e.innerHTML=html;e.classList.remove('hidden');e.scrollIntoView({behavior:'smooth',block:'start'});
+    var e=document.getElementById('client-module-editor');e.innerHTML=html;e.classList.remove('hidden');
+    if(state.module==='Ecommerce'){
+      var q=e.querySelector('[name="Quantity"]'),p=e.querySelector('[name="Unit_Price"]'),sub=e.querySelector('[name="Subtotal"]'),ship=e.querySelector('[name="Shipping_Cost"]'),tax=e.querySelector('[name="Tax"]'),total=e.querySelector('[name="Total_Amount"]');
+      var calc=function(){var qty=Number(q&&q.value||0),price=Number(p&&p.value||0),shipping=Number(ship&&ship.value||0),taxValue=Number(tax&&tax.value||0),subtotal=qty*price;if(sub)sub.value=subtotal.toFixed(2);if(total)total.value=(subtotal+shipping+taxValue).toFixed(2);};
+      [q,p,ship,tax].forEach(function(el){if(el)el.addEventListener('input',calc);});calc();
+    }
+    e.scrollIntoView({behavior:'smooth',block:'start'});
   }
   window.clientModuleV12New=function(){state.editingRow=null;renderEditor(null);};
   window.clientModuleV12Edit=function(row){var r=state.records.find(function(x){return Number(x._row)===Number(row);});if(r){state.editingRow=Number(row);renderEditor(r);}};
