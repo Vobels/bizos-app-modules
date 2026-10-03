@@ -639,6 +639,34 @@ function getDashboardBusinessSnapshot(workspace, moduleSummary) {
     operational: {}
   };
 
+  // Business Center is an Ecommerce-connected workspace area rather than a
+  // separate entitlement/module sheet, so include its operational records
+  // explicitly without counting them as another module.
+  try {
+    const businessCenterSales = workspace.getSheetByName('BusinessCenter_Sales');
+    const saleCount = businessCenterSales && businessCenterSales.getLastRow() > 1
+      ? businessCenterSales.getLastRow() - 1 : 0;
+    if (saleCount > 0) snapshot.modulesWithData++;
+    snapshot.activeRecords += saleCount;
+    snapshot.commerceRecords += saleCount;
+
+    if (businessCenterSales && saleCount > 0) {
+      const values = businessCenterSales.getDataRange().getValues();
+      const headers = values[0] || [];
+      const totalCol = headers.indexOf('Total');
+      const amountPaidCol = headers.indexOf('Amount_Paid');
+      const balanceCol = headers.indexOf('Balance_Due');
+      snapshot.operational.BusinessCenter = {
+        sales: saleCount,
+        salesValue: totalCol >= 0 ? values.slice(1).reduce((sum, row) => sum + (parseFloat(row[totalCol]) || 0), 0) : 0,
+        cashCollected: amountPaidCol >= 0 ? values.slice(1).reduce((sum, row) => sum + (parseFloat(row[amountPaidCol]) || 0), 0) : 0,
+        receivables: balanceCol >= 0 ? values.slice(1).reduce((sum, row) => sum + (parseFloat(row[balanceCol]) || 0), 0) : 0
+      };
+    }
+  } catch (businessCenterError) {
+    console.warn('Business Center dashboard snapshot skipped:', businessCenterError.message);
+  }
+
   Object.keys(modules).forEach(moduleName => {
     if (moduleSummary && moduleSummary[moduleName] && moduleSummary[moduleName].isAccessible === false) return;
     try {
