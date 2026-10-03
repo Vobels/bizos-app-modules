@@ -448,6 +448,9 @@ function saveRecord(moduleName, data, sessionId) {
     if (!data.Employee_ID && moduleName === 'HR') {
       data.Employee_ID = `EMP-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
+    if (!data.Shipment_ID && moduleName === 'Logistics') {
+      data.Shipment_ID = `SHIP-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
+    }
     
     // Save record to module sheet
     const rowData = headers.map(header => data[header] || "");
@@ -487,7 +490,7 @@ function saveRecord(moduleName, data, sessionId) {
     return { 
       success: true, 
       message: "Record saved successfully",
-      recordId: data.Transaction_ID || data.Deal_ID || data.Order_ID || data.Record_ID || data.Employee_ID
+      recordId: data.Transaction_ID || data.Deal_ID || data.Order_ID || data.Record_ID || data.Employee_ID || data.Shipment_ID
     };
     
   } catch (error) {
@@ -509,7 +512,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     const headers = values[0];
     
     // Find the ID column
-    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Record_ID' || h === 'Employee_ID');
+    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Record_ID' || h === 'Employee_ID' || h === 'Shipment_ID');
     if (idCol === -1) return { success: false, message: "ID column not found" };
     
     // Find the row
