@@ -133,6 +133,7 @@ function getClientFromBusinessSheet(clientId) {
     const emailCol = headers.indexOf('Owner_Email');
     const nameCol = headers.indexOf('Business_Name');
     const tierCol = headers.indexOf('Subscription_Tier');
+    const workspaceCol = headers.indexOf('Workspace_ID');
     const statusCol = headers.indexOf('Status');
     
     for (let i = 1; i < data.length; i++) {
@@ -2015,7 +2016,8 @@ function getBusinessByEmail(email) {
         return {
           businessId: data[i][idCol] || '',
           businessName: data[i][nameCol] || '',
-          subscriptionTier: data[i][tierCol] || 'free'
+          subscriptionTier: data[i][tierCol] || 'free',
+          workspaceId: workspaceCol !== -1 ? (data[i][workspaceCol] || '') : ''
         };
       }
     }
