@@ -457,6 +457,9 @@ function saveRecord(moduleName, data, sessionId) {
     if (!data.Record_ID && moduleName === 'Productivity') {
       data.Record_ID = `TASK-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
+    if (!data.Record_ID && moduleName === 'Attendance') {
+      data.Record_ID = `ATT-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
+    }
     if (!data.Transaction_ID && moduleName === 'POS') {
       data.Transaction_ID = `POS-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
@@ -521,7 +524,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     const headers = values[0];
     
     // Find the ID column
-    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Contact_ID' || h === 'Record_ID' || h === 'Employee_ID' || h === 'Shipment_ID' || h === 'Tax_ID');
+    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Contact_ID' || h === 'Record_ID' || h === 'Employee_ID' || h === 'Transaction_ID' || h === 'Shipment_ID' || h === 'Tax_ID');
     if (idCol === -1) return { success: false, message: "ID column not found" };
     
     // Find the row
