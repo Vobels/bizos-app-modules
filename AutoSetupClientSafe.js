@@ -80,6 +80,16 @@ function autoSetupClientSafe(paymentData, skipLock) {
       }
     }
 
+    // Complete the live-workspace ownership handoff only after migration and
+    // the BizOS recovery snapshot have succeeded. This keeps BizOS able to finish
+    // provisioning even if Google Drive requires client acceptance.
+    console.log('SAFE STEP 1D: Completing client workspace ownership handoff');
+    var ownershipResult = transferClientWorkspaceOwnership_(DriveApp.getFileById(sheetResult.sheetId),paymentData.email);
+    sheetResult.ownershipStatus = ownershipResult && ownershipResult.status ? ownershipResult.status : 'client_editor_only';
+    sheetResult.ownerEmail = ownershipResult && ownershipResult.ownerEmail ? ownershipResult.ownerEmail : paymentData.email;
+    sheetResult.ownershipMessage = ownershipResult && ownershipResult.message ? ownershipResult.message : '';
+    console.log('SAFE STEP 1D COMPLETE:',JSON.stringify(ownershipResult));
+
     console.log('SAFE STEP 2: Generating V12 client package with self-service staff invitations');
     var clientLandingUrl = String(paymentData.landingUrl || '').trim();
     var clientCustomDomain = String(paymentData.customDomain || '').trim();
