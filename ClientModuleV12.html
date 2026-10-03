@@ -56,9 +56,23 @@
     box.innerHTML='<div class="client-module-scroll"><table><thead><tr>'+cols.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'<th>Actions</th></tr></thead><tbody>'+rows.slice(0,100).map(function(r){return '<tr>'+cols.map(function(h){return '<td>'+esc(r[h])+'</td>';}).join('')+'<td class="client-module-row-actions"><button type="button" onclick="clientModuleV12Edit('+Number(r._row||0)+')">Edit</button><button type="button" onclick="clientModuleV12Delete('+Number(r._row||0)+')">Delete</button></td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>100?'<div class="client-module-more">Showing the first 100 matching records.</div>':'');
   }
   function showMessage(msg,error){var e=document.getElementById('client-module-message');e.className=error?'module-msg error':'module-msg';e.textContent=msg||'';}
+  function editorControl(h,v){
+    var name=esc(h).replace(/"/g,'&quot;'), value=String(v==null?'':v);
+    if(state.module==='Sales' && h==='Stage'){
+      var options=['lead','qualified','proposal','negotiation','closed_won','closed_lost'];
+      return '<select name="'+name+'">'+options.map(function(o){return '<option value="'+esc(o)+'"'+(value.toLowerCase()===o?' selected':'')+'>'+esc(o.replace(/_/g,' '))+'</option>';}).join('')+'</select>';
+    }
+    if(state.module==='Sales' && h==='Payment_Method'){
+      var methods=['pending','cash','bank_transfer','card','mobile_money','other'];
+      return '<select name="'+name+'">'+methods.map(function(o){return '<option value="'+esc(o)+'"'+(value.toLowerCase()===o?' selected':'')+'>'+esc(o.replace(/_/g,' '))+'</option>';}).join('')+'</select>';
+    }
+    if(/(^Date$|_Date$)/i.test(h)) return '<input type="date" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
+    if(/(Amount|Price|Cost|Revenue|Tax|Quantity|Probability|Rate)/i.test(h)) return '<input type="number" step="any" name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
+    return '<input name="'+name+'" value="'+esc(value).replace(/"/g,'&quot;')+'">';
+  }
   function renderEditor(row){
     var editing=!!row, html='<div class="client-module-editor-head"><div><span class="section-kicker">'+(editing?'EDIT RECORD':'NEW RECORD')+'</span><h3>'+(editing?'Update record':'Add record')+'</h3></div><button type="button" onclick="clientModuleV12CloseEditor()">Close</button></div><form onsubmit="clientModuleV12Save(event)"><div class="client-module-form-grid">';
-    state.headers.forEach(function(h){var v=editing?row[h]:'';html+='<label>'+esc(h)+'<input name="'+esc(h).replace(/"/g,'&quot;')+'" value="'+esc(v).replace(/"/g,'&quot;')+'"></label>';});
+    state.headers.forEach(function(h){var v=editing?row[h]:'';html+='<label>'+esc(h)+editorControl(h,v)+'</label>';});
     html+='</div><div class="client-module-editor-actions"><button type="button" onclick="clientModuleV12CloseEditor()">Cancel</button><button class="primary" type="submit">'+(editing?'Save changes':'Create record')+'</button></div></form>';
     var e=document.getElementById('client-module-editor');e.innerHTML=html;e.classList.remove('hidden');
     if(state.module==='Ecommerce'){
