@@ -52,11 +52,12 @@ function autoSetupClientSafe(paymentData, skipLock) {
     }
 
     // Existing free users already have a business workspace. Move their
-    // Finance + Ecommerce records into the paid workspace before deployment.
+    // existing module, Business Center, staff, notification, activity and profile data
+    // into the paid workspace before deployment.
     // The migration is idempotent and only runs when a real source workspace exists.
     var sourceWorkspaceId = existingBusiness && (existingBusiness.workspaceId || existingBusiness.Workspace_ID || existingBusiness.workspaceID);
     if (sourceWorkspaceId && String(sourceWorkspaceId) !== String(sheetResult.sheetId)) {
-      console.log('SAFE STEP 1C: Migrating free Finance + Ecommerce data from:', sourceWorkspaceId);
+      console.log('SAFE STEP 1C: Migrating existing BizOS workspace data from:', sourceWorkspaceId);
       var migrationResult = migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId,sheetResult.sheetId,businessId,businessName,paymentData.email);
       if (!migrationResult || !migrationResult.success) {
         cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
