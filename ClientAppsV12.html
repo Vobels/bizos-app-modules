@@ -9,7 +9,7 @@
 <script>
 (function(){
   var loaded=false;
-  var routes={Finance:'finance',Ecommerce:'business',POS:'business',Warehouse:'business',Sales:'overview',CRM:'overview',HR:'staff',Attendance:'staff',Logistics:'overview',Tax:'overview',Agro:'overview',Productivity:'overview'};
+  var routes={Finance:'module:Finance',Ecommerce:'module:Ecommerce',POS:'module:POS',Warehouse:'module:Warehouse',Sales:'module:Sales',CRM:'module:CRM',HR:'module:HR',Attendance:'module:Attendance',Logistics:'module:Logistics',Tax:'module:Tax',Agro:'module:Agro',Productivity:'module:Productivity'};
   var icons={Finance:'fa-calculator',Sales:'fa-chart-line',Ecommerce:'fa-cart-shopping',CRM:'fa-users',HR:'fa-briefcase',Logistics:'fa-truck',Tax:'fa-file-invoice',Agro:'fa-seedling',Productivity:'fa-clock',POS:'fa-cash-register',Attendance:'fa-fingerprint',Warehouse:'fa-warehouse'};
   var iconClasses={Finance:'finance',Sales:'sales',Ecommerce:'ecommerce',CRM:'crm',HR:'hr',Logistics:'logistics',Tax:'tax',Agro:'agro',Productivity:'productivity',POS:'pos',Attendance:'attendance',Warehouse:'warehouse'};
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
