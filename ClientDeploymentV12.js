@@ -64,8 +64,8 @@ function generateClientCodeSafelyV12(settings) {
   ].join(String.fromCharCode(10));
   runtime += String.fromCharCode(10) + v12SecurityBridge + String.fromCharCode(10);
   var v12AccountBridge = [
-    'function clientNotificationActorV12_(sid){var u=getUserFromSession(sid);if(!u)return{ok:false,message:"Session expired. Please login again."};return{ok:true,user:u};}
-function clientNotificationAudienceMatchesV12_(audience,user){var a=String(audience||"all").trim().toLowerCase(),email=String(user&&user.email||"").trim().toLowerCase(),role=String(user&&user.role||"staff").trim().toLowerCase();if(!a||a==="all")return true;if(a===email)return true;if(a==="owner_admin"||a==="owner-admin"||a==="admins")return role==="owner"||role==="admin";if(a==="staff")return role==="staff";return false;}',
+    'function clientNotificationActorV12_(sid){var u=getUserFromSession(sid);if(!u)return{ok:false,message:"Session expired. Please login again."};return{ok:true,user:u};}',
+    'function clientNotificationAudienceMatchesV12_(audience,user){var a=String(audience||"all").trim().toLowerCase(),email=String(user&&user.email||"").trim().toLowerCase(),role=String(user&&user.role||"staff").trim().toLowerCase();if(!a||a==="all")return true;if(a===email)return true;if(a==="owner_admin"||a==="owner-admin"||a==="admins")return role==="owner"||role==="admin";if(a==="staff")return role==="staff";return false;}',
     'function ensureClientNotificationsSheetV12_(ws){var s=ws.getSheetByName("Client_Notifications");if(!s){s=ws.insertSheet("Client_Notifications");s.appendRow(["Notification_ID","Audience","Type","Title","Message","Created_At","Created_By","Related_View","Read_By_JSON"]);}return s;}',
     'function ensureClientActivitySheetV12_(ws){var s=ws.getSheetByName("Client_Activity");if(!s){s=ws.insertSheet("Client_Activity");s.appendRow(["Activity_ID","Actor_Email","Actor_Name","Event_Type","Summary","Created_At","Related_View"]);}return s;}',
     'function clientNotificationReadMapV12_(raw){try{var x=JSON.parse(String(raw||"{}"));return x&&typeof x==="object"?x:{};}catch(e){return{};}}',
