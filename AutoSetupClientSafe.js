@@ -9,7 +9,7 @@
 function autoSetupClientSafe(paymentData, skipLock) {
   var lock = null;
   var clientId = '', sheetResult = null, scriptResult = null;
-  var existingBusiness = null, businessId = null, businessName = '';
+  var existingBusiness = null, businessId = null, businessName = '', migrationResult = null;
   var committed = false;
   try {
     paymentData = paymentData || {};
@@ -58,7 +58,7 @@ function autoSetupClientSafe(paymentData, skipLock) {
     var sourceWorkspaceId = existingBusiness && (existingBusiness.workspaceId || existingBusiness.Workspace_ID || existingBusiness.workspaceID);
     if (sourceWorkspaceId && String(sourceWorkspaceId) !== String(sheetResult.sheetId)) {
       console.log('SAFE STEP 1C: Migrating existing BizOS workspace data from:', sourceWorkspaceId);
-      var migrationResult = migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId,sheetResult.sheetId,businessId,businessName,paymentData.email);
+      migrationResult = migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId,sheetResult.sheetId,businessId,businessName,paymentData.email);
       if (!migrationResult || !migrationResult.success) {
         cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
         return {success:false,code:'FREE_DATA_MIGRATION_FAILED',message:'Your paid workspace was created, but your existing free-workspace data could not be migrated. No paid workspace was activated.',clientId:clientId,cleanedUp:true,migration:migrationResult};
@@ -81,7 +81,30 @@ function autoSetupClientSafe(paymentData, skipLock) {
     console.log('SAFE STEP 4: Saving full registry metadata');
     var clientApplicationUrl = String(scriptResult.webAppUrl || '').trim();
     var clientLandingUrlFinal = String(clientLandingUrl || clientCustomDomain || clientApplicationUrl).trim();
-    var saveResult = saveClientRecordV2({clientId:clientId,email:paymentData.email,clientName:businessName,domain:paymentData.domain || clientCustomDomain || '',customDomain:clientCustomDomain,primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',tier:paymentData.tier || 'sovereign',status:'active',sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,webAppUrl:clientApplicationUrl,landingUrl:clientLandingUrlFinal,apiKey:Utilities.getUuid(),scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,businessId:businessId,provisioningVersion:'10.0'});
+    var saveResult = saveClientRecordV2({
+      clientId:clientId,
+      email:paymentData.email,
+      clientName:businessName,
+      domain:paymentData.domain || clientCustomDomain || '',
+      customDomain:clientCustomDomain,
+      primaryColor:paymentData.primaryColor || '#2E7D32',
+      logoUrl:paymentData.logoUrl || '',
+      tier:paymentData.tier || 'sovereign',
+      status:'active',
+      sheetId:sheetResult.sheetId,
+      workspaceId:sheetResult.sheetId,
+      webAppUrl:clientApplicationUrl,
+      landingUrl:clientLandingUrlFinal,
+      apiKey:Utilities.getUuid(),
+      scriptId:scriptResult.scriptId,
+      deploymentId:scriptResult.deploymentId,
+      businessId:businessId,
+      provisioningVersion:'12.0',
+      recoveryBackupId:migrationResult && migrationResult.recoveryBackup ? migrationResult.recoveryBackup.backupId : '',
+      recoveryBackupUrl:migrationResult && migrationResult.recoveryBackup ? migrationResult.recoveryBackup.backupUrl : '',
+      workspaceOwnershipStatus:sheetResult.ownershipStatus || 'client_editor_only',
+      workspaceOwnerEmail:sheetResult.ownerEmail || paymentData.email
+    });
     if (!saveResult || !saveResult.success) { cleanupFailedClientProvisioningSafe_(sheetResult,clientId); cleanupFailedClientDeploymentSafe_(scriptResult); return {success:false,code:'CLIENT_RECORD_SAVE_FAILED',message:'Deployment succeeded, but the client record could not be saved. Provisioning was rolled back.',clientId:clientId,cleanedUp:true}; }
 
     // The paid client is now committed. Registry sync is secondary metadata;
@@ -96,7 +119,7 @@ function autoSetupClientSafe(paymentData, skipLock) {
       }
     }
     try { sendClientWelcomeEmail(paymentData.email,businessName,clientLandingUrlFinal,clientId); } catch(emailError) { console.error('Client welcome email failed after successful provisioning:',emailError); }
-    return {success:true,idempotent:false,clientId:clientId,landingUrl:clientLandingUrlFinal,webAppUrl:clientApplicationUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,message:'Client setup complete.'};
+    return {success:true,idempotent:false,clientId:clientId,landingUrl:clientLandingUrlFinal,webAppUrl:clientApplicationUrl,sheetUrl:sheetResult.sheetUrl,sheetId:sheetResult.sheetId,workspaceId:sheetResult.sheetId,email:paymentData.email,scriptId:scriptResult.scriptId,deploymentId:scriptResult.deploymentId,recoveryBackup:migrationResult&&migrationResult.recoveryBackup?migrationResult.recoveryBackup:null,workspaceOwnershipStatus:sheetResult.ownershipStatus||'client_editor_only',workspaceOwnerEmail:sheetResult.ownerEmail||paymentData.email,message:'Client setup complete.'};
   } catch(error) {
     console.error('SAFE CLIENT SETUP ERROR:',error);
     if(!committed){if(sheetResult&&sheetResult.success)cleanupFailedClientProvisioningSafe_(sheetResult,clientId);if(scriptResult&&scriptResult.scriptId)cleanupFailedClientDeploymentSafe_(scriptResult);}
