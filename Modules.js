@@ -375,6 +375,27 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         }
         break;
         
+      case 'POS':
+        if (parseFloat(recordData.Total_Amount) > 0) {
+          financialEntries.push({
+            Transaction_ID: generateTransactionId(),
+            Date: recordData.Date || now.split('T')[0],
+            Type: 'revenue',
+            Category: 'pos',
+            Subcategory: 'point_of_sale',
+            Module_Source: 'POS',
+            Module_Record_ID: recordData.Transaction_ID,
+            Description: 'POS sale ' + recordData.Transaction_ID + ': ' + (recordData.Product_Name || ''),
+            Amount: parseFloat(recordData.Total_Amount),
+            Payment_Method: recordData.Payment_Method || 'completed',
+            Reference: recordData.Transaction_ID,
+            Status: recordData.Status || 'completed',
+            Created_By: user?.email || recordData.Created_By,
+            Created_At: now
+          });
+        }
+        break;
+        
       // HR records contain employee profile data, not payroll transactions.
       // Payroll should only be synced from an explicit payroll transaction source.
     }
