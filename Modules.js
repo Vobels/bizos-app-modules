@@ -402,12 +402,37 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
     
     // Append all financial entries
     const headers = getSheetHeadersBySheet(financeSheet);
+    const financeValues = financeSheet.getDataRange().getValues();
+    const sourceCol = headers.indexOf('Module_Source');
+    const sourceRecordCol = headers.indexOf('Module_Record_ID');
+    const typeCol = headers.indexOf('Type');
+    const transactionIdCol = headers.indexOf('Transaction_ID');
+
     for (const entry of financialEntries) {
-      const rowData = headers.map(header => entry[header] || '');
-      financeSheet.appendRow(rowData);
+      let existingRow = -1;
+      if (sourceCol >= 0 && sourceRecordCol >= 0 && typeCol >= 0 && entry.Module_Record_ID) {
+        for (let i = 1; i < financeValues.length; i++) {
+          if (String(financeValues[i][sourceCol] || '') === moduleName &&
+              String(financeValues[i][sourceRecordCol] || '') === String(entry.Module_Record_ID) &&
+              String(financeValues[i][typeCol] || '').toLowerCase() === String(entry.Type || '').toLowerCase()) {
+            existingRow = i + 1;
+            if (transactionIdCol >= 0 && financeValues[i][transactionIdCol]) {
+              entry.Transaction_ID = financeValues[i][transactionIdCol];
+            }
+            break;
+          }
+        }
+      }
+
+      const rowData = headers.map(header => entry[header] !== undefined ? entry[header] : '');
+      if (existingRow > 0) {
+        financeSheet.getRange(existingRow, 1, 1, headers.length).setValues([rowData]);
+      } else {
+        financeSheet.appendRow(rowData);
+      }
       
       // Update source record with Financial_Link_ID
-      if (entry.Module_Record_ID) {
+      if (entry.Module_Record_ID && typeof updateSourceRecordWithLink === 'function') {
         updateSourceRecordWithLink(workspace, moduleName, entry.Module_Record_ID, entry.Transaction_ID);
       }
     }
