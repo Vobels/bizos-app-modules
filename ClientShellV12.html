@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BizOS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <?!= include('ClientStylesV12') ?>
 </head>
 <body>
@@ -104,9 +105,23 @@
   var dashboardCacheAt=0;
   var DASHBOARD_CACHE_MAX_AGE=60000;
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function money(v){var n=Number(v)||0;return new Intl.NumberFormat('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
-  function num(v){var n=Number(v)||0;return new Intl.NumberFormat('en-NG').format(n);}
-  function card(label,v,sub,cls){return '<div class="rich-kpi '+(cls||'')+'"><div class="rich-kpi-top"><span>'+esc(label)+'</span><span class="kpi-dot"></span></div><strong>'+v+'</strong><small>'+esc(sub||'')+'</small></div>';}
+  function money(v){var n=Number(v)||0;return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
+  function num(v){var n=Number(v)||0;return new Intl.NumberFormat('en-US').format(n);}
+  function trendHtml(k,expense){
+    k=k||{value:0,change:0};
+    var change=Number(k.change)||0;
+    var favorable=expense?change<=0:change>=0;
+    var color=favorable?'text-green-500':'text-red-500';
+    var arrow=expense?(change<=0?'down':'up'):(change>=0?'up':'down');
+    return '<span class="bizos-kpi-trend '+color+'"><i class="fas fa-arrow-'+arrow+'"></i> '+Math.abs(change).toFixed(1)+'%</span>';
+  }
+  function card(label,k,cls,expense){
+    k=k||{value:0,change:0};
+    var value=Number(k.value)||0;
+    var display=cls==='margin'?value.toFixed(1)+'%':money(value);
+    var valueClass=cls==='profit'?(value>=0?'text-green-600':'text-red-600'):(cls==='margin'?(value>=15?'text-green-600':(value>=5?'text-yellow-600':'text-red-600')):'text-gray-900');
+    return '<div class="bizos-kpi-card"><p class="bizos-kpi-label">'+esc(label)+'</p><div class="bizos-kpi-value-row"><strong class="'+valueClass+'">'+display+'</strong>'+trendHtml(k,expense)+'</div></div>';
+  }
   function emptyState(icon,title,text,action,label){return '<div class="rich-empty"><div class="empty-icon">'+icon+'</div><h4>'+esc(title)+'</h4><p>'+esc(text)+'</p>'+(action?'<button class="small-action" onclick="'+action+'">'+esc(label||'Get started')+'</button>':'')+'</div>';}
   function renderOverview(r,fromCache){
     var c=document.getElementById('client-standard-view'),d=r.dashboard||{},k=d.kpis||{},counts=d.counts||{},charts=d.charts||{},health=d.health||{},apps=Array.isArray(d.moduleSummary)?d.moduleSummary:Object.keys(d.moduleCounts||{});
@@ -115,11 +130,11 @@
     var stale=fromCache?'<span class="live-note">Showing recent data · refreshing…</span>':'<span class="live-note">Updated just now</span>';
     var appNames=(Array.isArray(d.moduleSummary)?d.moduleSummary:Object.keys(d.moduleCounts||{})).slice(0,8);
     c.innerHTML='<div class="overview-topline"><div><p class="overview-welcome">Welcome back, '+esc((user&&user.name)||'there')+'</p><p class="overview-sub">Here is what is happening across '+esc((user&&user.businessName)||cfg().name||'your workspace')+'.</p></div>'+stale+'</div>'+
-      '<div class="rich-kpi-grid">'+
-      card('Total revenue',money(k.revenue&&k.revenue.value),'All recorded income','revenue')+
-      card('Total expenses',money(k.expenses&&k.expenses.value),'All recorded expenses','expense')+
-      card('Net profit',money(k.netProfit&&k.netProfit.value),'Revenue less expenses','profit')+
-      card('Profit margin',(Number(k.profitMargin&&k.profitMargin.value)||0).toFixed(1)+'%','Based on recorded revenue','margin')+
+      '<div class="bizos-kpi-grid">'+
+      card('Total Revenue',k.revenue,'revenue',false)+
+      card('Total Expenses',k.expenses,'expense',true)+
+      card('Net Profit',k.netProfit,'profit',false)+
+      card('Profit Margin',k.profitMargin,'margin',false)+
       '</div>'+
       '<div class="overview-grid two-thirds">'+
         '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">BUSINESS SNAPSHOT</span><h3>Manage your business from one place</h3></div><button class="text-link" onclick="selectView(\'apps\')">View all apps →</button></div>'+
