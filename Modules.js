@@ -375,26 +375,8 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         }
         break;
         
-      case 'HR':
-        if (recordData.Transaction_Type === 'salary' && recordData.Amount > 0) {
-          financialEntries.push({
-            Transaction_ID: generateTransactionId(),
-            Date: recordData.Date || now.split('T')[0],
-            Type: 'expense',
-            Category: 'salary',
-            Subcategory: 'payroll',
-            Module_Source: 'HR',
-            Module_Record_ID: recordData.Employee_ID,
-            Description: `Salary: ${recordData.Name} - ${recordData.Period || 'monthly'}`,
-            Amount: -Math.abs(parseFloat(recordData.Amount)),
-            Payment_Method: 'completed',
-            Reference: recordData.Employee_ID,
-            Status: 'completed',
-            Created_By: user?.email || recordData.Created_By,
-            Created_At: now
-          });
-        }
-        break;
+      // HR records contain employee profile data, not payroll transactions.
+      // Payroll should only be synced from an explicit payroll transaction source.
     }
     
     // Append all financial entries
