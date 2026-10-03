@@ -229,7 +229,8 @@ function getEnhancedDashboardData(period, sessionId) {
         health: businessHealth,
         charts: chartData,
         recentActivity: recentActivity,
-        alerts: alerts
+        alerts: alerts,
+        businessSnapshot: businessSnapshot
       }
     };
     
@@ -561,28 +562,34 @@ function getDetailedFinancialMetrics(workspace, period, useAccurate) {
   };
 }
 
-function calculateBusinessHealth(workspace, financialMetrics) {
+function calculateBusinessHealth(workspace, financialMetrics, businessSnapshot) {
   const kpis = financialMetrics && financialMetrics.kpis ? financialMetrics.kpis : {};
   const revenue = Number(kpis.revenue?.value) || 0;
   const expenses = Number(kpis.expenses?.value) || 0;
   const margin = Number(kpis.profitMargin?.value) || 0;
+  const snapshot = businessSnapshot || {};
+  const moduleActivity = Number(snapshot.activeRecords) || 0;
+  const activeModules = Number(snapshot.activeModules) || 0;
 
   const expenseScore = revenue > 0
     ? Math.max(0, Math.min(100, (1 - (expenses / revenue)) * 100))
     : (expenses === 0 ? 100 : 0);
   const marginScore = Math.max(0, Math.min(100, margin * 5));
-  const activityScore = financialMetrics?.current?.count > 0 ? 100 : 0;
+  const activityScore = activeModules > 0
+    ? Math.min(100, (activeModules / 12) * 100)
+    : (moduleActivity > 0 ? 50 : 0);
 
   const overall = Math.round((Math.max(0, expenseScore) + marginScore + activityScore) / 3);
   const metrics = [
     { name: 'Revenue', current: formatDashboardHealthValue_(revenue), score: revenue > 0 ? 100 : 0, target: 'Positive revenue' },
     { name: 'Expense control', current: revenue > 0 ? ((expenses / revenue) * 100).toFixed(1) + '% of revenue' : 'No revenue', score: Math.round(expenseScore), target: 'Lower expense ratio' },
-    { name: 'Profit margin', current: margin.toFixed(1) + '%', score: Math.round(marginScore), target: '20%+' }
+    { name: 'Profit margin', current: margin.toFixed(1) + '%', score: Math.round(marginScore), target: '20%+' },
+    { name: 'Business activity', current: moduleActivity.toLocaleString() + ' records across ' + activeModules + ' modules', score: Math.round(activityScore), target: 'Use the modules relevant to your business' }
   ];
 
   const recommendations = [];
   if (revenue === 0) {
-    recommendations.push({ priority: 'high', message: 'No revenue recorded for this period.', action: 'Review sales, ecommerce, POS and finance records.' });
+    recommendations.push({ priority: 'high', message: 'No revenue recorded for this period.', action: 'Review finance, ecommerce, sales and POS activity.' });
   }
   if (expenses > revenue && expenses > 0) {
     recommendations.push({ priority: 'high', message: 'Expenses exceed recorded revenue for this period.', action: 'Review recent expenses and revenue entries.' });
@@ -590,16 +597,190 @@ function calculateBusinessHealth(workspace, financialMetrics) {
   if (margin > 0 && margin < 10) {
     recommendations.push({ priority: 'medium', message: 'Profit margin is below 10%.', action: 'Review pricing, costs and operating expenses.' });
   }
+  if (activeModules === 0) {
+    recommendations.push({ priority: 'medium', message: 'No operational modules contain records yet.', action: 'Start with the modules that match your business workflow.' });
+  }
 
   return { overall: Math.max(0, Math.min(100, overall)), metrics, recommendations };
 }
-
 function formatDashboardHealthValue_(value) {
   const n = Number(value) || 0;
   try {
     return typeof formatCurrency === 'function' ? formatCurrency(n) : n.toFixed(2);
   } catch (e) {
     return n.toFixed(2);
+  }
+}
+
+function getDashboardBusinessSnapshot(workspace, moduleSummary) {
+  const modules = {
+    Finance: 'Financial_Data',
+    Ecommerce: 'Ecommerce_Data',
+    Sales: 'Sales_Data',
+    CRM: 'CRM_Data',
+    HR: 'HR_Data',
+    Logistics: 'Logistics_Data',
+    Tax: 'Tax_Data',
+    Agro: 'Agro_Data',
+    Productivity: 'Productivity_Data',
+    POS: 'POS_Data',
+    Attendance: 'Attendance_Data',
+    Warehouse: 'Warehouse_Data'
+  };
+
+  const snapshot = {
+    activeModules: 0,
+    activeRecords: 0,
+    commerceRecords: 0,
+    teamMembers: 0,
+    operational: {}
+  };
+
+  Object.keys(modules).forEach(moduleName => {
+    if (moduleSummary && moduleSummary[moduleName] && moduleSummary[moduleName].isAccessible === false) return;
+    try {
+      const sheet = workspace.getSheetByName(modules[moduleName]);
+      const count = sheet && sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0;
+      if (count > 0) snapshot.activeModules++;
+      snapshot.activeRecords += count;
+      if (moduleName === 'Ecommerce' || moduleName === 'POS') snapshot.commerceRecords += count;
+
+      const values = sheet && count > 0 ? sheet.getDataRange().getValues() : [];
+      const headers = values.length ? values[0] : [];
+      const col = name => headers.indexOf(name);
+      const sum = name => {
+        const i = col(name);
+        if (i < 0) return 0;
+        return values.slice(1).reduce((total, row) => total + (parseFloat(row[i]) || 0), 0);
+      };
+
+      if (moduleName === 'Ecommerce') {
+        snapshot.operational.Ecommerce = { orders: count, orderValue: sum('Total_Amount') };
+      } else if (moduleName === 'POS') {
+        snapshot.operational.POS = { transactions: count, sales: sum('Total_Amount'), items: sum('Quantity') };
+      } else if (moduleName === 'Sales') {
+        snapshot.operational.Sales = { deals: count, pipelineValue: sum('Total_Amount') };
+      } else if (moduleName === 'CRM') {
+        snapshot.operational.CRM = { contacts: count };
+      } else if (moduleName === 'HR') {
+        snapshot.operational.HR = { employees: count, payroll: sum('Salary') };
+        snapshot.teamMembers = count;
+      } else if (moduleName === 'Logistics') {
+        snapshot.operational.Logistics = { shipments: count };
+      } else if (moduleName === 'Tax') {
+        snapshot.operational.Tax = { records: count, taxAmount: sum('Tax_Amount') };
+      } else if (moduleName === 'Agro') {
+        snapshot.operational.Agro = { records: count, revenue: sum('Revenue'), costs: sum('Total_Cost') };
+      } else if (moduleName === 'Productivity') {
+        snapshot.operational.Productivity = { tasks: count, hours: sum('Hours_Spent') };
+      } else if (moduleName === 'Attendance') {
+        snapshot.operational.Attendance = { records: count };
+      } else if (moduleName === 'Warehouse') {
+        let lowStock = 0;
+        const q = col('Quantity');
+        const min = col('Min_Stock');
+        if (q >= 0 && min >= 0) {
+          values.slice(1).forEach(row => {
+            const quantity = parseFloat(row[q]) || 0;
+            const minimum = parseFloat(row[min]);
+            if (!isNaN(minimum) && quantity < minimum) lowStock++;
+          });
+        }
+        snapshot.operational.Warehouse = {
+          products: count,
+          stockUnits: sum('Quantity'),
+          inventoryValue: values.slice(1).reduce((total, row) => {
+            const quantity = q >= 0 ? (parseFloat(row[q]) || 0) : 0;
+            const costCol = col('Unit_Cost');
+            const unitCost = costCol >= 0 ? (parseFloat(row[costCol]) || 0) : 0;
+            return total + (quantity * unitCost);
+          }, 0),
+          lowStock: lowStock
+        };
+      } else if (moduleName === 'Finance') {
+        snapshot.operational.Finance = { records: count };
+      }
+    } catch (e) {
+      console.log('Dashboard snapshot skipped for ' + moduleName + ': ' + e.message);
+    }
+  });
+
+  return snapshot;
+}
+
+function getDashboardRecentEntries(moduleName, limit, sessionId) {
+  const allowed = ['Finance','Ecommerce','Sales','HR'];
+  if (typeof limit === 'string' && limit.length > 30 && sessionId === undefined) {
+    sessionId = limit;
+    limit = 5;
+  }
+  if (!allowed.includes(moduleName)) return [];
+
+  const user = safeGetUser(sessionId);
+  if (!user) return [];
+
+  try {
+    const workspace = getWorkspaceFile(sessionId);
+    const sheetMap = {
+      Finance: 'Financial_Data',
+      Ecommerce: 'Ecommerce_Data',
+      Sales: 'Sales_Data',
+      HR: 'HR_Data'
+    };
+    const sheet = workspace.getSheetByName(sheetMap[moduleName]);
+    if (!sheet || sheet.getLastRow() <= 1) return [];
+
+    const values = sheet.getDataRange().getValues();
+    const headers = values[0];
+    const rows = values.slice(1);
+    const value = (row, name) => {
+      const i = headers.indexOf(name);
+      return i >= 0 ? row[i] : '';
+    };
+    const toDate = raw => {
+      const d = raw instanceof Date ? new Date(raw) : new Date(raw);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    return rows.map(row => {
+      const date = toDate(value(row, 'Date')) || toDate(value(row, 'Created_At'));
+      const amount = moduleName === 'Finance'
+        ? (parseFloat(value(row, 'Amount')) || 0)
+        : (parseFloat(value(row, 'Total_Amount')) || 0);
+      let title = '';
+      let status = '';
+      let id = '';
+
+      if (moduleName === 'Finance') {
+        title = value(row, 'Description') || value(row, 'Category') || 'Financial transaction';
+        status = value(row, 'Type') || '';
+        id = value(row, 'Transaction_ID') || '';
+      } else if (moduleName === 'Ecommerce') {
+        title = 'Order ' + (value(row, 'Order_ID') || 'record') + (value(row, 'Product_Name') ? ': ' + value(row, 'Product_Name') : '');
+        status = value(row, 'Payment_Status') || value(row, 'Order_Status') || '';
+        id = value(row, 'Order_ID') || '';
+      } else if (moduleName === 'Sales') {
+        title = (value(row, 'Customer_Name') || value(row, 'Product_Service') || 'Sales deal');
+        status = value(row, 'Stage') || '';
+        id = value(row, 'Deal_ID') || '';
+      } else if (moduleName === 'HR') {
+        title = value(row, 'Name') || 'Employee';
+        status = value(row, 'Status') || '';
+        id = value(row, 'Employee_ID') || '';
+      }
+
+      return {
+        module: moduleName,
+        date: date ? date.toISOString() : '',
+        title: String(title),
+        status: String(status),
+        id: String(id),
+        amount: amount
+      };
+    }).filter(item => item.date).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, Number(limit) || 5);
+  } catch (e) {
+    console.error('Dashboard recent entries error:', e);
+    return [];
   }
 }
 
@@ -683,7 +864,7 @@ function dashboardActivityDescription_(moduleName, row, headers, recordId) {
   }
 }
 
-function generateBusinessAlerts(workspace, financialMetrics, moduleSummary) {
+function generateBusinessAlerts(workspace, financialMetrics, moduleSummary, businessSnapshot) {
   const alerts = [];
   const kpis = financialMetrics?.kpis || {};
   const revenue = Number(kpis.revenue?.value) || 0;
@@ -732,6 +913,22 @@ function generateBusinessAlerts(workspace, financialMetrics, moduleSummary) {
         }
       }
     }
+  }
+
+  const snapshot = businessSnapshot || {};
+  const pos = snapshot.operational?.POS;
+  if (pos && pos.transactions > 0) {
+    alerts.push({ type: 'info', priority: 'low', title: 'POS activity', message: pos.transactions + ' POS transaction(s) recorded, totaling ' + formatDashboardHealthValue_(pos.sales) + '.' });
+  }
+
+  const attendance = snapshot.operational?.Attendance;
+  if (attendance && attendance.records > 0) {
+    alerts.push({ type: 'info', priority: 'low', title: 'Staff attendance activity', message: attendance.records + ' attendance record(s) are available.' });
+  }
+
+  const logistics = snapshot.operational?.Logistics;
+  if (logistics && logistics.shipments > 0) {
+    alerts.push({ type: 'info', priority: 'low', title: 'Logistics activity', message: logistics.shipments + ' shipment record(s) are being tracked.' });
   }
 
   return alerts.slice(0, 8);
