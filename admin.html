@@ -1190,18 +1190,59 @@
       if (!id) return;
       if (!confirm('Redeploy this client with the current BizOS package? Their existing workspace and launch URL will be preserved.')) return;
 
+      // Keep the existing card/button UI, but make the in-flight state visible
+      // and prevent duplicate clicks while the server-side redeploy is running.
+      var redeployButtons = Array.prototype.slice.call(
+        document.querySelectorAll('button[onclick*="redeployClient"]')
+      ).filter(function(button) {
+        return String(button.getAttribute('onclick') || '').indexOf(String(id)) >= 0;
+      });
+      var originalLabels = redeployButtons.map(function(button) { return button.innerHTML; });
+      redeployButtons.forEach(function(button) {
+        button.disabled = true;
+        button.style.opacity = '0.65';
+        button.style.cursor = 'wait';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Redeploying...';
+      });
+
       showNotification('Redeploying client...', 'info');
 
       google.script.run
         .withSuccessHandler(function(response) {
+          redeployButtons.forEach(function(button, index) {
+            button.disabled = false;
+            button.style.opacity = '';
+            button.style.cursor = 'pointer';
+            button.innerHTML = originalLabels[index] || '<i class="fas fa-cloud-upload-alt mr-1"></i> Relaunch / Redeploy';
+          });
+
           if (response && response.success) {
+            // The redeploy updates the Clients registry server-side. Refresh the
+            // same admin card immediately so the new Last deployment/status is
+            // visible without requiring a browser refresh.
             showNotification('Client redeployed successfully. Existing launch URL preserved.', 'success');
+            loadDeployments();
+            loadBusinesses();
+            loadOverview();
           } else {
             showNotification((response && response.message) || 'Client redeployment failed.', 'error');
+            // Reload the authoritative registry on failure too, because the
+            // server may have returned a partial/update warning.
+            loadDeployments();
+            loadBusinesses();
           }
         })
         .withFailureHandler(function(error) {
+          redeployButtons.forEach(function(button, index) {
+            button.disabled = false;
+            button.style.opacity = '';
+            button.style.cursor = 'pointer';
+            button.innerHTML = originalLabels[index] || '<i class="fas fa-cloud-upload-alt mr-1"></i> Relaunch / Redeploy';
+          });
+
           showNotification('Redeployment error: ' + ((error && error.message) || 'Unknown error'), 'error');
+          loadDeployments();
+          loadBusinesses();
         })
         .redeployClientByBusinessId(id, getAdminSession());
     }
