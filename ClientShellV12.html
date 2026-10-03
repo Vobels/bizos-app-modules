@@ -129,7 +129,7 @@
     dashboardCacheAt=Date.now();
     var stale=fromCache?'<span class="live-note">Showing recent data · refreshing…</span>':'<span class="live-note">Updated just now</span>';
     var appNames=(Array.isArray(d.moduleSummary)?d.moduleSummary:Object.keys(d.moduleCounts||{})).slice(0,8);
-    c.innerHTML='<div class="overview-topline"><div><p class="overview-welcome">Welcome back, '+esc((user&&user.name)||'there')+'</p><p class="overview-sub">Here is what is happening across '+esc((user&&user.businessName)||cfg().name||'your workspace')+'.</p></div>'+stale+'</div>'+
+    c.innerHTML='<div class="overview-topline"><div><p class="overview-welcome">Business overview · '+esc((user&&user.name)||'there')+'</p><p class="overview-sub">Key business activity and financial performance across '+esc((user&&user.businessName)||cfg().name||'your workspace')+'.</p></div>'+stale+'</div>'+
       '<div class="bizos-kpi-grid">'+
       card('Total Revenue',k.revenue,'revenue',false)+
       card('Total Expenses',k.expenses,'expense',true)+
@@ -146,10 +146,10 @@
           '</div>'+
           '<div class="quick-actions"><button onclick="selectView(\'finance\')"><i class="fas fa-plus"></i> Add transaction</button><button onclick="selectView(\'business\')"><i class="fas fa-store"></i> Manage store</button><button onclick="selectView(\'apps\')"><i class="fas fa-grip"></i> Explore apps</button><button class="primary-action" onclick="selectView(\'finance\')"><i class="fas fa-list"></i> View records</button></div>'+
         '</section>'+
-        '<section class="rich-panel workspace-panel"><div class="rich-panel-head"><div><span class="section-kicker">WORKSPACE</span><h3>Your business</h3></div></div><div class="workspace-detail"><div class="workspace-avatar">'+esc(((user&&user.businessName)||cfg().name||'B').charAt(0).toUpperCase())+'</div><div><strong>'+esc((user&&user.businessName)||cfg().name||'Business')+'</strong><span>'+esc((user&&user.email)||'')+'</span></div></div><div class="workspace-meta"><span>Plan</span><b>'+esc((user&&user.subscriptionTier)||'active')+'</b></div><div class="workspace-meta"><span>Modules</span><b>'+num(counts.modules||0)+' available</b></div></section>'+
+        '
       '</div>'+
       '<div class="overview-grid equal">'+
-        '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">RECENT ENTRIES</span><h3>Your latest activity</h3></div><button class="text-link" onclick="selectView(\'finance\')">View all →</button></div>'+recentEntries(d.recentTransactions)+'</section>'+
+        '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">RECENT ENTRIES</span><h3>Recent activity</h3></div><button class="text-link" onclick="selectView(\'finance\')">View all →</button></div>'+recentEntries(d.recentTransactions)+'</section>'+
         '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">FEATURED APPS</span><h3>Quick access</h3></div><button class="text-link" onclick="selectView(\'apps\')">View all apps →</button></div><div class="app-grid">'+appNames.map(function(n){var icons={Finance:"fa-calculator",Sales:"fa-chart-line",Ecommerce:"fa-cart-shopping",CRM:"fa-users",HR:"fa-briefcase",Logistics:"fa-truck",Tax:"fa-file-invoice",Agro:"fa-seedling",Productivity:"fa-clock",POS:"fa-cash-register",Attendance:"fa-fingerprint",Warehouse:"fa-warehouse"};var classes={Finance:"finance",Sales:"sales",Ecommerce:"ecommerce",CRM:"crm",HR:"hr",Logistics:"logistics",Tax:"tax",Agro:"agro",Productivity:"productivity",POS:"pos",Attendance:"attendance",Warehouse:"warehouse"};return '<button class="app-card" onclick="selectView(\'apps\')"><span class="app-icon bizos-app-icon '+(classes[n]||"")+'"><i class="fas '+(icons[n]||"fa-folder")+'"></i></span><span><b>'+esc(n)+'</b><small>Open workspace</small></span><i class="fas fa-arrow-right app-card-arrow"></i></button>';}).join('')+'</div></section>'+
       '</div>'+
       '<section class="rich-panel chart-panel"><div class="rich-panel-head"><div><span class="section-kicker">FINANCIAL OVERVIEW</span><h3>Revenue vs expenses</h3></div><span class="chart-note">Last 7 recorded days</span></div>'+trendChart(charts.revenueVsExpenses||{})+'</section>'+
