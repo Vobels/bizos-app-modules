@@ -396,6 +396,27 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         }
         break;
 
+      case 'BusinessCenterExpense':
+        if (parseFloat(recordData.Total) > 0 && recordData.Transaction_ID) {
+          financialEntries.push({
+            Transaction_ID: generateTransactionId(),
+            Date: recordData.Date || now.split('T')[0],
+            Type: 'expense',
+            Category: recordData.Category || 'business_center',
+            Subcategory: 'business_center_expense',
+            Module_Source: 'BusinessCenterExpense',
+            Module_Record_ID: recordData.Transaction_ID,
+            Description: recordData.Description || 'Business Center expense',
+            Amount: -Math.abs(parseFloat(recordData.Total)),
+            Payment_Method: recordData.Payment_Method || 'completed',
+            Reference: recordData.Transaction_ID,
+            Status: 'completed',
+            Created_By: user?.email || recordData.Created_By,
+            Created_At: now
+          });
+        }
+        break;
+
       case 'BusinessCenter':
         if (parseFloat(recordData.Total) > 0 && recordData.Sale_ID) {
           financialEntries.push({
