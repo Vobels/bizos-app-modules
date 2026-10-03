@@ -125,3 +125,45 @@ button:not(:disabled):hover{transform:translateY(-1px)}
 .client-notification-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--brand);color:#fff;font-size:10px;font-weight:800;line-height:1;vertical-align:middle}
 .client-notification-badge:empty{display:none}
 </style>
+
+<style>
+/* BizOS parity layer: Dashboard KPIs + Apps */
+.bizos-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:0 0 24px}
+.bizos-kpi-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.bizos-kpi-label{margin:0 0 8px;color:#6b7280;font-size:13px}
+.bizos-kpi-value-row{display:flex;align-items:baseline;gap:9px;min-width:0}
+.bizos-kpi-value-row strong{font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
+.bizos-kpi-trend{font-size:12px;font-weight:600;white-space:nowrap}
+.bizos-kpi-trend i{font-size:10px}
+.text-gray-900{color:#111827}.text-green-500{color:#22c55e}.text-green-600{color:#16a34a}.text-red-500{color:#ef4444}.text-red-600{color:#dc2626}.text-yellow-600{color:#ca8a04}
+.apps-v12{gap:20px}.apps-v12 .apps-toolbar{align-items:center}
+.apps-v12 .apps-toolbar h2{font-size:24px;color:#111827}
+.apps-v12 .apps-toolbar p{color:#6b7280}
+.apps-v12 .apps-refresh{color:#5D2A86;border-color:#d1d5db}
+.apps-v12 .apps-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.bizos-app-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03);cursor:pointer;transition:box-shadow .18s ease,transform .18s ease,opacity .18s ease}
+.bizos-app-card:hover{box-shadow:0 8px 20px rgba(17,24,39,.08);transform:translateY(-1px)}
+.bizos-app-card.locked{opacity:.6}
+.bizos-app-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bizos-app-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;transition:transform .18s ease}
+.bizos-app-card:hover .bizos-app-icon{transform:scale(1.06)}
+.bizos-app-arrow{color:#9ca3af;font-size:13px}.bizos-app-card:hover .bizos-app-arrow{color:#5D2A86}
+.bizos-app-name{margin:0;color:#1f2937;font-size:14px;font-weight:600}
+.bizos-app-help{margin:4px 0 0;color:#9ca3af;font-size:11px}
+.bizos-app-badge{display:inline-block;margin-top:5px;font-size:11px}
+.bizos-app-badge.view{color:#3b82f6}.bizos-app-badge.lock{color:#9ca3af}
+.bizos-app-icon.finance{background:linear-gradient(135deg,#a855f7,#6d28d9)}
+.bizos-app-icon.sales{background:linear-gradient(135deg,#3b82f6,#1d4ed8)}
+.bizos-app-icon.ecommerce{background:linear-gradient(135deg,#f97316,#c2410c)}
+.bizos-app-icon.crm{background:linear-gradient(135deg,#22c55e,#15803d)}
+.bizos-app-icon.hr{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+.bizos-app-icon.logistics{background:linear-gradient(135deg,#14b8a6,#0f766e)}
+.bizos-app-icon.tax{background:linear-gradient(135deg,#eab308,#a16207)}
+.bizos-app-icon.agro{background:linear-gradient(135deg,#10b981,#047857)}
+.bizos-app-icon.productivity{background:linear-gradient(135deg,#6366f1,#4338ca)}
+.bizos-app-icon.pos{background:linear-gradient(135deg,#ec4899,#be185d)}
+.bizos-app-icon.attendance{background:linear-gradient(135deg,#06b6d4,#0e7490)}
+.bizos-app-icon.warehouse{background:linear-gradient(135deg,#64748b,#334155)}
+@media(max-width:900px){.bizos-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.apps-v12 .apps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.bizos-kpi-grid{grid-template-columns:1fr 1fr;gap:10px}.bizos-kpi-card{padding:14px}.bizos-kpi-value-row strong{font-size:21px}.bizos-kpi-trend{font-size:10px}.apps-v12 .apps-grid{grid-template-columns:1fr}}
+</style>
