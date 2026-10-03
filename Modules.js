@@ -395,6 +395,27 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
           });
         }
         break;
+
+      case 'BusinessCenter':
+        if (parseFloat(recordData.Total) > 0 && recordData.Sale_ID) {
+          financialEntries.push({
+            Transaction_ID: generateTransactionId(),
+            Date: recordData.Date || now.split('T')[0],
+            Type: 'revenue',
+            Category: 'business_center',
+            Subcategory: 'point_of_sale',
+            Module_Source: 'BusinessCenter',
+            Module_Record_ID: recordData.Sale_ID,
+            Description: 'Business Center sale ' + recordData.Sale_ID,
+            Amount: parseFloat(recordData.Total),
+            Payment_Method: recordData.Payment_Method || 'pending',
+            Reference: recordData.Sale_ID,
+            Status: recordData.Status || 'completed',
+            Created_By: user?.email || recordData.Created_By,
+            Created_At: now
+          });
+        }
+        break;
         
       // HR records contain employee profile data, not payroll transactions.
       // Payroll should only be synced from an explicit payroll transaction source.
