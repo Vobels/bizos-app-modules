@@ -113,20 +113,17 @@ function createClientSheetInClientDrive(email, clientId, businessName, options) 
     const file = DriveApp.getFileById(sheetId);
     file.moveTo(folder);
 
-    // The spreadsheet is the client's live workspace. Keep BizOS as an
-    // explicit editor/recovery operator, but transfer ownership when Google
-    // Drive permits it. For consumer accounts where ownership transfer
-    // requires client consent, create a pending-owner request instead.
-    var ownership = transferClientWorkspaceOwnership_(file, email);
-
+    // Keep BizOS as the current owner while the workspace is being initialized.
+    // Ownership is transferred only after migration and the BizOS recovery
+    // snapshot succeed. This prevents a handoff from interrupting migration.
     return {
       success:true,
       sheetId:sheetId,
       sheetUrl:sheetUrl,
       folderId:folder.getId(),
-      ownershipStatus:ownership.status,
-      ownerEmail:ownership.ownerEmail || email,
-      ownershipMessage:ownership.message || ''
+      ownershipStatus:'bizos_owner_pending_handoff',
+      ownerEmail:'',
+      ownershipMessage:'Client ownership handoff is completed after migration and recovery backup.'
     };
   } catch (error) {
     console.error('Create sheet error:', error);
