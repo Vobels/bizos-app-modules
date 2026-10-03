@@ -19,7 +19,7 @@
     Ecommerce:{label:'E-commerce',description:'Orders, products and online sales records.',kpis:[['Orders','count'],['Sales','sum:Amount:sales'],['Pending','status:pending'],['Customers','unique:Customer']]},
     Sales:{label:'Sales',description:'Sales pipeline and deal records.',kpis:[['Deals','count'],['Pipeline value','sum:Amount'],['Won','status:won'],['Lost','status:lost']]},
     CRM:{label:'CRM',description:'Customers, leads and relationship records.',kpis:[['Customers','count'],['Leads','status:lead'],['Active','status:active'],['Follow-ups','status:follow-up']]},
-    HR:{label:'HR',description:'Employee and human resources records.',kpis:[['Employees','count'],['Active','status:active'],['On leave','status:on leave'],['Departments','unique:Department']]},
+    HR:{label:'HR',description:'Employee and human resources records.',kpis:[['Employees','count'],['Active','status:active'],['On leave','status:on leave'],['Departments','unique:Department'],['Total payroll','hr:payroll'],['Average salary','hr:averageSalary'],['Recent hires','hr:recentHires']]},
     Logistics:{label:'Logistics',description:'Shipments, delivery and logistics records.',kpis:[['Shipments','count'],['In transit','status:in transit'],['Delivered','status:delivered'],['Pending','status:pending']]},
     Tax:{label:'Tax',description:'Tax records, filings and compliance data.',kpis:[['Records','count'],['Taxable amount','sum:Amount'],['Tax due','sum:Tax_Due'],['Filed','status:filed']]},
     Agro:{label:'Agro',description:'Agriculture activities, production and costs.',kpis:[['Records','count'],['Production','sum:Quantity'],['Revenue','sum:Amount:revenue'],['Costs','sum:Amount:expense']]},
@@ -45,6 +45,17 @@
     if(p[0]==='status')return String(statusCount(state.records,p[1]));
     if(p[0]==='unique')return String(uniqueCount(state.records,findHeader([p[1]])));
     if(p[0]==='net'){var h=findHeader(['Amount']);return money(sumField(state.records,h,'revenue')-sumField(state.records,h,'expense'));}
+    if(p[0]==='hr'){
+      var salaryHeader=findHeader(['Salary']);
+      if(p[1]==='payroll')return money(state.records.reduce(function(t,r){return t+num(val(r,salaryHeader));},0));
+      if(p[1]==='averageSalary')return money(state.records.length&&salaryHeader?state.records.reduce(function(t,r){return t+num(val(r,salaryHeader));},0)/state.records.filter(function(r){return num(val(r,salaryHeader))>0;}).length:0);
+      if(p[1]==='recentHires'){
+        var hireHeader=findHeader(['Hire_Date']);
+        if(!hireHeader)return '0';
+        var cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
+        return String(state.records.filter(function(r){var d=new Date(val(r,hireHeader));return !isNaN(d.getTime())&&d>=cutoff;}).length);
+      }
+    }
     return '—';
   }
   function renderKpis(){var d=def();document.getElementById('client-module-kpis').innerHTML=d.kpis.map(function(k){return '<div class="client-module-kpi"><span>'+esc(k[0])+'</span><strong>'+esc(kpiValue(k[1]))+'</strong></div>';}).join('');}
