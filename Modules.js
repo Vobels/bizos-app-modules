@@ -454,6 +454,9 @@ function saveRecord(moduleName, data, sessionId) {
     if (!data.Tax_ID && moduleName === 'Tax') {
       data.Tax_ID = `TAX-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
+    if (!data.Record_ID && moduleName === 'Productivity') {
+      data.Record_ID = `TASK-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
+    }
     
     // Save record to module sheet
     const rowData = headers.map(header => data[header] || "");
