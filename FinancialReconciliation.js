@@ -456,6 +456,11 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
  * Uses the active client workspace and performs no Finance writes.
  */
 function runHistoricalReconciliationAudit() {
+  var workspace = SpreadsheetApp.getActiveSpreadsheet();
+  var financeSheet = workspace ? workspace.getSheetByName('Financial_Data') : null;
+  Logger.log('RECONCILIATION WORKSPACE: ' + (workspace ? workspace.getName() : 'NONE'));
+  Logger.log('RECONCILIATION WORKSPACE ID: ' + (workspace ? workspace.getId() : 'NONE'));
+  Logger.log('FINANCIAL_DATA HEADERS: ' + JSON.stringify(financeSheet ? financeSheet.getRange(1, 1, 1, financeSheet.getLastColumn()).getValues()[0] : []));
   var result = reconcileCurrentWorkspaceHistoricalFinancials(false);
   Logger.log(JSON.stringify(result, null, 2));
   return result;
