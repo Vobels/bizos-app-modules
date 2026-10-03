@@ -1,23 +1,105 @@
 <div id="settings-v12-root" class="settings-v12">
-  <div class="settings-toolbar"><div><span class="section-kicker">SETTINGS</span><h2>Workspace settings</h2><p>Manage your business setup and your personal workspace preferences.</p></div><button class="settings-save-top" onclick="window.settingsV12Save()">Save changes</button></div>
-  <div id="settings-v12-message"></div>
-  <div class="settings-grid">
-    <section class="settings-panel"><div class="settings-panel-head"><h3>Business profile</h3><p>Information used across your client workspace.</p></div><div class="settings-form-grid">
-      <label>Business name<input id="set-business-name" type="text"></label><label>Business type<input id="set-business-type" type="text"></label>
-      <label>Phone<input id="set-business-phone" type="tel"></label><label>Website<input id="set-business-website" type="url"></label>
-      <label>Address<input id="set-business-address" type="text"></label><label>City<input id="set-business-city" type="text"></label>
-      <label>Country<input id="set-business-country" type="text"></label><label>Currency<input id="set-business-currency" type="text" placeholder="NGN"></label>
-      <label class="wide">Business description<textarea id="set-business-description" rows="3"></textarea></label>
-    </div></section>
-    <section class="settings-panel"><div class="settings-panel-head"><h3>Branding</h3><p>Client-facing workspace identity.</p></div><div class="settings-form-grid">
-      <label>Display name<input id="set-display-name" type="text"></label><label>Primary colour<input id="set-primary-color" type="text" placeholder="#2E7D32"></label>
-      <label class="wide">Logo URL<input id="set-logo-url" type="url"></label>
-    </div><div class="settings-note">Subscription, deployment, client ID, licensing and workspace binding are controlled by BizOS administration and cannot be changed here.</div></section>
-    <section class="settings-panel" id="settings-migrated-data-panel"><div class="settings-panel-head"><h3>Imported data</h3><p>Records brought into this workspace during your upgrade. Archived records can be restored; permanent deletion cannot be undone.</p></div><div id="settings-migrated-data-message"></div><div id="settings-migrated-data-list"><div class="settings-note">Loading imported data…</div></div></section>
-    <section class="settings-panel"><div class="settings-panel-head"><h3>Security</h3><p>Change your workspace password without exposing it to the client registry.</p></div><div class="settings-form-grid">
-      <label>Current password<input id="set-current-password" type="password" autocomplete="current-password"></label><label>New password<input id="set-new-password" type="password" autocomplete="new-password"></label><label>Confirm new password<input id="set-confirm-password" type="password" autocomplete="new-password"></label>
-    </div><div class="settings-actions"><button class="settings-secondary" onclick="window.settingsV12ChangePassword()">Change password</button></div></section>
+  <div class="settings-toolbar">
+    <div>
+      <span class="section-kicker">SETTINGS</span>
+      <h2>Workspace settings</h2>
+      <p>Manage your business workspace, branding, security and imported data.</p>
+    </div>
   </div>
+  <div id="settings-v12-message"></div>
+
+  <div class="settings-tabs" role="tablist" aria-label="Workspace settings">
+    <button class="settings-tab active" type="button" data-settings-tab="business" onclick="window.settingsV12Tab('business')"><i class="fas fa-building"></i><span>Business Profile</span></button>
+    <button class="settings-tab" type="button" data-settings-tab="branding" onclick="window.settingsV12Tab('branding')"><i class="fas fa-palette"></i><span>Branding</span></button>
+    <button class="settings-tab" type="button" data-settings-tab="security" onclick="window.settingsV12Tab('security')"><i class="fas fa-shield-halved"></i><span>Security</span></button>
+    <button class="settings-tab" type="button" data-settings-tab="notifications" onclick="window.settingsV12Tab('notifications')"><i class="fas fa-bell"></i><span>Notifications</span></button>
+    <button class="settings-tab" type="button" data-settings-tab="data" onclick="window.settingsV12Tab('data')"><i class="fas fa-database"></i><span>Imported Data</span></button>
+  </div>
+
+  <section class="settings-view active" data-settings-view="business">
+    <div class="settings-section-head">
+      <div><h3>Business profile</h3><p>Keep the business information used throughout your workspace up to date.</p></div>
+      <button class="settings-save-top" type="button" onclick="window.settingsV12Save()"><i class="fas fa-check"></i> Save changes</button>
+    </div>
+    <div class="settings-panel">
+      <div class="settings-form-grid">
+        <label>Business name<input id="set-business-name" type="text" autocomplete="organization"></label>
+        <label>Business type<input id="set-business-type" type="text"></label>
+        <label>Phone<input id="set-business-phone" type="tel" autocomplete="tel"></label>
+        <label>Website<input id="set-business-website" type="url" placeholder="https://"></label>
+        <label>Address<input id="set-business-address" type="text"></label>
+        <label>City<input id="set-business-city" type="text"></label>
+        <label>Country<input id="set-business-country" type="text"></label>
+        <label>Currency<input id="set-business-currency" type="text" maxlength="3" placeholder="NGN"></label>
+        <label class="wide">Business description<textarea id="set-business-description" rows="4" placeholder="A short description of your business"></textarea></label>
+      </div>
+      <div class="settings-bottom-action"><span>Changes are saved to this client workspace.</span><button class="settings-save-top" type="button" onclick="window.settingsV12Save()">Save changes</button></div>
+    </div>
+  </section>
+
+  <section class="settings-view" data-settings-view="branding">
+    <div class="settings-section-head">
+      <div><h3>Branding</h3><p>Make BizOS feel like your business while keeping the familiar BizOS experience.</p></div>
+      <button class="settings-save-top" type="button" onclick="window.settingsV12Save()"><i class="fas fa-check"></i> Save branding</button>
+    </div>
+    <div class="branding-layout">
+      <div class="settings-panel">
+        <div class="settings-panel-head"><h4>Brand theme</h4><p>Choose a ready-made theme. No colour codes required.</p></div>
+        <div class="branding-presets" id="branding-presets">
+          <button type="button" class="branding-preset" data-color="#5D2A86" onclick="window.settingsV12ChooseBrand('#5D2A86')"><span class="branding-swatch" style="--swatch:#5D2A86"></span><span><strong>BizOS Purple</strong><small>Original BizOS</small></span></button>
+          <button type="button" class="branding-preset" data-color="#2E7D32" onclick="window.settingsV12ChooseBrand('#2E7D32')"><span class="branding-swatch" style="--swatch:#2E7D32"></span><span><strong>Business Green</strong><small>Fresh and professional</small></span></button>
+          <button type="button" class="branding-preset" data-color="#1565C0" onclick="window.settingsV12ChooseBrand('#1565C0')"><span class="branding-swatch" style="--swatch:#1565C0"></span><span><strong>Ocean Blue</strong><small>Professional and clear</small></span></button>
+          <button type="button" class="branding-preset" data-color="#3949AB" onclick="window.settingsV12ChooseBrand('#3949AB')"><span class="branding-swatch" style="--swatch:#3949AB"></span><span><strong>Royal Blue</strong><small>Modern and confident</small></span></button>
+          <button type="button" class="branding-preset" data-color="#00796B" onclick="window.settingsV12ChooseBrand('#00796B')"><span class="branding-swatch" style="--swatch:#00796B"></span><span><strong>Teal</strong><small>Clean and calm</small></span></button>
+          <button type="button" class="branding-preset" data-color="#EF6C00" onclick="window.settingsV12ChooseBrand('#EF6C00')"><span class="branding-swatch" style="--swatch:#EF6C00"></span><span><strong>Warm Orange</strong><small>Bold and energetic</small></span></button>
+          <button type="button" class="branding-preset" data-color="#8E2430" onclick="window.settingsV12ChooseBrand('#8E2430')"><span class="branding-swatch" style="--swatch:#8E2430"></span><span><strong>Burgundy</strong><small>Rich and distinctive</small></span></button>
+        </div>
+        <div class="custom-brand-row">
+          <div><strong>Custom colour</strong><small>Use your own brand colour if you have one.</small></div>
+          <input id="set-primary-color-picker" type="color" value="#2E7D32" aria-label="Custom brand colour" onchange="window.settingsV12ChooseBrand(this.value)">
+        </div>
+        <input id="set-primary-color" type="hidden" value="#2E7D32">
+        <div class="settings-note">Your selected colour is used as the workspace brand accent. BizOS keeps the layout, typography and module design consistent.</div>
+      </div>
+      <div class="branding-preview" id="branding-preview">
+        <div class="branding-preview-top"><span class="branding-preview-logo" id="branding-preview-logo"><i class="fas fa-building"></i></span><div><strong id="branding-preview-name">Your business</strong><small>BizOS workspace</small></div></div>
+        <div class="branding-preview-card"><span>Brand preview</span><strong id="branding-preview-title">Your workspace</strong><div class="branding-preview-buttons"><button type="button" id="branding-preview-primary">Primary action</button><span id="branding-preview-badge">Active</span></div></div>
+        <div class="branding-preview-note"><i class="fas fa-circle-info"></i> Preview only — click <strong>Save branding</strong> to keep your changes.</div>
+      </div>
+    </div>
+    <div class="settings-panel branding-details">
+      <div class="settings-panel-head"><h4>Display identity</h4><p>Control the name and logo shown in the client workspace.</p></div>
+      <div class="settings-form-grid">
+        <label>Display name<input id="set-display-name" type="text" placeholder="Business display name"></label>
+        <label>Logo URL<input id="set-logo-url" type="url" placeholder="https://"></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="settings-view" data-settings-view="security">
+    <div class="settings-section-head"><div><h3>Security</h3><p>Change your workspace password. Your password is handled by the existing secure account flow.</p></div></div>
+    <div class="settings-panel settings-security-panel">
+      <div class="settings-security-icon"><i class="fas fa-lock"></i></div>
+      <div class="settings-form-grid">
+        <label>Current password<input id="set-current-password" type="password" autocomplete="current-password"></label>
+        <label>New password<input id="set-new-password" type="password" autocomplete="new-password"></label>
+        <label>Confirm new password<input id="set-confirm-password" type="password" autocomplete="new-password"></label>
+      </div>
+      <div class="settings-bottom-action"><span>Use at least 10 characters.</span><button class="settings-secondary" type="button" onclick="window.settingsV12ChangePassword()">Change password</button></div>
+    </div>
+  </section>
+
+  <section class="settings-view" data-settings-view="notifications">
+    <div class="settings-section-head"><div><h3>Notifications</h3><p>Notifications are managed from the BizOS notification center.</p></div></div>
+    <div class="settings-panel settings-placeholder-panel"><div class="settings-placeholder-icon"><i class="fas fa-bell"></i></div><h4>Notification preferences</h4><p>Open the Notifications area from the Settings menu to review and manage your workspace notifications.</p><button class="settings-secondary" type="button" onclick="window.selectView&&window.selectView('notifications')">Open Notifications</button></div>
+  </section>
+
+  <section class="settings-view" data-settings-view="data">
+    <div class="settings-section-head"><div><h3>Imported data</h3><p>Records brought into this workspace during your upgrade. Archived records can be restored; permanent deletion cannot be undone.</p></div><button class="settings-secondary" type="button" onclick="window.settingsV12LoadMigrated()">Refresh</button></div>
+    <div class="settings-panel"><div id="settings-migrated-data-message"></div><div id="settings-migrated-data-list"><div class="settings-note">Loading imported data…</div></div></div>
+  </section>
+
+  <div class="settings-footer-note">Subscription, deployment, client ID, licensing and workspace binding are controlled by BizOS administration and cannot be changed here.</div>
 </div>
 <script>
 (function(){
