@@ -110,6 +110,30 @@
   function collect(){
     return {Business_Name:document.getElementById('set-business-name').value.trim(),Business_Type:document.getElementById('set-business-type').value.trim(),Phone:document.getElementById('set-business-phone').value.trim(),Website:document.getElementById('set-business-website').value.trim(),Address:document.getElementById('set-business-address').value.trim(),City:document.getElementById('set-business-city').value.trim(),Country:document.getElementById('set-business-country').value.trim(),Currency:document.getElementById('set-business-currency').value.trim().toUpperCase(),Business_Description:document.getElementById('set-business-description').value.trim(),Display_Name:document.getElementById('set-display-name').value.trim(),Primary_Color:document.getElementById('set-primary-color').value.trim(),Logo_Url:document.getElementById('set-logo-url').value.trim()};
   }
+  window.settingsV12ChooseBrand=function(color){
+    color=String(color||'').trim();
+    if(!/^#[0-9A-Fa-f]{6}$/.test(color))return;
+    val('set-primary-color',color);
+    var picker=document.getElementById('set-primary-color-picker');
+    if(picker)picker.value=color;
+    document.querySelectorAll('.branding-preset').forEach(function(b){
+      b.classList.toggle('selected',String(b.getAttribute('data-color')||'').toUpperCase()===color.toUpperCase());
+    });
+    var preview=document.getElementById('branding-preview');
+    if(preview){
+      preview.style.setProperty('--preview-brand',color);
+      preview.style.setProperty('--preview-brand-soft','color-mix(in srgb,'+color+' 10%,white)');
+    }
+    var primary=document.getElementById('branding-preview-primary');
+    if(primary)primary.style.background=color;
+    var logo=document.getElementById('branding-preview-logo');
+    if(logo)logo.style.background=color;
+    var badge=document.getElementById('branding-preview-badge');
+    if(badge){
+      badge.style.color=color;
+      badge.style.background=color+'18';
+    }
+  };
   function fill(r){
     var s=r.settings||{}; val('set-business-name',s.Business_Name);val('set-business-type',s.Business_Type);val('set-business-phone',s.Phone);val('set-business-website',s.Website);val('set-business-address',s.Address);val('set-business-city',s.City);val('set-business-country',s.Country);val('set-business-currency',s.Currency||'NGN');val('set-business-description',s.Business_Description);val('set-display-name',s.Display_Name||s.Business_Name);val('set-primary-color',s.Primary_Color||'#2E7D32');val('set-logo-url',s.Logo_Url);window.settingsV12ChooseBrand(s.Primary_Color||'#2E7D32');var pn=document.getElementById('branding-preview-name');if(pn)pn.textContent=s.Display_Name||s.Business_Name||'Your business';var pt=document.getElementById('branding-preview-title');if(pt)pt.textContent=s.Display_Name||s.Business_Name||'Your workspace';
     var u=r.user||window.clientUser||{};
