@@ -143,8 +143,20 @@ function generateClientCodeSafelyV12(settings) {
     'function doGet(e){var t=HtmlService.createTemplateFromFile("ClientShellV12");return t.evaluate().setTitle(CLIENT_CONFIG.clientName+" - BizOS").addMetaTag("viewport","width=device-width,initial-scale=1").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}\n' +
     runtime.slice(includeStart);
 
+  var modulesSource = String(getMasterSourceForV12_('Modules') || '');
+  var recordsSource = String(getMasterSourceForV12_('Records') || '');
+  var businessCenterServerSource = String(getMasterSourceForV12_('BusinessHubGS') || '');
+  if(!modulesSource) throw new Error('Modules source is missing.');
+  if(!recordsSource) throw new Error('Records source is missing.');
+  if(!businessCenterServerSource) throw new Error('BusinessHubGS source is missing.');
+  // Proven BizOS server dependencies used by the real Business Center and module workspaces.
+  modulesSource = modulesSource.replace(/function\\s+getModuleSummary\\s*\\(/g,'function getModuleSummaryLegacy_(');
+
   var files = [
     {name:'Code',type:'SERVER_JS',source:runtime},
+    {name:'Modules',type:'SERVER_JS',source:modulesSource},
+    {name:'Records',type:'SERVER_JS',source:recordsSource},
+    {name:'BusinessHubGS',type:'SERVER_JS',source:businessCenterServerSource},
     {name:'ClientShellV12',type:'HTML',source:buildClientShellV12_(config)},
     {name:'ClientBusinessCenterV12',type:'HTML',source:buildClientBusinessCenterV12_()},
     {name:'ClientFinanceV12',type:'HTML',source:buildClientFinanceV12_()},
@@ -446,7 +458,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
 
   if(!pkg||!Array.isArray(pkg.files)||!pkg.files.length)return{success:false,code:'PACKAGE_EMPTY',message:'Generated V12 client package is empty.'};
   var names=pkg.files.map(function(f){return String(f.name||'');});
-  var required=['Code','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientModuleV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientStylesV12','appsscript'];
+  var required=['Code','Modules','Records','BusinessHubGS','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientModuleV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientStylesV12','appsscript'];
   var missing=required.filter(function(n){return names.indexOf(n)<0;});
   if(missing.length)return{success:false,code:'V12_PACKAGE_MISSING_FILES',message:'V12 package is missing: '+missing.join(', ')};
   var shell=pkg.files.filter(function(f){return f.name==='ClientShellV12';})[0].source||'';
@@ -461,6 +473,9 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var styles=pkg.files.filter(function(f){return f.name==='ClientStylesV12';})[0].source||'';
   var notifications=pkg.files.filter(function(f){return f.name==='ClientNotificationsV12';})[0].source||'';
   var code=pkg.files.filter(function(f){return f.name==='Code';})[0].source||'';
+  var modulesServer=pkg.files.filter(function(f){return f.name==='Modules';})[0].source||'';
+  var recordsServer=pkg.files.filter(function(f){return f.name==='Records';})[0].source||'';
+  var businessCenterServer=pkg.files.filter(function(f){return f.name==='BusinessHubGS';})[0].source||'';
   var manifestSource=pkg.files.filter(function(f){return f.name==='appsscript';})[0].source||'';
   var forbiddenUi=['id="landing-page"','id="dashboard-page"','id="admin-dashboard"','Admin Login','Client Registry','Deployment Status'];
   var leakedUi=forbiddenUi.filter(function(token){return shell.indexOf(token)>=0;});
@@ -473,6 +488,11 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   if(missingRuntime.length)return{success:false,code:'V12_RUNTIME_DEPENDENCY_MISSING',message:'V12 client runtime is missing required functions: '+missingRuntime.join(', ')};var securityRuntime=['function clientAssignedModulesV11_','CLIENT_LICENSE_INVALID','function removeTeamMemberLegacy_(bid,email,sid)','function getBusinessStaff(bid,sid)','function inviteStaffMember(bid,email,name,role,invitedBy,assignedModules,sid)','function resendStaffInvitation(bid,email,sid)','function assignModuleToStaff(email,bid,moduleName,assignedBy,sid)','function removeModuleFromStaff(email,bid,moduleName,sid)','String(u.businessId)!==String(bid)','function updateUserProfile(bid,name,phone,sid)','function changeUserPassword(email,currentPassword,newPassword,sid)','function createClientSessionV11_','function getOrCreateUserSheet_','function getOrCreateBusinessSheet_'];var missingSecurity=securityRuntime.filter(function(token){return code.indexOf(token)<0;});if(missingSecurity.length)return{success:false,code:'V12_SECURITY_DEPENDENCY_MISSING',message:'V12 client runtime is missing hardened security markers: '+missingSecurity.join(', ')};if(code.indexOf('function createSession(')>=0)return{success:false,code:'V12_PUBLIC_SESSION_FACTORY_LEAK',message:'V12 client runtime still exposes the public session factory.'};var forbiddenPublic=['function getOrCreateUserSheet(','function getOrCreateBusinessSheet('];var leakedPublic=forbiddenPublic.filter(function(token){return code.indexOf(token)>=0;});if(leakedPublic.length)return{success:false,code:'V12_INTERNAL_HELPER_EXPOSED',message:'V12 client runtime still exposes internal helper functions: '+leakedPublic.join(', ')};var requiredEntitlement=['function clientModulesForEntitlementV12_','function clientLicenseTierV12_','accessibleModules:clientModulesForEntitlementV12_'];var missingEntitlement=requiredEntitlement.filter(function(token){return code.indexOf(token)<0;});if(missingEntitlement.length)return{success:false,code:'V12_ENTITLEMENT_BRIDGE_MISSING',message:'V12 entitlement enforcement is incomplete: '+missingEntitlement.join(', ')};
   var requiredShell=['ClientStylesV12','ClientStaffV12','ClientAppsV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientBusinessCenterV12','authenticateClient','validateSession','getUserFromSession','clientLogout','getClientDashboardData','bizos-kpi-grid','trendChart','breakdownChart','healthView'];
   var requiredModule=['client-module-v12-root','clientModuleV12Open','getClientModuleDataWithSync','saveClientRecord','updateClientRecord','deleteClientRecord'];
+  var requiredServerDeps=['function getModuleData(','function getModuleDataWithSync('];
+  var missingServerDeps=requiredServerDeps.filter(function(token){return modulesServer.indexOf(token)<0;});
+  if(missingServerDeps.length)return{success:false,code:'V12_MODULE_SERVER_DEPENDENCY_MISSING',message:'V12 module server dependency is missing: '+missingServerDeps.join(', ')};
+  if(recordsServer.indexOf('function getRecordsDirectory(')<0||recordsServer.indexOf('function getRecordRows(')<0)return{success:false,code:'V12_RECORDS_SERVER_DEPENDENCY_MISSING',message:'V12 Records server dependency is incomplete.'};
+  if(businessCenterServer.indexOf('function getBusinessCenterData(')<0||businessCenterServer.indexOf('function completeBusinessCenterSale(')<0)return{success:false,code:'V12_BUSINESS_CENTER_SERVER_DEPENDENCY_MISSING',message:'V12 Business Center server dependency is incomplete.'};
   var missingModule=requiredModule.filter(function(token){return moduleWorkspace.indexOf(token)<0;});
   if(missingModule.length)return{success:false,code:'V12_MODULE_DEPENDENCY_MISSING',message:'V12 Module workspace is missing required markers: '+missingModule.join(', ')};
   var requiredStaff=['staff-v12-root','getBusinessStaff','inviteStaffMember','resendStaffInvitation','removeTeamMember','assignModuleToStaff','getAvailableModulesForStaff'];
