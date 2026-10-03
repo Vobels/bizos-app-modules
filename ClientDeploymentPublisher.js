@@ -52,7 +52,7 @@ function createAndDeployClientScriptSafe(email, clientId, code, businessName, pr
     var versionResponse=UrlFetchApp.fetch(versionUrl,{
       method:'POST',
       headers:{'Authorization':'Bearer '+ScriptApp.getOAuthToken(),'Content-Type':'application/json'},
-      payload:JSON.stringify({description:'BizOS client deployment '+clientId}),
+      payload:JSON.stringify({description:'BizOS client '+clientId+' - V12 '+CLIENT_V12_PACKAGE_VERSION_}),
       muteHttpExceptions:true
     });
     if(versionResponse.getResponseCode()!==200){
@@ -68,7 +68,7 @@ function createAndDeployClientScriptSafe(email, clientId, code, businessName, pr
     var deployResponse=UrlFetchApp.fetch(deployUrl,{
       method:'POST',
       headers:{'Authorization':'Bearer '+ScriptApp.getOAuthToken(),'Content-Type':'application/json'},
-      payload:JSON.stringify({versionNumber:versionNumber,manifestFileName:'appsscript',description:'BizOS client web app - '+businessName}),
+      payload:JSON.stringify({versionNumber:versionNumber,manifestFileName:'appsscript',description:'BizOS client web app - '+businessName+' - V12 '+CLIENT_V12_PACKAGE_VERSION_}),
       muteHttpExceptions:true
     });
     if(deployResponse.getResponseCode()!==200){
