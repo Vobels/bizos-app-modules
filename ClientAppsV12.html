@@ -1,19 +1,31 @@
 <div id="apps-v12-root" class="apps-v12">
-  <div class="apps-toolbar"><div><span class="section-kicker">APPLICATIONS</span><h2>Apps</h2><p>Use the business tools available in your workspace.</p></div><button class="apps-refresh" onclick="window.appsV12Init(true)">Refresh</button></div>
-  <div id="apps-v12-message"></div><div id="apps-v12-grid" class="apps-grid"><div class="apps-loading">Loading your available apps…</div></div>
+  <div class="apps-toolbar">
+    <div><span class="section-kicker">APPLICATIONS</span><h2>Apps</h2><p>Browse and access the business tools available in your workspace.</p></div>
+    <button class="apps-refresh" onclick="window.appsV12Init(true)">Refresh</button>
+  </div>
+  <div id="apps-v12-message"></div>
+  <div id="apps-v12-grid" class="apps-grid"><div class="apps-loading">Loading your available apps…</div></div>
 </div>
 <script>
 (function(){
   var loaded=false;
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   var routes={Finance:'finance',Ecommerce:'business',POS:'business',Warehouse:'business',Sales:'overview',CRM:'overview',HR:'staff',Attendance:'staff',Logistics:'overview',Tax:'overview',Agro:'overview',Productivity:'overview'};
+  var icons={Finance:'fa-calculator',Sales:'fa-chart-line',Ecommerce:'fa-cart-shopping',CRM:'fa-users',HR:'fa-briefcase',Logistics:'fa-truck',Tax:'fa-file-invoice',Agro:'fa-seedling',Productivity:'fa-clock',POS:'fa-cash-register',Attendance:'fa-fingerprint',Warehouse:'fa-warehouse'};
+  var iconClasses={Finance:'finance',Sales:'sales',Ecommerce:'ecommerce',CRM:'crm',HR:'hr',Logistics:'logistics',Tax:'tax',Agro:'agro',Productivity:'productivity',POS:'pos',Attendance:'attendance',Warehouse:'warehouse'};
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function render(summary){
     var grid=document.getElementById('apps-v12-grid'); if(!grid)return;
-    var names=Object.keys(summary||{}), accessible=names.filter(function(n){return summary[n]&&summary[n].isAccessible;});
-    if(!accessible.length){grid.innerHTML='<div class="apps-empty"><h3>No apps assigned</h3><p>Your account does not currently have any application modules assigned.</p></div>';return;}
-    grid.innerHTML=names.map(function(n){
+    var names=['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+    var hasAccessible=names.some(function(n){return summary[n]&&summary[n].isAccessible;});
+    if(!hasAccessible){grid.innerHTML='<div class="apps-empty"><h3>No apps assigned</h3><p>Your account does not currently have any application modules assigned.</p></div>';return;}
+    grid.innerHTML=names.filter(function(n){return !!summary[n];}).map(function(n){
       var m=summary[n]||{}, ok=!!m.isAccessible, route=routes[n]||'overview';
-      return '<article class="app-module-card '+(ok?'':'disabled')+'"><div class="app-module-top"><span class="app-module-icon">'+esc(String((m.label||n).charAt(0)).toUpperCase())+'</span><span class="app-access '+(ok?'available':'locked')+'">'+(ok?'Available':'Unavailable')+'</span></div><h3>'+esc(n)+'</h3><p>'+esc(m.label||'Business application')+'</p><div class="app-module-meta"><span>'+Number(m.count||0).toLocaleString()+' records</span>'+(m.isReadOnly?'<span>View only</span>':'')+'</div>'+(ok?'<button class="app-open" onclick="selectView(\''+route+'\')">Open</button>':'<span class="app-unavailable">Not assigned to this account</span>')+'</article>';
+      var badge=!ok?'<span class="bizos-app-badge lock"><i class="fas fa-lock"></i> Not assigned to this account</span>':(m.isReadOnly?'<span class="bizos-app-badge view">(View Only)</span>':'');
+      var action=ok?' onclick="selectView(\''+route+'\')"':'';
+      return '<article class="bizos-app-card '+(ok?'':'locked')+'"'+action+'>'+
+        '<div class="bizos-app-card-top"><div class="bizos-app-icon '+(iconClasses[n]||'')+'"><i class="fas '+(icons[n]||'fa-folder')+'"></i></div><i class="fas fa-arrow-right bizos-app-arrow"></i></div>'+
+        '<h3 class="bizos-app-name">'+esc(m.label||n)+'</h3><p class="bizos-app-help">'+(ok?'Click to open':'Upgrade or request access to use this app')+'</p>'+badge+
+        '</article>';
     }).join('');
   }
   window.appsV12Init=function(force){
@@ -23,7 +35,9 @@
     google.script.run.withSuccessHandler(function(r){
       if(!r||r.success===false){grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(r&&r.message||'Could not load your applications.')+'</p></div>';return;}
       render(r.summary||r);loaded=true;
-    }).withFailureHandler(function(e){grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(e&&e.message||'Could not load your applications.')+'</p></div>';}).getClientAppsData(window.clientSessionId);
+    }).withFailureHandler(function(e){
+      grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(e&&e.message||'Could not load your applications.')+'</p></div>';
+    }).getClientAppsData(window.clientSessionId);
   };
 })();
 </script>
