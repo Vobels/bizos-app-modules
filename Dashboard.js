@@ -570,13 +570,14 @@ function calculateBusinessHealth(workspace, financialMetrics, businessSnapshot) 
   const snapshot = businessSnapshot || {};
   const moduleActivity = Number(snapshot.activeRecords) || 0;
   const activeModules = Number(snapshot.activeModules) || 0;
+  const modulesWithData = Number(snapshot.modulesWithData) || 0;
 
   const expenseScore = revenue > 0
     ? Math.max(0, Math.min(100, (1 - (expenses / revenue)) * 100))
     : (expenses === 0 ? 100 : 0);
   const marginScore = Math.max(0, Math.min(100, margin * 5));
   const activityScore = activeModules > 0
-    ? Math.min(100, (activeModules / 12) * 100)
+    ? Math.min(100, (modulesWithData / activeModules) * 100)
     : (moduleActivity > 0 ? 50 : 0);
 
   const overall = Math.round((Math.max(0, expenseScore) + marginScore + activityScore) / 3);
@@ -584,7 +585,7 @@ function calculateBusinessHealth(workspace, financialMetrics, businessSnapshot) 
     { name: 'Revenue', current: formatDashboardHealthValue_(revenue), score: revenue > 0 ? 100 : 0, target: 'Positive revenue' },
     { name: 'Expense control', current: revenue > 0 ? ((expenses / revenue) * 100).toFixed(1) + '% of revenue' : 'No revenue', score: Math.round(expenseScore), target: 'Lower expense ratio' },
     { name: 'Profit margin', current: margin.toFixed(1) + '%', score: Math.round(marginScore), target: '20%+' },
-    { name: 'Business activity', current: moduleActivity.toLocaleString() + ' records across ' + activeModules + ' modules', score: Math.round(activityScore), target: 'Use the modules relevant to your business' }
+    { name: 'Business activity', current: moduleActivity.toLocaleString() + ' records across ' + modulesWithData + ' active modules', score: Math.round(activityScore), target: 'Use the modules relevant to your business' }
   ];
 
   const recommendations = [];
@@ -630,6 +631,7 @@ function getDashboardBusinessSnapshot(workspace, moduleSummary) {
 
   const snapshot = {
     activeModules: 0,
+    modulesWithData: 0,
     activeRecords: 0,
     commerceRecords: 0,
     teamMembers: 0,
@@ -641,7 +643,8 @@ function getDashboardBusinessSnapshot(workspace, moduleSummary) {
     try {
       const sheet = workspace.getSheetByName(modules[moduleName]);
       const count = sheet && sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0;
-      if (count > 0) snapshot.activeModules++;
+      snapshot.activeModules++;
+      if (count > 0) snapshot.modulesWithData++;
       snapshot.activeRecords += count;
       if (moduleName === 'Ecommerce' || moduleName === 'POS') snapshot.commerceRecords += count;
 
