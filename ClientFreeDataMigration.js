@@ -80,7 +80,7 @@ function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
   var targetIdHeaderMap = {
     Finance:'Transaction_ID', Ecommerce:'Order_ID', Sales:'Deal_ID', CRM:'Contact_ID',
     HR:'Employee_ID', Logistics:'Shipment_ID', Tax:'Tax_ID', Agro:'Activity_ID',
-    Productivity:'Record_ID', POS:'Sale_ID', Attendance:'Attendance_ID', Warehouse:'Item_ID'
+    Productivity:'Record_ID', POS:'Transaction_ID', Attendance:'Attendance_ID', Warehouse:'Item_ID'
   };
   var targetIdHeader = targetIdHeaderMap[moduleName] || '';
   var targetIdCol = targetHeaders.indexOf(targetIdHeader);
