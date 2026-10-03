@@ -79,7 +79,7 @@ function migrateFreeModuleSheet_(source, target, moduleName, businessId) {
   var targetHeaders = targetSheet.getRange(1,1,1,targetSheet.getLastColumn()).getValues()[0].map(function(h){return String(h||'').trim();});
   var targetIdHeaderMap = {
     Finance:'Transaction_ID', Ecommerce:'Order_ID', Sales:'Deal_ID', CRM:'Contact_ID',
-    HR:'Employee_ID', Logistics:'Shipment_ID', Tax:'Tax_ID', Agro:'Activity_ID',
+    HR:'Employee_ID', Logistics:'Shipment_ID', Tax:'Tax_ID', Agro:'Record_ID',
     Productivity:'Record_ID', POS:'Transaction_ID', Attendance:'Record_ID', Warehouse:'Item_ID'
   };
   var targetIdHeader = targetIdHeaderMap[moduleName] || '';
@@ -181,8 +181,7 @@ function generateDeterministicMigrationId_(sourceWorkspaceId, moduleName, source
 
   var prefixMap = {
     Transaction_ID:'TXN', Order_ID:'ORD', Deal_ID:'DEAL', Contact_ID:'CRM', Employee_ID:'EMP',
-    Shipment_ID:'SHIP', Tax_ID:'TAX', Activity_ID:'ACT', Task_ID:'TASK', Sale_ID:'SALE',
-    Attendance_ID:'ATT', Item_ID:'ITEM'
+    Shipment_ID:'SHIP', Tax_ID:'TAX', Record_ID:'REC', Item_ID:'ITEM'
   };
   return (prefixMap[idHeader] || 'REC') + '-MIGRATED-' + hex;
 }
