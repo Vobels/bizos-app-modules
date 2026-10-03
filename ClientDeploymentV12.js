@@ -457,7 +457,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
 
   if(!pkg||!Array.isArray(pkg.files)||!pkg.files.length)return{success:false,code:'PACKAGE_EMPTY',message:'Generated V12 client package is empty.'};
   var names=pkg.files.map(function(f){return String(f.name||'');});
-  var required=['Code','Modules','Records','BusinessHubGS','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientModuleV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientStylesV12','appsscript'];
+  var required=['Code','Modules','Records','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientModuleV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientStylesV12','appsscript'];
   var missing=required.filter(function(n){return names.indexOf(n)<0;});
   if(missing.length)return{success:false,code:'V12_PACKAGE_MISSING_FILES',message:'V12 package is missing: '+missing.join(', ')};
   var shell=pkg.files.filter(function(f){return f.name==='ClientShellV12';})[0].source||'';
@@ -474,6 +474,8 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var code=pkg.files.filter(function(f){return f.name==='Code';})[0].source||'';
   var modulesServer=pkg.files.filter(function(f){return f.name==='Modules';})[0].source||'';
   var recordsServer=pkg.files.filter(function(f){return f.name==='Records';})[0].source||'';
+  var businessCenterEmbedded=code.indexOf('function getBusinessCenterConnectedData(')>=0 || code.indexOf('BUSINESS_CENTER_PRODUCT_HEADERS')>=0;
+  if(!businessCenterEmbedded)return{success:false,code:'V12_BUSINESS_CENTER_BACKEND_MISSING',message:'V12 package is missing the embedded BusinessHubGS backend in Code.'};
   var businessCenterServer=pkg.files.filter(function(f){return f.name==='BusinessHubGS';})[0].source||'';
   var manifestSource=pkg.files.filter(function(f){return f.name==='appsscript';})[0].source||'';
   var forbiddenUi=['id="landing-page"','id="dashboard-page"','id="admin-dashboard"','Admin Login','Client Registry','Deployment Status'];
