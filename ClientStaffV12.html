@@ -37,7 +37,7 @@
     var root=document.getElementById('staff-v12-list'); if(!root)return;
     root.innerHTML='<div class="staff-loading">Loading team members…</div>';
     callStaff('getBusinessStaff',[window.clientBusinessId||'',window.clientSessionId||''],function(r){
-      var rows=Array.isArray(r)?r:(r&&r.success===false?[]:[]);
+      var rows=Array.isArray(r)?r:(r&&Array.isArray(r.members)?r.members:[]);
       document.getElementById('staff-v12-count').textContent=rows.length+' member'+(rows.length===1?'':'s');
       document.getElementById('staff-v12-summary').innerHTML='<div><b>'+rows.length+'</b><span>Total members</span></div><div><b>'+rows.filter(function(x){return String(x.invitationStatus||'').toLowerCase()==='accepted';}).length+'</b><span>Active</span></div><div><b>'+rows.filter(function(x){return String(x.invitationStatus||'').toLowerCase()==='pending';}).length+'</b><span>Pending</span></div>';
       if(!rows.length){root.innerHTML='<div class="staff-empty"><h4>No staff members yet</h4><p>Invite your first team member to give them controlled access to this workspace.</p><button class="staff-primary" onclick="staffV12OpenInvite()">Invite staff</button></div>';return;}
