@@ -148,5 +148,111 @@ function autoSetupClientSafe(paymentData, skipLock) {
     return {success:false,code:'PROVISIONING_FAILED',message:error&&error.message?error.message:'Client provisioning failed.',clientId:clientId||null,cleanedUp:!committed};
   } finally { if(lock){try{lock.releaseLock();}catch(ignore){}} }
 }
+
+/**
+ * Repairs an already-provisioned paid client without creating a new workspace
+ * or deployment. This is intentionally editor/admin-side only and reuses the
+ * same idempotent free -> paid migration used during provisioning.
+ *
+ * Use this after a provisioning run that completed before the workspaceId
+ * lookup/migration fixes were present.
+ */
+function repairExistingPaidClientData(email) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    return {success:false,code:'REPAIR_BUSY',message:'Another BizOS provisioning/repair operation is already running.'};
+  }
+
+  try {
+    var wantedEmail = String(email || '').trim().toLowerCase();
+    if (!wantedEmail) {
+      return {success:false,code:'INVALID_EMAIL',message:'Client email is required.'};
+    }
+
+    var clientResult = getActiveClientByEmail_(wantedEmail);
+    if (!clientResult || !clientResult.success || !clientResult.client) {
+      return clientResult || {success:false,code:'CLIENT_NOT_FOUND',message:'No active paid client was found.'};
+    }
+
+    var client = clientResult.client;
+    var targetWorkspaceId = String(client.sheetId || client.workspaceId || '').trim();
+    var businessId = String(client.businessId || '').trim();
+    if (!targetWorkspaceId || !businessId) {
+      return {success:false,code:'CLIENT_BINDING_INCOMPLETE',message:'The active client record is missing its workspace or Business_ID.'};
+    }
+
+    var business = getBusinessByEmail(wantedEmail);
+    var sourceWorkspaceId = String(
+      business && (business.workspaceId || business.Workspace_ID || business.workspaceID) || ''
+    ).trim();
+
+    if (!sourceWorkspaceId) {
+      return {
+        success:true,
+        repaired:false,
+        reason:'NO_SOURCE_WORKSPACE',
+        clientId:client.clientId,
+        businessId:businessId,
+        targetWorkspaceId:targetWorkspaceId,
+        message:'No separate free workspace is registered for this business; nothing was migrated.'
+      };
+    }
+
+    if (sourceWorkspaceId === targetWorkspaceId) {
+      return {
+        success:true,
+        repaired:false,
+        reason:'SOURCE_EQUALS_TARGET',
+        clientId:client.clientId,
+        businessId:businessId,
+        targetWorkspaceId:targetWorkspaceId,
+        message:'The registered source and paid workspaces are the same; no migration was performed.'
+      };
+    }
+
+    var target = SpreadsheetApp.openById(targetWorkspaceId);
+    var migration = migrateFreeWorkspaceDataToPaidClient(
+      sourceWorkspaceId,
+      targetWorkspaceId,
+      businessId,
+      String(client.clientName || (business && business.businessName) || 'My Business'),
+      wantedEmail
+    );
+
+    if (!migration || !migration.success) {
+      return {
+        success:false,
+        code:'CLIENT_DATA_REPAIR_FAILED',
+        clientId:client.clientId,
+        businessId:businessId,
+        sourceWorkspaceId:sourceWorkspaceId,
+        targetWorkspaceId:targetWorkspaceId,
+        migration:migration,
+        message:(migration && migration.message) || 'Existing paid client data repair failed.'
+      };
+    }
+
+    return {
+      success:true,
+      repaired:true,
+      clientId:client.clientId,
+      businessId:businessId,
+      sourceWorkspaceId:sourceWorkspaceId,
+      targetWorkspaceId:targetWorkspaceId,
+      migration:migration,
+      message:'Existing paid client data and staff repair completed safely.'
+    };
+  } catch (error) {
+    console.error('repairExistingPaidClientData error:', error);
+    return {
+      success:false,
+      code:'CLIENT_DATA_REPAIR_ERROR',
+      message:error && error.message ? error.message : String(error)
+    };
+  } finally {
+    try { lock.releaseLock(); } catch (ignore) {}
+  }
+}
+
 function cleanupFailedClientProvisioningSafe_(sheetResult,clientId){try{if(!sheetResult||!sheetResult.sheetId)return;DriveApp.getFileById(sheetResult.sheetId).setTrashed(true);}catch(error){console.error('Workspace cleanup failed for '+clientId,error);}}
 function cleanupFailedClientDeploymentSafe_(scriptResult){try{if(!scriptResult||!scriptResult.scriptId)return;var url='https://script.googleapis.com/v1/projects/'+encodeURIComponent(scriptResult.scriptId),response=UrlFetchApp.fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});if(response.getResponseCode()<200||response.getResponseCode()>=300)console.error('Client Apps Script cleanup failed:',response.getResponseCode(),response.getContentText());}catch(error){console.error('Deployment cleanup failed:',error);}}
