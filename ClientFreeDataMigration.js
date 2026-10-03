@@ -511,7 +511,13 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
           if (rowData[header] !== undefined && rowData[header] !== '') {
             // Preserve a live client password if the record was already migrated
             // and subsequently changed by the client.
-            if (header === 'Password_Hash' && targetData[col]) return;
+            if (
+              (header === 'Password_Hash' ||
+               header === 'Status' ||
+               header === 'Assigned_Modules' ||
+               header === 'Last_Login') &&
+              targetData[col]
+            ) return;
             team.getRange(targetRow,col+1).setValue(rowData[header]);
           }
         });
