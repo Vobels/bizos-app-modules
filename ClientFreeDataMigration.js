@@ -35,6 +35,9 @@ function migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId, targetWorkspace
       throw new Error(staffResult.message || 'Staff migration failed.');
     }
     var notificationResult = migrateBizOSNotificationsAndActivityToPaidClient_(businessId, target, ownerEmail);
+    if (notificationResult && notificationResult.success === false) {
+      throw new Error(notificationResult.message || 'BizOS notifications and activity could not be migrated.');
+    }
     migrateFreeBusinessMetadata_(source, target, businessId, businessName, ownerEmail, staffResult);
 
     return {
