@@ -5110,10 +5110,27 @@ function loadDashboardRecentEntries(tabType) {
 
   container.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>Loading recent entries...</p></div>';
 
+  const clientMode = !!(window.__CLIENT && window.__CLIENT.isClient);
   callGoogleScript(
-    'getDashboardRecentEntries',
+    clientMode ? 'getModuleData' : 'getDashboardRecentEntries',
     [moduleName, 5],
-    (entries) => {
+    (result) => {
+      const entries = clientMode
+        ? (result && result.success ? (result.data || []).map(row => ({
+            module: moduleName,
+            date: row.Date || row.Created_At || '',
+            title: moduleName === 'Ecommerce'
+              ? ('Order ' + (row.Order_ID || 'record') + (row.Product_Name ? ': ' + row.Product_Name : ''))
+              : moduleName === 'Sales'
+                ? (row.Customer_Name || row.Product_Service || 'Sales deal')
+                : moduleName === 'HR'
+                  ? (row.Name || 'Employee')
+                  : (row.Description || row.Category || 'Financial transaction'),
+            status: moduleName === 'Finance' ? (row.Type || '') : (row.Payment_Status || row.Stage || row.Status || ''),
+            id: row.Transaction_ID || row.Order_ID || row.Deal_ID || row.Employee_ID || '',
+            amount: Number(row.Amount || row.Total_Amount || 0) || 0
+          })) : [])
+        : (result || []);
       if (!entries || !entries.length) {
         const empty = {
           finance: 'No financial records yet. Add your first transaction!',
