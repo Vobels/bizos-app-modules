@@ -38,6 +38,41 @@ function clientLogin(requestClientId,email,password,requestSheetId,requestBusine
     if(!client.sheetId||!client.businessId)return{success:false,message:'Client workspace is not fully configured.',code:'INVALID_WORKSPACE'};
 
     var user=authResult.user||{email:String(email).toLowerCase(),name:String(email).split('@')[0],role:'owner',isClient:true};
+    var role=String(user.role||'owner').toLowerCase();
+    var tier=String(client.tier||user.subscriptionTier||'sovereign').toLowerCase();
+    var assignedModules=[];
+    try{
+      if(typeof clientAssignedModulesV11_==='function'){
+        var teamSheet=ensureClientTeamSheetV11_();
+        var teamRows=clientTeamRowsV11_(teamSheet);
+        var team=teamRows.find(function(r){return String(r.Email||'').toLowerCase()===String(email||'').toLowerCase();});
+        if(team)assignedModules=clientAssignedModulesV11_(team);
+      }
+    }catch(ignore){}
+    var accessibleModules=[];
+    try{
+      if(typeof clientModulesForEntitlementV12_==='function'){
+        accessibleModules=clientModulesForEntitlementV12_(role,tier,assignedModules);
+      }else if(role==='owner'||role==='admin'){
+        accessibleModules=Object.keys(MODULES);
+      }else{
+        accessibleModules=assignedModules;
+      }
+    }catch(ignore2){
+      accessibleModules=(role==='owner'||role==='admin')?Object.keys(MODULES):assignedModules;
+    }
+    user={
+      email:String(user.email||email).toLowerCase(),
+      name:String(user.name||email.split('@')[0]),
+      role:role,
+      subscriptionTier:tier,
+      workspaceId:String(client.sheetId),
+      businessId:String(client.businessId),
+      businessName:client.clientName||'My Business',
+      isDemo:false,
+      isClient:true,
+      accessibleModules:accessibleModules
+    };
     var now=Date.now(),sessionId='CLIENT_SESS_'+Utilities.getUuid(),session={
       email:String(client.email||email).toLowerCase(),
       clientId:String(client.clientId),
@@ -52,7 +87,7 @@ function clientLogin(requestClientId,email,password,requestSheetId,requestBusine
     };
     CacheService.getScriptCache().put(sessionId,JSON.stringify(session),21600);
 
-    return{success:true,sessionId:sessionId,message:'Login successful',clientName:client.clientName||'My Business',primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',user:{email:user.email||email.toLowerCase(),name:user.name||email.split('@')[0],role:user.role||'owner',clientId:String(client.clientId),businessId:String(client.businessId)},code:'SUCCESS'};
+    return{success:true,sessionId:sessionId,message:'Login successful',clientName:client.clientName||'My Business',primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',user:{email:user.email,name:user.name,role:user.role,subscriptionTier:user.subscriptionTier,clientId:String(client.clientId),businessId:String(client.businessId),accessibleModules:user.accessibleModules},code:'SUCCESS'};
   }catch(error){console.error('clientLogin error:',error);return{success:false,message:'Login error: '+error.message,code:'LOGIN_ERROR'};}
 }
 
