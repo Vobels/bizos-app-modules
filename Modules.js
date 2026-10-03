@@ -542,8 +542,6 @@ function saveRecord(moduleName, data, sessionId) {
   try {
     const user = assertModuleWriteAccess_(moduleName, sessionId);
     
-    const user = getUserFromSession(sessionId);
-    
     // IMPORTANT: Get the user's workspace file, not the main sheet
     const workspace = getWorkspaceFile(sessionId);
     
