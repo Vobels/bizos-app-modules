@@ -8,7 +8,7 @@
     </div>
     <div class="finance-actions">
       <button class="finance-secondary" onclick="financeV12Load()">Refresh</button>
-      <button class="finance-primary" onclick="financeV12OpenForm()">+ Add transaction</button>
+      <button id="finance-add-button" class="finance-primary" onclick="financeV12OpenForm()">+ Add transaction</button>
     </div>
   </div>
 
@@ -76,9 +76,11 @@
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function money(v){return new Intl.NumberFormat('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0);}
   function setText(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  function financeV12CanWrite(){var u=window.clientUser||{};var role=String(u.role||'staff').toLowerCase();return u.isDemo!=='YES'&&['owner','admin'].indexOf(role)>=0;}
+  function financeV12ApplyPermissions(){var can=financeV12CanWrite();var add=document.getElementById('finance-add-button');if(add){add.disabled=!can;add.title=can?'':'Finance is read-only for staff accounts.';}var save=document.getElementById('finance-save-button');if(save)save.disabled=!can;document.querySelectorAll('#client-finance-v12 .finance-delete').forEach(function(b){b.style.display=can?'':'none';});}
   function financeV12Message(msg,error){var e=document.getElementById('finance-v12-message');if(!e)return;e.textContent=msg||'';e.classList.toggle('hidden',!msg);e.classList.toggle('error',!!error);if(msg)setTimeout(function(){e.classList.add('hidden');},5000);}
   function normalize(r){return r&&r.success!==false?r:null;}
-  window.financeV12Init=function(){if(!loaded){loaded=true;financeV12Load();}else financeV12Render();};
+  window.financeV12Init=function(){financeV12ApplyPermissions();if(!loaded){loaded=true;financeV12Load();}else financeV12Render();};
   window.financeV12Load=function(){
     var box=document.getElementById('finance-v12-table');if(box)box.innerHTML='<div class="finance-empty">Loading financial records…</div>';
     call('getClientFinanceData',[sid()],function(r){
@@ -95,7 +97,7 @@
     box.innerHTML='<table class="finance-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>'+filtered.map(function(x,i){
       var type=String(x.Type||'').toLowerCase(),positive=type==='revenue'||type==='income',id=String(x.Transaction_ID||'');
       return '<tr><td>'+esc(x.Date||'')+'</td><td><span class="finance-type '+(positive?'income':'expense')+'">'+(positive?'Income':'Expense')+'</span></td><td><strong>'+esc(x.Description||'Financial transaction')+'</strong><small>'+esc(x.Reference||'')+'</small></td><td>'+esc(x.Category||'—')+'</td><td class="'+(positive?'finance-positive':'finance-negative')+'">'+(positive?'+':'-')+'₦'+money(Math.abs(Number(x.Amount)||0))+'</td><td>'+esc(x.Status||'completed')+'</td><td><button class="finance-delete" onclick="financeV12Delete(\''+esc(id).replace(/'/g,"\\'")+'\')">Delete</button></td></tr>';
-    }).join('')+'</tbody></table>';
+    }).join('')+'</tbody></table>';financeV12ApplyPermissions();
   };
   function financeV12Insight(s){
     var e=document.getElementById('finance-v12-insight');if(!e)return;
@@ -104,7 +106,7 @@
     var margin=rev?profit/rev*100:0;
     e.innerHTML='<div class="finance-position"><span>Net position</span><strong>₦'+money(profit)+'</strong><small>'+margin.toFixed(1)+'% margin on recorded income</small></div><div class="finance-mini-bars"><div><span>Income</span><i style="width:'+Math.min(100,rev?100:0)+'%"></i></div><div><span>Expenses</span><i style="width:'+(rev?Math.min(100,exp/rev*100):(exp?100:0))+'%"></i></div></div>';
   }
-  window.financeV12OpenForm=function(){var m=document.getElementById('finance-v12-modal');if(!m)return;document.getElementById('finance-date').value=new Date().toISOString().slice(0,10);document.getElementById('finance-form-error').classList.add('hidden');m.classList.remove('hidden');};
+  window.financeV12OpenForm=function(){if(!financeV12CanWrite()){financeV12Message('Finance is read-only for staff accounts.',true);return;}var m=document.getElementById('finance-v12-modal');if(!m)return;document.getElementById('finance-date').value=new Date().toISOString().slice(0,10);document.getElementById('finance-form-error').classList.add('hidden');m.classList.remove('hidden');};
   window.financeV12CloseForm=function(){var m=document.getElementById('finance-v12-modal');if(m)m.classList.add('hidden');};
   window.financeV12Save=function(ev){ev.preventDefault();var b=document.getElementById('finance-save-button'),err=document.getElementById('finance-form-error');err.classList.add('hidden');b.disabled=true;b.textContent='Saving…';var data={Date:document.getElementById('finance-date').value,Type:document.getElementById('finance-type').value,Category:document.getElementById('finance-category').value.trim(),Amount:Number(document.getElementById('finance-amount').value||0),Description:document.getElementById('finance-description').value.trim(),Payment_Method:document.getElementById('finance-payment').value,Reference:document.getElementById('finance-reference').value.trim(),Status:document.getElementById('finance-status').value};call('saveClientFinanceTransaction',[data,sid()],function(r){b.disabled=false;b.textContent='Save transaction';if(!r||!r.success){err.textContent=r&&r.message||'Unable to save transaction.';err.classList.remove('hidden');return;}financeV12CloseForm();financeV12Message('Transaction saved successfully.');financeV12Load();if(window.loadOverview)window.loadOverview(true);},function(e){b.disabled=false;b.textContent='Save transaction';err.textContent=e&&e.message||'Unable to save transaction.';err.classList.remove('hidden');});};
   window.financeV12Delete=function(id){if(!id)return;if(!confirm('Delete this financial transaction?'))return;call('deleteClientFinanceTransaction',[id,sid()],function(r){if(!r||!r.success){financeV12Message(r&&r.message||'Unable to delete transaction.',true);return;}financeV12Message('Transaction deleted.');financeV12Load();if(window.loadOverview)window.loadOverview(true);});};
