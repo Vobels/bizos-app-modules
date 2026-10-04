@@ -164,6 +164,58 @@ function redeployClientByBusinessId(businessId, sessionId) {
       };
     }
 
+    // Verify the project HEAD that Google accepted before creating a version.
+    // This closes the gap where a redeploy could report success even though the
+    // published project content is not the package we just generated.
+    if (packageVersion === 'v12') {
+      var publishedContentResponse = UrlFetchApp.fetch(base + '/content', {
+        method:'get',
+        headers:headers,
+        muteHttpExceptions:true
+      });
+
+      if (publishedContentResponse.getResponseCode() < 200 || publishedContentResponse.getResponseCode() >= 300) {
+        return {
+          success:false,
+          code:'PUBLISHED_PACKAGE_VERIFY_FAILED',
+          message:'The client project was updated, but Google did not return the published package for verification: ' + publishedContentResponse.getContentText(),
+          clientId:client.clientId,
+          scriptId:client.scriptId,
+          deploymentId:client.deploymentId
+        };
+      }
+
+      var publishedProject = JSON.parse(publishedContentResponse.getContentText() || '{}');
+      var publishedFiles = Array.isArray(publishedProject.files) ? publishedProject.files : [];
+      var publishedCodeFile = publishedFiles.filter(function(file){return String(file.name || '') === 'Code';})[0];
+      var publishedCode = String(publishedCodeFile && publishedCodeFile.source || '');
+      var publishedChecks = {
+        codePresent:!!publishedCodeFile,
+        packageVersion:publishedCode.indexOf('CLIENT_V12_PACKAGE_VERSION_') >= 0,
+        moduleRegistry:publishedCode.indexOf('var MODULES=') >= 0,
+        clientId:publishedCode.indexOf(String(client.clientId)) >= 0,
+        dashboard:publishedCode.indexOf('function getClientDashboardData(sid,forceRefresh)') >= 0,
+        authentication:publishedCode.indexOf('function authenticateClient(email,password)') >= 0
+      };
+
+      if (!publishedChecks.codePresent ||
+          !publishedChecks.packageVersion ||
+          !publishedChecks.moduleRegistry ||
+          !publishedChecks.clientId ||
+          !publishedChecks.dashboard ||
+          !publishedChecks.authentication) {
+        return {
+          success:false,
+          code:'PUBLISHED_PACKAGE_CONTENT_MISMATCH',
+          message:'Google accepted the project update, but the published V12 Code file failed content verification. The deployment was not advanced to a new version.',
+          clientId:client.clientId,
+          scriptId:client.scriptId,
+          deploymentId:client.deploymentId,
+          publishedChecks:publishedChecks
+        };
+      }
+    }
+
     // Create an immutable version from the updated project HEAD.
     var versionResponse = UrlFetchApp.fetch(base + '/versions', {
       method:'post',
