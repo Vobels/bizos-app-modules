@@ -50,11 +50,11 @@ function traceClientRuntimeExecutionApiV12(businessId, sessionId) {
     var deployment = JSON.parse(deploymentBody || '{}');
     var entryPoints = Array.isArray(deployment.entryPoints) ? deployment.entryPoints : [];
     var executionApi = entryPoints.filter(function(ep) {
-      return ep && String(ep.entryPointType || '').toLowerCase() === 'executionapi';
+      return ep && String(ep.entryPointType || '').toLowerCase().replace(/[_\s-]/g,'') === 'executionapi';
     });
 
     var webApp = entryPoints.filter(function(ep) {
-      return ep && String(ep.entryPointType || '').toLowerCase() === 'webapp';
+      return ep && String(ep.entryPointType || '').toLowerCase().replace(/[_\s-]/g,'') === 'webapp';
     });
 
     var result = {
