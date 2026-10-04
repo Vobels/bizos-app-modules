@@ -941,7 +941,7 @@
               '</div>' +
               '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">' +
                 (launchUrl ? '<button onclick="openDeploymentUrl(\'' + String(launchUrl).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" class="btn-secondary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-external-link-alt mr-1"></i>Open</button>' : '') +
-            (biz.deploymentAction === 'provision' && biz.upgradeRequestId ? '<button onclick="provisionPaidRequest(&#39;' + safeRequestId + '&#39;)" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cog mr-1"></i>Continue Setup</button>' : (biz.businessId ? '<button onclick="redeployClient(&#39;' + safeId + '&#39;)" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cloud-upload-alt mr-1"></i>Relaunch / Redeploy</button>' : '')) +
+            (biz.deploymentAction === 'provision' && biz.upgradeRequestId ? '<button onclick="provisionPaidRequest(&#39;' + safeRequestId + '&#39;)" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cog mr-1"></i>Continue Setup</button>' : (biz.businessId ? '<button onclick="traceClientRuntime(&#39;' + safeId + '&#39;)" class="btn-secondary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-stethoscope mr-1"></i>Trace Runtime</button><button onclick="redeployClient(&#39;' + safeId + '&#39;)" class="btn-primary" style="padding:8px 12px;font-size:12px;"><i class="fas fa-cloud-upload-alt mr-1"></i>Relaunch / Redeploy</button>' : '')) +
               '</div>' +
               (launchUrl ? '<div style="margin-top:10px;font-size:11px;color:#6b7280;word-break:break-all;">' + safeUrl + '</div>' : '') +
             '</div>';
@@ -1186,6 +1186,29 @@
         .toggleBusinessStatus(id, getAdminSession());
     }
     
+    function traceClientRuntime(id) {
+      if (!id) return;
+      showNotification('Tracing the deployed client runtime...', 'info');
+      google.script.run
+        .withSuccessHandler(function(response) {
+          console.log('V12 client runtime trace:', response);
+          if (response && response.success) {
+            showNotification(response.message || 'Client runtime trace completed.', 'success');
+            alert(JSON.stringify(response, null, 2));
+            return;
+          }
+          var message = (response && response.message) || 'Client runtime trace could not be completed.';
+          showNotification(message, 'error');
+          alert(JSON.stringify(response || {success:false,message:message}, null, 2));
+        })
+        .withFailureHandler(function(error) {
+          var message = 'Runtime trace failed: ' + ((error && error.message) || 'Unknown error');
+          showNotification(message, 'error');
+          alert(message);
+        })
+        .traceClientRuntimeExecutionApiV12(id, getAdminSession());
+    }
+
     function redeployClient(id) {
       if (!id) return;
       if (!confirm('Redeploy this client with the current BizOS package? Their existing workspace and launch URL will be preserved.')) return;
