@@ -674,3 +674,221 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   if(expected&&expected.sheetId&&code.indexOf(String(expected.sheetId))<0)return{success:false,code:'V12_WORKSPACE_ID_MISMATCH',message:'V12 runtime does not contain the expected workspace ID.'};
   return{success:true,code:'V12_PACKAGE_VALID',version:CLIENT_V12_PACKAGE_VERSION_,release:CLIENT_V12_PACKAGE_RELEASE_,provenance:CLIENT_V12_PACKAGE_PROVENANCE_,fileCount:pkg.files.length,files:names,checks:{runtimeDependencies:true,shellDependencies:true,businessCenterDependencies:true,staffDependencies:true,appsDependencies:true,settingsDependencies:true,notificationsDependencies:true,styleDependencies:true,manifest:true,masterUiLeak:false,masterRuntimeLeak:false}};
 }
+
+// ============================================================
+// V12 DEPLOYED RUNTIME AUDIT
+// ============================================================
+// Read-only audit of the exact Apps Script version currently
+// attached to the client's registered deployment.
+// It does not publish, deploy, or modify client/registry data.
+// ============================================================
+
+function auditV12ClientDeploymentRuntime(businessId) {
+  var targetBusinessId = String(businessId || '').trim();
+  if (!targetBusinessId) {
+    return {
+      success:false,
+      code:'BUSINESS_ID_REQUIRED',
+      message:'Business ID is required.'
+    };
+  }
+
+  var client = getActiveClientByBusinessIdForRedeploy_(targetBusinessId);
+  if (!client) {
+    return {
+      success:false,
+      code:'CLIENT_NOT_FOUND',
+      message:'No active client deployment was found for business ID: ' + targetBusinessId
+    };
+  }
+
+  var required = ['clientId','businessId','scriptId','deploymentId'];
+  for (var i = 0; i < required.length; i++) {
+    if (!String(client[required[i]] || '').trim()) {
+      return {
+        success:false,
+        code:'CLIENT_DEPLOYMENT_METADATA_INCOMPLETE',
+        message:'The client registry is missing required deployment metadata: ' + required[i] + '.',
+        clientId:client.clientId
+      };
+    }
+  }
+
+  try {
+    var headers = {
+      Authorization:'Bearer ' + ScriptApp.getOAuthToken(),
+      'Content-Type':'application/json'
+    };
+    var base = 'https://script.googleapis.com/v1/projects/' + encodeURIComponent(client.scriptId);
+
+    // 1. Resolve the deployment to the exact version Google is serving.
+    var deploymentResponse = UrlFetchApp.fetch(
+      base + '/deployments/' + encodeURIComponent(client.deploymentId),
+      {method:'get',headers:headers,muteHttpExceptions:true}
+    );
+
+    if (deploymentResponse.getResponseCode() < 200 || deploymentResponse.getResponseCode() >= 300) {
+      return {
+        success:false,
+        code:'DEPLOYMENT_LOOKUP_FAILED',
+        message:'Could not read the registered deployment: ' + deploymentResponse.getContentText(),
+        clientId:client.clientId,
+        scriptId:client.scriptId,
+        deploymentId:client.deploymentId
+      };
+    }
+
+    var deployment = JSON.parse(deploymentResponse.getContentText() || '{}');
+    var config = deployment.deploymentConfig || {};
+    var deployedVersion = String(config.versionNumber || '');
+
+    // 2. Fetch the exact immutable version attached to the deployment.
+    var versionContent = null;
+    if (deployedVersion) {
+      var versionResponse = UrlFetchApp.fetch(
+        base + '/content?versionNumber=' + encodeURIComponent(deployedVersion),
+        {method:'get',headers:headers,muteHttpExceptions:true}
+      );
+
+      if (versionResponse.getResponseCode() < 200 || versionResponse.getResponseCode() >= 300) {
+        return {
+          success:false,
+          code:'DEPLOYED_VERSION_READ_FAILED',
+          message:'The deployment points to version ' + deployedVersion + ', but that exact version could not be read: ' + versionResponse.getContentText(),
+          clientId:client.clientId,
+          scriptId:client.scriptId,
+          deploymentId:client.deploymentId,
+          deployedVersion:deployedVersion
+        };
+      }
+
+      versionContent = JSON.parse(versionResponse.getContentText() || '{}');
+    }
+
+    // 3. Also read project HEAD so we can distinguish deployed-version drift
+    // from a package-generation problem.
+    var headResponse = UrlFetchApp.fetch(
+      base + '/content',
+      {method:'get',headers:headers,muteHttpExceptions:true}
+    );
+
+    if (headResponse.getResponseCode() < 200 || headResponse.getResponseCode() >= 300) {
+      return {
+        success:false,
+        code:'HEAD_READ_FAILED',
+        message:'The client project HEAD could not be read: ' + headResponse.getContentText(),
+        clientId:client.clientId,
+        scriptId:client.scriptId,
+        deploymentId:client.deploymentId,
+        deployedVersion:deployedVersion
+      };
+    }
+
+    var headContent = JSON.parse(headResponse.getContentText() || '{}');
+
+    function getCode_(project) {
+      var files = project && Array.isArray(project.files) ? project.files : [];
+      var codeFile = files.filter(function(file){
+        return String(file.name || '') === 'Code';
+      })[0];
+      return {
+        file:codeFile || null,
+        source:String(codeFile && codeFile.source || '')
+      };
+    }
+
+    function inspectRuntime_(source) {
+      var s=String(source || '');
+      return {
+        codePresent:s.length>0,
+        v12Marker:s.indexOf('CLIENT_V12_PACKAGE_VERSION_')>=0,
+        moduleRegistry:s.indexOf('var MODULES=')>=0,
+        clientId:s.indexOf(String(client.clientId))>=0,
+        authenticateClient:s.indexOf('function authenticateClient(email,password)')>=0,
+        createSession:s.indexOf('function createClientSessionV11_(')>=0,
+        findClientUser:s.indexOf('function findClientUser_(')>=0,
+        dashboardData:s.indexOf('function getClientDashboardData(sid,forceRefresh)')>=0,
+        moduleSmokeAudit:s.indexOf('function getClientV12ModuleSmokeAudit(sid)')>=0,
+        moduleLookupInLoginPath:s.indexOf('Object.keys(MODULES)')>=0
+      };
+    }
+
+    function digest_(source) {
+      var bytes=Utilities.computeDigest(
+        Utilities.DigestAlgorithm.SHA_256,
+        String(source || ''),
+        Utilities.Charset.UTF_8
+      );
+      return bytes.map(function(b){
+        var n=b<0 ? b+256 : b;
+        return ('0'+n.toString(16)).slice(-2);
+      }).join('');
+    }
+
+    var deployedCode=getCode_(versionContent);
+    var headCode=getCode_(headContent);
+    var deployedChecks=inspectRuntime_(deployedCode.source);
+    var headChecks=inspectRuntime_(headCode.source);
+
+    var bindingOk =
+      String(deployment.deploymentId || '') === String(client.deploymentId) &&
+      String(config.scriptId || client.scriptId) === String(client.scriptId);
+
+    var result={
+      success:!!(bindingOk && deployedVersion && deployedChecks.codePresent),
+      audit:'V12_DEPLOYED_RUNTIME_AUDIT',
+      clientId:client.clientId,
+      businessId:client.businessId,
+      email:client.email,
+      scriptId:client.scriptId,
+      deploymentId:client.deploymentId,
+      deploymentVersion:deployedVersion,
+      deploymentDescription:String(config.description || ''),
+      deploymentBindingOk:bindingOk,
+      deployedRuntime:deployedChecks,
+      headRuntime:headChecks,
+      deployedCodeLength:deployedCode.source.length,
+      headCodeLength:headCode.source.length,
+      deployedCodeSha256:digest_(deployedCode.source),
+      headCodeSha256:digest_(headCode.source),
+      deployedMatchesHead:
+        deployedCode.source.length === headCode.source.length &&
+        digest_(deployedCode.source) === digest_(headCode.source),
+      diagnosis:''
+    };
+
+    if (!bindingOk) {
+      result.diagnosis='DEPLOYMENT_BINDING_MISMATCH: the registered deployment does not belong to the registered client script.';
+    } else if (!deployedVersion) {
+      result.success=false;
+      result.diagnosis='DEPLOYMENT_VERSION_MISSING: the registered deployment has no version number.';
+    } else if (!deployedChecks.codePresent) {
+      result.success=false;
+      result.diagnosis='DEPLOYED_CODE_MISSING: the exact deployed version has no readable Code file.';
+    } else if (!deployedChecks.moduleRegistry) {
+      result.success=false;
+      result.diagnosis='DEPLOYED_RUNTIME_MISSING_MODULES: the exact version served by the deployment does not contain var MODULES=. This is the direct cause of the MODULES is not defined login failure.';
+    } else if (!deployedChecks.authenticateClient || !deployedChecks.createSession || !deployedChecks.findClientUser) {
+      result.success=false;
+      result.diagnosis='DEPLOYED_LOGIN_PATH_INCOMPLETE: the deployed version is missing one or more functions in the authenticateClient -> createClientSessionV11_ -> findClientUser_ path.';
+    } else if (!headChecks.moduleRegistry) {
+      result.success=false;
+      result.diagnosis='GENERATOR_RUNTIME_MISSING_MODULES: project HEAD itself does not contain var MODULES=. The package generator/runtime assembly must be fixed before redeploying.';
+    } else if (!result.deployedMatchesHead) {
+      result.diagnosis='DEPLOYED_VERSION_DIFFERS_FROM_HEAD: the deployment is serving an older/different immutable version than project HEAD. Compare deploymentVersion with the latest version before changing client code.';
+    } else {
+      result.diagnosis='DEPLOYED_RUNTIME_CONTAINS_MODULES: source-level deployment inspection does not reproduce the reported MODULES error. The next step is runtime execution tracing/logging on the client login path, not another package-generation change.';
+    }
+
+    return result;
+  } catch (error) {
+    return {
+      success:false,
+      code:'DEPLOYED_RUNTIME_AUDIT_EXCEPTION',
+      message:error && error.message ? error.message : 'V12 deployed runtime audit failed.',
+      clientId:client.clientId,
+      scriptId:client.scriptId,
+      deploymentId:client.deploymentId
+    };
+  }
+}
