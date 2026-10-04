@@ -54,9 +54,12 @@ function generateClientCodeSafelyV12(settings) {
     .replace(/\bremoveModuleFromStaff\(/g,'removeModuleFromStaffLegacy_(')
     .replace(/\bgetClientModuleSummary\(/g,'getClientModuleSummaryLegacy_(')
     .replace(/\bremoveTeamMember\(/g,'removeTeamMemberLegacy_(');
+  // Apply entitlement filtering only to the master-authenticated owner session.
+  // Do not replace the first generic accessibleModules:Object.keys(MODULES)
+  // occurrence: findClientUser_() also contains that expression and has no x variable.
   runtime = runtime.replace(
-    'accessibleModules:Object.keys(MODULES)',
-    'accessibleModules:clientModulesForEntitlementV12_(x.user&&x.user.role,x.user&&x.user.subscriptionTier)'
+    'subscriptionTier:x.user.subscriptionTier||"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:Object.keys(MODULES)',
+    'subscriptionTier:x.user.subscriptionTier||"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:clientModulesForEntitlementV12_(x.user&&x.user.role,x.user&&x.user.subscriptionTier)'
   );
   runtime = runtime.replace(
     'subscriptionTier:"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:clientAssignedModulesV11_(t)',
