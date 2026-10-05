@@ -102,6 +102,80 @@ function getOrCreateBusinessSheet() {
   return businessSheet;
 }
 
+
+/**
+ * Resolve the canonical Master business record for an owner/workspace email.
+ * This is used by paid-client provisioning to locate the existing free
+ * workspace so its data (including pending staff invitations) can migrate.
+ *
+ * The optional businessName disambiguates accounts where one email owns more
+ * than one business. No client/deployment record is created or modified here.
+ */
+function getBusinessByEmail(email, businessName) {
+  try {
+    var wantedEmail = String(email || '').trim().toLowerCase();
+    var wantedName = String(businessName || '').trim().toLowerCase();
+    if (!wantedEmail) return null;
+
+    var sheet = getOrCreateBusinessSheet();
+    var data = sheet.getDataRange().getValues();
+    if (!data || data.length < 2) return null;
+
+    var headers = data[0].map(function(h) { return String(h || '').trim(); });
+    var ownerEmailCol = headers.indexOf('Owner_Email');
+    var businessIdCol = headers.indexOf('Business_ID');
+    var businessNameCol = headers.indexOf('Business_Name');
+    var workspaceIdCol = headers.indexOf('Workspace_ID');
+    var statusCol = headers.indexOf('Subscription_Status');
+    var activeCol = headers.indexOf('Is_Active');
+
+    if (ownerEmailCol < 0 || businessIdCol < 0) return null;
+
+    var fallback = null;
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowEmail = String(row[ownerEmailCol] || '').trim().toLowerCase();
+      if (rowEmail !== wantedEmail) continue;
+
+      var rowName = businessNameCol >= 0 ? String(row[businessNameCol] || '').trim() : '';
+      var rowNameLower = rowName.toLowerCase();
+      var rowActive = activeCol >= 0 ? String(row[activeCol] || '').trim().toLowerCase() : 'yes';
+      var rowStatus = statusCol >= 0 ? String(row[statusCol] || '').trim().toLowerCase() : '';
+
+      // Prefer an exact business-name match when one was supplied.
+      if (wantedName && rowNameLower === wantedName) {
+        return {
+          businessId: String(row[businessIdCol] || '').trim(),
+          businessName: rowName,
+          ownerEmail: rowEmail,
+          workspaceId: workspaceIdCol >= 0 ? String(row[workspaceIdCol] || '').trim() : '',
+          Workspace_ID: workspaceIdCol >= 0 ? String(row[workspaceIdCol] || '').trim() : '',
+          subscriptionStatus: rowStatus,
+          isActive: rowActive
+        };
+      }
+
+      // Keep an active row as the fallback for email-only callers.
+      if (!fallback && rowActive !== 'no' && rowStatus !== 'inactive') {
+        fallback = {
+          businessId: String(row[businessIdCol] || '').trim(),
+          businessName: rowName,
+          ownerEmail: rowEmail,
+          workspaceId: workspaceIdCol >= 0 ? String(row[workspaceIdCol] || '').trim() : '',
+          Workspace_ID: workspaceIdCol >= 0 ? String(row[workspaceIdCol] || '').trim() : '',
+          subscriptionStatus: rowStatus,
+          isActive: rowActive
+        };
+      }
+    }
+
+    return fallback;
+  } catch (error) {
+    console.error('getBusinessByEmail error:', error);
+    return null;
+  }
+}
+
 function verifyBusiness(businessId, adminEmail) {
   try {
     const businessSheet = getOrCreateBusinessSheet();
