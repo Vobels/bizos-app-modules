@@ -12,11 +12,12 @@ function getRecordsDirectory(sessionId) {
     const result = [];
 
     modules.forEach(function(moduleName) {
-      if (!MODULES[moduleName]) return;
-      const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+      var definition = getBizOSModuleDefinition_(moduleName);
+      if (!definition) return;
+      const sheet = workspace.getSheetByName(definition.sheet);
       result.push({
         key: moduleName,
-        name: MODULES[moduleName].label || moduleName,
+        name: definition.label || moduleName,
         module: moduleName,
         count: sheet && sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0,
         source: 'module'
@@ -67,10 +68,11 @@ function getRecordRows(recordKey, sessionId) {
       moduleName = 'Business Center';
     } else {
       moduleName = String(recordKey || '');
-      if (!MODULES[moduleName] || user.accessibleModules.indexOf(moduleName) === -1) {
+      var definition = getBizOSModuleDefinition_(moduleName);
+      if (!definition || user.accessibleModules.indexOf(moduleName) === -1) {
         return { success: false, message: 'You do not have access to this record type.' };
       }
-      sheetName = MODULES[moduleName].sheet;
+      sheetName = definition.sheet;
     }
 
     const sheet = workspace.getSheetByName(sheetName);
