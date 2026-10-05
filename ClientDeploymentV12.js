@@ -231,7 +231,7 @@ function generateClientCodeSafelyV12(settings) {
     {name:'ClientFinanceV12',type:'HTML',source:buildClientFinanceV12_()},
     {name:'ClientStaffV12',type:'HTML',source:buildClientStaffV12_()},
     {name:'ClientAppsV12',type:'HTML',source:buildClientAppsV12_()},
-    {name:'ClientModuleV12',type:'HTML',source:buildClientModuleV12_()},
+    {name:'ClientModuleV12',type:'HTML',source:buildClientModuleV12_()},{name:'ClientRecordsV12',type:'HTML',source:buildClientRecordsV12_()},
     {name:'ClientSettingsV12',type:'HTML',source:buildClientSettingsV12_()},
     {name:'ClientProfileV12',type:'HTML',source:buildClientProfileV12_()},
     {name:'ClientNotificationsV12',type:'HTML',source:buildClientNotificationsV12_()},
@@ -378,6 +378,7 @@ function buildClientFinanceV12_() {
 
 function buildClientAppsV12_() { var source=String(getMasterSourceForV12_('ClientAppsV12')||''); if(!source) throw new Error('ClientAppsV12 source is missing.'); return source; }
 function buildClientModuleV12_() { var source=String(getMasterSourceForV12_('ClientModuleV12')||''); if(!source) throw new Error('ClientModuleV12 source is missing.'); return source; }
+function buildClientRecordsV12_() { var source=String(getMasterSourceForV12_('ClientRecordsV12')||''); if(!source) throw new Error('ClientRecordsV12 source is missing.'); return source; }
 function buildClientSettingsV12_() { var source=String(getMasterSourceForV12_('ClientSettingsV12')||''); if(!source) throw new Error('ClientSettingsV12 source is missing.'); return source; }
 function buildClientProfileV12_() { var source=String(getMasterSourceForV12_('ClientProfileV12')||''); if(!source) throw new Error('ClientProfileV12 source is missing.'); return source; }
 function buildClientNotificationsV12_() { var source=String(getMasterSourceForV12_('ClientNotificationsV12')||''); if(!source) throw new Error('ClientNotificationsV12 source is missing.'); return source; }
@@ -684,7 +685,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
 
   if(!pkg||!Array.isArray(pkg.files)||!pkg.files.length)return{success:false,code:'PACKAGE_EMPTY',message:'Generated V12 client package is empty.'};
   var names=pkg.files.map(function(f){return String(f.name||'');});
-  var required=['Code','Modules','Records','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientModuleV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientStylesV12','appsscript'];
+  var required=['Code','Modules','Records','ClientShellV12','ClientBusinessCenterV12','ClientFinanceV12','ClientStaffV12','ClientAppsV12','ClientModuleV12','ClientRecordsV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientStylesV12','appsscript'];
   var missing=required.filter(function(n){return names.indexOf(n)<0;});
   if(missing.length)return{success:false,code:'V12_PACKAGE_MISSING_FILES',message:'V12 package is missing: '+missing.join(', ')};
   var shell=pkg.files.filter(function(f){return f.name==='ClientShellV12';})[0].source||'';
