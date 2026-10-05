@@ -199,7 +199,20 @@
       else c.innerHTML='<div class="empty-card"><h3>Overview unavailable</h3><p>'+esc(e&&e.message?e.message:'Please try again.')+'</p></div>';
     });
   }
-  window.logout=function(){var sid=sessionId;sessionId='';user=null;localStorage.removeItem(sessionKey);localStorage.removeItem(userKey);hideAll();document.getElementById('client-landing').classList.remove('hidden');if(sid)call('clientLogout',[sid],function(){});};
+  window.logout=function(){
+    var sid=sessionId;
+    sessionId='';
+    user=null;
+    window.clientSessionId='';
+    window.clientUser=null;
+    window.clientBusinessId='';
+    localStorage.removeItem(sessionKey);
+    localStorage.removeItem(userKey);
+    closeClientSettingsMenu();
+    hideAll();
+    showLanding();
+    if(sid)call('clientLogout',[sid],function(){});
+  };
   function sessionExpired(r){return r&&(/session/i.test(String(r.message||''))||r.code==='SESSION_EXPIRED');}
   function showError(m){console.error(m);}
   setBrand();
