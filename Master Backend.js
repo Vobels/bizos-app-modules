@@ -1448,6 +1448,31 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (data.action === 'validateV12RuntimeTrace') {
+      try {
+        const token = String(data.token || '').trim();
+        const clientId = String(data.clientId || '').trim();
+        if (!token || !clientId) return ContentService.createTextOutput(JSON.stringify({success:false,message:'Diagnostic token and client ID are required.'})).setMimeType(ContentService.MimeType.JSON);
+
+        const key = 'V12_RUNTIME_TRACE_' + token;
+        const raw = PropertiesService.getScriptProperties().getProperty(key);
+        if (!raw) return ContentService.createTextOutput(JSON.stringify({success:false,message:'Diagnostic token is invalid or expired.'})).setMimeType(ContentService.MimeType.JSON);
+
+        let record;
+        try { record = JSON.parse(raw || '{}'); } catch (ignore) { record = null; }
+
+        PropertiesService.getScriptProperties().deleteProperty(key);
+
+        if (!record || String(record.clientId || '') !== clientId || Number(record.expiresAt || 0) < Date.now()) {
+          return ContentService.createTextOutput(JSON.stringify({success:false,message:'Diagnostic token is invalid or expired.'})).setMimeType(ContentService.MimeType.JSON);
+        }
+
+        return ContentService.createTextOutput(JSON.stringify({success:true,clientId:clientId})).setMimeType(ContentService.MimeType.JSON);
+      } catch (traceError) {
+        return ContentService.createTextOutput(JSON.stringify({success:false,message:'Diagnostic token validation failed.'})).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     if (data.action === 'getSettings') {
       return ContentService.createTextOutput(JSON.stringify({ 
         success: true, 
