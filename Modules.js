@@ -566,17 +566,19 @@ function saveRecord(moduleName, data, sessionId) {
     
     // IMPORTANT: Get the user's workspace file, not the main sheet
     const workspace = getWorkspaceFile(sessionId);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) return { success: false, message: "Module not found" };
     
     // Check if workspace exists and is different from main sheet
     if (!workspace || workspace.getId() === SpreadsheetApp.getActiveSpreadsheet().getId()) {
       console.log('No dedicated workspace found, using main sheet');
     }
     
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) {
       // Create sheet if it doesn't exist
-      workspace.insertSheet(MODULES[moduleName].sheet);
-      const newSheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+      workspace.insertSheet(definition.sheet);
+      const newSheet = workspace.getSheetByName(definition.sheet);
       addDefaultHeadersToModule(newSheet, moduleName);
       return saveRecord(moduleName, data, sessionId);
     }
@@ -673,7 +675,9 @@ function updateRecord(moduleName, data, recordId, sessionId) {
   try {
     const user = assertModuleWriteAccess_(moduleName, sessionId);
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) return { success: false, message: "Module not found" };
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
     
     const values = sheet.getDataRange().getValues();
@@ -730,7 +734,9 @@ function deleteRecord(moduleName, index, sessionId) {
     assertModuleWriteAccess_(moduleName, sessionId);
     
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) return { success: false, message: "Module not found" };
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
     
     // +2 because row 1 is headers, and index is 0-based
