@@ -47,7 +47,7 @@ function generateClientCodeSafelyV12(settings) {
   // Runtime-safe module accessor: login/session creation must never fail merely
   // because the generated MODULES registry is unavailable in a runtime scope.
   // When MODULES exists, it remains the single canonical registry.
-  var moduleRegistryHelperV12_ = 'function clientModuleNamesV12_(){var fallback=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"];try{return typeof MODULES!=="undefined"&&MODULES?Object.keys(MODULES):fallback;}catch(e){return fallback;}}\\n';
+  var moduleRegistryHelperV12_ = 'function clientModuleNamesV12_(){var fallback=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"];try{return typeof MODULES!=="undefined"&&MODULES?Object.keys(MODULES):fallback;}catch(e){return fallback;}}\n';
   runtime = moduleRegistryHelperV12_ + runtime;
 
   // F security hardening: internal helpers must not be exposed through google.script.run.
