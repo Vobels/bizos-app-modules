@@ -7,8 +7,8 @@
 // ============================================================
 
 var CLIENT_V12_UI_FILES_ = ['ClientShellV12','ClientStylesV12'];
-var CLIENT_V12_PACKAGE_VERSION_ = '12.1.0';
-var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.1.0';
+var CLIENT_V12_PACKAGE_VERSION_ = '12.2.0';
+var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.0';
 var CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/full-client-bizos-package';
 
 function generateClientCodeSafelyV12(settings) {
