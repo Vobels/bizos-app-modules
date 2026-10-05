@@ -873,7 +873,9 @@ function auditV12ClientDeploymentRuntime(businessId) {
         findClientUser:s.indexOf('function findClientUser_(')>=0,
         dashboardData:s.indexOf('function getClientDashboardData(sid,forceRefresh)')>=0,
         moduleSmokeAudit:s.indexOf('function getClientV12ModuleSmokeAudit(sid)')>=0,
-        moduleLookupInLoginPath:s.indexOf('Object.keys(MODULES)')>=0
+        moduleLookupInLoginPath:s.indexOf('Object.keys(MODULES)')>=0,
+        durableSession:s.indexOf('function v12PersistSession_')>=0,
+        workspaceHealth:s.indexOf('function getClientV12WorkspaceHealth')>=0
       };
     }
 
@@ -894,6 +896,35 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var deployedChecks=inspectRuntime_(deployedCode.source);
     var headChecks=inspectRuntime_(headCode.source);
 
+    // Read-only live workspace/database validation. This is intentionally
+    // independent of the generated client runtime so the audit can distinguish
+    // a package problem from a malformed client spreadsheet.
+    var workspaceHealth={success:false,clientInfo:false,modules:[],notificationsSheet:false,activitySheet:false};
+    try{
+      var ws=SpreadsheetApp.openById(String(client.sheetId||''));
+      var info=ws.getSheetByName('Client_Info'),meta={};
+      if(info){
+        var iv=info.getDataRange().getValues();
+        for(var mi=1;mi<iv.length;mi++)if(iv[mi][0])meta[String(iv[mi][0])]=iv[mi][1];
+      }
+      workspaceHealth.clientInfo=!!info &&
+        String(meta.Client_ID||'')===String(client.clientId||'') &&
+        String(meta.Business_ID||client.businessId||'')===String(client.businessId||'') &&
+        String(meta.Status||'active').toLowerCase()==='active';
+      var expectedModules=['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+      expectedModules.forEach(function(name){
+        var sheetName=name+'_Data',sh=ws.getSheetByName(sheetName),headers=[];
+        if(sh&&sh.getLastColumn()>0)headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+        workspaceHealth.modules.push({module:name,sheet:sheetName,exists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0});
+      });
+      workspaceHealth.notificationsSheet=!!ws.getSheetByName('Client_Notifications');
+      workspaceHealth.activitySheet=!!ws.getSheetByName('Client_Activity');
+      workspaceHealth.success=workspaceHealth.clientInfo &&
+        workspaceHealth.modules.every(function(m){return m.exists&&m.headersPresent;});
+    }catch(workspaceError){
+      workspaceHealth.error=String(workspaceError&&workspaceError.message||workspaceError);
+    }
+
     var bindingOk =
       String(deployment.deploymentId || '') === String(client.deploymentId) &&
       String(config.scriptId || client.scriptId) === String(client.scriptId);
@@ -911,6 +942,7 @@ function auditV12ClientDeploymentRuntime(businessId) {
       deploymentBindingOk:bindingOk,
       deployedRuntime:deployedChecks,
       headRuntime:headChecks,
+      workspaceHealth:workspaceHealth,
       deployedCodeLength:deployedCode.source.length,
       headCodeLength:headCode.source.length,
       deployedCodeSha256:digest_(deployedCode.source),
@@ -935,6 +967,12 @@ function auditV12ClientDeploymentRuntime(businessId) {
     } else if (!deployedChecks.authenticateClient || !deployedChecks.createSession || !deployedChecks.findClientUser) {
       result.success=false;
       result.diagnosis='DEPLOYED_LOGIN_PATH_INCOMPLETE: the deployed version is missing one or more functions in the authenticateClient -> createClientSessionV11_ -> findClientUser_ path.';
+    } else if (!workspaceHealth.success) {
+      result.success=false;
+      result.diagnosis='CLIENT_WORKSPACE_VALIDATION_FAILED: Client_Info or one or more required module sheets/headers are missing or do not match the registered client.';
+    } else if (!deployedChecks.durableSession || !deployedChecks.workspaceHealth || !headChecks.durableSession || !headChecks.workspaceHealth) {
+      result.success=false;
+      result.diagnosis='V12_SESSION_VALIDATION_INCOMPLETE: the deployed or HEAD runtime is missing the durable-session/workspace-validation bridge.';
     } else if (!headChecks.moduleRegistry) {
       result.success=false;
       result.diagnosis='GENERATOR_RUNTIME_MISSING_MODULES: project HEAD itself does not contain var MODULES=. The package generator/runtime assembly must be fixed before redeploying.';
