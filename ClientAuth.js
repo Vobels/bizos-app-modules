@@ -9,6 +9,8 @@ function getClientDeploymentConfig() {
   return {success:false,message:'Client deployment configuration is unavailable.'};
 }
 
+function clientMasterModuleNames_(){return ['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];}
+
 // The request's clientId/sheetId/businessId are treated only as deployment
 // binding hints. The authoritative paid-client identity and workspace always
 // come from the master Clients registry after the account is authenticated.
@@ -54,12 +56,12 @@ function clientLogin(requestClientId,email,password,requestSheetId,requestBusine
       if(typeof clientModulesForEntitlementV12_==='function'){
         accessibleModules=clientModulesForEntitlementV12_(role,tier,assignedModules);
       }else if(role==='owner'||role==='admin'){
-        accessibleModules=Object.keys(MODULES);
+        accessibleModules=clientMasterModuleNames_();
       }else{
         accessibleModules=assignedModules;
       }
     }catch(ignore2){
-      accessibleModules=(role==='owner'||role==='admin')?Object.keys(MODULES):assignedModules;
+      accessibleModules=(role==='owner'||role==='admin')?clientMasterModuleNames_():assignedModules;
     }
     user={
       email:String(user.email||email).toLowerCase(),
