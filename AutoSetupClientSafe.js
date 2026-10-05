@@ -38,7 +38,7 @@ function autoSetupClientSafe(paymentData, skipLock) {
       return {success:false,code:'DUPLICATE_'+duplicateCheck.type,message:duplicateCheck.message,details:duplicateCheck};
     }
     clientId = 'CLIENT_' + Utilities.getUuid().substring(0,8).toUpperCase();
-    existingBusiness = getBusinessByEmail(paymentData.email);
+    existingBusiness = getBusinessByEmail(paymentData.email, businessName);
     businessId = existingBusiness ? existingBusiness.businessId : clientId;
     console.log('SAFE STEP 1: Creating workspace:', clientId);
     sheetResult = createClientSheetInClientDrive(paymentData.email, clientId, businessName, {businessId:businessId,tier:paymentData.tier || 'sovereign',status:'provisioning',primaryColor:paymentData.primaryColor || '#2E7D32',logoUrl:paymentData.logoUrl || '',provisioningVersion:CLIENT_V12_PACKAGE_VERSION_});
@@ -56,6 +56,17 @@ function autoSetupClientSafe(paymentData, skipLock) {
     // into the paid workspace before deployment.
     // The migration is idempotent and only runs when a real source workspace exists.
     var sourceWorkspaceId = existingBusiness && (existingBusiness.workspaceId || existingBusiness.Workspace_ID || existingBusiness.workspaceID);
+    if (existingBusiness && !sourceWorkspaceId) {
+      cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
+      return {
+        success:false,
+        code:'SOURCE_WORKSPACE_MISSING',
+        message:'An existing BizOS business was found, but its original workspace could not be resolved. The paid workspace was not activated so existing data and staff are not lost.',
+        clientId:clientId,
+        businessId:businessId,
+        cleanedUp:true
+      };
+    }
     if (sourceWorkspaceId && String(sourceWorkspaceId) !== String(sheetResult.sheetId)) {
       console.log('SAFE STEP 1C: Migrating existing BizOS workspace data from:', sourceWorkspaceId);
       migrationResult = migrateFreeWorkspaceDataToPaidClient(sourceWorkspaceId,sheetResult.sheetId,businessId,businessName,paymentData.email);
@@ -63,6 +74,28 @@ function autoSetupClientSafe(paymentData, skipLock) {
         cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
         return {success:false,code:'FREE_DATA_MIGRATION_FAILED',message:'Your paid workspace was created, but your existing free-workspace data could not be migrated. No paid workspace was activated.',clientId:clientId,cleanedUp:true,migration:migrationResult};
       }
+
+      // A successful migration with zero staff is only valid when the source
+      // workspace actually contains no staff for this business. Do not allow
+      // provisioning to silently complete when existing staff data was found
+      // but nothing was copied/updated.
+      var staffMigration = migrationResult.staff || null;
+      var sourceStaffRows = staffMigration && Number(staffMigration.sourceRows || 0) || 0;
+      var migratedStaffRows = staffMigration
+        ? Number(staffMigration.copied || 0) + Number(staffMigration.updated || 0)
+        : 0;
+      if (sourceStaffRows > 0 && migratedStaffRows === 0) {
+        cleanupFailedClientProvisioningSafe_(sheetResult,clientId);
+        return {
+          success:false,
+          code:'STAFF_MIGRATION_EMPTY',
+          message:'Your existing staff records were found, but none could be migrated to the paid workspace. No paid workspace was activated.',
+          clientId:clientId,
+          cleanedUp:true,
+          migration:migrationResult
+        };
+      }
+
       console.log('SAFE STEP 1C COMPLETE:',JSON.stringify(migrationResult));
     } else {
       console.log('SAFE STEP 1C: No separate free workspace found; no data migration required.');
