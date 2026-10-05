@@ -44,6 +44,12 @@ function generateClientCodeSafelyV12(settings) {
     runtime = 'var MODULES={Finance:{sheet:"Financial_Data",label:"Financial Management",icon:"calculator"},Sales:{sheet:"Sales_Data",label:"Sales Pipeline",icon:"chart-line"},Ecommerce:{sheet:"Ecommerce_Data",label:"E-commerce",icon:"cart"},CRM:{sheet:"CRM_Data",label:"Customer Relations",icon:"users"},HR:{sheet:"HR_Data",label:"Human Resources",icon:"briefcase"},Logistics:{sheet:"Logistics_Data",label:"Logistics",icon:"truck"},Tax:{sheet:"Tax_Data",label:"Tax Compliance",icon:"file-invoice"},Agro:{sheet:"Agro_Data",label:"Agriculture",icon:"seedling"},Productivity:{sheet:"Productivity_Data",label:"Productivity Suite",icon:"clock"},POS:{sheet:"POS_Data",label:"Point of Sale",icon:"cash-register"},Attendance:{sheet:"Attendance_Data",label:"Staff Attendance",icon:"fingerprint"},Warehouse:{sheet:"Warehouse_Data",label:"Warehouse Management",icon:"warehouse"}};\n' + runtime;
   }
 
+  // Runtime-safe module accessor: login/session creation must never fail merely
+  // because the generated MODULES registry is unavailable in a runtime scope.
+  // When MODULES exists, it remains the single canonical registry.
+  var moduleRegistryHelperV12_ = 'function clientModuleNamesV12_(){var fallback=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"];try{return typeof MODULES!=="undefined"&&MODULES?Object.keys(MODULES):fallback;}catch(e){return fallback;}}\\n';
+  runtime = moduleRegistryHelperV12_ + runtime;
+
   // F security hardening: internal helpers must not be exposed through google.script.run.
   runtime = runtime
     .replace(/\bgetOrCreateUserSheet\(/g,'getOrCreateUserSheet_(')
@@ -55,10 +61,10 @@ function generateClientCodeSafelyV12(settings) {
     .replace(/\bgetClientModuleSummary\(/g,'getClientModuleSummaryLegacy_(')
     .replace(/\bremoveTeamMember\(/g,'removeTeamMemberLegacy_(');
   // Apply entitlement filtering only to the master-authenticated owner session.
-  // Do not replace the first generic accessibleModules:Object.keys(MODULES)
+  // Do not replace the first generic accessibleModules:clientModuleNamesV12_()
   // occurrence: findClientUser_() also contains that expression and has no x variable.
   runtime = runtime.replace(
-    'subscriptionTier:x.user.subscriptionTier||"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:Object.keys(MODULES)',
+    'subscriptionTier:x.user.subscriptionTier||"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:clientModuleNamesV12_()',
     'subscriptionTier:x.user.subscriptionTier||"sovereign",workspaceId:CLIENT_CONFIG.sheetId,isDemo:false,isClient:true,accessibleModules:clientModulesForEntitlementV12_(x.user&&x.user.role,x.user&&x.user.subscriptionTier)'
   );
   runtime = runtime.replace(
@@ -71,7 +77,7 @@ function generateClientCodeSafelyV12(settings) {
   );
 
   var v12SecurityBridge = [
-    'function clientModulesForEntitlementV12_(role,tier,assigned){var r=String(role||"staff").toLowerCase(),t=String(tier||"").trim().toLowerCase(),base;if(!t)return[];base=(t==="free"||t==="starter")?["Ecommerce"]:Object.keys(MODULES);if(r==="owner"||r==="admin")return base.slice();var a=Array.isArray(assigned)?assigned:[];return a.filter(function(m){return base.indexOf(String(m||""))!==-1;});}',
+    'function clientModulesForEntitlementV12_(role,tier,assigned){var r=String(role||"staff").toLowerCase(),t=String(tier||"").trim().toLowerCase(),base;if(!t)return[];base=(t==="free"||t==="starter")?["Ecommerce"]:clientModuleNamesV12_();if(r==="owner"||r==="admin")return base.slice();var a=Array.isArray(assigned)?assigned:[];return a.filter(function(m){return base.indexOf(String(m||""))!==-1;});}',
     'function clientLicenseTierV12_(){try{var r=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(!r||r.success!==true||!r.client)return"";var tier=String(r.client.tier||r.client.subscriptionTier||"").trim().toLowerCase();return tier;}catch(e){return"";}}',
         'function getClientUserFromSession(sid){try{var u=getUserFromSession(sid);if(!u||String(u.businessId||"")!==String(CLIENT_CONFIG.businessId||""))return null;var license=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(!license||license.success!==true||!license.client)return null;var tier=String(license.client.tier||license.client.subscriptionTier||"").trim();if(!tier)return null;u.isClient=true;u.clientId=CLIENT_CONFIG.clientId;u.subscriptionTier=tier;u.workspaceId=CLIENT_CONFIG.sheetId;u.accessibleModules=clientModulesForEntitlementV12_(u.role,tier,clientAssignedModulesV11_(u));return u;}catch(e){return null;}}',
 'function getBusinessStaff(bid,sid){var u=getUserFromSession(sid);if(!u||String(u.businessId)!==String(bid)||["owner","admin"].indexOf(String(u.role||"").toLowerCase())<0)return{success:false,message:"Only the business owner or an administrator can view staff."};return{success:true,members:clientTeamRowsV11_(ensureClientTeamSheetV11_()).map(function(r){return{email:r.Email,name:r.Name,role:r.Role,phone:r.Phone,department:r.Department,status:r.Status,assignedModules:clientAssignedModulesV11_(r),invitationStatus:(String(r.Status||"").toLowerCase()==="invited"?"pending":String(r.Status||"").toLowerCase()==="accepted"?"accepted":String(r.Status||"").toLowerCase())};})};}',
