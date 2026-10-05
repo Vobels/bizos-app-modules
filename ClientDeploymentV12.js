@@ -547,10 +547,26 @@ function testV12TwelveModuleSmokeAudit(businessId) {
   });
 
   var names=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"];
+  // Master-side audit must not depend on the client runtime MODULES global.
+  // Keep this audit self-contained so it can execute in the master project.
+  var masterModuleRegistry={
+    Finance:{sheet:"Financial_Data"},
+    Sales:{sheet:"Sales_Data"},
+    Ecommerce:{sheet:"Ecommerce_Data"},
+    CRM:{sheet:"CRM_Data"},
+    HR:{sheet:"HR_Data"},
+    Logistics:{sheet:"Logistics_Data"},
+    Tax:{sheet:"Tax_Data"},
+    Agro:{sheet:"Agro_Data"},
+    Productivity:{sheet:"Productivity_Data"},
+    POS:{sheet:"POS_Data"},
+    Attendance:{sheet:"Attendance_Data"},
+    Warehouse:{sheet:"Warehouse_Data"}
+  };
   var ws=SpreadsheetApp.openById(String(client.sheetId || ''));
   var modules=[];
   names.forEach(function(name){
-    var def=MODULES[name] || {};
+    var def=masterModuleRegistry[name] || {};
     var sh=def.sheet ? ws.getSheetByName(def.sheet) : null;
     var headers=[];
     var recordCount=0;
