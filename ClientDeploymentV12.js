@@ -994,3 +994,87 @@ function auditV12ClientDeploymentRuntime(businessId) {
     };
   }
 }
+
+function auditV12ReleaseCompleteness(businessId) {
+  var target=String(businessId||'').trim();
+  var client=target ? getActiveClientByBusinessIdForRedeploy_(target) : getActiveClientForV12Test_();
+  if(!client) throw new Error(target ? 'No active client deployment was found for business ID: '+target : 'No active client deployment was found.');
+
+  var pkg=generateClientCodeSafelyV12({
+    clientId:client.clientId,
+    clientName:client.clientName,
+    primaryColor:client.primaryColor || '#2E7D32',
+    logoUrl:client.logoUrl || '',
+    email:client.email,
+    sheetId:client.sheetId,
+    businessId:client.businessId,
+    masterApiUrl:getMasterApiUrl(),
+    landingUrl:client.landingUrl || '',
+    customDomain:client.customDomain || '',
+    applicationUrl:client.webAppUrl || ''
+  });
+  var packageCheck=validateClientDeploymentPackageV12_(pkg,{clientId:client.clientId,sheetId:client.sheetId});
+  var code=((pkg.files||[]).filter(function(f){return f.name==='Code';})[0]||{}).source||'';
+  var staff=((pkg.files||[]).filter(function(f){return f.name==='ClientStaffV12';})[0]||{}).source||'';
+  var dashboardSource=String(getMasterSourceForV12_('Dashboard')||'');
+
+  var staffMarkers=[
+    'function clientTeamRowsV11_',
+    'function ensureClientTeamSheetV11_',
+    'function getBusinessStaff(bid,sid)',
+    'function inviteStaffMember(bid,email,name,role,invitedBy,assignedModules,sid)',
+    'function resendStaffInvitation(bid,email,sid)',
+    'function assignModuleToStaff(email,bid,moduleName,assignedBy,sid)',
+    'function removeModuleFromStaff(bid,email,sid)',
+    'function clientAssignedModulesV11_',
+    'Assigned_Modules',
+    'staff-v12-root'
+  ];
+  var staffChecks={};
+  staffMarkers.forEach(function(token){staffChecks[token]=code.indexOf(token)>=0||staff.indexOf(token)>=0;});
+
+  var dashboardMarkers=[
+    'function getDashboardKPIs',
+    'function getEnhancedDashboardData',
+    'function getRecentTransactions',
+    'function getChartDataOptimized',
+    'function getDetailedFinancialMetrics',
+    'function getDailyTrends',
+    'function getWeeklyTrends',
+    'businessSnapshot',
+    'health',
+    'charts',
+    'recentActivity'
+  ];
+  var dashboardComparison={masterMarkers:{},clientMarkers:{},matched:0,total:dashboardMarkers.length};
+  dashboardMarkers.forEach(function(token){
+    var masterHas=dashboardSource.indexOf(token)>=0;
+    var clientHas=code.indexOf(token)>=0;
+    dashboardComparison.masterMarkers[token]=masterHas;
+    dashboardComparison.clientMarkers[token]=clientHas;
+    if(masterHas===clientHas) dashboardComparison.matched++;
+  });
+
+  var names=['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+  var ws=SpreadsheetApp.openById(String(client.sheetId||''));
+  var modules=names.map(function(name){
+    var sh=ws.getSheetByName(name+'_Data');
+    var headers=sh&&sh.getLastColumn()>0?sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0]:[];
+    return {module:name,sheet:name+'_Data',sheetExists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0};
+  });
+
+  var staffComplete=staffMarkers.every(function(token){return staffChecks[token];});
+  var dashboardParity=dashboardComparison.matched===dashboardComparison.total;
+  var modulesComplete=modules.every(function(m){return m.sheetExists&&m.headersPresent;});
+
+  return {
+    success:!!(packageCheck&&packageCheck.success&&staffComplete&&modulesComplete),
+    audit:'V12_RELEASE_COMPLETENESS',
+    liveClientRuntimeExecuted:false,
+    note:'This is a non-destructive source/workspace audit. It closes the static Staff, Master-dashboard comparison, and 12-module workspace checks. A real client session is still required for live Staff actions and live module reads/writes.',
+    package:{version:pkg.version,release:pkg.release,provenance:pkg.provenance,check:packageCheck},
+    staffAudit:{complete:staffComplete,markers:staffChecks},
+    dashboardComparison:{parity:dashboardParity,matched:dashboardComparison.matched,total:dashboardComparison.total,markers:dashboardComparison},
+    modulesAudit:{complete:modulesComplete,count:modules.length,modules:modules}
+  };
+}
