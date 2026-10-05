@@ -1,13 +1,33 @@
+function getBizOSModuleDefinition_(moduleName) {
+  var definitions = {
+    Finance:{sheet:'Financial_Data',label:'Financial Management'},
+    Sales:{sheet:'Sales_Data',label:'Sales Pipeline'},
+    Ecommerce:{sheet:'Ecommerce_Data',label:'E-commerce'},
+    CRM:{sheet:'CRM_Data',label:'Customer Relations'},
+    HR:{sheet:'HR_Data',label:'Human Resources'},
+    Logistics:{sheet:'Logistics_Data',label:'Logistics'},
+    Tax:{sheet:'Tax_Data',label:'Tax Compliance'},
+    Agro:{sheet:'Agro_Data',label:'Agriculture'},
+    Productivity:{sheet:'Productivity_Data',label:'Productivity Suite'},
+    POS:{sheet:'POS_Data',label:'Point of Sale'},
+    Attendance:{sheet:'Attendance_Data',label:'Staff Attendance'},
+    Warehouse:{sheet:'Warehouse_Data',label:'Warehouse Management'}
+  };
+  return definitions[String(moduleName || '')] || null;
+}
+
 // modules.gs
 function getModuleData(moduleName, sessionId) {
   try {
     if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
     
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) throw new Error("Module not found");
+    const sheet = workspace.getSheetByName(definition.sheet);
     
     if (!sheet) {
-      console.log(`Sheet ${MODULES[moduleName].sheet} not found in workspace`);
+      console.log(`Sheet ${definition.sheet} not found in workspace`);
       return [];
     }
     
@@ -41,7 +61,9 @@ function getModuleDataWithSync(moduleName, sessionId) {
     
     const user = getUserFromSession(sessionId);
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) return { success: false, message: "Module not found" };
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Module not found" };
     
     const lastRow = sheet.getLastRow();
