@@ -159,12 +159,6 @@ function generateClientCodeSafelyV12(settings) {
     "function changeClientPassword(currentPassword,newPassword,sid){var access=clientSettingsAccessV12_(sid,false);if(!access.ok)return{success:false,message:access.message};return changeUserPassword(String(access.user.email||''),String(currentPassword||''),String(newPassword||''),sid);}"
   ].join(String.fromCharCode(10));
   runtime = runtime.replace(/\nfunction doGet\(e\)\{/, '\n'+businessCenterSource+'\n'+businessCenterBridge+'\nfunction doGet(e){');
-  // V12 runtime diagnostics are reached only through the existing client web-app
-  // entry point after a short-lived token has been validated by the Master.
-  runtime = runtime.replace(
-    'function doGet(e){',
-    'function doGet(e){var traceToken=String(e&&e.parameter&&e.parameter.v12TraceToken||"").trim();if(traceToken)return renderV12RuntimeTrace_(traceToken);'
-  );
   runtime += String.fromCharCode(10) + [
     'function renderV12RuntimeTrace_(token){',
     '  try{',
@@ -179,7 +173,7 @@ function generateClientCodeSafelyV12(settings) {
     '    try{entitlement={success:true,modules:clientModulesForEntitlementV12_("owner","sovereign")};}catch(entErr){entitlement={success:false,message:String(entErr&&entErr.message||entErr)};}',
     '    var result={success:true,trace:"V12_CLIENT_RUNTIME_PROBE",clientId:String(CLIENT_CONFIG.clientId||""),packageVersion:String(CLIENT_V12_PACKAGE_VERSION_||""),runtime:{clientConfig:typeof CLIENT_CONFIG!=="undefined",modulesType:modulesType,moduleCount:moduleKeys.length,moduleKeys:moduleKeys,findClientUser:typeof findClientUser_==="function",createSession:typeof createClientSessionV11_==="function",entitlementBridge:typeof clientModulesForEntitlementV12_==="function",authenticateClient:typeof authenticateClient==="function",dashboardData:typeof getClientDashboardData==="function"},entitlement:entitlement};',
     '    var json=JSON.stringify(result,null,2).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");',
-    '    return HtmlService.createHtmlOutput("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>BizOS Runtime Trace</title></head><body style=\"font-family:Arial,sans-serif;padding:24px\"><h2>BizOS V12 Runtime Trace</h2><pre style=\"white-space:pre-wrap\">"+json+"</pre></body></html>").setTitle("BizOS Runtime Trace");',
+    '    return HtmlService.createHtmlOutput("<!doctype html><html><head><meta name=\\\"viewport\\\" content=\\\"width=device-width,initial-scale=1\\\"><title>BizOS Runtime Trace</title></head><body style=\\\"font-family:Arial,sans-serif;padding:24px\\\"><h2>BizOS V12 Runtime Trace</h2><pre style=\\\"white-space:pre-wrap\\\">"+json+"</pre></body></html>").setTitle("BizOS Runtime Trace");',
     '  }catch(e){return HtmlService.createHtmlOutput("<h2>Runtime trace failed</h2><pre>"+String(e&&e.message||e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+"</pre>");}',
     '}'
   ].join(String.fromCharCode(10));
@@ -189,7 +183,7 @@ function generateClientCodeSafelyV12(settings) {
   var includeStart = runtime.indexOf('function include', doGetStart);
   if (doGetStart < 0 || includeStart < 0) throw new Error('Unable to isolate the V12 client doGet runtime.');
   runtime = runtime.slice(0, doGetStart) +
-    'function doGet(e){var t=HtmlService.createTemplateFromFile("ClientShellV12");return t.evaluate().setTitle(CLIENT_CONFIG.clientName+" - BizOS").addMetaTag("viewport","width=device-width,initial-scale=1").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}\n' +
+    'function doGet(e){var traceToken=String(e&&e.parameter&&e.parameter.v12TraceToken||"").trim();if(traceToken)return renderV12RuntimeTrace_(traceToken);var t=HtmlService.createTemplateFromFile("ClientShellV12");return t.evaluate().setTitle(CLIENT_CONFIG.clientName+" - BizOS").addMetaTag("viewport","width=device-width,initial-scale=1").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}\n' +
     runtime.slice(includeStart);
 
   var modulesSource = String(getMasterSourceForV12_('Modules') || '');
