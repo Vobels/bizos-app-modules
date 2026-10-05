@@ -1501,13 +1501,14 @@
         animation: slideIn 0.3s ease;
         max-width: 350px;
       `;
-      notif.innerHTML = message;
+      notif.innerHTML = '<span style="display:inline-block;max-width:290px;vertical-align:middle;">' + message + '</span><button type="button" aria-label="Close notification" style="margin-left:12px;border:0;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;vertical-align:middle;padding:0 2px;" onclick="this.parentElement.remove();">&times;</button>';
       document.body.appendChild(notif);
       setTimeout(() => {
+        if (!document.body.contains(notif)) return;
         notif.style.opacity = '0';
         notif.style.transition = 'opacity 0.5s';
         setTimeout(() => notif.remove(), 500);
-      }, 3000);
+      }, 30000);
     }
     
     // ===== INIT =====
