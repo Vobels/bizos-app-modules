@@ -1193,8 +1193,12 @@
         .withSuccessHandler(function(response) {
           console.log('V12 client runtime trace:', response);
           if (response && response.success) {
-            showNotification(response.message || 'Client runtime trace completed.', 'success');
-            alert(JSON.stringify(response, null, 2));
+            showNotification('Runtime diagnostic link created.', 'success');
+            if (response.diagnosticUrl) {
+              window.open(response.diagnosticUrl, '_blank');
+            } else {
+              alert(JSON.stringify(response, null, 2));
+            }
             return;
           }
           var message = (response && response.message) || 'Client runtime trace could not be completed.';
