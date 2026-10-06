@@ -80,7 +80,7 @@ var CONFIG = {
       "Logistics", "Tax", "Agro", "Productivity", 
       "POS", "Attendance", "Warehouse"
     ],
-    freeModules: ["Ecommerce"],
+    freeModules: ["Finance", "Ecommerce"],
     access: {
       demo: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
       starter: ["Ecommerce"],
