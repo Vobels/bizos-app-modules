@@ -5494,13 +5494,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check for invite code in URL
   checkForInviteCode();
   
-  // Load session if exists
+  // Restore a saved session only after the server confirms it is still valid.
+  // This prevents a stale browser session from briefly exposing the dashboard
+  // before the server rejects it.
   if (loadSession()) {
-    const landingPage = document.getElementById('landing-page');
-    const dashboardPage = document.getElementById('dashboard-page');
-    if (landingPage) landingPage.classList.add('hidden');
-    if (dashboardPage) dashboardPage.classList.remove('hidden');
-    loadDashboard();
+    const savedSessionId = currentSessionId;
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (savedSessionId !== currentSessionId) return;
+        if (result && result.success && result.user) {
+          currentUser = result.user;
+          saveSession(savedSessionId, result.user);
+          const landingPage = document.getElementById('landing-page');
+          const dashboardPage = document.getElementById('dashboard-page');
+          if (landingPage) landingPage.classList.add('hidden');
+          if (dashboardPage) dashboardPage.classList.remove('hidden');
+          loadDashboard();
+        } else {
+          clearSession();
+          if (typeof window.__bizosForceLanding === 'function') {
+            window.__bizosForceLanding();
+          } else {
+            showLoginModal();
+          }
+        }
+      })
+      .withFailureHandler(function() {
+        clearSession();
+        if (typeof window.__bizosForceLanding === 'function') {
+          window.__bizosForceLanding();
+        } else {
+          showLoginModal();
+        }
+      })
+      .validateBizOSSession(savedSessionId);
   }
   
   // Initialize sidebar events
