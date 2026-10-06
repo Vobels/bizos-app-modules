@@ -208,8 +208,10 @@ function createSession(email, businessId) {
     businessId: businessId || '',
     createdAt: new Date().toISOString()
   };
-  // Store for 24 hours (86400 seconds)
-  cache.put(sessionId, JSON.stringify(sessionData), 86400);
+  // Apps Script CacheService supports a maximum cache lifetime of 6 hours.
+  // Use a sliding 6-hour session so active users stay signed in without
+  // relying on a cache duration the platform cannot actually guarantee.
+  cache.put(sessionId, JSON.stringify(sessionData), 21600);
   console.log("📝 Session created for:", email, "Session ID:", sessionId.substring(0, 20) + "...");
   return sessionId;
 }
@@ -225,6 +227,9 @@ function getSessionData_(sessionId) {
   if (!sessionData) return null;
 
   try {
+    // Refresh the active session window whenever the session is successfully read.
+    // This keeps normal dashboard use and page refreshes from expiring an active user.
+    cache.put(sessionId, sessionData, 21600);
     return JSON.parse(sessionData);
   } catch (error) {
     console.error('❌ Session data parse error:', error);
