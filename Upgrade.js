@@ -696,16 +696,20 @@ function getMimeType(fileName) {
 }
 
 function getLocalizedPricing(country) {
-  var paymentConfig = PAYMENT_COUNTRIES[country] || PAYMENT_COUNTRIES.default;
-  var basePrices = {sovereign:500, enterprise:2990};
-  var rate = paymentConfig.multiplier || 1;
-  var exchangeRate = 1500;
+  var name = String(country || '').trim();
+  var sovereignUsd = Number(CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.usd) || 500;
+  var sovereignNaira = Number(CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.naira) || 750000;
+  if (name === 'Nigeria') {
+    return {
+      sovereign:{price:sovereignNaira,currency:'₦',code:'NGN'},
+      enterprise:{price:2990,currency:'$',code:'USD'}
+    };
+  }
   return {
-    sovereign:{price:Math.round(basePrices.sovereign * exchangeRate * rate) / 100, currency:paymentConfig.symbol || '$', code:paymentConfig.currency || 'USD'},
-    enterprise:{price:Math.round(basePrices.enterprise * exchangeRate * rate) / 100, currency:paymentConfig.symbol || '$', code:paymentConfig.currency || 'USD'}
+    sovereign:{price:sovereignUsd,currency:'$',code:'USD'},
+    enterprise:{price:2990,currency:'$',code:'USD'}
   };
 }
-
 function validateUpgradeSession(sessionId) {
   try {
     if (!sessionId) return null;
