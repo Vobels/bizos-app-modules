@@ -914,10 +914,10 @@ function resendVerification() {
   if (email && email.trim()) {
     google.script.run
       .withSuccessHandler(function(response) {
-        alert(response.message);
+        showNotification((response && response.message) || 'We could not complete that request. Please try again.', 'error');
       })
       .withFailureHandler(function(error) {
-        alert("Failed to resend verification. Please contact support.");
+        showNotification('We could not resend the verification email. Please try again or contact support.', 'error');
       })
       .resendVerificationEmail(email.trim());
   }
@@ -4261,7 +4261,7 @@ function showUpgradeModal() {
 
   } else {
     console.error('Upgrade modal not found');
-    alert('Upgrade feature will be available soon. Please contact support.');
+    showNotification('Upgrade is not available yet. Please contact support.', 'info');
   }
 }
 
@@ -6115,7 +6115,7 @@ function loginAsSovereign() {
         showNotification('Signed in as Sovereign user', 'success');
         setTimeout(function() { loadEnhancedDashboard(); }, 1000);
       } else {
-        showNotification('Login failed: ' + res.message, 'error');
+        showNotification('We could not sign you in. Please check your details and try again.', 'error');
       }
     })
     .withFailureHandler(function(err) {
