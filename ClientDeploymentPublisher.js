@@ -156,7 +156,7 @@ function auditExistingClientV12Deployment(clientId,sessionId){
     var src=codeFile?String(codeFile.source||''):'';
     var markers={
       v12Runtime:src.indexOf('CLIENT_V12_PACKAGE_VERSION_')>=0,
-      v1210:src.indexOf('12.1.0')>=0,
+      v1220:src.indexOf(String(CLIENT_V12_PACKAGE_VERSION_))>=0,
       modules:src.indexOf('var MODULES=')>=0,
       packageInfo:src.indexOf('function getClientPackageInfo')>=0,
       smokeAudit:src.indexOf('function getClientV12ModuleSmokeAudit')>=0,
@@ -177,7 +177,7 @@ function auditExistingClientV12Deployment(clientId,sessionId){
       deployedWebAppUrl:entryUrl||expectedUrl,
       registryWebAppUrl:registryUrl,
       webAppUrlMatchesRegistry:urlMatches,
-      packageRelease:markers.v1210?'V12.1.0':'unknown',
+      packageRelease:markers.v1220?String(CLIENT_V12_PACKAGE_RELEASE_):'unknown',
       isV12:missing.length===0,
       missingMarkers:missing,
       markers:markers,
