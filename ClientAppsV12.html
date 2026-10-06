@@ -36,7 +36,7 @@
       if(!r||r.success===false){grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(r&&r.message||'Could not load your applications.')+'</p></div>';return;}
       render(r.summary||r);loaded=true;
     }).withFailureHandler(function(e){
-      grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(e&&e.message||'Could not load your applications.')+'</p></div>';
+      grid.innerHTML='<div class="apps-empty"><h3>Apps unavailable</h3><p>'+esc(window.clientFriendlyError(e&&e.message,''Could not load your applications.')+'</p></div>';
     }).getClientAppsData(window.clientSessionId);
   };
 })();
