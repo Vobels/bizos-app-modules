@@ -207,8 +207,23 @@ function togglePassword(inputId) {
 }
 
 // ==================== NOTIFICATIONS ====================
+function normalizeBizOSUserMessage(message) {
+  const text = String(message == null ? '' : message).trim();
+  const lower = text.toLowerCase();
+  if (!text) return 'Something went wrong. Please try again.';
+  if (lower.indexOf('session') !== -1 && (lower.indexOf('expired') !== -1 || lower.indexOf('invalid') !== -1)) return 'Your session has ended. Please sign in again.';
+  if (lower.indexOf('module') !== -1 && lower.indexOf('not defined') !== -1) return 'We could not load your business apps. Please refresh and try again.';
+  if (lower.indexOf('referenceerror') !== -1 || lower.indexOf('typeerror') !== -1 || lower.indexOf('syntaxerror') !== -1 || lower.indexOf('exception') !== -1 || lower.indexOf('script error') !== -1 || lower.indexOf('authorization') !== -1 || lower.indexOf('http 5') !== -1 || lower.indexOf('http 4') !== -1) return 'We could not complete that request. Please try again.';
+  if (lower.indexOf('authentication service') !== -1) return 'We are having trouble signing you in. Please try again in a moment.';
+  return text;
+}
+
 function showNotification(message, type = 'info') {
   const existing = document.querySelector('.bizos-notification');
+  message = normalizeBizOSUserMessage(message);
+
+  message = normalizeBizOSUserMessage(message);
+
   if (existing) existing.remove();
 
   const colors = {
@@ -248,7 +263,10 @@ function showNotification(message, type = 'info') {
   `;
   
   const icon = icons[type] || icons.info;
-  notification.innerHTML = `${icon}<span>${message}</span>`;
+  notification.innerHTML = icon;
+  const messageSpan = document.createElement('span');
+  messageSpan.textContent = message;
+  notification.appendChild(messageSpan);
   
   document.body.appendChild(notification);
   
