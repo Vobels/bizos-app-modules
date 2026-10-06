@@ -48,7 +48,14 @@
     // configuration exists, charge the global USD price rather than rejecting
     // the country.
     return {
-      sovereign: { price: 499, currency: '$', code: 'USD' },
+      sovereign: { price: 500, currency: ' },
+      enterprise: { price: 2990, currency: '$', code: 'USD' }
+    };
+  };
+
+  console.log('ZZZ global country/payment compatibility fix loaded');
+})();
+, code: 'USD' },
       enterprise: { price: 2990, currency: '$', code: 'USD' }
     };
   };
