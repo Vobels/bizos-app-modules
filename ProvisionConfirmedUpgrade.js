@@ -237,6 +237,12 @@ function reconcileSuccessfulUpgradePaymentsForProvisioning_() {
 
 function processConfirmedUpgradeProvisioningQueue_() {
   try {
+    // Keep temporary diagnostic properties from accumulating. The hygiene
+    // routine is throttled internally so this worker remains lightweight.
+    if (typeof runBizOSPropertyHygieneBestEffort_ === 'function') {
+      runBizOSPropertyHygieneBestEffort_();
+    }
+
     // First recover historical successful payments whose upgrade row still
     // says pending_payment. This makes recovery automatic even when the
     // customer never revisits the original payment page.
