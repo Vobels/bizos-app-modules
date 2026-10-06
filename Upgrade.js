@@ -231,7 +231,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     };
   } catch (error) {
     console.error('Upgrade request error:', error);
-    return {success:false, message:error.message || 'An error occurred. Please try again.'};
+    return {success:false, message:'We could not start your upgrade right now. Please try again.'};
   } finally {
     if (upgradeLock) {
       try { upgradeLock.releaseLock(); } catch (ignore) {}
