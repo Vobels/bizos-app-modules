@@ -356,6 +356,16 @@ function getUserFromSession(sessionId) {
 /**
  * Logout - remove session
  */
+/**
+ * UI bootstrap/session check. Returns the same authoritative user record used by
+ * dashboard operations so a saved browser session is never trusted by itself.
+ */
+function validateBizOSSession(sessionId) {
+  var user = getUserFromSession(sessionId);
+  if (!user) return {success:false, code:'SESSION_EXPIRED', message:'Your session has ended. Please sign in again.'};
+  return {success:true, user:user};
+}
+
 function logout(sessionId) {
   if (sessionId) {
     const cache = CacheService.getScriptCache();
