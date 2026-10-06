@@ -776,7 +776,7 @@ function handleBusinessRegistration(event) {
       console.error('Registration error:', error);
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
-      showNotification('Registration failed: ' + error.message, 'error');
+      showNotification('We could not create your business account. Please try again.', 'error');
     })
     .registerBusiness(businessData);
 }
@@ -849,7 +849,7 @@ function handleSignup(event) {
       console.error('Signup error:', error);
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
-      showNotification('Signup failed: ' + error.message, 'error');
+      showNotification('We could not create your account. Please try again.', 'error');
     })
     .registerBusiness(businessData);
 }
