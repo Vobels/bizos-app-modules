@@ -44,8 +44,8 @@ var CONFIG = {
   // ============================================================
   PRICING: {
     sovereign: {
-      usd: 800,
-      naira: 1200000,
+      usd: 500,
+      naira: 750000,
       description: "Lifetime access + Custom Domain + White Label",
       includes: [
         "All 12 Business Modules",
@@ -342,6 +342,8 @@ var CONFIG = {
     defaultPrimaryColor: '#5D2A86',
     defaultTier: 'sovereign',
     moduleAccess: {
+      free: ['Finance', 'Ecommerce'],
+      starter: ['Finance', 'Ecommerce'],
       sovereign: ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse']
     },
     // Client provisioning settings
