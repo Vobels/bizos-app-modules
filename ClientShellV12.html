@@ -146,7 +146,7 @@
             '<button class="metric-card" onclick="selectView(\'apps\')"><span class="metric-icon modules"><i class="fas fa-layer-group"></i></span><strong>'+num(counts.modules||0)+'</strong><span>Active modules</span></button>'+
             '<button class="metric-card" onclick="selectView(\'staff\')"><span class="metric-icon team"><i class="fas fa-users"></i></span><strong>'+num(counts.team||0)+'</strong><span>Team members</span></button>'+
           '</div>'+
-          '<div class="quick-actions">'+(canWrite?'<button onclick="selectView(\'finance\')"><i class="fas fa-plus"></i> Add transaction</button>':'')+'<button onclick="selectView(\'business\')"><i class="fas fa-store"></i> Manage store</button><button onclick="selectView(\'apps\')"><i class="fas fa-grip"></i> Explore apps</button><button class="primary-action" onclick="selectView(\'finance\')"><i class="fas fa-list"></i> View records</button></div>'+
+          '<div class="quick-actions">'+(canWrite?'<button onclick="selectView(\'finance\')"><i class="fas fa-plus"></i> Add transaction</button>':'')+'<button onclick="selectView(\'business\')"><i class="fas fa-store"></i> Manage store</button><button onclick="selectView(\'apps\')"><i class="fas fa-grip"></i> Explore apps</button><button class="primary-action" onclick="selectView(\'records\')"><i class="fas fa-list"></i> View records</button></div>'+
         '</section>'+
       '</div>'+
       '<section class="rich-panel"><div class="rich-panel-head"><div><span class="section-kicker">OPERATIONAL SNAPSHOT</span><h3>Activity across your workspace</h3></div><button class="text-link" onclick="selectView(\'apps\')">Open apps →</button></div>'+operationalSnapshot(snapshot.operational||{})+'</section>'+
