@@ -75,7 +75,7 @@ function registerBusiness(businessData) {
     };
   } catch (error) {
     console.error('Business registration error:', error);
-    return { success: false, message: "Registration failed: " + error.message };
+    return { success: false, message: "We could not create your account right now. Please try again." };
   }
 }
 
