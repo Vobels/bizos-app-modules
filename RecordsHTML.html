@@ -48,7 +48,8 @@
     }).join('')||'<p class="text-sm text-gray-500 p-3">No matching records found.</p>';
     list.querySelectorAll('[data-record-key]').forEach(function(btn){btn.addEventListener('click',function(){loadRecordRows(btn.getAttribute('data-record-key'));});});
   }
-  window.renderRecordsDirectorySearch=renderDirectory;\n  window.closeRecordsPage=function(){var p=document.getElementById('records-page');if(p)p.classList.add('hidden');};
+  window.renderRecordsDirectorySearch=renderDirectory;
+  window.closeRecordsPage=function(){var p=document.getElementById('records-page');if(p)p.classList.add('hidden');};
   window.showRecordsPage=function(){
     var p=document.getElementById('records-page');if(!p)return;
     p.classList.remove('hidden');
