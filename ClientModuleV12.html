@@ -83,7 +83,7 @@
   function renderQuickInsight(){var d=def(),box=document.getElementById('client-module-insight');if(!box)return;var count=state.records.length;var lead=d.kpis&&d.kpis.length?d.kpis[1]:null;var headline=count?'Quick Insight':'Quick Insight';var detail=count?(d.label+' currently has '+count+' record'+(count===1?'':'s')+'. '+(lead?esc(lead[0])+' is '+esc(kpiValue(lead[1]))+'.':'Review the records below for the latest activity.'):'No '+esc(d.label)+' records have been added yet. Add a record to start building this workspace summary.';box.innerHTML='<div class="client-module-toolbar"><div><strong>'+headline+'</strong><p style="margin:6px 0 0;color:#6b7280">'+detail+'</p></div></div>';}
   function filtered(){var q=String(document.getElementById('client-module-search').value||'').toLowerCase().trim();if(!q)return state.records;return state.records.filter(function(r){return state.headers.some(function(h){return String(r[h]==null?'':r[h]).toLowerCase().indexOf(q)>=0;});});}
   window.clientModuleV12RenderTable=function(){renderTable();};
-  window.clientModuleV12RenderTable=function(){renderTable();};
+  
   function renderTable(){
     var rows=filtered(), box=document.getElementById('client-module-table');document.getElementById('client-module-record-count').textContent=' · '+rows.length+' record'+(rows.length===1?'':'s');
     if(!state.headers.length){box.innerHTML='<div class="client-module-empty">No fields were found for this module.</div>';return;}
