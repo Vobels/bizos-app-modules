@@ -222,8 +222,6 @@ function showNotification(message, type = 'info') {
   const existing = document.querySelector('.bizos-notification');
   message = normalizeBizOSUserMessage(message);
 
-  message = normalizeBizOSUserMessage(message);
-
   if (existing) existing.remove();
 
   const colors = {
