@@ -812,7 +812,7 @@ function scrollToSection(sectionId) {
 }
 
 function contactSales() {
-  alert('Please email Bizoshigroups@gmail.com for enterprise pricing');
+  showNotification('Please email Bizoshigroups@gmail.com for enterprise pricing', 'info');
 }
 
 function openModuleFromLanding(moduleName) {
@@ -955,7 +955,7 @@ function loginDemo() {
         }, 1000);
         
       } else {
-        alert('Demo login failed: ' + res.message);
+        showNotification('We could not start the demo. Please try again.', 'error');
       }
     })
     .withFailureHandler(function(err) {
@@ -964,7 +964,7 @@ function loginDemo() {
         btn.disabled = false;
       }
       console.error('Demo login error:', err);
-      alert('Demo login failed. Please try again.');
+      showNotification('We could not start the demo. Please try again.', 'error');
     })
     .authenticateUser(demoEmail, demoPassword, demoBusiness);
 }
@@ -981,12 +981,12 @@ function handleSignup(event) {
   const confirm = document.getElementById('signup-confirm').value;
   
   if (password !== confirm) {
-    alert('Passwords do not match');
+    showNotification('The passwords do not match.', 'warning');
     return;
   }
   
   if (password.length < 6) {
-    alert('Password must be at least 6 characters');
+    showNotification('Your password must be at least 6 characters.', 'warning');
     return;
   }
   
@@ -1014,19 +1014,19 @@ function handleSignup(event) {
       submitBtn.disabled = false;
       
       if (response.success) {
-        alert('Account created! Please check your email to verify your account.');
+        showNotification('Account created. Please check your email to verify your account.', 'success');
         closeSignupModal();
         showLoginModal();
         document.getElementById('login-email').value = email;
         const resendSection = document.getElementById('resend-verification-section');
         if (resendSection) resendSection.classList.remove('hidden');
       } else {
-        alert(response.message);
+        showNotification(response.message, 'info');
       }
     })
     .withFailureHandler(function(error) {
       console.error('Signup error:', error);
-      alert('Signup failed. Please try again.');
+      showNotification('We could not create your account. Please try again.', 'error');
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
     })
@@ -1041,7 +1041,7 @@ function handleForgotPassword(event) {
   const email = document.getElementById('forgot-email').value;
   
   if (!email) {
-    alert('Please enter your email address');
+    showNotification('Please enter your email address.', 'warning');
     return;
   }
   
@@ -1060,7 +1060,7 @@ function handleForgotPassword(event) {
     })
     .withFailureHandler(function(error) {
       console.error('Forgot password error:', error);
-      alert('Failed to send reset link. Please try again.');
+      showNotification('We could not send the reset link. Please try again.', 'error');
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
     })
