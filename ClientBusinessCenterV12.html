@@ -91,7 +91,7 @@
 (function(){
   var sessionKey='bizos_client_session_v12', data=null, currentTab='overview', cart=[];
   function sid(){return localStorage.getItem(sessionKey)||'';}
-  function call(name,args,ok,fail){google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(fail||function(e){bcV12Message(e&&e.message||'Request failed.');})[name].apply(null,args||[]);}
+  function call(name,args,ok,fail){google.script.run.withSuccessHandler(ok||function(){}).withFailureHandler(fail||function(e){bcV12Message(window.clientFriendlyError(e&&e.message,''Request failed.');})[name].apply(null,args||[]);}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function money(v){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(Number(v)||0);}
   function num(v){return new Intl.NumberFormat('en-NG').format(Number(v)||0);}
