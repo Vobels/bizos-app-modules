@@ -80,6 +80,7 @@
   }
   function renderKpis(){var d=def();document.getElementById('client-module-kpis').innerHTML=d.kpis.map(function(k){return '<div class="client-module-kpi"><span>'+esc(k[0])+'</span><strong>'+esc(kpiValue(k[1]))+'</strong></div>';}).join('');}
   function filtered(){var q=String(document.getElementById('client-module-search').value||'').toLowerCase().trim();if(!q)return state.records;return state.records.filter(function(r){return state.headers.some(function(h){return String(r[h]==null?'':r[h]).toLowerCase().indexOf(q)>=0;});});}
+  window.clientModuleV12RenderTable=function(){renderTable();};
   function renderTable(){
     var rows=filtered(), box=document.getElementById('client-module-table');document.getElementById('client-module-record-count').textContent=' · '+rows.length+' record'+(rows.length===1?'':'s');
     if(!state.headers.length){box.innerHTML='<div class="client-module-empty">No fields were found for this module.</div>';return;}
