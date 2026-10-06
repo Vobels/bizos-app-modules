@@ -6063,10 +6063,10 @@ function loginAsFree() {
         }
         loadDashboard();
         loadModulesList();
-        showNotification('✅ Logged in as Free user', 'success');
+        showNotification('Signed in as Free user', 'success');
         setTimeout(function() { loadEnhancedDashboard(); }, 1000);
       } else {
-        showNotification('Login failed: ' + res.message, 'error');
+        showNotification('We could not sign you in. Please check your details and try again.', 'error');
       }
     })
     .withFailureHandler(function(err) {
@@ -6096,7 +6096,7 @@ function loginAsSovereign() {
         }
         loadDashboard();
         loadModulesList();
-        showNotification('👑 Logged in as Sovereign user', 'success');
+        showNotification('Signed in as Sovereign user', 'success');
         setTimeout(function() { loadEnhancedDashboard(); }, 1000);
       } else {
         showNotification('Login failed: ' + res.message, 'error');
