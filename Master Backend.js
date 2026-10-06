@@ -2,27 +2,22 @@
 // 📁 Master Backend.gs - COMPLETE MASTER API (FIXED)
 // ============================================================
 
-const MASTER_SECRET = 'TEST_SECRET_2024';
-
 // ============================================================
 // 🔗 GET MASTER API URL - CORRECT VERSION (NO DUPLICATE)
 // ============================================================
 function getMasterApiUrl() {
-  // Your main master API URL - this is the correct one
-  const mainMasterUrl = 'https://script.google.com/macros/s/AKfycby9J1h6m-hCeFYSCc5IgTM7DmVKRgKclUNdCqN3-dIiL34RWVQpTr10LBtdnUad0m-v/exec';
-  
-  // Try to get from script properties first
+  // Read the configured master API URL. It is deployment-specific and should
+  // not be embedded in source code.
   let url = PropertiesService.getScriptProperties().getProperty('MASTER_API_URL');
   if (url) {
     console.log('📡 Using MASTER_API_URL from properties:', url);
     return url;
   }
   
-  // Cache it in properties for faster access
-  PropertiesService.getScriptProperties().setProperty('MASTER_API_URL', mainMasterUrl);
-  
-  console.log('📡 Using master API URL:', mainMasterUrl);
-  return mainMasterUrl;
+  // No deployment-specific URL is hardcoded here. The URL must be configured
+  // in Script Properties before the master API is used.
+  console.error('MASTER_API_URL is not configured.');
+  return '';
 }
 
 // ============================================================
@@ -293,7 +288,7 @@ function autoSetupClient(paymentData) {
     console.log('👤 Ensuring user exists in Users sheet...');
     createUserIfNotExists(
       paymentData.email,
-      paymentData.password || 'default123',
+      paymentData.password || '',
       businessName,
       'owner',
       businessId || clientId,
@@ -405,7 +400,6 @@ function autoSetupClient(paymentData) {
       landingUrl: webAppUrl,
       sheetUrl: sheetResult.sheetUrl,
       email: paymentData.email,
-      password: paymentData.password || 'default123',
       scriptId: scriptId,
       message: 'Client setup complete!'
     };
@@ -462,7 +456,11 @@ function createUserIfNotExists(email, password, name, role, businessId, isVerifi
     const passwordCol = headers.indexOf('Password_Hash');
     const createdCol = headers.indexOf('Created_At');
     
-    const hashedPassword = hashPassword(password || 'default123');
+    if (!password) {
+      return { success: false, code: 'USER_PASSWORD_REQUIRED', message: 'A password is required before a new BizOS user can be created.' };
+    }
+
+    const hashedPassword = hashPassword(password);
     console.log(`🔑 Password hashed for ${email}`);
     
     const rowData = [];
