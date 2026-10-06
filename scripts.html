@@ -640,24 +640,10 @@ window.handleLogin = function(event) {
           const emailInput = document.getElementById('login-email')?.value.trim();
           
           setTimeout(() => {
-            const shouldResend = confirm(
-              "Your account exists but is not verified.\n\nWould you like to receive a new verification email?"
-            );
-            if (shouldResend && emailInput) {
-              google.script.run
-                .withSuccessHandler(function(response) {
-                  if (response.success) {
-                    showNotification('Verification email sent! Please check your inbox.', 'success');
-                  } else {
-                    showNotification(response.message, 'error');
-                  }
-                })
-                .withFailureHandler(function(error) {
-                  showNotification("Failed to resend verification. Please contact support.", 'error');
-                })
-                .resendVerificationEmail(emailInput);
-            }
-          }, 500);
+          const resendSection = document.getElementById('resend-verification-section');
+          if (resendSection) resendSection.classList.remove('hidden');
+          showNotification('Your account is not verified yet. Use “Resend verification email” to activate it.', 'info');
+        }, 300);
         }
       }
     })
