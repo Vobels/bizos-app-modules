@@ -7,8 +7,115 @@
  * authorized to execute it, it calls the deployed runtime using a harmless
  * function that directly touches MODULES.
  */
+function cleanupExpiredV12RuntimeTraceProperties_() {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var now = Date.now();
+  var removed = 0;
+  Object.keys(all).forEach(function(key) {
+    if (key.indexOf('V12_RUNTIME_TRACE_') !== 0) return;
+    try {
+      var record = JSON.parse(String(all[key] || '{}'));
+      var expiresAt = Number(record.expiresAt || 0);
+      if (expiresAt && expiresAt <= now) {
+        props.deleteProperty(key);
+        removed++;
+      }
+    } catch (ignore) {
+      // Leave malformed diagnostics untouched; hygiene must never delete
+      // unknown or potentially useful state merely because it cannot be parsed.
+    }
+  });
+  return removed;
+}
+
+function cleanupBizOSProvisionErrorProperties_(retentionDays) {
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  var now = Date.now();
+  var retentionMs = Math.max(1, Number(retentionDays || 30)) * 24 * 60 * 60 * 1000;
+  var removed = 0;
+  Object.keys(all).forEach(function(key) {
+    if (key.indexOf('BIZOS_PROVISION_ERROR_') !== 0) return;
+    try {
+      var record = JSON.parse(String(all[key] || '{}'));
+      var at = Date.parse(String(record.at || ''));
+      if (at && now - at >= retentionMs) {
+        props.deleteProperty(key);
+        removed++;
+      }
+    } catch (ignore) {
+      // Keep malformed provisioning diagnostics for manual inspection.
+    }
+  });
+  return removed;
+}
+
+function cleanupBizOSTemporaryScriptProperties(sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var tracesRemoved = cleanupExpiredV12RuntimeTraceProperties_();
+    var provisionErrorsRemoved = cleanupBizOSProvisionErrorProperties_(30);
+    return {
+      success:true,
+      v12RuntimeTraceRemoved:tracesRemoved,
+      provisioningErrorsRemoved:provisionErrorsRemoved,
+      emailIdempotencyFlagsPreserved:true,
+      message:'Temporary BizOS diagnostics were cleaned up. Email delivery protection was preserved.'
+    };
+  } catch (error) {
+    console.error('cleanupBizOSTemporaryScriptProperties error:', error);
+    return {success:false,code:'PROPERTY_CLEANUP_ERROR',message:'We could not complete property cleanup right now.'};
+  }
+}
+
+function auditBizOSScriptPropertiesHygiene(sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var all = PropertiesService.getScriptProperties().getProperties();
+    var now = Date.now();
+    var counts = {
+      total:Object.keys(all).length,
+      v12RuntimeTrace:0,
+      expiredV12RuntimeTrace:0,
+      provisioningErrors:0,
+      oldProvisioningErrors:0,
+      paymentEmailFlags:0,
+      deploymentEmailFlags:0,
+      other:0
+    };
+    Object.keys(all).forEach(function(key) {
+      if (key.indexOf('V12_RUNTIME_TRACE_') === 0) {
+        counts.v12RuntimeTrace++;
+        try {
+          var trace = JSON.parse(String(all[key] || '{}'));
+          if (Number(trace.expiresAt || 0) && Number(trace.expiresAt) <= now) counts.expiredV12RuntimeTrace++;
+        } catch (ignoreTrace) {}
+      } else if (key.indexOf('BIZOS_PROVISION_ERROR_') === 0) {
+        counts.provisioningErrors++;
+        try {
+          var errorRecord = JSON.parse(String(all[key] || '{}'));
+          var at = Date.parse(String(errorRecord.at || ''));
+          if (at && now - at >= 30 * 24 * 60 * 60 * 1000) counts.oldProvisioningErrors++;
+        } catch (ignoreError) {}
+      } else if (key.indexOf('PAYMENT_CONFIRMATION_EMAIL_SENT_') === 0) {
+        counts.paymentEmailFlags++;
+      } else if (key.indexOf('DEPLOYMENT_CONFIRMATION_EMAIL_SENT_') === 0) {
+        counts.deploymentEmailFlags++;
+      } else {
+        counts.other++;
+      }
+    });
+    return {success:true,counts:counts,emailIdempotencyFlagsPreserved:true};
+  } catch (error) {
+    console.error('auditBizOSScriptPropertiesHygiene error:', error);
+    return {success:false,code:'PROPERTY_AUDIT_ERROR',message:'We could not inspect Script Properties right now.'};
+  }
+}
+
 function traceClientRuntimeExecutionApiV12(businessId, sessionId) {
   requireAdminSession_(sessionId);
+  cleanupExpiredV12RuntimeTraceProperties_();
   var wanted=String(businessId||'').trim();
   if(!wanted)return{success:false,code:'BUSINESS_ID_REQUIRED',message:'Business ID is required.'};
   try{
