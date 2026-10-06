@@ -69,6 +69,21 @@ function cleanupBizOSTemporaryScriptProperties(sessionId) {
   }
 }
 
+function runBizOSPropertyHygieneBestEffort_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var gate = 'bizos_property_hygiene_last_run_v1';
+    if (cache.get(gate)) return {success:true,skipped:true};
+    var tracesRemoved = cleanupExpiredV12RuntimeTraceProperties_();
+    var provisionErrorsRemoved = cleanupBizOSProvisionErrorProperties_(30);
+    cache.put(gate, String(Date.now()), 6 * 60 * 60);
+    return {success:true,skipped:false,v12RuntimeTraceRemoved:tracesRemoved,provisioningErrorsRemoved:provisionErrorsRemoved};
+  } catch (error) {
+    console.error('runBizOSPropertyHygieneBestEffort_ error:', error);
+    return {success:false};
+  }
+}
+
 function auditBizOSScriptPropertiesHygiene(sessionId) {
   requireAdminSession_(sessionId);
   try {
