@@ -1052,7 +1052,7 @@ function handleForgotPassword(event) {
   
   google.script.run
     .withSuccessHandler(function(response) {
-      alert(response.message);
+      showNotification((response && response.message) || 'We could not complete that request. Please try again.', 'error');
       closeForgotModal();
       showLoginModal();
       submitBtn.textContent = originalText;
