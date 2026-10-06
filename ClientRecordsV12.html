@@ -1,38 +1,39 @@
 <div id="client-records-v12-root" class="client-records-v12">
   <div class="client-records-head">
-    <div><span class="section-kicker">RECORD DIRECTORY</span><h2>All Records</h2><p>Browse every record type available in your workspace.</p></div>
+    <div><span class="section-kicker">RECORD DIRECTORY</span><h2>All Records</h2><p>Browse your records by app. Search by record or app name.</p></div>
     <button type="button" class="client-records-refresh" onclick="clientRecordsV12Load()">Refresh</button>
   </div>
   <div id="client-records-message"></div>
-  <div id="client-records-grid" class="client-records-grid">
-    <div class="client-records-empty">Loading record directory…</div>
-  </div>
+  <div class="client-records-toolbar"><input id="client-records-search" type="search" placeholder="Search records or apps..." oninput="clientRecordsV12Render()"></div>
+  <div id="client-records-grid" class="client-records-grid"><div class="client-records-empty">Loading your records…</div></div>
 </div>
 <script>
 (function(){
   var icons={Finance:'fa-calculator',Sales:'fa-chart-line',Ecommerce:'fa-cart-shopping',CRM:'fa-users',HR:'fa-briefcase',Logistics:'fa-truck',Tax:'fa-file-invoice',Agro:'fa-seedling',Productivity:'fa-clock',POS:'fa-cash-register',Attendance:'fa-fingerprint',Warehouse:'fa-warehouse','Business Center':'fa-store'};
-  var classes={Finance:'finance',Sales:'sales',Ecommerce:'ecommerce',CRM:'crm',HR:'hr',Logistics:'logistics',Tax:'tax',Agro:'agro',Productivity:'productivity',POS:'pos',Attendance:'attendance',Warehouse:'warehouse'};
+  var allRecords=[];
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function openRecord(x){
-    if(x.source==='module'){if(window.selectView)window.selectView('module:'+String(x.module||x.key||''));return;}
-    if(window.selectView)window.selectView('business');
-  }
+  window.clientRecordsV12Render=function(){
+    var box=document.getElementById('client-records-grid'),q=String((document.getElementById('client-records-search')||{}).value||'').toLowerCase().trim();
+    var rows=allRecords.filter(function(x){return !q||String(x.name||'').toLowerCase().indexOf(q)!==-1||String(x.module||'').toLowerCase().indexOf(q)!==-1;});
+    var groups={};rows.forEach(function(x){var g=x.module||'Other';(groups[g]||(groups[g]=[])).push(x);});
+    var order=['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse','Business Center'];
+    var keys=Object.keys(groups).sort(function(a,b){var ai=order.indexOf(a),bi=order.indexOf(b);return (ai<0?999:ai)-(bi<0?999:bi)||a.localeCompare(b);});
+    box.innerHTML=keys.map(function(g){
+      return '<section class="client-record-group"><div class="client-record-group-head"><strong>'+esc(g)+'</strong><span>'+groups[g].length+' record types</span></div>'+
+        groups[g].map(function(x){var icon=icons[x.module]||'fa-database';return '<button type="button" class="client-record-card" data-record-key="'+esc(x.key)+'"><span class="client-record-icon"><i class="fas '+icon+'"></i></span><span class="client-record-copy"><b>'+esc(x.name||x.key||'Record')+'</b><small>'+esc(x.module||'Records')+'</small></span><strong>'+Number(x.count||0)+'</strong><i class="fas fa-arrow-right"></i></button>';}).join('')+'</section>';
+    }).join('')||'<div class="client-records-empty">No matching records found.</div>';
+    box.querySelectorAll('[data-record-key]').forEach(function(btn){btn.addEventListener('click',function(){clientRecordsV12Open(btn.getAttribute('data-record-key'));});});
+  };
   window.clientRecordsV12Load=function(){
     var box=document.getElementById('client-records-grid');if(!box)return;
-    box.innerHTML='<div class="client-records-empty">Loading record directory…</div>';
+    box.innerHTML='<div class="client-records-empty">Loading your records…</div>';
     google.script.run.withSuccessHandler(function(r){
-      if(!r||r.success===false){box.innerHTML='<div class="client-records-empty error">Unable to load record directory.</div>';return;}
-      var rows=Array.isArray(r.records)?r.records:[];
-      if(!rows.length){box.innerHTML='<div class="client-records-empty"><strong>No record types available yet.</strong><p>Your assigned apps will appear here.</p></div>';return;}
-      box.innerHTML=rows.map(function(x){
-        var n=String(x.name||x.key||'Record'),m=String(x.module||''),icon=icons[m]||icons[n]||'fa-database',cl=classes[m]||'';
-        return '<button type="button" class="client-record-card" onclick="clientRecordsV12Open('+JSON.stringify(String(x.key||''))+')"><span class="client-record-icon '+cl+'"><i class="fas '+icon+'"></i></span><span class="client-record-copy"><b>'+esc(n)+'</b><small>'+esc(m||'Records')+'</small></span><strong>'+esc(String(Number(x.count)||0))+'</strong><i class="fas fa-arrow-right"></i></button>';
-      }).join('');
-    }).withFailureHandler(function(e){box.innerHTML='<div class="client-records-empty error">'+esc(e&&e.message||'Unable to load record directory.')+'</div>';}).getRecordsDirectory(window.clientSessionId);
+      if(!r||r.success===false){box.innerHTML='<div class="client-records-empty error">We could not load your records. Please try again.</div>';return;}
+      allRecords=Array.isArray(r.records)?r.records:[];clientRecordsV12Render();
+    }).withFailureHandler(function(){box.innerHTML='<div class="client-records-empty error">We could not load your records. Please try again.</div>';}).getRecordsDirectory(window.clientSessionId);
   };
   window.clientRecordsV12Open=function(key){
-    var rows=String(key||'').split(':');
-    if(rows[0]==='BC'){if(window.selectView)window.selectView('business');return;}
+    if(String(key||'').indexOf('BC:')===0){if(window.selectView)window.selectView('business');return;}
     if(window.selectView)window.selectView('module:'+String(key||''));
   };
 })();
