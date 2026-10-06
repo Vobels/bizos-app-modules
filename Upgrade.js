@@ -183,7 +183,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var paymentId = 'PAY_' + Utilities.getUuid().substring(0, 8).toUpperCase();
     var timestamp = new Date();
     var pricing = getLocalizedPricing(country);
-    var amount = pricing.sovereign && pricing.sovereign.price || 499;
+    var amount = pricing.sovereign && pricing.sovereign.price || 500;
     var currency = pricing.sovereign && pricing.sovereign.code || 'USD';
     var symbol = pricing.sovereign && pricing.sovereign.currency || '$';
 
@@ -539,7 +539,7 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
     }
 
     var pricing = getLocalizedPricing(country);
-    var amount = pricing.sovereign && Number(pricing.sovereign.price) || 499;
+    var amount = pricing.sovereign && Number(pricing.sovereign.price) || 500;
     var currency = pricing.sovereign && String(pricing.sovereign.code || 'USD').toUpperCase() || 'USD';
 
     var ss = getBizOSMasterSpreadsheet_();
@@ -697,7 +697,7 @@ function getMimeType(fileName) {
 
 function getLocalizedPricing(country) {
   var paymentConfig = PAYMENT_COUNTRIES[country] || PAYMENT_COUNTRIES.default;
-  var basePrices = {sovereign:499, enterprise:2990};
+  var basePrices = {sovereign:500, enterprise:2990};
   var rate = paymentConfig.multiplier || 1;
   var exchangeRate = 1500;
   return {
