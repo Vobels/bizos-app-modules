@@ -25,7 +25,7 @@ function authenticateUser(email, password, businessName) {
     
     if (emailCol === -1) {
       console.error('❌ Email column not found!');
-      return { success: false, message: 'System error: Email column missing' };
+      return { success: false, message: 'We could not complete sign in right now. Please try again.' };
     }
     
     // ===== FIND USER =====
@@ -100,7 +100,7 @@ function authenticateUser(email, password, businessName) {
       }
     } else {
       console.log('❌ Password column not found!');
-      return { success: false, message: 'System error: Password column missing' };
+      return { success: false, message: 'We could not complete sign in right now. Please try again.' };
     }
     
     if (!isPasswordValid) {
@@ -184,7 +184,7 @@ function authenticateUser(email, password, businessName) {
   } catch (error) {
     console.error('❌ authenticateUser error:', error);
     console.error('❌ Stack:', error.stack);
-    return { success: false, message: "Login failed: " + error.message };
+    return { success: false, message: "We could not complete sign in right now. Please try again." };
   }
 }
 
@@ -325,7 +325,7 @@ function getUserFromSession(sessionId) {
     if (isDemo) {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
-      accessibleModules = ['Ecommerce'];
+      accessibleModules = ['Finance', 'Ecommerce'];
     } else {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     }
@@ -467,6 +467,6 @@ function confirmPasswordReset(token, newPassword) {
     
   } catch (error) {
     console.error('❌ Confirm reset error:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: "We could not complete the password reset. Please try again." };
   }
 }
