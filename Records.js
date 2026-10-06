@@ -47,7 +47,7 @@ function getRecordsDirectory(sessionId) {
     return { success: true, records: result };
   } catch (error) {
     console.error('Records directory error:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: 'We could not load these records right now. Please try again.' };
   }
 }
 
