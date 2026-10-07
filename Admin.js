@@ -686,7 +686,7 @@ function getAllModules(sessionId) {
 function addFeature(featureData, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    let featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) {
       featuresSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Features');
       featuresSheet.appendRow(['ID', 'Name', 'Description', 'Module', 'Tier', 'Active', 'CreatedAt']);
@@ -706,7 +706,7 @@ function addFeature(featureData, sessionId) {
 function toggleFeature(featureId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    const featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
     const data = featuresSheet.getDataRange().getValues();
     const headers = data[0];
@@ -728,7 +728,7 @@ function toggleFeature(featureId, sessionId) {
 function deleteFeature(featureId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    const featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
     const data = featuresSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
@@ -1053,7 +1053,7 @@ function logAdminAction(action, details) {
 
 function getUserFeatures(userTier) {
   try {
-    const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    const featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) return [];
     
     const data = featuresSheet.getDataRange().getValues();
