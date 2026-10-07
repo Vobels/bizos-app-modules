@@ -42,7 +42,7 @@ function createFlutterwaveCheckout(requestId, sessionId, accessToken) {
 }
 
 function saveFlutterwaveReference_(requestId,reference) {
-  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
+  var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Payments');
   if (!sheet) return;
   var data=sheet.getDataRange().getValues(); if (!data.length) return;
   var headers=data[0],requestIdCol=headers.indexOf('Request_ID'),refCol=headers.indexOf('Transaction_Ref');
@@ -138,10 +138,10 @@ function getAvailablePaymentMethods(requestId, sessionId, accessToken) {
       methods.push({id:'paystack',name:'Paystack',available:true,description:currency === 'NGN' ? 'Secure card and supported local payment options.' : 'Secure international card checkout.'});
     }
 
-    // Flutterwave's hosted card checkout supports a broad set of currencies.
-    // Account-level approval/settings can still restrict a currency, so checkout
-    // errors remain server-side and are surfaced as a friendly fallback message.
-    var flutterwaveCurrencies = ['USD','GBP','EUR','CAD','XAF','COP','EGP','GHS','KES','INR','NGN','RWF','SLL','ZAR','TZS','UGX','XOF','ZMW'];
+    // Flutterwave capabilities are centralized in BizOS payment config.
+    // Account-level approval/settings can still restrict a currency, so the
+    // actual checkout remains the final server-side authority.
+    var flutterwaveCurrencies = (CONFIG.PRICING && CONFIG.PRICING.payment && CONFIG.PRICING.payment.flutterwaveSupportedCurrencies) || [];
     if (flutterwaveConfigured && flutterwaveCurrencies.indexOf(currency) !== -1) {
       methods.push({id:'flutterwave',name:'Flutterwave',available:true,description:'Secure international card and supported payment options.'});
     }
