@@ -32,7 +32,7 @@ window.clientBillingPayQuote=function(quoteId){
     if(!r||!r.success){msg(r&&r.message||'Payment could not be prepared.',true);return;}
     var s=document.createElement('script');s.src='https://js.paystack.co/v1/inline.js';s.onload=function(){
       if(!window.PaystackPop){msg('Secure payment checkout could not be loaded. Please try again.',true);return;}
-      var handler=window.PaystackPop.setup({key:r.publicKey,email:(window.clientUser&&window.clientUser.email)||'',amount:r.amount,currency:r.currency,ref:r.reference,onClose:function(){msg('Payment window closed.');},callback:function(response){
+      var handler=window.PaystackPop.setup({key:r.publicKey,email:r.email||'',amount:r.amount,currency:r.currency,ref:r.reference,onClose:function(){msg('Payment window closed.');},callback:function(response){
         msg('Verifying payment...');google.script.run.withSuccessHandler(function(v){if(v&&v.success){msg('Payment confirmed.');load();}else msg(v&&v.message||'Payment could not be confirmed.',true);}).withFailureHandler(function(e){msg(window.clientFriendlyError(e&&e.message,'Payment could not be confirmed.'),true);}).verifyClientQuotePayment(r.quoteId,response.reference,window.clientSessionId);
       }});handler.openIframe();
     };s.onerror=function(){msg('Secure payment checkout could not be loaded. Please try again.',true);};document.head.appendChild(s);
