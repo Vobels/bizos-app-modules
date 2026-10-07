@@ -457,7 +457,8 @@ function testGenerateClientCodeSafelyV12(businessId) {
     masterApiUrl:getMasterApiUrl(),
     landingUrl:client.landingUrl || '',
     customDomain:client.customDomain || '',
-    applicationUrl:client.webAppUrl || ''
+    applicationUrl:client.webAppUrl || '',
+    featureProfile:(function(){try{return JSON.parse(String(client.Feature_Profile_JSON||'{}'))||{};}catch(e){return {};}})()
   };
 
   var packageResult = generateClientCodeSafelyV12(settings);
@@ -568,7 +569,8 @@ function testV12TwelveModuleSmokeAudit(businessId) {
     masterApiUrl:getMasterApiUrl(),
     landingUrl:client.landingUrl || '',
     customDomain:client.customDomain || '',
-    applicationUrl:client.webAppUrl || ''
+    applicationUrl:client.webAppUrl || '',
+    featureProfile:(function(){try{return JSON.parse(String(client.Feature_Profile_JSON||'{}'))||{};}catch(e){return {};}})()
   });
   var packageCheck = validateClientDeploymentPackageV12_(packageResult,{
     clientId:client.clientId,
@@ -1019,7 +1021,8 @@ function auditV12ReleaseCompleteness(businessId) {
     masterApiUrl:getMasterApiUrl(),
     landingUrl:client.landingUrl || '',
     customDomain:client.customDomain || '',
-    applicationUrl:client.webAppUrl || ''
+    applicationUrl:client.webAppUrl || '',
+    featureProfile:(function(){try{return JSON.parse(String(client.Feature_Profile_JSON||'{}'))||{};}catch(e){return {};}})()
   });
   var packageCheck=validateClientDeploymentPackageV12_(pkg,{clientId:client.clientId,sheetId:client.sheetId});
   var code=((pkg.files||[]).filter(function(f){return f.name==='Code';})[0]||{}).source||'';
