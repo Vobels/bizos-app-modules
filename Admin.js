@@ -1217,26 +1217,119 @@ function getAdminBusinessModules_(businessId, tier) {
 function getClientManagementOverview(clientId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    var wanted=String(clientId||'').trim();
-    var ss=getBizOSMasterSpreadsheet_(),registry=ss.getSheetByName('Clients');
-    if(!registry)return{success:false,message:'Client registry is unavailable.'};
-    var values=registry.getDataRange().getValues(),headers=values[0].map(function(h){return String(h||'').trim();}),idCol=headers.indexOf('Client_ID'),row=null;
-    for(var i=1;i<values.length;i++)if(String(values[i][idCol]||'').trim()===wanted){row=values[i];break;}
-    if(!row)return{success:false,message:'Client was not found.'};
-    var client={};headers.forEach(function(h,j){client[h]=row[j]===undefined?'':row[j];});
-    var workspace={success:false},billing={maintenance:[],features:[],quotes:[],services:[],activity:[]};
-    try{
-      var ws=SpreadsheetApp.openById(String(client.Sheet_ID||''));
-      workspace={success:true,sheetId:String(client.Sheet_ID||''),url:ws.getUrl(),sheets:ws.getSheets().map(function(s){return s.getName();})};
-      function rows(name){var s=ws.getSheetByName(name);if(!s||s.getLastRow()<2)return[];var v=s.getDataRange().getValues(),h=v[0]||[];return v.slice(1).map(function(r){var o={};h.forEach(function(k,j){o[String(k||'')]=r[j];});return o;}).slice(-50).reverse();}
-      billing.maintenance=rows('Client_Maintenance_Requests');
-      billing.features=rows('Client_Feature_Requests');
-      billing.quotes=rows('Client_Quotes');
-      billing.services=rows('Client_Service_History');
-      billing.activity=rows('Client_Activity');
-    }catch(workspaceError){workspace={success:false,message:'Client workspace could not be read by the admin service.'};}
-    return{success:true,client:{clientId:client.Client_ID,email:client.Email,clientName:client.Client_Name,businessId:client.Business_ID,tier:client.Tier,status:client.Status,scriptId:client.Script_ID,deploymentId:client.Deployment_ID,webAppUrl:client.Web_App_URL,createdAt:client.Created_At,updatedAt:client.Updated_At,recoveryBackupId:client.Recovery_Backup_ID,recoveryBackupUrl:client.Recovery_Backup_URL,ownershipStatus:client.Workspace_Ownership_Status},workspace:workspace,billing:billing};
-  }catch(error){console.error('getClientManagementOverview error:',error);return{success:false,message:'We could not load the client management overview.'};}
+    var wanted = String(clientId || '').trim();
+    var client = getAdminClientRegistryRecord_(wanted);
+    if (!client) return {success:false, code:'CLIENT_NOT_FOUND', message:'No client was found for this client or business ID.'};
+
+    var businessId = String(client.Business_ID || '').trim();
+    var tier = String(client.Tier || 'starter').trim().toLowerCase();
+    var workspace = {success:false};
+    var billing = {maintenance:[],features:[],quotes:[],services:[],activity:[]};
+    var payments = [];
+
+    // Business is the primary admin grouping. People, modules and deployment
+    // metadata are all returned together so the UI does not need to guess
+    // relationships from separate lists.
+    var people = getAdminBusinessPeople_(businessId);
+    var modules = getAdminBusinessModules_(businessId, tier);
+
+    var featureProfile = {enabledFeatureIds:[]};
+    var featureProfileRaw = String(client.Feature_Profile_JSON || '').trim();
+    if (featureProfileRaw) {
+      try {
+        featureProfile = normalizeClientFeatureProfile_(JSON.parse(featureProfileRaw) || {});
+      } catch (profileError) {
+        featureProfile = {enabledFeatureIds:[]};
+      }
+    }
+
+    try {
+      var masterPayments = getBizOSMasterSpreadsheet_().getSheetByName('Payments');
+      if (masterPayments && masterPayments.getLastRow() >= 2) {
+        var pv = masterPayments.getDataRange().getValues();
+        var ph = pv[0].map(function(h){return String(h || '').trim();});
+        var pBiz = ph.indexOf('Business_ID');
+        var pReq = ph.indexOf('Request_ID');
+        var pStatus = ph.indexOf('Status');
+        var pAmount = ph.indexOf('Amount');
+        var pCurrency = ph.indexOf('Currency');
+        var pRef = ph.indexOf('Transaction_Ref');
+        var pCreated = ph.indexOf('Created_At');
+        for (var pi = 1; pi < pv.length; pi++) {
+          var rowBusiness = pBiz >= 0 ? String(pv[pi][pBiz] || '').trim() : '';
+          if (businessId && rowBusiness && rowBusiness !== businessId) continue;
+          var payment = {};
+          ph.forEach(function(h,j){payment[h]=pv[pi][j];});
+          payments.push(payment);
+        }
+      }
+    } catch (paymentError) {
+      console.error('Client management payment lookup error:', paymentError);
+    }
+
+    try {
+      var sheetId = String(client.Sheet_ID || client.Workspace_ID || '').trim();
+      if (sheetId) {
+        var ws = SpreadsheetApp.openById(sheetId);
+        workspace = {
+          success:true,
+          sheetId:sheetId,
+          url:ws.getUrl(),
+          sheets:ws.getSheets().map(function(s){return s.getName();})
+        };
+
+        function rows(name) {
+          var s=ws.getSheetByName(name);
+          if(!s||s.getLastRow()<2)return[];
+          var v=s.getDataRange().getValues(),h=v[0]||[];
+          return v.slice(1).map(function(r){
+            var o={};
+            h.forEach(function(k,j){o[String(k||'')]=r[j];});
+            return o;
+          }).slice(-50).reverse();
+        }
+
+        billing.maintenance=rows('Client_Maintenance_Requests');
+        billing.features=rows('Client_Feature_Requests');
+        billing.quotes=rows('Client_Quotes');
+        billing.services=rows('Client_Service_History');
+        billing.activity=rows('Client_Activity');
+      }
+    } catch(workspaceError) {
+      workspace={success:false,message:'Client workspace could not be read by the admin service.'};
+    }
+
+    return {
+      success:true,
+      client:{
+        clientId:String(client.Client_ID || ''),
+        email:String(client.Email || ''),
+        clientName:String(client.Client_Name || ''),
+        businessId:businessId,
+        tier:tier,
+        status:String(client.Status || ''),
+        scriptId:String(client.Script_ID || ''),
+        deploymentId:String(client.Deployment_ID || ''),
+        webAppUrl:String(client.Web_App_URL || ''),
+        landingUrl:String(client.Landing_URL || ''),
+        createdAt:client.Created_At || '',
+        updatedAt:client.Updated_At || '',
+        provisioningVersion:String(client.Provisioning_Version || ''),
+        recoveryBackupId:String(client.Recovery_Backup_ID || ''),
+        recoveryBackupUrl:String(client.Recovery_Backup_URL || ''),
+        ownershipStatus:String(client.Workspace_Ownership_Status || '')
+      },
+      people:people,
+      modules:modules,
+      featureProfile:featureProfile,
+      workspace:workspace,
+      billing:billing,
+      payments:payments
+    };
+  } catch(error) {
+    console.error('getClientManagementOverview error:',error);
+    return {success:false,message:'We could not load the client management overview.'};
+  }
 }
 
 function createClientAdminRecoveryBackup(clientId, sessionId) {
