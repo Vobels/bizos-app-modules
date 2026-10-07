@@ -202,36 +202,32 @@ function resetAdminPassword(recoveryKey, newPassword) {
 function getAdminStats(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    // Use the same canonical master spreadsheet as the Businesses directory.
-    // Do not use getOrCreateBusinessSheet()/getOrCreateUserSheet() here because
-    // a web-app execution can otherwise resolve the bound/active spreadsheet
-    // instead of the configured BizOS master database.
+    // The Admin dashboard and Business Directory must use the same canonical
+    // business view. That view also surfaces confirmed paid customers whose
+    // Businesses row has not yet been created.
     const masterSpreadsheet = getBizOSMasterSpreadsheet_();
-    const businessSheet = masterSpreadsheet.getSheetByName('Businesses');
     const userSheet = masterSpreadsheet.getSheetByName('Users') || masterSpreadsheet.getSheetByName('User');
-
-    const bizData = businessSheet ? businessSheet.getDataRange().getValues() : [[]];
     const userData = userSheet ? userSheet.getDataRange().getValues() : [[]];
+    const businesses = getAllBusinesses(sessionId);
 
-    const totalBusinesses = Math.max(0, bizData.length - 1);
+    const totalBusinesses = businesses.length;
     const totalUsers = Math.max(0, userData.length - 1);
 
-    // Count tiers from the canonical Businesses registry. Payment confirmation
-    // may predate provisioning, so paid status is also reconciled from the
-    // payment/upgrade registries below.
-    const bizHeaders = bizData[0] || [];
-    const tierCol = bizHeaders.indexOf('Subscription_Tier');
+    // Count tiers from the canonical business view so paid deployment records
+    // remain visible even when provisioning has not populated Businesses yet.
     let freeUsers = 0, paidUsers = 0;
-
-    for (let i = 1; i < bizData.length; i++) {
-      const tier = tierCol >= 0 ? String(bizData[i][tierCol] || 'free').trim().toLowerCase() : 'free';
+    businesses.forEach(function(business) {
+      const tier = String(business.subscriptionTier || 'free').trim().toLowerCase();
       if (tier === 'free' || tier === 'starter') freeUsers++;
       else paidUsers++;
-    }
-    
-    // Recent activity
+    });
+
+    // Keep recent/new-business activity tied to the canonical Businesses
+    // registry; it should not manufacture activity for payment-only records.
+    const businessSheet = masterSpreadsheet.getSheetByName('Businesses');
+    const bizData = businessSheet ? businessSheet.getDataRange().getValues() : [[]];
     const recentActivity = getRecentActivity();
-    
+
     return {
       totalBusinesses,
       totalUsers,
@@ -247,7 +243,6 @@ function getAdminStats(sessionId) {
     return { totalBusinesses: 0, totalUsers: 0, freeUsers: 0, paidUsers: 0, totalRevenue: 0, newUsers: 0, newBusinesses: 0, recentActivity: [] };
   }
 }
-
 function getNewUsersCount(userData) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -699,79 +694,40 @@ function getAllModules(sessionId) {
     var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
     var access = config.MODULES && config.MODULES.access ? config.MODULES.access : {};
 
-    // Build the directory from the canonical Businesses registry. A module is
-    // connected to a business through that business' subscription entitlement;
-    // this is intentionally not a second module-assignment database.
-    var businessSheet = getBizOSMasterSpreadsheet_().getSheetByName('Businesses');
-    var clientSheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
-    var clientByBusiness = {};
-    if (clientSheet && clientSheet.getLastRow() >= 2) {
-      var cv=clientSheet.getDataRange().getValues(), ch=cv[0].map(function(h){return String(h||'').trim();});
-      var cb=ch.indexOf('Business_ID'), cs=ch.indexOf('Status');
-      for(var ci=1;ci<cv.length;ci++){
-        var bid=cb>=0?String(cv[ci][cb]||'').trim():'';
-        if(!bid)continue;
-        var rec={};ch.forEach(function(h,j){rec[h]=cv[ci][j];});
-        if(!clientByBusiness[bid] || String(rec.Status||'').toLowerCase()==='active') clientByBusiness[bid]=rec;
-      }
-    }
-
-    var businesses=[];
-    if (businessSheet && businessSheet.getLastRow() >= 2) {
-      var bv=businessSheet.getDataRange().getValues(), bh=bv[0].map(function(h){return String(h||'').trim();});
-      var bidCol=bh.indexOf('Business_ID'), nameCol=bh.indexOf('Business_Name'), tierCol=bh.indexOf('Subscription_Tier'), statusCol=bh.indexOf('Status');
-      for(var bi=1;bi<bv.length;bi++){
-        var businessId=bidCol>=0?String(bv[bi][bidCol]||'').trim():'';
-        if(!businessId)continue;
-        var client=clientByBusiness[businessId]||{};
-        var tier=String((tierCol>=0?bv[bi][tierCol]:'') || client.Tier || 'starter').trim().toLowerCase();
-        var status=String((statusCol>=0?bv[bi][statusCol]:'') || 'active').trim().toLowerCase();
-        var workspaceIdCol = bh.indexOf('Workspace_ID');
-        businesses.push({
-          businessId:businessId,
-          businessName:nameCol>=0?String(bv[bi][nameCol]||''):'',
-          tier:tier,
-          status:status,
-          workspaceId:workspaceIdCol>=0?String(bv[bi][workspaceIdCol]||'').trim():''
-        });
-      }
-    }
-
-    var sheetByModule = {
-      Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
-      CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
-      Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
-      POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
-    };
-
-    return all.map(function(name){
-      var connected=businesses.filter(function(b){
-        var allowed=access[b.tier] || access.starter || [];
-        return allowed.indexOf(name) >= 0 && b.status !== 'archived';
-      });
-      var recordCount=0;
-      var sheetName=sheetByModule[name];
-      if(sheetName){
-        connected.forEach(function(b){
-          if(!b.workspaceId) return;
-          try {
-            var ws=SpreadsheetApp.openById(b.workspaceId);
-            var sh=ws.getSheetByName(sheetName);
-            if(sh && sh.getLastRow()>1) recordCount += sh.getLastRow()-1;
-          } catch(e) {
-            console.warn('Unable to count '+name+' records for '+b.businessId+': '+e.message);
-          }
-        });
-      }
+    // Reuse the canonical Admin business directory instead of reading only the
+    // Businesses sheet. This keeps Module Management aligned with paid
+    // deployments that are already represented by successful payment/client
+    // registry data but may not yet have a Businesses row.
+    var businesses = getAllBusinesses(sessionId).map(function(b) {
       return {
-        name:name,
-        label:labels[name] || name,
-        icon:icons[name] || 'fa-folder',
-        tier:'starter',
-        recordCount:recordCount,
-        visible:true,
-        businessCount:connected.length,
-        businesses:connected.slice(0,50)
+        businessId: String(b.businessId || '').trim(),
+        businessName: String(b.businessName || '').trim(),
+        tier: String(b.subscriptionTier || 'starter').trim().toLowerCase(),
+        status: String(b.status || '').trim().toLowerCase(),
+        workspaceId: String(b.workspaceId || '').trim()
+      };
+    }).filter(function(b) {
+      return !!b.businessId;
+    });
+
+    return all.map(function(name) {
+      var connected = businesses.filter(function(b) {
+        var allowed = access[b.tier] || access.starter || [];
+        return allowed.indexOf(name) >= 0 && b.status !== 'archived' && b.status !== 'suspended';
+      });
+
+      // Admin does not yet have a canonical cross-business record aggregator.
+      // Do not present a zero as authoritative usage data.
+      return {
+        name: name,
+        label: labels[name] || name,
+        icon: icons[name] || 'fa-folder',
+        tier: 'starter',
+        recordCount: null,
+        recordCountAvailable: false,
+        visible: true,
+        businessCount: connected.length,
+        businesses: connected.slice(0, 50)
       };
     });
   } catch(error) {
@@ -779,7 +735,6 @@ function getAllModules(sessionId) {
     return [];
   }
 }
-
 function addFeature(featureData, sessionId) {
   requireAdminSession_(sessionId);
   try {
