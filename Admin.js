@@ -1244,3 +1244,31 @@ function restoreClientWorkspaceFromRecoveryBackup(clientId, backupId, sessionId)
     return{success:true,message:'Client workspace restored from the selected recovery backup.',safetyBackup:safety,restoredFrom:sourceId};
   }catch(error){console.error('restoreClientWorkspaceFromRecoveryBackup error:',error);return{success:false,message:'The client workspace could not be restored. The current workspace was not intentionally replaced unless the restore completed.'};}
 }
+
+function createClientQuote(clientId,data,sessionId){
+  requireAdminSession_(sessionId);
+  try{
+    var client=getActiveClientByIdForAdmin_(clientId);if(!client)return{success:false,message:'Active client deployment not found.'};
+    data=data||{};var title=String(data.title||'').trim(),details=String(data.details||'').trim(),amount=Number(data.amount||0),currency=String(data.currency||'NGN').toUpperCase();
+    if(!title)return{success:false,message:'Quote title is required.'};
+    if(!amount||amount<=0)return{success:false,message:'Quote amount must be greater than zero.'};
+    if(details.length>4000)return{success:false,message:'Quote details are too long.'};
+    var ws=SpreadsheetApp.openById(String(client.Sheet_ID||client.sheetId||'')),s=ws.getSheetByName('Client_Quotes');
+    if(!s){s=ws.insertSheet('Client_Quotes');s.appendRow(['Quote_ID','Title','Details','Amount','Currency','Status','Created_At','Updated_At','Payment_Ref','Payment_Status','Paid_At']);}
+    var h=s.getRange(1,1,1,s.getLastColumn()).getValues()[0].map(function(x){return String(x||'');});
+    ['Payment_Ref','Payment_Status','Paid_At'].forEach(function(k){if(h.indexOf(k)<0)s.getRange(1,s.getLastColumn()+1).setValue(k);});
+    var id='QUO-'+Utilities.getUuid().replace(/-/g,'').slice(0,10).toUpperCase(),now=new Date().toISOString();
+    s.appendRow([id,title,details,amount,currency,'pending',now,now,'','pending','']);
+    return{success:true,quoteId:id,message:'Quote created for the client.'};
+  }catch(error){console.error('createClientQuote error:',error);return{success:false,message:'Quote could not be created.'};}
+}
+function updateClientQuoteStatus(clientId,quoteId,status,sessionId){
+  requireAdminSession_(sessionId);
+  try{
+    var client=getActiveClientByIdForAdmin_(clientId);if(!client)return{success:false,message:'Active client deployment not found.'};
+    var allowed=['pending','approved','paid','cancelled','expired'];status=String(status||'').toLowerCase();if(allowed.indexOf(status)<0)return{success:false,message:'Invalid quote status.'};
+    var ws=SpreadsheetApp.openById(String(client.Sheet_ID||client.sheetId||'')),s=ws.getSheetByName('Client_Quotes');if(!s)return{success:false,message:'No quotes found.'};
+    var v=s.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'');}),idc=h.indexOf('Quote_ID'),sc=h.indexOf('Status'),uc=h.indexOf('Updated_At');for(var i=1;i<v.length;i++)if(String(v[i][idc]||'')===String(quoteId||'')){if(sc>=0)s.getRange(i+1,sc+1).setValue(status);if(uc>=0)s.getRange(i+1,uc+1).setValue(new Date().toISOString());return{success:true,message:'Quote status updated.'};}
+    return{success:false,message:'Quote not found.'};
+  }catch(error){console.error('updateClientQuoteStatus error:',error);return{success:false,message:'Quote status could not be updated.'};}
+}
