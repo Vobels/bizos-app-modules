@@ -657,28 +657,61 @@ function getAllFeatures(sessionId) {
 function getAllModules(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const config = getConfig();  // ✅ Get CONFIG safely
-    const modules = [];
-    
-    if (config.MODULES && config.MODULES.all) {
-      const moduleLabels = config.MODULES.labels || {};
-      const moduleIcons = config.MODULES.icons || {};
-      
-      for (const name of config.MODULES.all) {
-        modules.push({
-          name: name,
-          label: moduleLabels[name] || name,
-          icon: moduleIcons[name] || 'fa-folder',
-          tier: 'starter',
-          recordCount: 0,
-          visible: true
-        });
+    var config = getConfig();
+    var all = config.MODULES && Array.isArray(config.MODULES.all) ? config.MODULES.all : [];
+    var labels = config.MODULES && config.MODULES.labels ? config.MODULES.labels : {};
+    var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
+    var access = config.MODULES && config.MODULES.access ? config.MODULES.access : {};
+
+    // Build the directory from the canonical Businesses registry. A module is
+    // connected to a business through that business' subscription entitlement;
+    // this is intentionally not a second module-assignment database.
+    var businessSheet = getBizOSMasterSpreadsheet_().getSheetByName('Businesses');
+    var clientSheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    var clientByBusiness = {};
+    if (clientSheet && clientSheet.getLastRow() >= 2) {
+      var cv=clientSheet.getDataRange().getValues(), ch=cv[0].map(function(h){return String(h||'').trim();});
+      var cb=ch.indexOf('Business_ID'), cs=ch.indexOf('Status');
+      for(var ci=1;ci<cv.length;ci++){
+        var bid=cb>=0?String(cv[ci][cb]||'').trim():'';
+        if(!bid)continue;
+        var rec={};ch.forEach(function(h,j){rec[h]=cv[ci][j];});
+        if(!clientByBusiness[bid] || String(rec.Status||'').toLowerCase()==='active') clientByBusiness[bid]=rec;
       }
     }
-    
-    return modules;
-  } catch (error) {
-    console.error('Error getting modules:', error);
+
+    var businesses=[];
+    if (businessSheet && businessSheet.getLastRow() >= 2) {
+      var bv=businessSheet.getDataRange().getValues(), bh=bv[0].map(function(h){return String(h||'').trim();});
+      var bidCol=bh.indexOf('Business_ID'), nameCol=bh.indexOf('Business_Name'), tierCol=bh.indexOf('Subscription_Tier'), statusCol=bh.indexOf('Status');
+      for(var bi=1;bi<bv.length;bi++){
+        var businessId=bidCol>=0?String(bv[bi][bidCol]||'').trim():'';
+        if(!businessId)continue;
+        var client=clientByBusiness[businessId]||{};
+        var tier=String((tierCol>=0?bv[bi][tierCol]:'') || client.Tier || 'starter').trim().toLowerCase();
+        var status=String((statusCol>=0?bv[bi][statusCol]:'') || 'active').trim().toLowerCase();
+        businesses.push({businessId:businessId,businessName:nameCol>=0?String(bv[bi][nameCol]||''):'',tier:tier,status:status});
+      }
+    }
+
+    return all.map(function(name){
+      var connected=businesses.filter(function(b){
+        var allowed=access[b.tier] || access.starter || [];
+        return allowed.indexOf(name) >= 0 && b.status !== 'archived';
+      });
+      return {
+        name:name,
+        label:labels[name] || name,
+        icon:icons[name] || 'fa-folder',
+        tier:'starter',
+        recordCount:0,
+        visible:true,
+        businessCount:connected.length,
+        businesses:connected.slice(0,50)
+      };
+    });
+  } catch(error) {
+    console.error('Error getting modules:',error);
     return [];
   }
 }
