@@ -382,16 +382,96 @@ function updateUserVerification(email, businessId) {
   }
 }
 
-function deleteBusinessAccount(businessId, email) {
+function deleteBusinessAccount(businessId, email, sessionId) {
+  // The legacy "Delete Account" action is intentionally a soft-close/archive
+  // operation. BizOS does not permanently erase business records from this
+  // self-service path; historical records must remain available for recovery,
+  // support, fraud review and other legitimate operational needs.
   try {
+    const user = getUserFromSession(sessionId);
+    if (!user) return { success: false, message: 'Your session has expired. Please sign in again.' };
+
+    const wantedBusinessId = String(businessId || '').trim();
+    const requestedEmail = String(email || '').trim().toLowerCase();
+    if (!wantedBusinessId || !requestedEmail) return { success: false, message: 'Account information is incomplete.' };
+
+    if (String(user.businessId || '').trim() !== wantedBusinessId ||
+        String(user.email || '').trim().toLowerCase() !== requestedEmail) {
+      return { success: false, message: 'You can only close your own business account.' };
+    }
+
     const businessSheet = getOrCreateBusinessSheet();
     const data = businessSheet.getDataRange().getValues();
-    const headers = data[0];
+    if (!data || data.length < 2) return { success: false, message: 'Business account could not be found.' };
+
+    const headers = data[0].map(h => String(h || '').trim());
     const bizIdCol = headers.indexOf('Business_ID');
+    const ownerEmailCol = headers.indexOf('Owner_Email');
+    const tierCol = headers.indexOf('Subscription_Tier');
+    const statusCol = headers.indexOf('Subscription_Status');
     const activeCol = headers.indexOf('Is_Active');
-    const rowIndex = data.findIndex(r => r[bizIdCol] === businessId);
-    if (rowIndex !== -1 && activeCol !== -1) businessSheet.getRange(rowIndex + 1, activeCol + 1).setValue('NO');
-    GmailApp.sendEmail(CONFIG.EMAIL.supportEmail, `Account Deletion Request - ${businessId}`, `Business ${businessId} requested deletion. Owner: ${email}`);
-    return { success: true };
-  } catch(error) { return { success: false, message: 'We could not process your account request right now. Please try again or contact support.' }; }
+    const lastActiveCol = headers.indexOf('Last_Active');
+    const archivedAtCol = headers.indexOf('Archived_At');
+
+    if (bizIdCol < 0 || activeCol < 0) {
+      return { success: false, message: 'The business account record is incomplete.' };
+    }
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][bizIdCol] || '').trim() === wantedBusinessId) {
+        rowIndex = i;
+        break;
+      }
+    }
+    if (rowIndex < 0) return { success: false, message: 'Business account could not be found.' };
+
+    if (ownerEmailCol >= 0 &&
+        String(data[rowIndex][ownerEmailCol] || '').trim().toLowerCase() !== requestedEmail) {
+      return { success: false, message: 'The account owner does not match the signed-in user.' };
+    }
+
+    const tier = tierCol >= 0 ? String(data[rowIndex][tierCol] || 'free').trim().toLowerCase() : 'free';
+    if (tier && tier !== 'free') {
+      return { success: false, message: 'Paid business accounts must be closed by BizOS support. Your data has not been changed.' };
+    }
+
+    const now = new Date().toISOString();
+    businessSheet.getRange(rowIndex + 1, activeCol + 1).setValue('NO');
+    if (statusCol >= 0) businessSheet.getRange(rowIndex + 1, statusCol + 1).setValue('archived');
+    if (lastActiveCol >= 0) businessSheet.getRange(rowIndex + 1, lastActiveCol + 1).setValue(now);
+    if (archivedAtCol >= 0) businessSheet.getRange(rowIndex + 1, archivedAtCol + 1).setValue(now);
+
+    // Deactivate every user attached to the business without deleting their
+    // historical membership or activity.
+    const userSheet = getOrCreateUserSheet();
+    const userData = userSheet.getDataRange().getValues();
+    if (userData.length >= 2) {
+      const userHeaders = userData[0].map(h => String(h || '').trim());
+      const userBusinessIdCol = userHeaders.indexOf('Business_ID');
+      const userActiveCol = userHeaders.indexOf('Is_Active');
+      if (userBusinessIdCol >= 0 && userActiveCol >= 0) {
+        for (let i = 1; i < userData.length; i++) {
+          if (String(userData[i][userBusinessIdCol] || '').trim() === wantedBusinessId) {
+            userSheet.getRange(i + 1, userActiveCol + 1).setValue('NO');
+          }
+        }
+      }
+    }
+
+    GmailApp.sendEmail(
+      CONFIG.EMAIL.supportEmail,
+      `Account Archive Request - ${wantedBusinessId}`,
+      `Business ${wantedBusinessId} was archived through the self-service "Delete Account" action. Owner: ${requestedEmail}. Historical business records and account activity were retained; no permanent data deletion was performed.`
+    );
+
+    return {
+      success: true,
+      archived: true,
+      message: 'Your account has been archived. Your business records and account history were retained. Contact BizOS support if you need the account restored.'
+    };
+  } catch(error) {
+    console.error('deleteBusinessAccount/archive error:', error);
+    return { success: false, message: 'We could not process your account closure right now. Please try again or contact support.' };
+  }
 }
