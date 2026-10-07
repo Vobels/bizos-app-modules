@@ -152,7 +152,7 @@ function ensureClientRegistryColumns_() {
       'Client_ID','Email','Client_Name','Business_ID','Domain','Primary_Color',
       'Logo_Url','Custom_Domain','Tier','Status','Sheet_ID','Workspace_ID',
       'Web_App_URL','Landing_URL','API_Key','Created_At','Updated_At',
-      'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email'
+      'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email','Feature_Profile_JSON'
     ]);
     return sheet;
   }
@@ -219,6 +219,7 @@ function saveClientRecordV2(settings) {
         case 'Recovery_Backup_URL': return settings.recoveryBackupUrl || '';
         case 'Workspace_Ownership_Status': return settings.workspaceOwnershipStatus || '';
         case 'Workspace_Owner_Email': return settings.workspaceOwnerEmail || settings.email || '';
+        case 'Feature_Profile_JSON': return settings.featureProfileJson || (settings.featureProfile ? JSON.stringify(settings.featureProfile) : '');
         default: return '';
       }
     });
@@ -401,5 +402,55 @@ function validateClientLicense(payload) {
       code: 'LICENSE_VALIDATION_ERROR',
       message: error && error.message ? error.message : 'Client license validation failed.'
     };
+  }
+}
+
+
+function getClientFeatureProfile(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted = String(clientId || '').trim();
+    if (!wanted) return {success:false, message:'Client ID is required.'};
+    var sheet = ensureClientRegistryColumns_();
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0].map(function(h){return String(h || '').trim();});
+    var idCol = headers.indexOf('Client_ID');
+    var profileCol = headers.indexOf('Feature_Profile_JSON');
+    if (idCol < 0 || profileCol < 0) return {success:false, message:'Client feature profile is not configured.'};
+    for (var i=1;i<values.length;i++) {
+      if (String(values[i][idCol] || '').trim() !== wanted) continue;
+      var raw=String(values[i][profileCol] || '').trim(), profile={};
+      if(raw){try{profile=JSON.parse(raw)||{};}catch(e){profile={};}}
+      return {success:true,clientId:wanted,profile:profile};
+    }
+    return {success:false,message:'Client was not found.'};
+  } catch (error) {
+    console.error('getClientFeatureProfile error:', error);
+    return {success:false,message:'We could not load this client feature profile.'};
+  }
+}
+
+function saveClientFeatureProfile(clientId, profile, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId || '').trim();
+    if(!wanted)return{success:false,message:'Client ID is required.'};
+    profile=profile&&typeof profile==='object'?profile:{};
+    var raw=JSON.stringify(profile);
+    if(raw.length>20000)return{success:false,message:'The client feature profile is too large.'};
+    var sheet=ensureClientRegistryColumns_(),values=sheet.getDataRange().getValues();
+    var headers=values[0].map(function(h){return String(h||'').trim();});
+    var idCol=headers.indexOf('Client_ID'),profileCol=headers.indexOf('Feature_Profile_JSON'),updatedCol=headers.indexOf('Updated_At');
+    if(idCol<0||profileCol<0)return{success:false,message:'Client feature profile is not configured.'};
+    for(var i=1;i<values.length;i++){
+      if(String(values[i][idCol]||'').trim()!==wanted)continue;
+      sheet.getRange(i+1,profileCol+1).setValue(raw);
+      if(updatedCol>=0)sheet.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());
+      return{success:true,clientId:wanted,profile:profile,message:'Client feature profile saved.'};
+    }
+    return{success:false,message:'Client was not found.'};
+  }catch(error){
+    console.error('saveClientFeatureProfile error:',error);
+    return{success:false,message:'We could not save this client feature profile.'};
   }
 }
