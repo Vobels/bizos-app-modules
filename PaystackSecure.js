@@ -170,7 +170,19 @@ function getPaystackCheckoutDetails(requestId, sessionId, accessToken) {
       return {success:false,code:'INVALID_PAYMENT_AMOUNT',message:'Upgrade request has an invalid payment amount.'};
     }
 
-    var currency = String(request.currency || 'NGN').toUpperCase();
+    var currency = String(request.currency || '').toUpperCase();
+    if (!currency) {
+      return {success:false,code:'PAYMENT_CURRENCY_REQUIRED',message:'A payment currency is required before Paystack checkout can continue.'};
+    }
+    if (currency !== 'NGN' && currency !== 'USD') {
+      return {success:false,code:'PAYSTACK_CURRENCY_UNSUPPORTED',message:'Paystack is not currently available for this currency. Please choose another payment option.'};
+    }
+    if (currency === 'USD') {
+      var usdEnabled = String(PropertiesService.getScriptProperties().getProperty('PAYSTACK_USD_ENABLED') || '').trim().toLowerCase() === 'true';
+      if (!usdEnabled) {
+        return {success:false,code:'PAYSTACK_USD_NOT_ENABLED',message:'Paystack USD checkout is not currently available. Please use another available payment option.'};
+      }
+    }
     var reference = 'BIZOS-' + String(requestId).replace(/[^A-Za-z0-9.=-]/g,'-') + '-' + Utilities.getUuid().replace(/-/g,'').substring(0,8);
 
     savePaystackReference_(requestId, reference);
