@@ -628,7 +628,7 @@ function getAllUsers(sessionId) {
 function getAllFeatures(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    let featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) {
       featuresSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Features');
       featuresSheet.appendRow(['ID', 'Name', 'Description', 'Module', 'Tier', 'Active', 'CreatedAt']);
