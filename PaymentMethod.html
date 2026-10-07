@@ -19,12 +19,13 @@
         <div class="row"><span>Business</span><strong id="business">Loading...</strong></div>
         <div class="row"><span>Plan</span><strong id="plan">Loading...</strong></div>
         <div class="row"><span>Country</span><strong id="country">Loading...</strong></div>
-        <div class="row"><span>Currency</span><strong id="currency">Loading...</strong></div>
+        <div class="row"><span>Currency</span><strong><select id="currency" aria-label="Payment currency" style="border:1px solid #d9dce5;border-radius:8px;padding:7px 28px 7px 9px;background:#fff;font-weight:700;color:#111827"></select></strong></div>
         <div class="row total"><span>Total</span><strong id="amount">Loading...</strong></div>
       </div>
       <div class="methods">
-        <button id="paystack" class="method" type="button" disabled><span><strong>Paystack</strong><span>Card, bank transfer and supported local payment options</span></span><b class="arrow">›</b></button>
-        <button id="flutterwave" class="method" type="button" disabled><span><strong>Flutterwave</strong><span>Card, bank and other supported payment options</span></span><b class="arrow">›</b></button>
+        <button id="paystack" class="method" type="button" disabled style="display:none"><span><strong>Paystack</strong><span>Secure card and supported payment options</span></span><b class="arrow">›</b></button>
+        <button id="flutterwave" class="method" type="button" disabled style="display:none"><span><strong>Flutterwave</strong><span>Secure international card and supported payment options</span></span><b class="arrow">›</b></button>
+        <div id="no-methods" class="status error" style="display:none">There is currently no available payment method for this currency. Please return to your upgrade details and choose another supported currency.</div>
       </div>
       <div id="status" class="status"></div>
       <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:20px">
@@ -59,12 +60,56 @@
       var editUpgrade=document.getElementById('edit-upgrade-details');
       backToBilling.addEventListener('click',function(event){event.preventDefault();openBizOS('?page=dashboard&billing=1');});
       editUpgrade.addEventListener('click',function(event){event.preventDefault();openBizOS('?page=dashboard&billing=1&editUpgrade=1&requestId='+encodeURIComponent(requestId));});
-      function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}
+      function status(message,type){statusEl.textContent=message;statusEl.className='status show '+(type||'info');}function renderCurrencyOptions(options,current){
+        currencyEl.innerHTML='';
+        (options||[]).forEach(function(option){
+          var el=document.createElement('option');el.value=String(option.code||'').toUpperCase();el.textContent=(option.name?option.name+' ('+option.code+')':option.code);currencyEl.appendChild(el);
+        });
+        if(current)currencyEl.value=String(current).toUpperCase();
+      }
+      function loadCurrencyOptions(currentDetails){
+        google.script.run.withSuccessHandler(function(r){
+          if(!r||!r.success||!r.options){currencyEl.disabled=true;return;}
+          renderCurrencyOptions(r.options,currentDetails&&currentDetails.currency);
+          currencyEl.disabled=false;
+        }).withFailureHandler(function(){currencyEl.disabled=true;}).getUpgradeCurrencyOptions(requestId,getStoredSession(),accessToken);
+      }
+      currencyEl.addEventListener('change',function(){
+        var selected=String(currencyEl.value||'').toUpperCase();
+        if(!selected)return;
+        currencyEl.disabled=true;paystack.disabled=true;flutterwave.disabled=true;
+        status('Updating the payment currency...','info');
+        google.script.run.withSuccessHandler(function(r){
+          if(!r||!r.success){
+            currencyEl.disabled=false;paystack.disabled=false;flutterwave.disabled=false;
+            status(r&&r.message||'We could not update the payment currency.','error');
+            if(details&&details.currency)currencyEl.value=String(details.currency).toUpperCase();
+            return;
+          }
+          amountEl.textContent=money(r.amount,r.currency);
+          details.currency=r.currency;details.displayAmount=r.amount;
+          currencyEl.disabled=false;
+          google.script.run.withSuccessHandler(function(methods){
+            paystack.style.display='none';flutterwave.style.display='none';
+            (methods&&methods.methods||[]).forEach(function(method){
+              if(method.id==='paystack'){paystack.style.display='flex';paystack.disabled=false;}
+              if(method.id==='flutterwave'){flutterwave.style.display='flex';flutterwave.disabled=false;}
+            });
+            if(!methods||!methods.hasPaymentRoute)status(methods&&methods.message||'There is currently no available payment method for this currency.','error');
+            else status('Currency updated. Choose an available payment option to continue.','info');
+          }).withFailureHandler(function(){
+            paystack.disabled=false;flutterwave.disabled=false;status('Currency updated, but we could not load payment options. Please refresh and try again.','error');
+          }).getAvailablePaymentMethods(requestId,getStoredSession(),accessToken);
+        }).withFailureHandler(function(){
+          currencyEl.disabled=false;paystack.disabled=false;flutterwave.disabled=false;status('We could not update the payment currency. Please try again.','error');
+        }).updateUpgradeRequestCurrency(requestId,selected,getStoredSession(),accessToken);
+      }
+      
       function money(amount,currency){try{return new Intl.NumberFormat('en-US',{style:'currency',currency:currency}).format(Number(amount||0));}catch(e){return String(currency||'')+' '+Number(amount||0).toLocaleString();}}
       function setBusy(button,text){button.disabled=true;button.querySelector('strong').textContent=text;}
       function clearLoading(message){
         businessEl.textContent='—';planEl.textContent='—';countryEl.textContent='—';currencyEl.textContent='—';amountEl.textContent='—';
-        paystack.disabled=true;flutterwave.disabled=true;
+        paystack.disabled=true;flutterwave.disabled=true;paystack.style.display='none';flutterwave.style.display='none';
         if(message) status(message,'error');
       }
       if(!requestId){clearLoading('This payment page is missing your upgrade request. Please return to BizOS and submit the upgrade again.');return;}
@@ -74,9 +119,10 @@
         // authenticated backend. This lets a resumed payment recover safely
         // even if the URL contains an older/stale requestId.
         if (r.requestId) requestId=String(r.requestId);
-        details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';currencyEl.textContent=String(r.currency||'').toUpperCase();amountEl.textContent=money(r.displayAmount,r.currency);
+        details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';amountEl.textContent=money(r.displayAmount,r.currency);
+        loadCurrencyOptions(r);
         if(r.paymentConfirmed){
-          paystack.disabled=true;flutterwave.disabled=true;
+          currencyEl.disabled=true;paystack.disabled=true;flutterwave.disabled=true;
           status(r.message||'Your payment is already confirmed. You do not need to pay again.','info');
           var deploymentLink=document.createElement('a');
           deploymentLink.className='back';
@@ -89,7 +135,25 @@
           statusEl.appendChild(deploymentLink);
           return;
         }
-        paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
+        google.script.run.withSuccessHandler(function(methods){
+          if(!methods||!methods.success){
+            clearLoading(methods&&methods.message||'We could not determine the available payment methods. Please try again.');
+            return;
+          }
+          paystack.style.display='none';flutterwave.style.display='none';
+          (methods.methods||[]).forEach(function(method){
+            if(method.id==='paystack'){paystack.style.display='flex';paystack.disabled=false;}
+            if(method.id==='flutterwave'){flutterwave.style.display='flex';flutterwave.disabled=false;}
+          });
+          if(!methods.hasPaymentRoute){
+            paystack.style.display='none';flutterwave.style.display='none';
+            status(methods.message||'There is currently no available payment method for this currency. Please choose another supported currency.','error');
+            return;
+          }
+          status('Choose an available payment option to continue.','info');
+        }).withFailureHandler(function(){
+          clearLoading('We could not determine the available payment methods. Please refresh and try again.');
+        }).getAvailablePaymentMethods(requestId, getStoredSession(), accessToken);
       }).withFailureHandler(function(){clearLoading('We could not connect to BizOS. Please refresh and try again.');}).getUpgradePaymentDetails(requestId, getStoredSession(), accessToken);
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');

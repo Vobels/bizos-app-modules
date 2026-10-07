@@ -48,7 +48,8 @@ function redeployClientByBusinessId(businessId, sessionId) {
       masterApiUrl: getMasterApiUrl(),
       landingUrl: client.landingUrl || '',
       customDomain: client.customDomain || '',
-      applicationUrl: client.webAppUrl || ''
+      applicationUrl: client.webAppUrl || '',
+      featureProfile: (function(){ try { return JSON.parse(String(client.Feature_Profile_JSON || '{}')) || {}; } catch (e) { return {}; } })()
     };
 
     console.log('CLIENT REDEPLOY START:', JSON.stringify({
@@ -378,7 +379,8 @@ function getActiveClientByBusinessIdForRedeploy_(businessId) {
       status:String(client.Status || ''),
       landingUrl:String(client.Landing_URL || ''),
       customDomain:String(client.Custom_Domain || ''),
-      domain:String(client.Domain || '')
+      domain:String(client.Domain || ''),
+      featureProfileJson:String(client.Feature_Profile_JSON || '')
     };
   }
 

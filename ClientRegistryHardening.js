@@ -152,7 +152,7 @@ function ensureClientRegistryColumns_() {
       'Client_ID','Email','Client_Name','Business_ID','Domain','Primary_Color',
       'Logo_Url','Custom_Domain','Tier','Status','Sheet_ID','Workspace_ID',
       'Web_App_URL','Landing_URL','API_Key','Created_At','Updated_At',
-      'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email'
+      'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email','Feature_Profile_JSON','Maintenance_Plan','Maintenance_Status','Maintenance_Start_At','Maintenance_Next_Backup_At','Maintenance_Last_Backup_At','Maintenance_Last_Backup_Status','Maintenance_Last_Backup_Error'
     ]);
     return sheet;
   }
@@ -163,7 +163,7 @@ function ensureClientRegistryColumns_() {
     'Client_ID','Email','Client_Name','Business_ID','Domain','Primary_Color',
     'Logo_Url','Custom_Domain','Tier','Status','Sheet_ID','Workspace_ID',
     'Web_App_URL','Landing_URL','API_Key','Created_At','Updated_At',
-    'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email'
+    'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email','Feature_Profile_JSON','Maintenance_Plan','Maintenance_Status','Maintenance_Start_At','Maintenance_Next_Backup_At','Maintenance_Last_Backup_At','Maintenance_Last_Backup_Status','Maintenance_Last_Backup_Error'
   ];
 
   required.forEach(function (header) {
@@ -219,6 +219,7 @@ function saveClientRecordV2(settings) {
         case 'Recovery_Backup_URL': return settings.recoveryBackupUrl || '';
         case 'Workspace_Ownership_Status': return settings.workspaceOwnershipStatus || '';
         case 'Workspace_Owner_Email': return settings.workspaceOwnerEmail || settings.email || '';
+        case 'Feature_Profile_JSON': return settings.featureProfileJson || (settings.featureProfile ? JSON.stringify(settings.featureProfile) : '');
         default: return '';
       }
     });
@@ -403,3 +404,209 @@ function validateClientLicense(payload) {
     };
   }
 }
+
+
+function findActiveClientFeatureProfileRow_(identifier, headers, values) {
+  var wanted = String(identifier || '').trim();
+  if (!wanted) return null;
+
+  var clientIdCol = headers.indexOf('Client_ID');
+  var businessIdCol = headers.indexOf('Business_ID');
+  var statusCol = headers.indexOf('Status');
+
+  if (clientIdCol < 0 && businessIdCol < 0) return null;
+
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    var status = statusCol >= 0 ? String(row[statusCol] || '').trim().toLowerCase() : '';
+    if (status !== 'active') continue;
+
+    var clientId = clientIdCol >= 0 ? String(row[clientIdCol] || '').trim() : '';
+    var businessId = businessIdCol >= 0 ? String(row[businessIdCol] || '').trim() : '';
+
+    if (clientId === wanted || businessId === wanted) {
+      return {
+        rowIndex: i + 1,
+        clientId: clientId,
+        businessId: businessId,
+        row: row
+      };
+    }
+  }
+
+  return null;
+}
+
+function normalizeClientFeatureProfile_(profile) {
+  profile = profile && typeof profile === 'object' ? profile : {};
+
+  var ids = Array.isArray(profile.enabledFeatureIds)
+    ? profile.enabledFeatureIds
+    : [];
+
+  var seen = {};
+  var normalized = [];
+
+  ids.forEach(function (id) {
+    id = String(id || '').trim();
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    normalized.push(id);
+  });
+
+  return {
+    enabledFeatureIds: normalized
+  };
+}
+
+function validateClientFeatureProfileIds_(enabledFeatureIds) {
+  var ss = getBizOSMasterSpreadsheet_();
+  var featuresSheet = ss.getSheetByName('Features');
+
+  if (!featuresSheet || featuresSheet.getLastRow() < 2) {
+    return {
+      success: enabledFeatureIds.length === 0,
+      invalidIds: enabledFeatureIds.slice(),
+      message: enabledFeatureIds.length
+        ? 'The BizOS feature catalog is unavailable.'
+        : ''
+    };
+  }
+
+  var values = featuresSheet.getDataRange().getValues();
+  var headers = values[0].map(function (h) {
+    return String(h || '').trim();
+  });
+
+  var idCol = headers.indexOf('ID');
+  var activeCol = headers.indexOf('Active');
+
+  if (idCol < 0 || activeCol < 0) {
+    return {
+      success: false,
+      invalidIds: enabledFeatureIds.slice(),
+      message: 'The BizOS feature catalog is missing required columns.'
+    };
+  }
+
+  var activeIds = {};
+  for (var i = 1; i < values.length; i++) {
+    var id = String(values[i][idCol] || '').trim();
+    var active = String(values[i][activeCol] || '').trim().toUpperCase();
+    if (id && active === 'YES') activeIds[id] = true;
+  }
+
+  var invalidIds = enabledFeatureIds.filter(function (id) {
+    return !activeIds[id];
+  });
+
+  return {
+    success: invalidIds.length === 0,
+    invalidIds: invalidIds,
+    message: invalidIds.length
+      ? 'One or more selected features are no longer active in the BizOS feature catalog.'
+      : ''
+  };
+}
+
+function getClientFeatureProfile(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted = String(clientId || '').trim();
+    if (!wanted) return {success:false, code:'CLIENT_IDENTIFIER_REQUIRED', message:'Client ID or Business ID is required.'};
+
+    var sheet = ensureClientRegistryColumns_();
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0].map(function(h){ return String(h || '').trim(); });
+    var profileCol = headers.indexOf('Feature_Profile_JSON');
+
+    if (profileCol < 0) {
+      return {success:false, code:'CLIENT_FEATURE_PROFILE_NOT_CONFIGURED', message:'Client feature profile is not configured.'};
+    }
+
+    var match = findActiveClientFeatureProfileRow_(wanted, headers, values);
+    if (!match) {
+      return {success:false, code:'ACTIVE_CLIENT_NOT_FOUND', message:'No active client was found for this client or business ID.'};
+    }
+
+    var raw = String(match.row[profileCol] || '').trim();
+    var profile = {};
+    if (raw) {
+      try {
+        profile = JSON.parse(raw) || {};
+      } catch (e) {
+        profile = {};
+      }
+    }
+
+    profile = normalizeClientFeatureProfile_(profile);
+
+    return {
+      success:true,
+      clientId:match.clientId,
+      businessId:match.businessId,
+      profile:profile
+    };
+  } catch (error) {
+    console.error('getClientFeatureProfile error:', error);
+    return {success:false, code:'CLIENT_FEATURE_PROFILE_LOAD_ERROR', message:'We could not load this client feature profile.'};
+  }
+}
+
+function saveClientFeatureProfile(clientId, profile, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted = String(clientId || '').trim();
+    if (!wanted) {
+      return {success:false, code:'CLIENT_IDENTIFIER_REQUIRED', message:'Client ID or Business ID is required.'};
+    }
+
+    var normalized = normalizeClientFeatureProfile_(profile);
+    var validation = validateClientFeatureProfileIds_(normalized.enabledFeatureIds);
+    if (!validation.success) {
+      return {
+        success:false,
+        code:'INVALID_CLIENT_FEATURE_PROFILE',
+        message:validation.message || 'The selected client features are invalid.',
+        invalidFeatureIds:validation.invalidIds || []
+      };
+    }
+
+    var raw = JSON.stringify(normalized);
+    if (raw.length > 20000) {
+      return {success:false, code:'CLIENT_FEATURE_PROFILE_TOO_LARGE', message:'The client feature profile is too large.'};
+    }
+
+    var sheet = ensureClientRegistryColumns_();
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0].map(function(h){ return String(h || '').trim(); });
+    var profileCol = headers.indexOf('Feature_Profile_JSON');
+    var updatedCol = headers.indexOf('Updated_At');
+
+    if (profileCol < 0) {
+      return {success:false, code:'CLIENT_FEATURE_PROFILE_NOT_CONFIGURED', message:'Client feature profile is not configured.'};
+    }
+
+    var match = findActiveClientFeatureProfileRow_(wanted, headers, values);
+    if (!match) {
+      return {success:false, code:'ACTIVE_CLIENT_NOT_FOUND', message:'No active client was found for this client or business ID.'};
+    }
+
+    sheet.getRange(match.rowIndex, profileCol + 1).setValue(raw);
+    if (updatedCol >= 0) {
+      sheet.getRange(match.rowIndex, updatedCol + 1).setValue(new Date().toISOString());
+    }
+
+    return {
+      success:true,
+      clientId:match.clientId,
+      businessId:match.businessId,
+      profile:normalized,
+      message:'Client feature profile saved. Redeploy the client to apply the changes.'
+    };
+  } catch (error) {
+    console.error('saveClientFeatureProfile error:', error);
+    return {success:false, code:'CLIENT_FEATURE_PROFILE_SAVE_ERROR', message:'We could not save this client feature profile.'};
+  }
+}
+

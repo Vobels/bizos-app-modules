@@ -207,8 +207,21 @@ function togglePassword(inputId) {
 }
 
 // ==================== NOTIFICATIONS ====================
+function normalizeBizOSUserMessage(message) {
+  const text = String(message == null ? '' : message).trim();
+  const lower = text.toLowerCase();
+  if (!text) return 'Something went wrong. Please try again.';
+  if (lower.indexOf('session') !== -1 && (lower.indexOf('expired') !== -1 || lower.indexOf('invalid') !== -1)) return 'Your session has ended. Please sign in again.';
+  if (lower.indexOf('module') !== -1 && lower.indexOf('not defined') !== -1) return 'We could not load your business apps. Please refresh and try again.';
+  if (lower.indexOf('referenceerror') !== -1 || lower.indexOf('typeerror') !== -1 || lower.indexOf('syntaxerror') !== -1 || lower.indexOf('exception') !== -1 || lower.indexOf('script error') !== -1 || lower.indexOf('authorization') !== -1 || lower.indexOf('http 5') !== -1 || lower.indexOf('http 4') !== -1) return 'We could not complete that request. Please try again.';
+  if (lower.indexOf('authentication service') !== -1) return 'We are having trouble signing you in. Please try again in a moment.';
+  return text;
+}
+
 function showNotification(message, type = 'info') {
   const existing = document.querySelector('.bizos-notification');
+  message = normalizeBizOSUserMessage(message);
+
   if (existing) existing.remove();
 
   const colors = {
@@ -248,7 +261,10 @@ function showNotification(message, type = 'info') {
   `;
   
   const icon = icons[type] || icons.info;
-  notification.innerHTML = `${icon}<span>${message}</span>`;
+  notification.innerHTML = icon;
+  const messageSpan = document.createElement('span');
+  messageSpan.textContent = message;
+  notification.appendChild(messageSpan);
   
   document.body.appendChild(notification);
   
@@ -421,7 +437,7 @@ function checkModuleAccess(moduleName) {
   }
   
   // ===== FREE: Only Finance and Ecommerce =====
-  if (tier === 'free' && !['Ecommerce'].includes(moduleName)) {
+  if ((tier === 'free' || tier === 'starter') && !['Finance', 'Ecommerce'].includes(moduleName)) {
     showNotification('Upgrade to Sovereign to access all apps!', 'warning');
     return false;
   }
@@ -624,24 +640,10 @@ window.handleLogin = function(event) {
           const emailInput = document.getElementById('login-email')?.value.trim();
           
           setTimeout(() => {
-            const shouldResend = confirm(
-              "Your account exists but is not verified.\n\nWould you like to receive a new verification email?"
-            );
-            if (shouldResend && emailInput) {
-              google.script.run
-                .withSuccessHandler(function(response) {
-                  if (response.success) {
-                    showNotification('Verification email sent! Please check your inbox.', 'success');
-                  } else {
-                    showNotification(response.message, 'error');
-                  }
-                })
-                .withFailureHandler(function(error) {
-                  showNotification("Failed to resend verification. Please contact support.", 'error');
-                })
-                .resendVerificationEmail(emailInput);
-            }
-          }, 500);
+          const resendSection = document.getElementById('resend-verification-section');
+          if (resendSection) resendSection.classList.remove('hidden');
+          showNotification('Your account is not verified yet. Use “Resend verification email” to activate it.', 'info');
+        }, 300);
         }
       }
     })
@@ -776,7 +778,7 @@ function handleBusinessRegistration(event) {
       console.error('Registration error:', error);
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
-      showNotification('Registration failed: ' + error.message, 'error');
+      showNotification('We could not create your business account. Please try again.', 'error');
     })
     .registerBusiness(businessData);
 }
@@ -849,7 +851,7 @@ function handleSignup(event) {
       console.error('Signup error:', error);
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
-      showNotification('Signup failed: ' + error.message, 'error');
+      showNotification('We could not create your account. Please try again.', 'error');
     })
     .registerBusiness(businessData);
 }
@@ -898,10 +900,10 @@ function resendVerification() {
   if (email && email.trim()) {
     google.script.run
       .withSuccessHandler(function(response) {
-        alert(response.message);
+        showNotification((response && response.message) || 'We could not complete that request. Please try again.', 'error');
       })
       .withFailureHandler(function(error) {
-        alert("Failed to resend verification. Please contact support.");
+        showNotification('We could not resend the verification email. Please try again or contact support.', 'error');
       })
       .resendVerificationEmail(email.trim());
   }
@@ -1299,10 +1301,14 @@ function updateUserInfo() {
     const userNameSpan = document.getElementById('user-name');
     const userInitialSpan = document.getElementById('user-initial');
     const userTierSpan = document.getElementById('user-tier');
+    const rawTier = String(currentUser.subscriptionTier || 'free').trim().toLowerCase();
+    const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
     
     if (userNameSpan) userNameSpan.textContent = currentUser.name || currentUser.email;
     if (userInitialSpan) userInitialSpan.textContent = (currentUser.name || currentUser.email)[0].toUpperCase();
-    if (userTierSpan) userTierSpan.textContent = currentUser.subscriptionTier === 'free' ? 'Free Plan' : 'Tier 2 Pro';
+    if (userTierSpan) userTierSpan.textContent = isPaid
+      ? (rawTier === 'enterprise' ? 'Enterprise' : 'Sovereign')
+      : 'Free Plan';
   }
 }
 
@@ -4211,15 +4217,10 @@ function getPricingByCountryCode(countryCode) {
 function showUpgradeModal() {
   console.log('showUpgradeModal called');
   if (typeof window.clearUpgradeEditMode === 'function') window.clearUpgradeEditMode();
-  
-  // Declare modal first
+
   const modal = document.getElementById('upgrade-modal');
-  
   if (modal) {
-    // Remove hidden class
     modal.classList.remove('hidden');
-    
-    // Force styles
     modal.style.display = 'flex';
     modal.style.zIndex = '9999999';
     modal.style.position = 'fixed';
@@ -4228,24 +4229,66 @@ function showUpgradeModal() {
     modal.style.right = '0';
     modal.style.bottom = '0';
     modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    
-    // Reset form
+
     const form = document.getElementById('upgrade-form');
+    const paidStatus = document.getElementById('paid-billing-status');
+    const rawTier = String(currentUser?.subscriptionTier || 'free').trim().toLowerCase();
+    const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+    const modalTitle = modal.querySelector('.modal-content > .flex h2');
+
+    if (isPaid) {
+      if (form) form.classList.add('hidden');
+      if (modalTitle) modalTitle.textContent = rawTier === 'enterprise' ? 'Enterprise Billing' : 'Sovereign Billing';
+      if (paidStatus) {
+        paidStatus.className = 'mb-5';
+        paidStatus.innerHTML =
+          '<div class="rounded-lg border border-green-200 bg-green-50 p-5">' +
+            '<div class="flex items-center gap-3 mb-3"><i class="fas fa-check-circle text-green-600 text-2xl"></i><div><p class="font-semibold text-green-800">Payment confirmed</p><p class="text-sm text-green-700">Your BizOS account is on the Sovereign paid plan.</p></div></div>' +
+            '<div id="paid-billing-details" class="text-sm text-green-900"><p>Checking your payment record…</p></div>' +
+          '</div>';
+      }
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          const details = document.getElementById('paid-billing-details');
+          if (!details) return;
+          if (!response || !response.success || !response.active) {
+            details.innerHTML = '<p>Your account is marked as paid. Payment history details are not currently available.</p>';
+            return;
+          }
+          var rows = [];
+          if (response.requestId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Request ID</span><strong>' + String(response.requestId) + '</strong></div>');
+          if (response.paymentId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Payment ID</span><strong>' + String(response.paymentId) + '</strong></div>');
+          if (response.amount && response.currency) rows.push('<div class="flex justify-between gap-4 py-1"><span>Amount paid</span><strong>' + String(response.currency) + ' ' + String(response.amount) + '</strong></div>');
+          if (response.paidAt) rows.push('<div class="flex justify-between gap-4 py-1"><span>Paid</span><strong>' + String(response.paidAt) + '</strong></div>');
+          rows.push('<div class="flex justify-between gap-4 py-1"><span>Workspace</span><strong>' + (response.ready ? 'Ready' : 'Setup in progress') + '</strong></div>');
+          details.innerHTML = rows.join('');
+        })
+        .withFailureHandler(function() {
+          const details = document.getElementById('paid-billing-details');
+          if (details) details.innerHTML = '<p>Your account is marked as paid. Payment history details are temporarily unavailable.</p>';
+        })
+        .getCurrentUpgradePaymentStatus(currentSessionId);
+      return;
+    }
+
+    if (form) form.classList.remove('hidden');
+    if (paidStatus) {
+      paidStatus.className = 'hidden mb-5';
+      paidStatus.innerHTML = '';
+    }
+    if (modalTitle) modalTitle.textContent = 'Upgrade to Sovereign';
+
     if (form) form.reset();
-    
     const fieldsContainer = document.getElementById('upgrade-country-fields');
     if (fieldsContainer) fieldsContainer.innerHTML = '';
-    
     const requirementsDiv = document.getElementById('upgrade-requirements');
     if (requirementsDiv) requirementsDiv.classList.add('hidden');
-    
-    console.log('Modal should now be visible');
 
     setTimeout(() => addCountrySelectorToUpgrade(), 100);
-
   } else {
     console.error('Upgrade modal not found');
-    alert('Upgrade feature will be available soon. Please contact support.');
+    showNotification('Upgrade is not available yet. Please contact support.', 'info');
   }
 }
 
@@ -4406,13 +4449,21 @@ function loadNotifications() {
 }
 
 function updateNotificationBadge() {
-  const badge = document.getElementById('notification-badge');
-  if (!badge) return;
+  const badges = [
+    document.getElementById('notification-badge'),
+    document.getElementById('settings-notification-badge')
+  ].filter(Boolean);
+  if (!badges.length) return;
   if (notificationCount > 0) {
-    badge.textContent = notificationCount > 9 ? '9+' : notificationCount;
-    badge.classList.remove('hidden');
+    const label = notificationCount > 9 ? '9+' : notificationCount;
+    badges.forEach(function(badge) {
+      badge.textContent = label;
+      badge.classList.remove('hidden');
+    });
   } else {
-    badge.classList.add('hidden');
+    badges.forEach(function(badge) {
+      badge.classList.add('hidden');
+    });
   }
 }
 
@@ -4694,20 +4745,31 @@ function addUpgradeButton() {
   const container = document.getElementById('header-actions');
   if (!container) return;
 
-  // Remove any existing button (prevents duplicates)
+  // Remove any existing plan/status control so login refreshes never duplicate it.
   const existing = document.getElementById('upgrade-tier-btn');
   if (existing) existing.remove();
 
-  // Only show for free users
-  if (currentUser.subscriptionTier === 'free' && !currentUser.isDemo) {
-    const buttonHtml = `
+  const rawTier = String(currentUser.subscriptionTier || 'free').trim().toLowerCase();
+  const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+
+  if (isPaid) {
+    const label = rawTier === 'enterprise' ? 'Enterprise' : 'Sovereign';
+    container.insertAdjacentHTML('beforeend', `
+      <span id="upgrade-tier-btn" class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200" title="Paid plan">
+        <i class="fas fa-check-circle mr-2"></i>${label}
+      </span>
+    `);
+    return;
+  }
+
+  // Upgrade remains available to free users only.
+  if (rawTier === 'free' || rawTier === 'starter') {
+    container.insertAdjacentHTML('beforeend', `
       <button id="upgrade-tier-btn" onclick="triggerUpgrade('header')" 
         class="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-purple-900 transition shadow-sm">
         <i class="fas fa-crown mr-2"></i>Upgrade
       </button>
-    `;
-
-    container.insertAdjacentHTML('beforeend', buttonHtml);
+    `);
     console.log('Upgrade button added (header)');
   }
 }
@@ -5087,17 +5149,17 @@ function requestAccountDeletion() {
     return;
   }
   
-  if (confirm('WARNING: This will permanently delete ALL your business data. This action cannot be undone.\n\nAre you ABSOLUTELY sure?')) {
-    const confirmation = prompt('Type "DELETE MY BUSINESS" to confirm:');
-    if (confirmation === 'DELETE MY BUSINESS') {
+  if (confirm('This will archive your business account. Your records, workspace history, payments, and activity will be retained and can be reviewed or restored by BizOS support. Your account will no longer be active.\n\nNo permanent data deletion will be performed.')) {
+    const confirmation = prompt('Type "ARCHIVE MY BUSINESS" to confirm:');
+    if (confirmation === 'ARCHIVE MY BUSINESS') {
       callGoogleScript('deleteBusinessAccount', [currentUser.businessId, currentUser.email], (response) => {
         if (response.success) {
-          showNotification('Account deletion requested.', 'warning');
+          showNotification('Account archived. Your business records have been retained.', 'warning');
           handleLogout();
         } else {
           showNotification(response.message, 'error');
         }
-      }, () => showNotification('Deletion failed', 'error'));
+      }, () => showNotification('Account closure failed', 'error'));
     }
   }
 }
@@ -5494,13 +5556,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check for invite code in URL
   checkForInviteCode();
   
-  // Load session if exists
+  // Restore a saved session only after the server confirms it is still valid.
+  // This prevents a stale browser session from briefly exposing the dashboard
+  // before the server rejects it.
   if (loadSession()) {
-    const landingPage = document.getElementById('landing-page');
-    const dashboardPage = document.getElementById('dashboard-page');
-    if (landingPage) landingPage.classList.add('hidden');
-    if (dashboardPage) dashboardPage.classList.remove('hidden');
-    loadDashboard();
+    const savedSessionId = currentSessionId;
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (savedSessionId !== currentSessionId) return;
+        if (result && result.success && result.user) {
+          currentUser = result.user;
+          saveSession(savedSessionId, result.user);
+          const landingPage = document.getElementById('landing-page');
+          const dashboardPage = document.getElementById('dashboard-page');
+          if (landingPage) landingPage.classList.add('hidden');
+          if (dashboardPage) dashboardPage.classList.remove('hidden');
+          loadDashboard();
+        } else {
+          clearSession();
+          if (typeof window.__bizosForceLanding === 'function') {
+            window.__bizosForceLanding();
+          } else {
+            showLoginModal();
+          }
+        }
+      })
+      .withFailureHandler(function() {
+        clearSession();
+        if (typeof window.__bizosForceLanding === 'function') {
+          window.__bizosForceLanding();
+        } else {
+          showLoginModal();
+        }
+      })
+      .validateBizOSSession(savedSessionId);
   }
   
   // Initialize sidebar events
@@ -5523,150 +5612,6 @@ window.addEventListener('message', function(event) {
   }
 });
 
-
-// ==================== FIX: Force load modules with fallback ====================
-
-function loadModulesList() {
-  console.log("loadModulesList: Starting...");
-  
-  if (!currentUser || !currentUser.email) {
-    console.log("loadModulesList: No currentUser yet, retrying in 500ms");
-    setTimeout(loadModulesList, 500);
-    return;
-  }
-  
-  console.log("loadModulesList: Loading modules for user:", currentUser.email);
-  
-  const container = document.getElementById('module-list');
-  if (!container) {
-    console.error("loadModulesList: module-list element not found!");
-    return;
-  }
-  
-  const moduleIcons = {
-    Finance: 'fa-calculator',
-    Sales: 'fa-chart-line',
-    Ecommerce: 'fa-cart-shopping',
-    CRM: 'fa-users',
-    HR: 'fa-briefcase',
-    Logistics: 'fa-truck',
-    Tax: 'fa-file-invoice',
-    Agro: 'fa-seedling',
-    Productivity: 'fa-clock',
-    POS: 'fa-cash-register',
-    Attendance: 'fa-fingerprint',
-    Warehouse: 'fa-warehouse'
-  };
-
-  const moduleLabels = {
-    Finance: 'Financial Management',
-    Sales: 'Sales Pipeline',
-    Ecommerce: 'E-commerce',
-    CRM: 'Customer Relations',
-    HR: 'Human Resources',
-    Logistics: 'Logistics',
-    Tax: 'Tax Compliance',
-    Agro: 'Agriculture',
-    Productivity: 'Productivity Suite',
-    POS: 'Point of Sale',
-    Attendance: 'Staff Attendance',
-    Warehouse: 'Warehouse Management'
-  };
-
-  const moduleOrder = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
-  const userTier = currentUser?.subscriptionTier || 'free';
-  const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
-  const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
-  
-  // ===== STAFF: Get assigned modules =====
-  let staffAssignedModules = [];
-  if (!isOwnerOrAdmin) {
-    staffAssignedModules = currentUser?.accessibleModules || ['Finance'];
-    console.log("Staff assigned modules:", staffAssignedModules);
-  }
-  
-  const freeAccessibleModules = ['Finance', 'Ecommerce'];
-  
-  container.innerHTML = '';
-  
-  const summary = BIZ_CACHE?.data?.modules || {};
-  let modulesRendered = 0;
-  
-  moduleOrder.forEach(moduleName => {
-    const mod = summary[moduleName];
-    const label = mod?.label || moduleLabels[moduleName] || moduleName;
-    const iconClass = moduleIcons[moduleName] || 'fa-folder';
-    const isAccessibleForFree = freeAccessibleModules.includes(moduleName);
-    
-    // ===== STAFF: Only show assigned modules =====
-    if (!isOwnerOrAdmin) {
-      if (!staffAssignedModules.includes(moduleName)) {
-        return; // Skip this module - staff doesn't have access
-      }
-      
-      // Staff: Show assigned modules as read-only
-      container.innerHTML += `
-        <button onclick="openModule('${moduleName}')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 opacity-75">
-          <i class="fas ${iconClass} text-gray-500 w-5"></i>
-          <span>${label}</span>
-          <span class="text-xs text-blue-500 ml-2">(View Only)</span>
-        </button>
-      `;
-      modulesRendered++;
-      return;
-    }
-    
-    // ===== OWNER/ADMIN: Show based on tier =====
-    if (isDemo) {
-      container.innerHTML += `
-        <button onclick="openModule('${moduleName}')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
-          <i class="fas ${iconClass} text-gray-500 w-5"></i>
-          <span>${label}</span>
-          <span class="text-xs text-yellow-500 ml-2">(Demo)</span>
-        </button>
-      `;
-      modulesRendered++;
-    } else if (userTier === 'free' || userTier === 'starter') {
-      if (isAccessibleForFree) {
-        container.innerHTML += `
-          <button onclick="openModule('${moduleName}')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
-            <i class="fas ${iconClass} text-gray-500 w-5"></i>
-            <span>${label}</span>
-          </button>
-        `;
-      } else {
-        container.innerHTML += `
-          <button onclick="showUpgradeModal()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 opacity-60">
-            <i class="fas ${iconClass} text-gray-400 w-5"></i>
-            <span class="flex-1">${label}</span>
-            <i class="fas fa-lock text-gray-400 text-xs"></i>
-          </button>
-        `;
-      }
-      modulesRendered++;
-    } else {
-      container.innerHTML += `
-        <button onclick="openModule('${moduleName}')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
-          <i class="fas ${iconClass} text-gray-500 w-5"></i>
-          <span>${label}</span>
-        </button>
-      `;
-      modulesRendered++;
-    }
-  });
-  
-  console.log(`loadModulesList: Rendered ${modulesRendered} modules`);
-  
-  if (modulesRendered === 0) {
-    container.innerHTML = `
-      <div class="text-center py-4 text-gray-400 text-sm">
-        <i class="fas fa-info-circle mr-2"></i>
-        No modules available for your account level
-      </div>
-    `;
-  }
-}
 
 // ==================== SETTINGS PAGE FUNCTIONS ====================
 function showSettingsPage() {
@@ -6036,10 +5981,10 @@ function loginAsFree() {
         }
         loadDashboard();
         loadModulesList();
-        showNotification('✅ Logged in as Free user', 'success');
+        showNotification('Signed in as Free user', 'success');
         setTimeout(function() { loadEnhancedDashboard(); }, 1000);
       } else {
-        showNotification('Login failed: ' + res.message, 'error');
+        showNotification('We could not sign you in. Please check your details and try again.', 'error');
       }
     })
     .withFailureHandler(function(err) {
@@ -6069,10 +6014,10 @@ function loginAsSovereign() {
         }
         loadDashboard();
         loadModulesList();
-        showNotification('👑 Logged in as Sovereign user', 'success');
+        showNotification('Signed in as Sovereign user', 'success');
         setTimeout(function() { loadEnhancedDashboard(); }, 1000);
       } else {
-        showNotification('Login failed: ' + res.message, 'error');
+        showNotification('We could not sign you in. Please check your details and try again.', 'error');
       }
     })
     .withFailureHandler(function(err) {

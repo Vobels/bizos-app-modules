@@ -607,15 +607,44 @@ function getAllUsers(sessionId) {
     const sheet = getOrCreateUserSheet();
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
+    const businessNameById = {};
+
+    try {
+      const businessSheet = getBizOSMasterSpreadsheet_().getSheetByName('Businesses');
+      if (businessSheet && businessSheet.getLastRow() >= 2) {
+        const bv = businessSheet.getDataRange().getValues();
+        const bh = bv[0].map(function(h){ return String(h || '').trim(); });
+        const idCol = bh.indexOf('Business_ID');
+        const nameCol = bh.indexOf('Business_Name');
+        if (idCol >= 0 && nameCol >= 0) {
+          for (let i = 1; i < bv.length; i++) {
+            var bid = String(bv[i][idCol] || '').trim();
+            if (bid) businessNameById[bid] = String(bv[i][nameCol] || '');
+          }
+        }
+      }
+    } catch (businessError) {
+      console.error('Unable to load business names for admin users:', businessError);
+    }
+
     const users = [];
+    const emailCol = headers.indexOf('Email');
+    const nameCol = headers.indexOf('Name');
+    const roleCol = headers.indexOf('Role');
+    const businessIdCol = headers.indexOf('Business_ID');
+    const verifiedCol = headers.indexOf('Is_Verified');
+    const createdCol = headers.indexOf('Created_At');
+
     for (let i = 1; i < data.length; i++) {
+      const businessId = businessIdCol >= 0 ? String(data[i][businessIdCol] || '').trim() : '';
       users.push({
-        email: data[i][headers.indexOf('Email')],
-        name: data[i][headers.indexOf('Name')],
-        role: data[i][headers.indexOf('Role')],
-        businessId: data[i][headers.indexOf('Business_ID')],
-        isVerified: data[i][headers.indexOf('Is_Verified')],
-        createdAt: data[i][headers.indexOf('Created_At')]
+        email: emailCol >= 0 ? data[i][emailCol] : '',
+        name: nameCol >= 0 ? data[i][nameCol] : '',
+        role: roleCol >= 0 ? data[i][roleCol] : '',
+        businessId: businessId,
+        businessName: businessNameById[businessId] || '',
+        isVerified: verifiedCol >= 0 ? data[i][verifiedCol] : '',
+        createdAt: createdCol >= 0 ? data[i][createdCol] : ''
       });
     }
     return users;
@@ -628,7 +657,7 @@ function getAllUsers(sessionId) {
 function getAllFeatures(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    let featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) {
       featuresSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Features');
       featuresSheet.appendRow(['ID', 'Name', 'Description', 'Module', 'Tier', 'Active', 'CreatedAt']);
@@ -657,28 +686,61 @@ function getAllFeatures(sessionId) {
 function getAllModules(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const config = getConfig();  // ✅ Get CONFIG safely
-    const modules = [];
-    
-    if (config.MODULES && config.MODULES.all) {
-      const moduleLabels = config.MODULES.labels || {};
-      const moduleIcons = config.MODULES.icons || {};
-      
-      for (const name of config.MODULES.all) {
-        modules.push({
-          name: name,
-          label: moduleLabels[name] || name,
-          icon: moduleIcons[name] || 'fa-folder',
-          tier: 'starter',
-          recordCount: 0,
-          visible: true
-        });
+    var config = getConfig();
+    var all = config.MODULES && Array.isArray(config.MODULES.all) ? config.MODULES.all : [];
+    var labels = config.MODULES && config.MODULES.labels ? config.MODULES.labels : {};
+    var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
+    var access = config.MODULES && config.MODULES.access ? config.MODULES.access : {};
+
+    // Build the directory from the canonical Businesses registry. A module is
+    // connected to a business through that business' subscription entitlement;
+    // this is intentionally not a second module-assignment database.
+    var businessSheet = getBizOSMasterSpreadsheet_().getSheetByName('Businesses');
+    var clientSheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    var clientByBusiness = {};
+    if (clientSheet && clientSheet.getLastRow() >= 2) {
+      var cv=clientSheet.getDataRange().getValues(), ch=cv[0].map(function(h){return String(h||'').trim();});
+      var cb=ch.indexOf('Business_ID'), cs=ch.indexOf('Status');
+      for(var ci=1;ci<cv.length;ci++){
+        var bid=cb>=0?String(cv[ci][cb]||'').trim():'';
+        if(!bid)continue;
+        var rec={};ch.forEach(function(h,j){rec[h]=cv[ci][j];});
+        if(!clientByBusiness[bid] || String(rec.Status||'').toLowerCase()==='active') clientByBusiness[bid]=rec;
       }
     }
-    
-    return modules;
-  } catch (error) {
-    console.error('Error getting modules:', error);
+
+    var businesses=[];
+    if (businessSheet && businessSheet.getLastRow() >= 2) {
+      var bv=businessSheet.getDataRange().getValues(), bh=bv[0].map(function(h){return String(h||'').trim();});
+      var bidCol=bh.indexOf('Business_ID'), nameCol=bh.indexOf('Business_Name'), tierCol=bh.indexOf('Subscription_Tier'), statusCol=bh.indexOf('Status');
+      for(var bi=1;bi<bv.length;bi++){
+        var businessId=bidCol>=0?String(bv[bi][bidCol]||'').trim():'';
+        if(!businessId)continue;
+        var client=clientByBusiness[businessId]||{};
+        var tier=String((tierCol>=0?bv[bi][tierCol]:'') || client.Tier || 'starter').trim().toLowerCase();
+        var status=String((statusCol>=0?bv[bi][statusCol]:'') || 'active').trim().toLowerCase();
+        businesses.push({businessId:businessId,businessName:nameCol>=0?String(bv[bi][nameCol]||''):'',tier:tier,status:status});
+      }
+    }
+
+    return all.map(function(name){
+      var connected=businesses.filter(function(b){
+        var allowed=access[b.tier] || access.starter || [];
+        return allowed.indexOf(name) >= 0 && b.status !== 'archived';
+      });
+      return {
+        name:name,
+        label:labels[name] || name,
+        icon:icons[name] || 'fa-folder',
+        tier:'starter',
+        recordCount:0,
+        visible:true,
+        businessCount:connected.length,
+        businesses:connected.slice(0,50)
+      };
+    });
+  } catch(error) {
+    console.error('Error getting modules:',error);
     return [];
   }
 }
@@ -686,7 +748,7 @@ function getAllModules(sessionId) {
 function addFeature(featureData, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    let featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    let featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) {
       featuresSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Features');
       featuresSheet.appendRow(['ID', 'Name', 'Description', 'Module', 'Tier', 'Active', 'CreatedAt']);
@@ -706,7 +768,7 @@ function addFeature(featureData, sessionId) {
 function toggleFeature(featureId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    const featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
     const data = featuresSheet.getDataRange().getValues();
     const headers = data[0];
@@ -728,7 +790,7 @@ function toggleFeature(featureId, sessionId) {
 function deleteFeature(featureId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    const featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) return { success: false, message: 'Features sheet not found' };
     const data = featuresSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
@@ -1053,7 +1115,7 @@ function logAdminAction(action, details) {
 
 function getUserFeatures(userTier) {
   try {
-    const featuresSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Features');
+    const featuresSheet = getBizOSMasterSpreadsheet_().getSheetByName('Features');
     if (!featuresSheet) return [];
     
     const data = featuresSheet.getDataRange().getValues();
@@ -1125,4 +1187,830 @@ function generateAdminRecoveryKey() {
   props.setProperty('ADMIN_RECOVERY_KEY_HASH', String(hashPassword(key) || '').toLowerCase());
   console.log('ADMIN RECOVERY KEY (store securely, then remove this log entry): ' + key);
   return { success: true, message: 'Recovery key generated. Check the execution log and store it securely.' };
+}
+
+
+function getAdminClientRegistryRecord_(identifier) {
+  var wanted = String(identifier || '').trim();
+  if (!wanted) return null;
+
+  var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+  if (!sheet || sheet.getLastRow() < 2) return null;
+
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(function(h) { return String(h || '').trim(); });
+  var clientIdCol = headers.indexOf('Client_ID');
+  var businessIdCol = headers.indexOf('Business_ID');
+
+  if (clientIdCol < 0 && businessIdCol < 0) return null;
+
+  for (var i = 1; i < values.length; i++) {
+    var clientId = clientIdCol >= 0 ? String(values[i][clientIdCol] || '').trim() : '';
+    var businessId = businessIdCol >= 0 ? String(values[i][businessIdCol] || '').trim() : '';
+    if (clientId !== wanted && businessId !== wanted) continue;
+
+    var record = {};
+    headers.forEach(function(h, j) { record[h] = values[i][j]; });
+    return record;
+  }
+
+  return null;
+}
+
+function auditAdminBusinessRelationships(sessionId) {
+  requireAdminSession_(sessionId);
+  var report = {
+    success:true,
+    checkedAt:new Date().toISOString(),
+    summary:{businesses:0,users:0,clients:0,staffModuleRows:0,issues:0},
+    issues:[],
+    safeRepairsAvailable:[]
+  };
+
+  function addIssue(type, key, message, details) {
+    report.issues.push({type:type,key:key,message:message,details:details||{}});
+  }
+
+  try {
+    var master=getBizOSMasterSpreadsheet_();
+    var businesses=master.getSheetByName('Businesses');
+    var users=master.getSheetByName('Users') || master.getSheetByName('User');
+    var clients=master.getSheetByName('Clients');
+    var staffModules=master.getSheetByName('Staff_Modules');
+
+    var businessMap={}, businessNames={};
+    if (businesses && businesses.getLastRow()>=2) {
+      var bv=businesses.getDataRange().getValues(), bh=bv[0].map(function(x){return String(x||'').trim();});
+      var bid=bh.indexOf('Business_ID'), bn=bh.indexOf('Business_Name');
+      report.summary.businesses=bv.length-1;
+      if(bid<0) addIssue('schema','Businesses','Business_ID column is missing.');
+      for(var bi=1;bi<bv.length;bi++){
+        var id=bid>=0?String(bv[bi][bid]||'').trim():'';
+        if(!id){addIssue('business_missing_id','row_'+(bi+1),'Business has no Business_ID.');continue;}
+        if(businessMap[id]) addIssue('business_duplicate_id',id,'Duplicate Business_ID.',{rows:[businessMap[id].row,bi+1]});
+        businessMap[id]={row:bi+1,status:String(bv[bi][bh.indexOf('Status')]||'').trim()};
+        businessNames[id]=bn>=0?String(bv[bi][bn]||'').trim():'';
+      }
+    } else addIssue('schema','Businesses','Businesses sheet is missing.');
+
+    if(users && users.getLastRow()>=2){
+      var uv=users.getDataRange().getValues(), uh=uv[0].map(function(x){return String(x||'').trim();});
+      var ub=uh.indexOf('Business_ID'), ue=uh.indexOf('Email'), un=uh.indexOf('Business_Name'), userKeys={};
+      report.summary.users=uv.length-1;
+      if(ub<0) addIssue('schema','Users','Business_ID column is missing.');
+      for(var ui=1;ui<uv.length;ui++){
+        var userBusiness=ub>=0?String(uv[ui][ub]||'').trim():'', email=ue>=0?String(uv[ui][ue]||'').trim().toLowerCase():'';
+        var key=email+'|'+userBusiness;
+        if(email&&userKeys[key]) addIssue('user_duplicate_membership',key,'Duplicate user membership for the same business.',{rows:[userKeys[key],ui+1]});
+        if(email) userKeys[key]=ui+1;
+        if(!userBusiness) addIssue('user_orphaned',email||('row_'+(ui+1)),'User/staff has no Business_ID.',{row:ui+1});
+        else if(!businessMap[userBusiness]) addIssue('user_unknown_business',email||('row_'+(ui+1)),'User/staff references a Business_ID that does not exist.',{businessId:userBusiness,row:ui+1});
+        else if(un>=0 && String(uv[ui][un]||'').trim()!==businessNames[userBusiness])
+          addIssue('user_business_name_mismatch',email||('row_'+(ui+1)),'User Business_Name does not match the canonical business name.',{businessId:userBusiness,row:ui+1});
+      }
+    } else addIssue('schema','Users','Users sheet is missing or empty.');
+
+    var activeClientByBusiness={};
+    if(clients && clients.getLastRow()>=2){
+      var cv=clients.getDataRange().getValues(), ch=cv[0].map(function(x){return String(x||'').trim();});
+      var cb=ch.indexOf('Business_ID'), cc=ch.indexOf('Client_ID'), cs=ch.indexOf('Status'), ce=ch.indexOf('Email'), clientIds={};
+      report.summary.clients=cv.length-1;
+      if(cb<0) addIssue('schema','Clients','Business_ID column is missing.');
+      for(var ci=1;ci<cv.length;ci++){
+        var cBusiness=cb>=0?String(cv[ci][cb]||'').trim():'', clientId=cc>=0?String(cv[ci][cc]||'').trim():'', cStatus=cs>=0?String(cv[ci][cs]||'').trim().toLowerCase():'';
+        if(!clientId) addIssue('client_missing_id','row_'+(ci+1),'Client registry row has no Client_ID.',{row:ci+1});
+        else if(clientIds[clientId]) addIssue('client_duplicate_id',clientId,'Duplicate Client_ID.',{rows:[clientIds[clientId],ci+1]});
+        else clientIds[clientId]=ci+1;
+        if(!cBusiness) addIssue('client_orphaned',clientId||('row_'+(ci+1)),'Client deployment has no Business_ID.',{row:ci+1});
+        else if(!businessMap[cBusiness]) addIssue('client_unknown_business',clientId||('row_'+(ci+1)),'Client deployment references a Business_ID that does not exist.',{businessId:cBusiness,row:ci+1});
+        if(cBusiness && cStatus==='active'){
+          if(activeClientByBusiness[cBusiness]) addIssue('multiple_active_clients',cBusiness,'More than one active client deployment is linked to this business.',{rows:[activeClientByBusiness[cBusiness],ci+1]});
+          else activeClientByBusiness[cBusiness]=ci+1;
+        }
+      }
+    } else addIssue('schema','Clients','Clients registry is missing or empty.');
+
+    if(staffModules && staffModules.getLastRow()>=2){
+      var sv=staffModules.getDataRange().getValues(), sh=sv[0].map(function(x){return String(x||'').trim();});
+      var sb=sh.indexOf('Business_ID'), se=sh.indexOf('Staff_Email'), sm=sh.indexOf('Module_Access');
+      report.summary.staffModuleRows=sv.length-1;
+      for(var si=1;si<sv.length;si++){
+        var sBiz=sb>=0?String(sv[si][sb]||'').trim():'', sEmail=se>=0?String(sv[si][se]||'').trim().toLowerCase():'', module=sm>=0?String(sv[si][sm]||'').trim():'';
+        if(!sBiz) addIssue('staff_module_orphaned',sEmail||('row_'+(si+1)),'Staff module assignment has no Business_ID.',{row:si+1,module:module});
+        else if(!businessMap[sBiz]) addIssue('staff_module_unknown_business',sEmail||('row_'+(si+1)),'Staff module assignment references an unknown Business_ID.',{businessId:sBiz,row:si+1,module:module});
+        if(!sEmail) addIssue('staff_module_missing_staff',sBiz||('row_'+(si+1)),'Staff module assignment has no Staff_Email.',{row:si+1});
+      }
+    }
+
+    report.summary.issues=report.issues.length;
+    report.safeRepairsAvailable=report.issues.filter(function(x){
+      return x.type==='user_business_name_mismatch';
+    }).map(function(x){return x.key;});
+    return report;
+  } catch(error) {
+    console.error('auditAdminBusinessRelationships error:',error);
+    return {success:false,message:'Business relationship audit could not be completed.',error:String(error&&error.message||error)};
+  }
+}
+
+function repairAdminBusinessRelationships(sessionId) {
+  requireAdminSession_(sessionId);
+  var audit=auditAdminBusinessRelationships(sessionId);
+  if(!audit.success)return audit;
+
+  var repaired=0, master=getBizOSMasterSpreadsheet_(), users=master.getSheetByName('Users')||master.getSheetByName('User');
+  if(users && users.getLastRow()>=2){
+    var v=users.getDataRange().getValues(), h=v[0].map(function(x){return String(x||'').trim();});
+    var b=h.indexOf('Business_ID'), n=h.indexOf('Business_Name'), businesses=master.getSheetByName('Businesses');
+    if(b>=0&&n>=0&&businesses&&businesses.getLastRow()>=2){
+      var bv=businesses.getDataRange().getValues(),bh=bv[0].map(function(x){return String(x||'').trim();}),bi=bh.indexOf('Business_ID'),bn=bh.indexOf('Business_Name'),names={};
+      for(var i=1;i<bv.length;i++){var id=bi>=0?String(bv[i][bi]||'').trim():'';if(id)names[id]=bn>=0?String(bv[i][bn]||'').trim():'';}
+      for(var ui=1;ui<v.length;ui++){var uid=String(v[ui][b]||'').trim();if(uid&&Object.prototype.hasOwnProperty.call(names,uid)&&String(v[ui][n]||'').trim()!==names[uid]){users.getRange(ui+1,n+1).setValue(names[uid]);repaired++;}}
+    }
+  }
+
+  return {
+    success:true,
+    repaired:repaired,
+    remainingIssues:audit.summary.issues-repaired,
+    message:repaired ? 'Safe business-name relationships were repaired. Orphaned or ambiguous records were not guessed or reassigned.' : 'No safe relationship repairs were required.',
+    audit:audit
+  };
+}
+
+function getAdminBusinessPeople_(businessId) {
+  var wanted = String(businessId || '').trim();
+  if (!wanted) return [];
+
+  var master = getBizOSMasterSpreadsheet_();
+  var sheet = master.getSheetByName('Users') || master.getSheetByName('User') || getOrCreateUserSheet();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  var headers = values[0].map(function(h) { return String(h || '').trim(); });
+  var businessIdCol = headers.indexOf('Business_ID');
+  var emailCol = headers.indexOf('Email');
+  if (businessIdCol < 0 || emailCol < 0) return [];
+
+  var people = [];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][businessIdCol] || '').trim() !== wanted) continue;
+
+    var person = {};
+    headers.forEach(function(h, j) { person[h] = values[i][j]; });
+    people.push({
+      email: String(person.Email || ''),
+      name: String(person.Name || ''),
+      role: String(person.Role || 'staff'),
+      status: String(person.Invitation_Status || (String(person.Is_Verified || '').toUpperCase() === 'YES' ? 'active' : 'pending')),
+      verified: String(person.Is_Verified || '').toUpperCase() === 'YES',
+      assignedModules: String(person.Assigned_Modules || '').split(',').map(function(x) {
+        return String(x || '').trim();
+      }).filter(Boolean),
+      createdAt: person.Created_At || ''
+    });
+  }
+
+  return people;
+}
+
+function getAdminBusinessModules_(businessId, tier) {
+  var config = getConfig();
+  var key = String(tier || 'starter').trim().toLowerCase();
+  var access = config.MODULES && config.MODULES.access
+    ? (config.MODULES.access[key] || config.MODULES.access.starter || [])
+    : [];
+  var all = config.MODULES && Array.isArray(config.MODULES.all) ? config.MODULES.all : [];
+  var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
+  var labels = config.MODULES && config.MODULES.labels ? config.MODULES.labels : {};
+  var enabled = {};
+  access.forEach(function(name) { enabled[String(name)] = true; });
+
+  return all.map(function(name) {
+    return {
+      name: name,
+      label: labels[name] || name,
+      icon: icons[name] || 'fa-folder',
+      enabled: !!enabled[name],
+      businessId: String(businessId || ''),
+      tier: key
+    };
+  });
+}
+
+function getClientManagementOverview(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted = String(clientId || '').trim();
+    var client = getAdminClientRegistryRecord_(wanted);
+    if (!client) return {success:false, code:'CLIENT_NOT_FOUND', message:'No client was found for this client or business ID.'};
+
+    var businessId = String(client.Business_ID || '').trim();
+    var tier = String(client.Tier || 'starter').trim().toLowerCase();
+    var workspace = {success:false};
+    var billing = {maintenance:[],features:[],quotes:[],services:[],activity:[]};
+    var payments = [];
+
+    // Business is the primary admin grouping. People, modules and deployment
+    // metadata are all returned together so the UI does not need to guess
+    // relationships from separate lists.
+    var people = getAdminBusinessPeople_(businessId);
+    var modules = getAdminBusinessModules_(businessId, tier);
+
+    var featureProfile = {enabledFeatureIds:[]};
+    var featureProfileRaw = String(client.Feature_Profile_JSON || '').trim();
+    if (featureProfileRaw) {
+      try {
+        featureProfile = normalizeClientFeatureProfile_(JSON.parse(featureProfileRaw) || {});
+      } catch (profileError) {
+        featureProfile = {enabledFeatureIds:[]};
+      }
+    }
+
+    try {
+      var master = getBizOSMasterSpreadsheet_();
+      var masterPayments = master.getSheetByName('Payments');
+      var masterUpgrades = master.getSheetByName('Upgrade_Requests');
+      var requestOwners = {};
+
+      if (masterUpgrades && masterUpgrades.getLastRow() >= 2) {
+        var uv=masterUpgrades.getDataRange().getValues(), uh=uv[0].map(function(h){return String(h||'').trim();});
+        var ur=uh.indexOf('Request_ID'), ue=uh.indexOf('Email'), uw=uh.indexOf('Workspace_Email'), ub=uh.indexOf('Business_Name');
+        for(var ui=1;ui<uv.length;ui++){
+          var rid=ur>=0?String(uv[ui][ur]||'').trim():'';
+          if(!rid)continue;
+          requestOwners[rid]={
+            email:ue>=0?String(uv[ui][ue]||'').trim().toLowerCase():'',
+            workspaceEmail:uw>=0?String(uv[ui][uw]||'').trim().toLowerCase():'',
+            businessName:ub>=0?String(uv[ui][ub]||'').trim():''
+          };
+        }
+      }
+
+      if (masterPayments && masterPayments.getLastRow() >= 2) {
+        var pv = masterPayments.getDataRange().getValues();
+        var ph = pv[0].map(function(h){return String(h || '').trim();});
+        var pReq = ph.indexOf('Request_ID');
+        for (var pi = 1; pi < pv.length; pi++) {
+          var requestId = pReq >= 0 ? String(pv[pi][pReq] || '').trim() : '';
+          var owner = requestOwners[requestId] || {};
+          var ownerMatches = !requestId ||
+            String(owner.email || '').toLowerCase() === String(client.Email || '').trim().toLowerCase() ||
+            String(owner.workspaceEmail || '').toLowerCase() === String(client.Email || '').trim().toLowerCase();
+
+          if (!ownerMatches) continue;
+
+          var payment = {};
+          ph.forEach(function(h,j){payment[h]=pv[pi][j];});
+          payment.Business_ID = businessId;
+          payment.Client_ID = String(client.Client_ID || '');
+          payment.Business_Name = owner.businessName || String(client.Client_Name || '');
+          payments.push(payment);
+        }
+      }
+    } catch (paymentError) {
+      console.error('Client management payment lookup error:', paymentError);
+    }
+
+    try {
+      var sheetId = String(client.Sheet_ID || client.Workspace_ID || '').trim();
+      if (sheetId) {
+        var ws = SpreadsheetApp.openById(sheetId);
+        workspace = {
+          success:true,
+          sheetId:sheetId,
+          url:ws.getUrl(),
+          sheets:ws.getSheets().map(function(s){return s.getName();})
+        };
+
+        function rows(name) {
+          var s=ws.getSheetByName(name);
+          if(!s||s.getLastRow()<2)return[];
+          var v=s.getDataRange().getValues(),h=v[0]||[];
+          return v.slice(1).map(function(r){
+            var o={};
+            h.forEach(function(k,j){o[String(k||'')]=r[j];});
+            return o;
+          }).slice(-50).reverse();
+        }
+
+        billing.maintenance=rows('Client_Maintenance_Requests');
+        billing.features=rows('Client_Feature_Requests');
+        billing.quotes=rows('Client_Quotes');
+        billing.services=rows('Client_Service_History');
+        billing.activity=rows('Client_Activity');
+      }
+    } catch(workspaceError) {
+      workspace={success:false,message:'Client workspace could not be read by the admin service.'};
+    }
+
+    return {
+      success:true,
+      client:{
+        clientId:String(client.Client_ID || ''),
+        email:String(client.Email || ''),
+        clientName:String(client.Client_Name || ''),
+        businessId:businessId,
+        tier:tier,
+        status:String(client.Status || ''),
+        scriptId:String(client.Script_ID || ''),
+        deploymentId:String(client.Deployment_ID || ''),
+        webAppUrl:String(client.Web_App_URL || ''),
+        landingUrl:String(client.Landing_URL || ''),
+        createdAt:client.Created_At || '',
+        updatedAt:client.Updated_At || '',
+        provisioningVersion:String(client.Provisioning_Version || ''),
+        recoveryBackupId:String(client.Recovery_Backup_ID || ''),
+        recoveryBackupUrl:String(client.Recovery_Backup_URL || ''),
+        ownershipStatus:String(client.Workspace_Ownership_Status || ''),
+        maintenancePlan:String(client.Maintenance_Plan || 'none'),
+        maintenanceStatus:String(client.Maintenance_Status || 'inactive'),
+        maintenanceStartAt:String(client.Maintenance_Start_At || ''),
+        maintenanceNextBackupAt:String(client.Maintenance_Next_Backup_At || ''),
+        maintenanceLastBackupAt:String(client.Maintenance_Last_Backup_At || ''),
+        maintenanceLastBackupStatus:String(client.Maintenance_Last_Backup_Status || ''),
+        maintenanceLastBackupError:String(client.Maintenance_Last_Backup_Error || '')
+      },
+      people:people,
+      modules:modules,
+      featureProfile:featureProfile,
+      workspace:workspace,
+      billing:billing,
+      payments:payments
+    };
+  } catch(error) {
+    console.error('getClientManagementOverview error:',error);
+    return {success:false,message:'We could not load the client management overview.'};
+  }
+}
+
+function setClientMaintenancePlan(clientId, planId, status, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim(), plan=String(planId||'none').trim().toLowerCase(), state=String(status||'inactive').trim().toLowerCase();
+    var allowedPlans=['none','monthly'];
+    if(allowedPlans.indexOf(plan)<0)return{success:false,message:'Unsupported maintenance plan.'};
+    if(['active','inactive'].indexOf(state)<0)return{success:false,message:'Invalid maintenance status.'};
+    if(plan==='none')state='inactive';
+    var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if(!sheet)return{success:false,message:'Client registry is unavailable.'};
+    var v=sheet.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idc=h.indexOf('Client_ID');if(idc<0)return{success:false,message:'Client registry is missing Client_ID.'};
+    var pc=h.indexOf('Maintenance_Plan'),sc=h.indexOf('Maintenance_Status'),startc=h.indexOf('Maintenance_Start_At'),nextc=h.indexOf('Maintenance_Next_Backup_At');
+    if(pc<0||sc<0||startc<0||nextc<0)return{success:false,message:'Maintenance registry columns are unavailable.'};
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idc]||'').trim()!==wanted)continue;
+      var now=new Date(),start=state==='active'?now:'';
+      var next=state==='active'?(new Date(now.getTime()+30*24*60*60*1000)):''; 
+      if(plan==='monthly'&&state==='active'){
+        // First scheduled backup is due after the plan starts; manual backups remain available immediately.
+        sheet.getRange(i+1,pc+1).setValue(plan);
+        sheet.getRange(i+1,sc+1).setValue(state);
+        sheet.getRange(i+1,startc+1).setValue(start.toISOString());
+        sheet.getRange(i+1,nextc+1).setValue(next.toISOString());
+      }else{
+        sheet.getRange(i+1,pc+1).setValue('none');
+        sheet.getRange(i+1,sc+1).setValue('inactive');
+        sheet.getRange(i+1,startc+1).setValue('');
+        sheet.getRange(i+1,nextc+1).setValue('');
+      }
+      return{success:true,plan:plan,status:state,nextBackupAt:next?next.toISOString():'',message:state==='active'?'Monthly recovery backups enabled.':'Recurring recovery backups disabled.'};
+    }
+    return{success:false,message:'Client was not found.'};
+  }catch(error){console.error('setClientMaintenancePlan error:',error);return{success:false,message:'Maintenance backup settings could not be updated.'};}
+}
+
+function runScheduledClientMaintenanceBackups() {
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(5000))return{success:false,message:'A maintenance backup run is already in progress.'};
+  var results=[];
+  try{
+    var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if(!sheet||sheet.getLastRow()<2)return{success:true,processed:0,backups:0,skipped:0};
+    var v=sheet.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idx={};['Client_ID','Status','Sheet_ID','Workspace_ID','Client_Name','Business_ID','Maintenance_Plan','Maintenance_Status','Maintenance_Next_Backup_At','Maintenance_Last_Backup_At','Maintenance_Last_Backup_Status','Maintenance_Last_Backup_Error'].forEach(function(k){idx[k]=h.indexOf(k);});
+    var now=new Date(),processed=0,backups=0,skipped=0;
+    for(var i=1;i<v.length;i++){
+      var status=idx.Status>=0?String(v[i][idx.Status]||'').trim().toLowerCase():'';
+      var plan=idx.Maintenance_Plan>=0?String(v[i][idx.Maintenance_Plan]||'').trim().toLowerCase():'';
+      var active=idx.Maintenance_Status>=0?String(v[i][idx.Maintenance_Status]||'').trim().toLowerCase():'';
+      if(status!=='active'||plan!=='monthly'||active!=='active'){skipped++;continue;}
+      var nextRaw=idx.Maintenance_Next_Backup_At>=0?String(v[i][idx.Maintenance_Next_Backup_At]||'').trim():'';
+      var next=nextRaw?new Date(nextRaw):now;
+      if(isNaN(next.getTime())||next>now){skipped++;continue;}
+      processed++;
+      var client={};h.forEach(function(k,j){client[k]=v[i][j];});
+      try{
+        var sheetId=String(client.Sheet_ID||client.Workspace_ID||'').trim();
+        if(!sheetId)throw new Error('Client workspace ID is missing.');
+        var ws=SpreadsheetApp.openById(sheetId);
+        var backup=createClientRecoveryBackup_(ws,String(client.Client_Name||''),String(client.Business_ID||''));
+        if(!backup||!backup.success)throw new Error(String(backup&&backup.message||'Recovery backup failed.'));
+        updateClientRecoveryMetadata_(client,backup);
+        var nextDate=new Date(now.getTime()+30*24*60*60*1000);
+        if(idx.Maintenance_Last_Backup_At>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_At+1).setValue(now.toISOString());
+        if(idx.Maintenance_Last_Backup_Status>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Status+1).setValue('success');
+        if(idx.Maintenance_Last_Backup_Error>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Error+1).setValue('');
+        if(idx.Maintenance_Next_Backup_At>=0)sheet.getRange(i+1,idx.Maintenance_Next_Backup_At+1).setValue(nextDate.toISOString());
+        logClientRecoveryActivity_(client,'BACKUP_CREATED',{status:'created',backupId:backup.backupId,source:'scheduled_maintenance',message:'Scheduled monthly recovery backup created.'});
+        results.push({clientId:String(client.Client_ID||''),success:true,backupId:String(backup.backupId||''),nextBackupAt:nextDate.toISOString()});backups++;
+      }catch(error){
+        if(idx.Maintenance_Last_Backup_Status>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Status+1).setValue('failed');
+        if(idx.Maintenance_Last_Backup_Error>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Error+1).setValue(String(error&&error.message||error).slice(0,1000));
+        results.push({clientId:String(client.Client_ID||''),success:false,message:String(error&&error.message||error)});
+      }
+    }
+    return{success:true,processed:processed,backups:backups,skipped:skipped,results:results};
+  }finally{lock.releaseLock();}
+}
+
+function installClientMaintenanceBackupTrigger() {
+  var existing=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()==='runScheduledClientMaintenanceBackups';});
+  existing.slice(1).forEach(function(t){ScriptApp.deleteTrigger(t);});
+  if(existing.length===0)ScriptApp.newTrigger('runScheduledClientMaintenanceBackups').timeBased().everyDays(1).atHour(2).create();
+  return{success:true,message:'Daily client maintenance backup trigger is installed.',triggerCount:1};
+}
+
+function createClientAdminRecoveryBackup(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var client=getActiveClientByIdForAdmin_(clientId);
+    if(!client)return{success:false,message:'Active client deployment not found.'};
+    var ws=SpreadsheetApp.openById(String(client.sheetId||client.Sheet_ID||''));
+    var result=createClientRecoveryBackup_(ws,String(client.clientName||client.Client_Name||''),String(client.businessId||client.Business_ID||''));
+    if(!result||!result.success)return result||{success:false,message:'Backup could not be created.'};
+    updateClientRecoveryMetadata_(client,result);
+    logClientRecoveryActivity_(client,'BACKUP_CREATED',{status:'created',backupId:result.backupId,message:'Client recovery backup created.'});
+    return result;
+  }catch(error){console.error('createClientAdminRecoveryBackup error:',error);return{success:false,message:'BizOS could not create the client backup.'};}
+}
+
+function archiveClientDeployment(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim();
+    var master=getBizOSMasterSpreadsheet_();
+    var clients=master.getSheetByName('Clients');
+    if(!clients)return{success:false,message:'Client registry is unavailable.'};
+
+    var v=clients.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),businessIdCol=h.indexOf('Business_ID'),updatedCol=h.indexOf('Updated_At');
+    if(idCol<0||statusCol<0)return{success:false,message:'Client registry schema is incomplete.'};
+
+    var businessId='';
+    var clientRow=-1;
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idCol]||'').trim()!==wanted)continue;
+      businessId=businessIdCol>=0?String(v[i][businessIdCol]||'').trim():'';
+      clientRow=i+1;
+      break;
+    }
+    if(clientRow<0)return{success:false,message:'Client was not found.'};
+
+    clients.getRange(clientRow,statusCol+1).setValue('archived');
+    if(updatedCol>=0)clients.getRange(clientRow,updatedCol+1).setValue(new Date().toISOString());
+
+    // Keep the business lifecycle aligned with the client deployment lifecycle.
+    // Historical users, workspace data, payments and deployment metadata remain
+    // intact; only the active state is changed.
+    if(businessId){
+      var businesses=master.getSheetByName('Businesses');
+      if(businesses && businesses.getLastRow()>=2){
+        var bv=businesses.getDataRange().getValues(),bh=bv[0].map(function(x){return String(x||'').trim();});
+        var bb=bh.indexOf('Business_ID'), bs=bh.indexOf('Status');
+        if(bb>=0&&bs>=0){
+          for(var bi=1;bi<bv.length;bi++){
+            if(String(bv[bi][bb]||'').trim()===businessId){
+              businesses.getRange(bi+1,bs+1).setValue('archived');
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    logClientRecoveryActivity_(getClientByIdForAdminAnyStatus_(wanted),'ACCOUNT_ARCHIVED',{status:'archived',message:'Client and business archived. Historical records were preserved.'});
+    return{success:true,message:'Client and business archived. Historical records were preserved.'};
+  }catch(error){
+    console.error('archiveClientDeployment error:',error);
+    return{success:false,message:'Client could not be archived.'};
+  }
+}
+
+function restoreArchivedClientDeployment(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim();
+    var master=getBizOSMasterSpreadsheet_(),clients=master.getSheetByName('Clients');
+    if(!clients)return{success:false,message:'Client registry is unavailable.'};
+
+    var v=clients.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),businessIdCol=h.indexOf('Business_ID'),updatedCol=h.indexOf('Updated_At');
+    if(idCol<0||statusCol<0)return{success:false,message:'Client registry schema is incomplete.'};
+
+    var businessId='',clientRow=-1;
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idCol]||'').trim()!==wanted)continue;
+      businessId=businessIdCol>=0?String(v[i][businessIdCol]||'').trim():'';
+      clientRow=i+1;
+      break;
+    }
+    if(clientRow<0)return{success:false,message:'Client was not found.'};
+    if(String(v[clientRow-1][statusCol]||'').toLowerCase()!=='archived')return{success:false,message:'Only archived clients can be restored.'};
+
+    clients.getRange(clientRow,statusCol+1).setValue('active');
+    if(updatedCol>=0)clients.getRange(clientRow,updatedCol+1).setValue(new Date().toISOString());
+
+    if(businessId){
+      var businesses=master.getSheetByName('Businesses');
+      if(businesses && businesses.getLastRow()>=2){
+        var bv=businesses.getDataRange().getValues(),bh=bv[0].map(function(x){return String(x||'').trim();});
+        var bb=bh.indexOf('Business_ID'), bs=bh.indexOf('Status');
+        if(bb>=0&&bs>=0){
+          for(var bi=1;bi<bv.length;bi++){
+            if(String(bv[bi][bb]||'').trim()===businessId){
+              businesses.getRange(bi+1,bs+1).setValue('active');
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    logClientRecoveryActivity_(getClientByIdForAdminAnyStatus_(wanted),'ACCOUNT_RESTORED',{status:'active',message:'Client and business restored.'});
+    return{success:true,message:'Client and business restored.'};
+  }catch(error){
+    console.error('restoreArchivedClientDeployment error:',error);
+    return{success:false,message:'Client could not be restored.'};
+  }
+}
+
+function getActiveClientByIdForAdmin_(clientId) {
+  var client = getClientByIdForAdminAnyStatus_(clientId);
+  if (!client) return null;
+  var status = String(client.Status || '').trim().toLowerCase();
+  return (!status || status === 'active') ? client : null;
+}
+
+function getClientByIdForAdminAnyStatus_(clientId) {
+  var wanted=String(clientId||'').trim();if(!wanted)return null;
+  var s=getBizOSMasterSpreadsheet_().getSheetByName('Clients');if(!s)return null;
+  var v=s.getDataRange().getValues();if(v.length<2)return null;
+  var h=v[0].map(function(x){return String(x||'').trim();}),idCol=h.indexOf('Client_ID');if(idCol<0)return null;
+  for(var i=1;i<v.length;i++){
+    if(String(v[i][idCol]||'').trim()!==wanted)continue;
+    var o={};h.forEach(function(k,j){o[k]=v[i][j];});
+    return o;
+  }
+  return null;
+}
+
+function updateClientRecoveryMetadata_(client, backup) {
+  try {
+    if(!client || !backup || !backup.success)return;
+    var clientId=String(client.Client_ID||client.clientId||'').trim();
+    if(!clientId)return;
+    var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if(!sheet)return;
+    var v=sheet.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idCol=h.indexOf('Client_ID'),backupIdCol=h.indexOf('Recovery_Backup_ID'),backupUrlCol=h.indexOf('Recovery_Backup_URL'),updatedCol=h.indexOf('Updated_At');
+    if(idCol<0)return;
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idCol]||'').trim()!==clientId)continue;
+      if(backupIdCol>=0)sheet.getRange(i+1,backupIdCol+1).setValue(String(backup.backupId||''));
+      if(backupUrlCol>=0)sheet.getRange(i+1,backupUrlCol+1).setValue(String(backup.backupUrl||''));
+      if(updatedCol>=0)sheet.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());
+      return;
+    }
+  }catch(error){console.warn('Client recovery metadata update warning:',error&&error.message?error.message:error);}
+}
+
+function logClientRecoveryActivity_(client, type, details) {
+  try {
+    var clientId=String(client && (client.Client_ID || client.clientId) || '');
+    var businessId=String(client && (client.Business_ID || client.businessId) || '');
+    var sheetId=String(client && (client.Sheet_ID || client.Workspace_ID || client.sheetId) || '');
+    var masterDetails=Object.assign({},details||{},{
+      clientId:clientId,businessId:businessId,type:type
+    });
+    logAdminAction('client_recovery_'+String(type||'event').toLowerCase(),masterDetails);
+
+    // Reuse the existing client activity sheet when it is present. We map only
+    // columns that already exist, so this does not create a second activity schema.
+    if(!sheetId)return;
+    var ss=SpreadsheetApp.openById(sheetId),s=ss.getSheetByName('Client_Activity');
+    if(!s || s.getLastColumn()<1)return;
+    var h=s.getRange(1,1,1,s.getLastColumn()).getValues()[0].map(function(x){return String(x||'').trim();});
+    var now=new Date().toISOString();
+    var row=new Array(h.length).fill('');
+    var values={
+      Activity_ID:'ACT_REC_'+Utilities.getUuid().replace(/-/g,'').slice(0,16).toUpperCase(),
+      Activity_Type:type,
+      Type:type,
+      Action:type,
+      Event:type,
+      Description:String(details && details.message || ('Recovery event: '+type)),
+      Details:JSON.stringify(masterDetails),
+      Business_ID:businessId,
+      Client_ID:clientId,
+      Created_At:now,
+      Timestamp:now,
+      Updated_At:now,
+      Status:String(details && details.status || '')
+    };
+    h.forEach(function(header,i){if(Object.prototype.hasOwnProperty.call(values,header))row[i]=values[header];});
+    if(row.some(function(v){return v!=='';}))s.appendRow(row);
+  }catch(error){
+    console.warn('Client recovery activity logging warning:',error && error.message ? error.message : error);
+  }
+}
+
+function auditClientRecoveryBackup(clientId, backupId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var client=getClientByIdForAdminAnyStatus_(clientId);
+    if(!client)return{success:false,code:'CLIENT_NOT_FOUND',message:'Client was not found.'};
+    var sourceId=String(backupId||'').trim();
+    if(!sourceId)return{success:false,code:'RECOVERY_BACKUP_REQUIRED',message:'A recovery backup is required.'};
+
+    var safeName=String(client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_');
+    var businessId=String(client.Business_ID||'').trim();
+    var expectedFolderName=safeName+'_'+businessId.replace(/[^a-zA-Z0-9]/g,'_');
+    var expectedPrefix='BizOS Recovery - '+safeName+' - ';
+    var file;
+    try{file=DriveApp.getFileById(sourceId);}catch(e){return{success:false,code:'RECOVERY_BACKUP_NOT_FOUND',message:'The selected recovery backup could not be found.'};}
+
+    var parentMatches=false,parents=file.getParents();
+    while(parents.hasNext()){if(String(parents.next().getName()||'')===expectedFolderName){parentMatches=true;break;}}
+    var report={
+      success:true,healthy:true,checkedAt:new Date().toISOString(),clientId:String(client.Client_ID||''),
+      businessId:businessId,backupId:sourceId,backupName:String(file.getName()||''),createdAt:file.getDateCreated().toISOString(),
+      checks:{scope:false,type:false,sheets:false,modules:{},businessCenter:{},staff:false,activity:false},
+      warnings:[]
+    };
+    if(!parentMatches || String(file.getName()||'').indexOf(expectedPrefix)!==0){
+      report.healthy=false;report.warnings.push('Backup is outside the expected business recovery folder or has an unexpected name.');
+      return report;
+    }
+    report.checks.scope=true;
+    if(String(file.getMimeType()||'')!=='application/vnd.google-apps.spreadsheet'){
+      report.healthy=false;report.warnings.push('Recovery object is not a Google Spreadsheet snapshot.');
+      return report;
+    }
+    report.checks.type=true;
+
+    var ss=SpreadsheetApp.openById(sourceId),sheetMap={
+      Finance:'Financial_Data',Ecommerce:'Ecommerce_Data',Sales:'Sales_Data',CRM:'CRM_Data',
+      HR:'HR_Data',Logistics:'Logistics_Data',Tax:'Tax_Data',Agro:'Agro_Data',
+      Productivity:'Productivity_Data',POS:'POS_Data',Attendance:'Attendance_Data',Warehouse:'Warehouse_Data'
+    };
+    var allNames=ss.getSheets().map(function(s){return s.getName();}),nameSet={};
+    allNames.forEach(function(n){nameSet[n]=true;});
+    Object.keys(sheetMap).forEach(function(module){
+      var name=sheetMap[module],present=!!nameSet[name];
+      report.checks.modules[module]={sheet:name,present:present,rows:present?Math.max(0,ss.getSheetByName(name).getLastRow()-1):0};
+      if(!present){report.healthy=false;report.warnings.push(module+' workspace sheet is missing: '+name);}
+    });
+    report.checks.sheets=Object.keys(report.checks.modules).every(function(k){return report.checks.modules[k].present;});
+
+    var bc=['BusinessCenter_Products','BusinessCenter_Customers','BusinessCenter_Sales','BusinessCenter_Sale_Items','BusinessCenter_Stock_Movements','BusinessCenter_Customer_Ledger','BusinessCenter_Finance_Transactions'];
+    bc.forEach(function(name){
+      var present=!!nameSet[name];
+      report.checks.businessCenter[name]={present:present,rows:present?Math.max(0,ss.getSheetByName(name).getLastRow()-1):0};
+    });
+    report.checks.businessCenter.expected=bc.filter(function(name){return nameSet[name];}).length;
+    report.checks.businessCenter.present=bc.filter(function(name){return nameSet[name];}).length;
+    // Business Center sheets are only required when this workspace actually has
+    // Business Center data; an empty workspace may legitimately have none.
+    if(report.checks.businessCenter.present>0 && report.checks.businessCenter.present<bc.length){
+      report.healthy=false;report.warnings.push('Business Center snapshot is incomplete: some existing Business Center sheets are missing.');
+    }
+
+    ['Assigned_Modules','User_Data','Client_Activity','Client_Notification_Preferences','Client_Migration_Index'].forEach(function(name){
+      if(nameSet[name])report.checks.staff=true;
+    });
+    report.checks.activity=!!nameSet.Client_Activity;
+    report.checks.staff=!!(nameSet.Assigned_Modules||nameSet.User_Data);
+    if(!report.checks.activity)report.warnings.push('Client_Activity is not present in the recovery snapshot.');
+    if(!report.checks.staff)report.warnings.push('No client staff/access sheet was found in the recovery snapshot.');
+
+    report.healthy=!!report.healthy;
+    return report;
+  }catch(error){
+    console.error('auditClientRecoveryBackup error:',error);
+    return{success:false,code:'RECOVERY_AUDIT_FAILED',message:'The recovery backup could not be audited.',error:String(error&&error.message||error)};
+  }
+}
+
+function verifyRestoredClientWorkspace_(client, workspace) {
+  var sheetMap={
+    Finance:'Financial_Data',Ecommerce:'Ecommerce_Data',Sales:'Sales_Data',CRM:'CRM_Data',
+    HR:'HR_Data',Logistics:'Logistics_Data',Tax:'Tax_Data',Agro:'Agro_Data',
+    Productivity:'Productivity_Data',POS:'POS_Data',Attendance:'Attendance_Data',Warehouse:'Warehouse_Data'
+  };
+  var names={};workspace.getSheets().forEach(function(s){names[s.getName()]=true;});
+  var missing=[];
+  Object.keys(sheetMap).forEach(function(k){if(!names[sheetMap[k]])missing.push(sheetMap[k]);});
+  var result={success:missing.length===0,checkedAt:new Date().toISOString(),missingSheets:missing,sheetCount:workspace.getSheets().length};
+  if(!names.Client_Info)result.success=false;
+  result.clientInfoPresent=!!names.Client_Info;
+  result.businessId=String(client.Business_ID||'');
+  return result;
+}
+
+function listClientRecoveryBackups(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var client=getClientByIdForAdminAnyStatus_(clientId);
+    if(!client)return{success:false,message:'Client not found.'};
+    var rootIt=DriveApp.getFoldersByName('BizOS_Client_Recovery');
+    if(!rootIt.hasNext())return{success:true,backups:[]};
+    var root=rootIt.next(),safeName=String(client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_')+'_'+String(client.Business_ID||'').replace(/[^a-zA-Z0-9]/g,'_'),folders=root.getFoldersByName(safeName);
+    if(!folders.hasNext())return{success:true,backups:[]};
+    var folder=folders.next(),files=folder.getFiles(),out=[];
+    while(files.hasNext()){var file=files.next();out.push({id:file.getId(),name:file.getName(),createdAt:file.getDateCreated().toISOString(),url:file.getUrl(),mimeType:file.getMimeType()});}
+    out.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
+    return{success:true,backups:out};
+  }catch(error){console.error('listClientRecoveryBackups error:',error);return{success:false,message:'Client recovery backups could not be loaded.'};}
+}
+
+function restoreClientWorkspaceFromRecoveryBackup(clientId, backupId, sessionId) {
+  requireAdminSession_(sessionId);
+  var client=null;
+  try {
+    client=getClientByIdForAdminAnyStatus_(clientId);
+    if(!client)return{success:false,message:'Client not found.'};
+    var targetId=String(client.Sheet_ID||client.Workspace_ID||'').trim(),sourceId=String(backupId||'').trim();
+    if(!targetId||!sourceId)return{success:false,message:'Client workspace and backup are required.'};
+    if(targetId===sourceId)return{success:false,message:'The selected backup is already the live workspace.'};
+
+    var target=SpreadsheetApp.openById(targetId),sourceFile;
+    try{sourceFile=DriveApp.getFileById(sourceId);}catch(e){return{success:false,code:'RECOVERY_BACKUP_NOT_FOUND',message:'The selected recovery backup could not be found.'};}
+
+    var safeName=String(client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_');
+    var businessId=String(client.Business_ID||'').trim();
+    var expectedFolderName=safeName+'_'+businessId.replace(/[^a-zA-Z0-9]/g,'_');
+    var expectedPrefix='BizOS Recovery - '+safeName+' - ';
+    var parentMatches=false,parents=sourceFile.getParents();
+    while(parents.hasNext()){if(String(parents.next().getName()||'')===expectedFolderName){parentMatches=true;break;}}
+    if(!parentMatches||String(sourceFile.getName()||'').indexOf(expectedPrefix)!==0)return{success:false,code:'RECOVERY_BACKUP_SCOPE_MISMATCH',message:'The selected backup does not belong to this business recovery archive.'};
+    if(String(sourceFile.getMimeType()||'')!=='application/vnd.google-apps.spreadsheet')return{success:false,code:'RECOVERY_BACKUP_INVALID_TYPE',message:'The selected recovery backup is not a BizOS workspace snapshot.'};
+
+    var health=auditClientRecoveryBackup(clientId,sourceId,sessionId);
+    if(!health.success||!health.healthy)return{success:false,code:'RECOVERY_BACKUP_UNHEALTHY',message:'The selected recovery snapshot did not pass integrity checks. The live workspace was not changed.',audit:health};
+
+    var safety=createClientRecoveryBackup_(target,String(client.Client_Name||''),businessId);
+    if(!safety||!safety.success)return{success:false,message:'A safety backup could not be created, so the restore was not started.'};
+    updateClientRecoveryMetadata_(client,safety);
+    logClientRecoveryActivity_(client,'BACKUP_RESTORE_STARTED',{status:'started',backupId:sourceId,safetyBackupId:safety.backupId,message:'Client workspace restore started.'});
+
+    var source=SpreadsheetApp.openById(sourceId);
+    source.getSheets().forEach(function(src){
+      var name=src.getName(),dst=target.getSheetByName(name);
+      if(!dst)dst=target.insertSheet(name);
+      dst.clear({contentsOnly:false});
+      var range=src.getDataRange();
+      if(range.getNumRows()&&range.getNumColumns())range.copyTo(dst.getRange(1,1),{contentsOnly:false});
+    });
+
+    var verification=verifyRestoredClientWorkspace_(client,target);
+    if(!verification.success){
+      logClientRecoveryActivity_(client,'BACKUP_RESTORE_FAILED',{status:'failed',backupId:sourceId,safetyBackupId:safety.backupId,message:'Post-restore verification failed.',verification:verification});
+      return{success:false,code:'RESTORE_VERIFICATION_FAILED',message:'The workspace was restored, but post-restore verification found missing required components. The safety backup was preserved.',safetyBackup:safety,verification:verification};
+    }
+    logClientRecoveryActivity_(client,'BACKUP_RESTORED',{status:'restored',backupId:sourceId,safetyBackupId:safety.backupId,message:'Client workspace restored and verified.'});
+    return{success:true,message:'Client workspace restored and verified.',safetyBackup:safety,restoredFrom:sourceId,verification:verification};
+  }catch(error){
+    console.error('restoreClientWorkspaceFromRecoveryBackup error:',error);
+    try{logClientRecoveryActivity_(client,'BACKUP_RESTORE_FAILED',{status:'failed',backupId:String(backupId||''),message:error.message||String(error)});}catch(ignore){}
+    return{success:false,message:'The client workspace could not be restored. The safety backup remains available.'};
+  }
+}
+
+function createClientQuote(clientId,data,sessionId){
+  requireAdminSession_(sessionId);
+  try{
+    var client=getActiveClientByIdForAdmin_(clientId);if(!client)return{success:false,message:'Active client deployment not found.'};
+    data=data||{};var title=String(data.title||'').trim(),details=String(data.details||'').trim(),amount=Number(data.amount||0),currency=String(data.currency||'NGN').toUpperCase();
+    if(!title)return{success:false,message:'Quote title is required.'};
+    if(!amount||amount<=0)return{success:false,message:'Quote amount must be greater than zero.'};
+    if(details.length>4000)return{success:false,message:'Quote details are too long.'};
+    var ws=SpreadsheetApp.openById(String(client.Sheet_ID||client.sheetId||'')),s=ws.getSheetByName('Client_Quotes');
+    if(!s){s=ws.insertSheet('Client_Quotes');s.appendRow(['Quote_ID','Title','Details','Amount','Currency','Status','Created_At','Updated_At','Payment_Ref','Payment_Status','Paid_At']);}
+    var h=s.getRange(1,1,1,s.getLastColumn()).getValues()[0].map(function(x){return String(x||'');});
+    ['Payment_Ref','Payment_Status','Paid_At'].forEach(function(k){if(h.indexOf(k)<0)s.getRange(1,s.getLastColumn()+1).setValue(k);});
+    var id='QUO-'+Utilities.getUuid().replace(/-/g,'').slice(0,10).toUpperCase(),now=new Date().toISOString();
+    s.appendRow([id,title,details,amount,currency,'pending',now,now,'','pending','']);
+    return{success:true,quoteId:id,message:'Quote created for the client.'};
+  }catch(error){console.error('createClientQuote error:',error);return{success:false,message:'Quote could not be created.'};}
+}
+function updateClientQuoteStatus(clientId,quoteId,status,sessionId){
+  requireAdminSession_(sessionId);
+  try{
+    var client=getActiveClientByIdForAdmin_(clientId);if(!client)return{success:false,message:'Active client deployment not found.'};
+    var allowed=['pending','approved','paid','cancelled','expired'];status=String(status||'').toLowerCase();if(allowed.indexOf(status)<0)return{success:false,message:'Invalid quote status.'};
+    var ws=SpreadsheetApp.openById(String(client.Sheet_ID||client.sheetId||'')),s=ws.getSheetByName('Client_Quotes');if(!s)return{success:false,message:'No quotes found.'};
+    var v=s.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'');}),idc=h.indexOf('Quote_ID'),sc=h.indexOf('Status'),uc=h.indexOf('Updated_At');for(var i=1;i<v.length;i++)if(String(v[i][idc]||'')===String(quoteId||'')){if(sc>=0)s.getRange(i+1,sc+1).setValue(status);if(uc>=0)s.getRange(i+1,uc+1).setValue(new Date().toISOString());return{success:true,message:'Quote status updated.'};}
+    return{success:false,message:'Quote not found.'};
+  }catch(error){console.error('updateClientQuoteStatus error:',error);return{success:false,message:'Quote status could not be updated.'};}
 }

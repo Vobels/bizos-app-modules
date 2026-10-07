@@ -278,7 +278,7 @@
         </div>
         <div class="flex items-center space-x-2">
           <i class="fas fa-crown text-yellow-500"></i>
-          <span>$800 one-time • Lifetime access</span>
+          <span>$500 one-time • Lifetime access</span>
         </div>
       </div>
     </div>
@@ -581,7 +581,7 @@
             </div>
           </div>
           
-          <div class="text-4xl font-bold mb-1">$800</div>
+          <div class="text-4xl font-bold mb-1">$500</div>
           <div class="text-sm text-green-600 font-semibold mb-6">One-time payment • Lifetime access</div>
           
           <ul class="space-y-3 mb-8">
@@ -677,7 +677,7 @@
             <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
           </button>
           <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
-            Yes! $800 one-time payment gives you lifetime access to Sovereign. No recurring fees, no subscriptions. Pay once, use forever.
+            Yes! $500 one-time payment gives you lifetime access to Sovereign. No recurring fees, no subscriptions. Pay once, use forever.
           </div>
         </div>
         
@@ -687,7 +687,7 @@
             <i class="fas fa-chevron-down text-[#5D2A86] text-sm transition-transform duration-300"></i>
           </button>
           <div class="faq-answer hidden px-4 pb-4 text-gray-600 text-sm border-t border-gray-100 pt-3">
-            Absolutely! You can start with the Free plan and upgrade to Sovereign anytime. Pay the difference and unlock all features instantly.
+            Absolutely! You can start with the Free plan and upgrade to Sovereign anytime. Complete the one-time Sovereign payment to unlock all features.
           </div>
         </div>
         
@@ -812,7 +812,7 @@ function scrollToSection(sectionId) {
 }
 
 function contactSales() {
-  alert('Please email Bizoshigroups@gmail.com for enterprise pricing');
+  showNotification('Please email Bizoshigroups@gmail.com for enterprise pricing', 'info');
 }
 
 function openModuleFromLanding(moduleName) {
@@ -955,7 +955,7 @@ function loginDemo() {
         }, 1000);
         
       } else {
-        alert('Demo login failed: ' + res.message);
+        showNotification('We could not start the demo. Please try again.', 'error');
       }
     })
     .withFailureHandler(function(err) {
@@ -964,7 +964,7 @@ function loginDemo() {
         btn.disabled = false;
       }
       console.error('Demo login error:', err);
-      alert('Demo login failed. Please try again.');
+      showNotification('We could not start the demo. Please try again.', 'error');
     })
     .authenticateUser(demoEmail, demoPassword, demoBusiness);
 }
@@ -981,12 +981,12 @@ function handleSignup(event) {
   const confirm = document.getElementById('signup-confirm').value;
   
   if (password !== confirm) {
-    alert('Passwords do not match');
+    showNotification('The passwords do not match.', 'warning');
     return;
   }
   
   if (password.length < 6) {
-    alert('Password must be at least 6 characters');
+    showNotification('Your password must be at least 6 characters.', 'warning');
     return;
   }
   
@@ -1014,19 +1014,19 @@ function handleSignup(event) {
       submitBtn.disabled = false;
       
       if (response.success) {
-        alert('Account created! Please check your email to verify your account.');
+        showNotification('Account created. Please check your email to verify your account.', 'success');
         closeSignupModal();
         showLoginModal();
         document.getElementById('login-email').value = email;
         const resendSection = document.getElementById('resend-verification-section');
         if (resendSection) resendSection.classList.remove('hidden');
       } else {
-        alert(response.message);
+        showNotification(response.message, 'info');
       }
     })
     .withFailureHandler(function(error) {
       console.error('Signup error:', error);
-      alert('Signup failed. Please try again.');
+      showNotification('We could not create your account. Please try again.', 'error');
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
     })
@@ -1041,7 +1041,7 @@ function handleForgotPassword(event) {
   const email = document.getElementById('forgot-email').value;
   
   if (!email) {
-    alert('Please enter your email address');
+    showNotification('Please enter your email address.', 'warning');
     return;
   }
   
@@ -1052,7 +1052,7 @@ function handleForgotPassword(event) {
   
   google.script.run
     .withSuccessHandler(function(response) {
-      alert(response.message);
+      showNotification((response && response.message) || 'We could not complete that request. Please try again.', 'error');
       closeForgotModal();
       showLoginModal();
       submitBtn.textContent = originalText;
@@ -1060,7 +1060,7 @@ function handleForgotPassword(event) {
     })
     .withFailureHandler(function(error) {
       console.error('Forgot password error:', error);
-      alert('Failed to send reset link. Please try again.');
+      showNotification('We could not send the reset link. Please try again.', 'error');
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
     })

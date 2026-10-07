@@ -182,8 +182,9 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var requestId = 'UPG_' + Utilities.getUuid().substring(0, 8).toUpperCase();
     var paymentId = 'PAY_' + Utilities.getUuid().substring(0, 8).toUpperCase();
     var timestamp = new Date();
-    var pricing = getLocalizedPricing(country);
-    var amount = pricing.sovereign && pricing.sovereign.price || 499;
+    var requestedCurrency = String(upgradeData.currency || '').trim().toUpperCase();
+    var pricing = getLocalizedPricing(country, requestedCurrency);
+    var amount = pricing.sovereign && pricing.sovereign.price || 500;
     var currency = pricing.sovereign && pricing.sovereign.code || 'USD';
     var symbol = pricing.sovereign && pricing.sovereign.currency || '$';
 
@@ -202,6 +203,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     paymentSheet.appendRow([
       paymentId, requestId, user.email, workspaceEmail, amount, currency, 'pending', '', timestamp.toISOString(), ''
     ]);
+    snapshotPaymentFx_(requestId, pricing);
 
     if (upgradeLock) {
       upgradeLock.releaseLock();
@@ -231,7 +233,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     };
   } catch (error) {
     console.error('Upgrade request error:', error);
-    return {success:false, message:error.message || 'An error occurred. Please try again.'};
+    return {success:false, message:'We could not start your upgrade right now. Please try again.'};
   } finally {
     if (upgradeLock) {
       try { upgradeLock.releaseLock(); } catch (ignore) {}
@@ -441,6 +443,10 @@ function getCurrentUpgradePaymentStatus(sessionId) {
       success:true,
       active:true,
       requestId:latest.requestId,
+      paymentId:latest.paymentId || '',
+      amount:latest.amount || '',
+      currency:latest.currency || '',
+      paidAt:latest.createdAt || '',
       status:status,
       paymentConfirmed:true,
       ready:!!(setup && setup.success && (setup.webAppUrl || setup.landingUrl)),
@@ -538,8 +544,9 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
       return {success:false, message:'This upgrade request has expired. Please start a new upgrade request.'};
     }
 
-    var pricing = getLocalizedPricing(country);
-    var amount = pricing.sovereign && Number(pricing.sovereign.price) || 499;
+    var requestedCurrency = String(upgradeData.currency || '').trim().toUpperCase();
+    var pricing = getLocalizedPricing(country, requestedCurrency);
+    var amount = pricing.sovereign && Number(pricing.sovereign.price) || 500;
     var currency = pricing.sovereign && String(pricing.sovereign.code || 'USD').toUpperCase() || 'USD';
 
     var ss = getBizOSMasterSpreadsheet_();
@@ -681,7 +688,9 @@ function uploadBusinessCertificate(base64Data, fileName, country, businessId, bu
     certFolder = existing.hasNext() ? existing.next() : businessFolder.createFolder('Certificates');
     var blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), getMimeType(fileName), fileName);
     var file = certFolder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // Certificates are private business documents. BizOS stores the file URL for
+    // internal verification; public link sharing is not required and would expose
+    // sensitive registration documents to anyone who obtains the URL.
     return {success:true, fileUrl:file.getUrl(), fileId:file.getId(), fileName:fileName};
   } catch (error) {
     console.error('Error uploading certificate:', error);
@@ -695,15 +704,172 @@ function getMimeType(fileName) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-function getLocalizedPricing(country) {
-  var paymentConfig = PAYMENT_COUNTRIES[country] || PAYMENT_COUNTRIES.default;
-  var basePrices = {sovereign:499, enterprise:2990};
-  var rate = paymentConfig.multiplier || 1;
-  var exchangeRate = 1500;
+function getLocalizedPricing(country, requestedCurrency) {
+  var name = String(country || '').trim();
+  var wanted = String(requestedCurrency || '').trim().toUpperCase();
+  if (!wanted) {
+    var countryDefaults = (CONFIG.PRICING.payment && CONFIG.PRICING.payment.countryDefaultCurrencies) || {};
+    wanted = countryDefaults[name] || (CONFIG.PRICING.payment && CONFIG.PRICING.payment.defaultCurrency) || 'USD';
+  }
+
+  var converted = convertBizOSBasePriceToCurrency_(wanted);
+  if (!converted.success) return converted;
+
   return {
-    sovereign:{price:Math.round(basePrices.sovereign * exchangeRate * rate) / 100, currency:paymentConfig.symbol || '$', code:paymentConfig.currency || 'USD'},
-    enterprise:{price:Math.round(basePrices.enterprise * exchangeRate * rate) / 100, currency:paymentConfig.symbol || '$', code:paymentConfig.currency || 'USD'}
+    success:true,
+    sovereign:{
+      price:converted.price,
+      currency:converted.symbol,
+      code:converted.currency,
+      name:converted.name,
+      basePrice:converted.baseAmount,
+      baseCurrency:converted.baseCurrency,
+      exchangeRate:converted.rate,
+      exchangeRateSource:converted.rateSource,
+      exchangeRateUpdatedAt:converted.rateUpdatedAt,
+      decimals:converted.decimals
+    }
   };
+}
+
+function getAvailableBizOSCheckoutCurrencies_(country) {
+  var rates=getPaymentExchangeRates_(),currencies=[];
+  var paystackConfigured=false,paystackUsdEnabled=false,flutterwaveConfigured=false,flutterwaveCurrencies=['NGN','USD'];
+  try{
+    var props=PropertiesService.getScriptProperties();
+    paystackConfigured=!!props.getProperty('PAYSTACK_PUBLIC_KEY')&&!!props.getProperty('PAYSTACK_SECRET_KEY');
+    paystackUsdEnabled=String(props.getProperty('PAYSTACK_USD_ENABLED')||'').trim().toLowerCase()==='true';
+    flutterwaveConfigured=!!props.getProperty('FLUTTERWAVE_SECRET_KEY');
+    var raw=props.getProperty('FLUTTERWAVE_ENABLED_CURRENCIES');
+    if(raw){var parsed=String(raw).split(',').map(function(x){return String(x||'').trim().toUpperCase();}).filter(Boolean);if(parsed.length)flutterwaveCurrencies=parsed;}
+  }catch(e){}
+  Object.keys(rates).forEach(function(code){
+    var cfg=getPaymentCurrencyConfig_(code);if(!cfg)return;
+    var restrictions=(CONFIG.PRICING.payment&&CONFIG.PRICING.payment.currencyCountryRestrictions)||{};
+    if(restrictions[code]&&restrictions[code].indexOf(String(country||'').trim())===-1)return;
+    var route=(paystackConfigured&&code==='NGN')||(paystackConfigured&&code==='USD'&&paystackUsdEnabled)||(flutterwaveConfigured&&flutterwaveCurrencies.indexOf(code)!==-1);
+    if(!route)return;
+    currencies.push({code:cfg.code,name:cfg.name,symbol:cfg.symbol,rate:cfg.rate,decimals:cfg.decimals});
+  });
+  currencies.sort(function(a,b){if(a.code==='USD')return-1;if(b.code==='USD')return 1;if(a.code==='NGN')return-1;if(b.code==='NGN')return 1;return a.code.localeCompare(b.code);});
+  return currencies;
+}
+function getUpgradeCurrencyOptions(requestId, sessionId, accessToken) {
+  try {
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
+      return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
+    }
+
+    var currencies = getAvailableBizOSCheckoutCurrencies_(request.country);
+    return {
+      success:true,
+      currentCurrency:String(request.currency || getLocalizedPricing(request.country, '').sovereign.code).toUpperCase(),
+      options:currencies
+    };
+  } catch (error) {
+    console.error('getUpgradeCurrencyOptions error:', error);
+    return {success:false,message:'We could not load the available currencies right now.'};
+  }
+}
+
+function ensurePaymentFxColumns_(sheet) {
+  if (!sheet) return;
+  var headers = sheet.getRange(1,1,1,Math.max(1,sheet.getLastColumn())).getValues()[0] || [];
+  var required = ['Base_Amount','Base_Currency','FX_Rate','FX_Rate_Source','FX_Rate_Updated_At'];
+  required.forEach(function(header) {
+    if (headers.indexOf(header) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+      headers.push(header);
+    }
+  });
+}
+
+function snapshotPaymentFx_(requestId, pricing) {
+  try {
+    var ss = getBizOSMasterSpreadsheet_();
+    var sheets = [ss.getSheetByName('Upgrade_Requests'), ss.getSheetByName('Payments')];
+    sheets.forEach(function(sheet) {
+      if (!sheet) return;
+      ensurePaymentFxColumns_(sheet);
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0] || [];
+      var idCol = headers.indexOf('Request_ID');
+      if (idCol === -1) return;
+      for (var i=1;i<data.length;i++) {
+        if (String(data[i][idCol] || '').trim() !== String(requestId || '').trim()) continue;
+        var values = {
+          Base_Amount:pricing.sovereign.basePrice,
+          Base_Currency:pricing.sovereign.baseCurrency,
+          FX_Rate:pricing.sovereign.exchangeRate,
+          FX_Rate_Source:pricing.sovereign.exchangeRateSource || 'admin',
+          FX_Rate_Updated_At:pricing.sovereign.exchangeRateUpdatedAt || new Date().toISOString()
+        };
+        Object.keys(values).forEach(function(header) {
+          var col=headers.indexOf(header);
+          if(col!==-1) sheet.getRange(i+1,col+1).setValue(values[header]);
+        });
+        return;
+      }
+    });
+  } catch(error) {
+    console.error('snapshotPaymentFx_ error:',error);
+  }
+}
+
+function updateUpgradeRequestCurrency(requestId, currency, sessionId, accessToken) {
+  try {
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,message:'This upgrade request does not belong to the current BizOS account.'};
+    if (String(request.status || '').toLowerCase() !== 'pending_payment') return {success:false,message:'This upgrade request is no longer editable.'};
+
+    var pricing = getLocalizedPricing(request.country, currency);
+    if (!pricing || !pricing.success || !pricing.sovereign) return {success:false,message:(pricing && pricing.message)||'This currency is not currently available for BizOS checkout.'};
+
+    var ss=getBizOSMasterSpreadsheet_();
+    var sheet=ss.getSheetByName('Upgrade_Requests');
+    var rows=sheet.getDataRange().getValues(), headers=rows[0]||[];
+    var idCol=headers.indexOf('Request_ID'), amountCol=headers.indexOf('Amount'), currencyCol=headers.indexOf('Currency'), updatedCol=headers.indexOf('Updated_At');
+    for(var i=1;i<rows.length;i++){
+      if(idCol!==-1&&String(rows[i][idCol])===String(requestId)){
+        if(amountCol!==-1) sheet.getRange(i+1,amountCol+1).setValue(pricing.sovereign.price);
+        if(currencyCol!==-1) sheet.getRange(i+1,currencyCol+1).setValue(pricing.sovereign.code);
+        if(updatedCol!==-1) sheet.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());
+        var payments=ss.getSheetByName('Payments');
+        if(payments){
+          var pdata=payments.getDataRange().getValues(), ph=pdata[0]||[];
+          var pReq=ph.indexOf('Request_ID'),pAmount=ph.indexOf('Amount'),pCurrency=ph.indexOf('Currency');
+          for(var p=1;p<pdata.length;p++) if(pReq!==-1&&String(pdata[p][pReq])===String(requestId)){
+            if(pAmount!==-1) payments.getRange(p+1,pAmount+1).setValue(pricing.sovereign.price);
+            if(pCurrency!==-1) payments.getRange(p+1,pCurrency+1).setValue(pricing.sovereign.code);
+            break;
+          }
+        }
+        snapshotPaymentFx_(requestId, pricing);
+        return {success:true,currency:pricing.sovereign.code,amount:pricing.sovereign.price,symbol:pricing.sovereign.currency,baseAmount:pricing.sovereign.basePrice,baseCurrency:pricing.sovereign.baseCurrency,exchangeRate:pricing.sovereign.exchangeRate};
+      }
+    }
+    return {success:false,message:'Upgrade request not found.'};
+  } catch(error) {
+    console.error('updateUpgradeRequestCurrency error:',error);
+    return {success:false,message:'We could not update the payment currency right now. Please try again.'};
+  }
 }
 
 function validateUpgradeSession(sessionId) {

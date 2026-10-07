@@ -10,7 +10,7 @@
     <div class="p-6">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <section class="bg-white border rounded-xl p-4">
-          <h2 class="font-semibold text-gray-900 mb-3">Record types</h2>
+          <div class="flex items-center justify-between gap-3 mb-3"><h2 class="font-semibold text-gray-900">Records by app</h2></div><input id="records-search" type="search" placeholder="Search records or apps..." class="w-full border rounded-lg px-3 py-2 text-sm mb-3" oninput="renderRecordsDirectorySearch()">
           <div id="records-type-list" class="space-y-1"><p class="text-sm text-gray-500 p-3">Loading...</p></div>
         </section>
         <section class="lg:col-span-3 bg-white border rounded-xl overflow-hidden">
@@ -23,30 +23,54 @@
 </div>
 <script>
 (function(){
+  var allRecords=[];
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function renderDirectory(){
+    var list=document.getElementById('records-type-list');
+    var query=(document.getElementById('records-search')||{}).value||'';
+    query=String(query).trim().toLowerCase();
+    var filtered=allRecords.filter(function(r){
+      return !query || String(r.name||'').toLowerCase().indexOf(query)!==-1 ||
+        String(r.module||'').toLowerCase().indexOf(query)!==-1;
+    });
+    var groups={};
+    filtered.forEach(function(r){var g=r.module||'Other';(groups[g]||(groups[g]=[])).push(r);});
+    var order=['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse','Business Center'];
+    var keys=Object.keys(groups).sort(function(a,b){
+      var ai=order.indexOf(a),bi=order.indexOf(b);
+      return (ai<0?999:ai)-(bi<0?999:bi)||a.localeCompare(b);
+    });
+    list.innerHTML=keys.map(function(group){
+      return '<div class="mb-4"><div class="text-xs font-semibold uppercase tracking-wide text-gray-400 px-2 py-1">'+esc(group)+'</div>'+
+        groups[group].map(function(r){
+          return '<button type="button" data-record-key="'+esc(r.key)+'" class="record-directory-item w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"><span><i class="fas fa-table text-gray-400 mr-2"></i>'+esc(r.name)+'</span><span class="text-xs text-gray-500">'+Number(r.count||0)+'</span></button>';
+        }).join('')+'</div>';
+    }).join('')||'<p class="text-sm text-gray-500 p-3">No matching records found.</p>';
+    list.querySelectorAll('[data-record-key]').forEach(function(btn){btn.addEventListener('click',function(){loadRecordRows(btn.getAttribute('data-record-key'));});});
+  }
+  window.renderRecordsDirectorySearch=renderDirectory;
   window.closeRecordsPage=function(){var p=document.getElementById('records-page');if(p)p.classList.add('hidden');};
   window.showRecordsPage=function(){
     var p=document.getElementById('records-page');if(!p)return;
     p.classList.remove('hidden');
     var list=document.getElementById('records-type-list');
-    list.innerHTML='<p class="text-sm text-gray-500 p-3">Loading...</p>';
+    list.innerHTML='<p class="text-sm text-gray-500 p-3">Loading your records…</p>';
     callGoogleScript('getRecordsDirectory',[],function(res){
-      if(!res||!res.success){list.innerHTML='<p class="text-sm text-red-500 p-3">'+esc(res&&res.message||'Failed to load records.')+'</p>';return;}
-      list.innerHTML=(res.records||[]).map(function(r){
-        return '<button type="button" onclick="loadRecordRows(\''+esc(r.key).replace(/'/g,"\\'")+'\')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 flex items-center justify-between"><span><i class="fas fa-table text-gray-400 mr-2"></i>'+esc(r.name)+'</span><span class="text-xs text-gray-500">'+r.count+'</span></button>';
-      }).join('')||'<p class="text-sm text-gray-500 p-3">No record types are available.</p>';
-    },function(){list.innerHTML='<p class="text-sm text-red-500 p-3">Failed to load records.</p>';});
+      if(!res||!res.success){list.innerHTML='<p class="text-sm text-red-600 p-3">We could not load your records. Please try again.</p>';return;}
+      allRecords=Array.isArray(res.records)?res.records:[];
+      renderDirectory();
+    },function(){list.innerHTML='<p class="text-sm text-red-600 p-3">We could not load your records. Please try again.</p>';});
   };
   window.loadRecordRows=function(key){
     var wrap=document.getElementById('records-table-wrap'),title=document.getElementById('records-table-title');
-    wrap.innerHTML='<p class="p-8 text-center text-gray-500">Loading...</p>';
+    wrap.innerHTML='<p class="p-8 text-center text-gray-500">Loading records…</p>';
     callGoogleScript('getRecordRows',[key],function(res){
-      if(!res||!res.success){wrap.innerHTML='<p class="p-8 text-center text-red-500">'+esc(res&&res.message||'Failed to load records.')+'</p>';return;}
+      if(!res||!res.success){wrap.innerHTML='<p class="p-8 text-center text-red-600">We could not load these records. Please try again.</p>';return;}
       title.textContent=res.recordType||'Records';
       var headers=res.headers||[],rows=res.records||[];
-      if(!rows.length){wrap.innerHTML='<p class="p-8 text-center text-gray-500">No records yet.</p>';return;}
-      wrap.innerHTML='<table class="min-w-full text-sm"><thead class="bg-gray-50"><tr>'+headers.map(function(h){return '<th class="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(row){return '<tr class="border-t">'+headers.map(function(h){return '<td class="px-4 py-3 whitespace-nowrap text-gray-700">'+esc(row[h])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table>';
-    },function(){wrap.innerHTML='<p class="p-8 text-center text-red-500">Failed to load records.</p>';});
+      if(!rows.length){wrap.innerHTML='<p class="p-8 text-center text-gray-500">No records yet. They will appear here when you add data.</p>';return;}
+      wrap.innerHTML='<div class="overflow-x-auto"><table class="min-w-full text-sm"><thead class="bg-gray-50"><tr>'+headers.map(function(h){return '<th class="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(row){return '<tr class="border-t">'+headers.map(function(h){return '<td class="px-4 py-3 whitespace-nowrap text-gray-700">'+esc(row[h])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';
+    },function(){wrap.innerHTML='<p class="p-8 text-center text-red-600">We could not load these records. Please try again.</p>';});
   };
 })();
 </script>

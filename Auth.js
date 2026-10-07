@@ -25,7 +25,7 @@ function authenticateUser(email, password, businessName) {
     
     if (emailCol === -1) {
       console.error('❌ Email column not found!');
-      return { success: false, message: 'System error: Email column missing' };
+      return { success: false, message: 'We could not complete sign in right now. Please try again.' };
     }
     
     // ===== FIND USER =====
@@ -100,7 +100,7 @@ function authenticateUser(email, password, businessName) {
       }
     } else {
       console.log('❌ Password column not found!');
-      return { success: false, message: 'System error: Password column missing' };
+      return { success: false, message: 'We could not complete sign in right now. Please try again.' };
     }
     
     if (!isPasswordValid) {
@@ -184,7 +184,7 @@ function authenticateUser(email, password, businessName) {
   } catch (error) {
     console.error('❌ authenticateUser error:', error);
     console.error('❌ Stack:', error.stack);
-    return { success: false, message: "Login failed: " + error.message };
+    return { success: false, message: "We could not complete sign in right now. Please try again." };
   }
 }
 
@@ -208,8 +208,10 @@ function createSession(email, businessId) {
     businessId: businessId || '',
     createdAt: new Date().toISOString()
   };
-  // Store for 24 hours (86400 seconds)
-  cache.put(sessionId, JSON.stringify(sessionData), 86400);
+  // Apps Script CacheService supports a maximum cache lifetime of 6 hours.
+  // Use a sliding 6-hour session so active users stay signed in without
+  // relying on a cache duration the platform cannot actually guarantee.
+  cache.put(sessionId, JSON.stringify(sessionData), 21600);
   console.log("📝 Session created for:", email, "Session ID:", sessionId.substring(0, 20) + "...");
   return sessionId;
 }
@@ -225,6 +227,9 @@ function getSessionData_(sessionId) {
   if (!sessionData) return null;
 
   try {
+    // Refresh the active session window whenever the session is successfully read.
+    // This keeps normal dashboard use and page refreshes from expiring an active user.
+    cache.put(sessionId, sessionData, 21600);
     return JSON.parse(sessionData);
   } catch (error) {
     console.error('❌ Session data parse error:', error);
@@ -325,7 +330,7 @@ function getUserFromSession(sessionId) {
     if (isDemo) {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
-      accessibleModules = ['Ecommerce'];
+      accessibleModules = ['Finance', 'Ecommerce'];
     } else {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
     }
@@ -356,6 +361,16 @@ function getUserFromSession(sessionId) {
 /**
  * Logout - remove session
  */
+/**
+ * UI bootstrap/session check. Returns the same authoritative user record used by
+ * dashboard operations so a saved browser session is never trusted by itself.
+ */
+function validateBizOSSession(sessionId) {
+  var user = getUserFromSession(sessionId);
+  if (!user) return {success:false, code:'SESSION_EXPIRED', message:'Your session has ended. Please sign in again.'};
+  return {success:true, user:user};
+}
+
 function logout(sessionId) {
   if (sessionId) {
     const cache = CacheService.getScriptCache();
@@ -467,6 +482,6 @@ function confirmPasswordReset(token, newPassword) {
     
   } catch (error) {
     console.error('❌ Confirm reset error:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: "We could not complete the password reset. Please try again." };
   }
 }

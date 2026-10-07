@@ -7,9 +7,9 @@
 // ============================================================
 
 var CLIENT_V12_UI_FILES_ = ['ClientShellV12','ClientStylesV12'];
-var CLIENT_V12_PACKAGE_VERSION_ = '12.2.0';
-var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.0';
-var CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/full-client-bizos-package';
+var CLIENT_V12_PACKAGE_VERSION_ = '12.2.1';
+var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.1';
+var CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/prelaunch-user-readiness';
 
 function generateClientCodeSafelyV12(settings) {
   settings = settings || {};
@@ -29,12 +29,24 @@ function generateClientCodeSafelyV12(settings) {
     masterApiUrl:String(settings.masterApiUrl || getMasterApiUrl()),
     applicationUrl:String(settings.applicationUrl || ''),
     landingUrl:String(settings.landingUrl || ''),
-    customDomain:String(settings.customDomain || '')
+    customDomain:String(settings.customDomain || ''),
+    featureProfile:settings.featureProfile&&typeof settings.featureProfile==='object'?settings.featureProfile:{},
+    generatedAt:new Date().toISOString(),
+    packageVersion:CLIENT_V12_PACKAGE_VERSION_,
+    packageRelease:CLIENT_V12_PACKAGE_RELEASE_,
+    packageProvenance:CLIENT_V12_PACKAGE_PROVENANCE_
   };
   config.businessProfile = getMasterBusinessProfileForV12_(config.businessId, config.email);
   config.currency = String((config.businessProfile&&config.businessProfile.currency)||(config.businessProfile&&config.businessProfile.Currency)||'NGN').toUpperCase();
 
   var runtime = buildClientRuntimeV11_(config);
+
+  // V12 release/provenance markers are part of the generated client runtime,
+  // not only the master generator source. This lets package validation and a
+  // deployed-client audit identify the exact V12 release actually shipped.
+  runtime = "var CLIENT_V12_PACKAGE_VERSION_ = '" + CLIENT_V12_PACKAGE_VERSION_ + "';\n" +
+    "var CLIENT_V12_PACKAGE_RELEASE_ = '" + CLIENT_V12_PACKAGE_RELEASE_ + "';\n" +
+    "var CLIENT_V12_PACKAGE_PROVENANCE_ = '" + CLIENT_V12_PACKAGE_PROVENANCE_ + "';\n" + runtime;
 
   // V12 entitlement, Apps and module-workspace logic requires the canonical
   // module registry to be present inside the generated client runtime.
@@ -77,7 +89,7 @@ function generateClientCodeSafelyV12(settings) {
   );
 
   var v12SecurityBridge = [
-    'function clientModulesForEntitlementV12_(role,tier,assigned){var r=String(role||"staff").toLowerCase(),t=String(tier||"").trim().toLowerCase(),base;if(!t)return[];base=(t==="free"||t==="starter")?["Ecommerce"]:clientModuleNamesV12_();if(r==="owner"||r==="admin")return base.slice();var a=Array.isArray(assigned)?assigned:[];return a.filter(function(m){return base.indexOf(String(m||""))!==-1;});}',
+    'function clientModulesForEntitlementV12_(role,tier,assigned){var r=String(role||"staff").toLowerCase(),t=String(tier||"").trim().toLowerCase(),base;if(!t)return[];base=(t==="free"||t==="starter")?["Finance","Ecommerce"]:clientModuleNamesV12_();if(r==="owner"||r==="admin")return base.slice();var a=Array.isArray(assigned)?assigned:[];return a.filter(function(m){return base.indexOf(String(m||""))!==-1;});}',
     'function clientLicenseTierV12_(){try{var r=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(!r||r.success!==true||!r.client)return"";var tier=String(r.client.tier||r.client.subscriptionTier||"").trim().toLowerCase();return tier;}catch(e){return"";}}',
         'function getClientUserFromSession(sid){try{var u=getUserFromSession(sid);if(!u||String(u.businessId||"")!==String(CLIENT_CONFIG.businessId||""))return null;var license=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(!license||license.success!==true||!license.client)return null;var tier=String(license.client.tier||license.client.subscriptionTier||"").trim();if(!tier)return null;u.isClient=true;u.clientId=CLIENT_CONFIG.clientId;u.subscriptionTier=tier;u.workspaceId=CLIENT_CONFIG.sheetId;u.accessibleModules=clientModulesForEntitlementV12_(u.role,tier,clientAssignedModulesV11_(u));return u;}catch(e){return null;}}',
 'function getBusinessStaff(bid,sid){var u=getUserFromSession(sid);if(!u||String(u.businessId)!==String(bid)||["owner","admin"].indexOf(String(u.role||"").toLowerCase())<0)return{success:false,message:"Only the business owner or an administrator can view staff."};return{success:true,members:clientTeamRowsV11_(ensureClientTeamSheetV11_()).map(function(r){return{email:r.Email,name:r.Name,role:r.Role,phone:r.Phone,department:r.Department,status:r.Status,assignedModules:clientAssignedModulesV11_(r),invitationStatus:(String(r.Status||"").toLowerCase()==="invited"?"pending":String(r.Status||"").toLowerCase()==="accepted"?"accepted":String(r.Status||"").toLowerCase())};})};}',
@@ -95,6 +107,7 @@ function generateClientCodeSafelyV12(settings) {
   var v12AccountBridge = [
     'function getClientV12WorkspaceHealth(sid){var u=getClientUserFromSession(sid);if(!u)return{success:false,message:"Session expired or client license is no longer valid.",code:"CLIENT_LICENSE_INVALID"};try{var ws=getWorkspaceFile(sid),info=ws.getSheetByName("Client_Info"),infoValues=info?info.getDataRange().getValues():[],meta={};if(!info)return{success:false,message:"Client_Info sheet is missing.",code:"CLIENT_INFO_MISSING"};for(var i=1;i<infoValues.length;i++){if(infoValues[i][0])meta[String(infoValues[i][0])]=infoValues[i][1];}var names=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"],modules=[];names.forEach(function(name){var def=MODULES[name]||{},sheet=ws.getSheetByName(def.sheet),headers=[];try{if(sheet&&sheet.getLastColumn()>0)headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(function(x){return String(x||"");});}catch(e){}modules.push({module:name,sheet:String(def.sheet||""),exists:!!sheet,headersPresent:headers.length>0,recordCount:sheet&&sheet.getLastRow()>1?sheet.getLastRow()-1:0});});var ns=ws.getSheetByName("Client_Notifications"),as=ws.getSheetByName("Client_Activity"),notificationCheck=getClientNotificationsData(sid);return{success:true,clientInfo:{clientId:String(meta.Client_ID||""),businessId:String(meta.Business_ID||""),status:String(meta.Status||""),sheetId:String(CLIENT_CONFIG.sheetId||"")},moduleCount:modules.length,modules:modules,notificationsSheet:{exists:!!ns,headersPresent:!!(ns&&ns.getLastColumn()>0),readSuccess:!!(notificationCheck&&notificationCheck.success)},activitySheet:{exists:!!as,headersPresent:!!(as&&as.getLastColumn()>0),readSuccess:!!(notificationCheck&&notificationCheck.success)},notificationReadSuccess:!!(notificationCheck&&notificationCheck.success),notificationCount:notificationCheck&&Array.isArray(notificationCheck.notifications)?notificationCheck.notifications.length:0};}catch(e){return{success:false,message:String(e&&e.message||e),code:"WORKSPACE_HEALTH_ERROR"};}}',
     'function getClientV12ModuleSmokeAudit(sid){var u=getClientUserFromSession(sid);if(!u)return{success:false,message:"Session expired or client license is no longer valid.",code:"CLIENT_LICENSE_INVALID"};var names=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"],out=[];var ws=getWorkspaceFile(sid);names.forEach(function(name){var def=MODULES[name]||{},sheet=ws&&ws.getSheetByName(def.sheet),accessible=Array.isArray(u.accessibleModules)&&u.accessibleModules.indexOf(name)>=0,headers=[];try{if(sheet&&sheet.getLastColumn()>0)headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(function(x){return String(x||"");});}catch(e){}var read=null;if(accessible){try{read=getModuleDataWithSync(name,sid); }catch(e2){read={success:false,message:e2.message};}}out.push({module:name,sheet:String(def.sheet||""),accessible:accessible,sheetExists:!!sheet,headers:headers,recordCount:read&&read.success!==false?Number(read.recordCount||0):null,readSuccess:accessible?!!(read&&read.success):true,message:read&&read.success===false?String(read.message||""):""});});return{success:true,packageVersion:CLIENT_V12_PACKAGE_VERSION_,modules:out};}',
+    'function getClientFeatureProfileV12(sid){var u=getClientUserFromSession(sid);if(!u)return{success:false,message:"Session expired or client license is no longer valid."};var p=CLIENT_CONFIG.featureProfile&&typeof CLIENT_CONFIG.featureProfile==="object"?CLIENT_CONFIG.featureProfile:{};return{success:true,clientId:String(CLIENT_CONFIG.clientId||""),profile:p};}',
     'function getClientPackageInfo(sid){var u=getClientUserFromSession(sid);if(!u)return{success:false,message:"Session expired or client license is no longer valid.",code:"CLIENT_LICENSE_INVALID"};return{success:true,packageVersion:CLIENT_V12_PACKAGE_VERSION_,release:CLIENT_V12_PACKAGE_RELEASE_,provenance:CLIENT_V12_PACKAGE_PROVENANCE_,clientId:String(CLIENT_CONFIG.clientId||""),workspaceId:String(CLIENT_CONFIG.sheetId||""),generatedAt:String(CLIENT_CONFIG.generatedAt||"")};}',
 
     'function clientNotificationActorV12_(sid){var u=getUserFromSession(sid);if(!u)return{ok:false,message:"Session expired. Please login again."};return{ok:true,user:u};}',
@@ -109,10 +122,9 @@ function generateClientCodeSafelyV12(settings) {
     'function markClientNotificationRead(id,sid){var a=clientNotificationActorV12_(sid);if(!a.ok)return{success:false,message:a.message};id=String(id||"").trim();try{var ws=getWorkspaceFile(sid),s=ensureClientNotificationsSheetV12_(ws),v=s.getDataRange().getValues(),h=v[0]||[],idCol=h.indexOf("Notification_ID"),readCol=h.indexOf("Read_By_JSON"),email=String(a.user.email||"").toLowerCase();for(var i=1;i<v.length;i++){if(String(v[i][idCol]||"")!==id)continue;var audience=String(v[i][h.indexOf("Audience")]||"all");if(!clientNotificationAudienceMatchesV12_(audience,a.user))return{success:false,message:"Notification not found."};var reads=clientNotificationReadMapV12_(v[i][readCol]);reads[email]=new Date().toISOString();s.getRange(i+1,readCol+1).setValue(JSON.stringify(reads));return{success:true};}return{success:false,message:"Notification not found."};}catch(e){return{success:false,message:e.message};}}',
     'function markAllClientNotificationsRead(sid){var a=clientNotificationActorV12_(sid);if(!a.ok)return{success:false,message:a.message};try{var ws=getWorkspaceFile(sid),s=ensureClientNotificationsSheetV12_(ws),v=s.getDataRange().getValues(),h=v[0]||[],readCol=h.indexOf("Read_By_JSON"),email=String(a.user.email||"").toLowerCase(),now=new Date().toISOString();for(var i=1;i<v.length;i++){var audience=String(v[i][h.indexOf("Audience")]||"all").toLowerCase();if(!clientNotificationAudienceMatchesV12_(audience,a.user))continue;var reads=clientNotificationReadMapV12_(v[i][readCol]);reads[email]=now;s.getRange(i+1,readCol+1).setValue(JSON.stringify(reads));}return{success:true};}catch(e){return{success:false,message:e.message};}}',
     'function getClientProfileData(sid){var u=getUserFromSession(sid);if(!u)return{success:false,message:"Session expired. Please login again."};var license={};try{var r=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(r&&r.success&&r.client)license=r.client||{};}catch(e){}var tier=String(license.tier||u.subscriptionTier||"");var verification=String(license.verificationStatus||license.verification_status||"Not available");return{success:true,user:{name:String(u.name||""),email:String(u.email||CLIENT_CONFIG.email||""),phone:String(u.phone||""),role:String(u.role||"owner")},businessName:String(CLIENT_CONFIG.businessProfile&&CLIENT_CONFIG.businessProfile.businessName||u.businessName||CLIENT_CONFIG.clientName||""),businessId:String(CLIENT_CONFIG.businessId||u.businessId||""),subscriptionTier:tier,verificationStatus:verification,workspaceUrl:String(CLIENT_CONFIG.applicationUrl||CLIENT_CONFIG.landingUrl||"")};}',
-    'function clientBillingAccessV12_(sid,write){var u=getUserFromSession(sid);if(!u)return{ok:false,message:"Session expired. Please login again."};if(["owner","admin"].indexOf(String(u.role||"").toLowerCase())<0)return{ok:false,message:"Only the business owner or an administrator can manage billing and maintenance."};if(write&&u.isDemo==="YES")return{ok:false,message:"Demo accounts cannot submit maintenance requests."};return{ok:true,user:u};}',
-    'function ensureClientMaintenanceSheetV12_(ws){var s=ws.getSheetByName("Client_Maintenance_Requests");if(!s){s=ws.insertSheet("Client_Maintenance_Requests");s.appendRow(["Request_ID","Type","Details","Status","Created_At","Requested_By","Updated_At"]);}return s;}',
-    'function getClientBillingData(sid){var a=clientBillingAccessV12_(sid,false);if(!a.ok)return{success:false,message:a.message};var license={};try{var r=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(r&&r.success&&r.client)license=r.client||{};}catch(e){}var tier=String(license.tier||a.user.subscriptionTier||"");var status=String(license.status||"active");var amount=license.amountPaid!=null?license.amountPaid:(license.amount_paid!=null?license.amount_paid:"");var currency=String(license.currency||"");var ws=getWorkspaceFile(sid),sheet=ensureClientMaintenanceSheetV12_(ws),v=sheet.getDataRange().getValues(),requests=[];for(var i=1;i<v.length;i++)requests.push({id:String(v[i][0]||""),type:String(v[i][1]||""),details:String(v[i][2]||""),status:String(v[i][3]||"submitted"),createdAt:String(v[i][4]||""),requestedBy:String(v[i][5]||""),updatedAt:String(v[i][6]||"")});return{success:true,subscriptionTier:tier,status:status,amountPaid:amount,currency:currency,requests:requests};}',
-    'function submitClientMaintenanceRequest(data,sid){var a=clientBillingAccessV12_(sid,true);if(!a.ok)return{success:false,message:a.message};data=data||{};var type=String(data.type||"occasional").trim().toLowerCase(),details=String(data.details||"").trim();if(["occasional","monthly","technical","update"].indexOf(type)<0)return{success:false,message:"Invalid maintenance request type."};if(!details)return{success:false,message:"Request details are required."};if(details.length>4000)return{success:false,message:"Request details are too long."};var ws=getWorkspaceFile(sid),s=ensureClientMaintenanceSheetV12_(ws),id="MNT-"+Utilities.getUuid().replace(/-/g,"").slice(0,10).toUpperCase(),now=new Date().toISOString();s.appendRow([id,type,details,"submitted",now,String(a.user.email||""),now]);logClientActivityV12_(a.user,"maintenance_request","Submitted "+type+" maintenance request "+id,"billing");createClientNotificationV12_("all","maintenance","Maintenance request submitted","A "+type+" maintenance request was submitted by "+String(a.user.name||a.user.email||"a workspace member")+".",a.user.email,"billing");return{success:true,requestId:id};}'
+    'function getClientBillingData(sid){var a=clientBillingAccessV12_(sid,false);if(!a.ok)return{success:false,message:a.message};var license={};try{var r=validateClientLicenseV11_({clientId:CLIENT_CONFIG.clientId,businessId:CLIENT_CONFIG.businessId,sheetId:CLIENT_CONFIG.sheetId});if(r&&r.success&&r.client)license=r.client||{};}catch(e){}var tier=String(license.tier||a.user.subscriptionTier||"");var status=String(license.status||"active");var amount=license.amountPaid!=null?license.amountPaid:(license.amount_paid!=null?license.amount_paid:"");var currency=String(license.currency||"");var ws=getWorkspaceFile(sid),requests=clientBillingRowsV12_(ensureClientMaintenanceSheetV12_(ws),function(o){return{id:String(o.Request_ID||""),type:String(o.Type||""),details:String(o.Details||""),status:String(o.Status||"submitted"),createdAt:String(o.Created_At||""),requestedBy:String(o.Requested_By||""),updatedAt:String(o.Updated_At||"")};}),features=clientBillingRowsV12_(ensureClientFeatureRequestSheetV12_(ws),function(o){return{id:String(o.Request_ID||""),title:String(o.Title||""),details:String(o.Details||""),priority:String(o.Priority||"normal"),status:String(o.Status||"submitted"),createdAt:String(o.Created_At||""),requestedBy:String(o.Requested_By||""),updatedAt:String(o.Updated_At||"")};}),quotes=clientBillingRowsV12_(ensureClientQuotesSheetV12_(ws),function(o){return{id:String(o.Quote_ID||""),title:String(o.Title||""),details:String(o.Details||""),amount:o.Amount===""?"":Number(o.Amount||0),currency:String(o.Currency||currency||""),status:String(o.Status||"pending"),createdAt:String(o.Created_At||""),updatedAt:String(o.Updated_At||"")};}),services=clientBillingRowsV12_(ensureClientServiceHistorySheetV12_(ws),function(o){return{id:String(o.Service_ID||""),type:String(o.Type||""),description:String(o.Description||""),status:String(o.Status||"completed"),amount:o.Amount===""?"":Number(o.Amount||0),currency:String(o.Currency||currency||""),createdAt:String(o.Created_At||""),updatedAt:String(o.Updated_At||"")};});return{success:true,subscriptionTier:tier,status:status,amountPaid:amount,currency:currency,originalPayment:{amount:amount,currency:currency,status:amount!==""?"confirmed":"not_recorded"},paymentStatus:status,maintenancePlans:[{id:"occasional",name:"Occasional maintenance",description:"One-off support when you need it."},{id:"monthly",name:"Monthly maintenance",description:"Ongoing maintenance and support."},{id:"custom",name:"Custom support",description:"A tailored support arrangement for your workspace."}],requests:requests,featureRequests:features,quotes:quotes,serviceHistory:services};}',
+    'function submitClientMaintenanceRequest(data,sid){var a=clientBillingAccessV12_(sid,true);if(!a.ok)return{success:false,message:a.message};data=data||{};var type=String(data.type||"occasional").trim().toLowerCase(),details=String(data.details||"").trim();if(["occasional","monthly","technical","update"].indexOf(type)<0)return{success:false,message:"Invalid maintenance request type."};if(!details)return{success:false,message:"Request details are required."};if(details.length>4000)return{success:false,message:"Request details are too long."};var ws=getWorkspaceFile(sid),s=ensureClientMaintenanceSheetV12_(ws),id="MNT-"+Utilities.getUuid().replace(/-/g,"").slice(0,10).toUpperCase(),now=new Date().toISOString();s.appendRow([id,type,details,"submitted",now,String(a.user.email||""),now]);logClientActivityV12_(a.user,"maintenance_request","Submitted "+type+" maintenance request "+id,"billing");createClientNotificationV12_("all","maintenance","Maintenance request submitted","A "+type+" maintenance request was submitted by "+String(a.user.name||a.user.email||"a workspace member")+".",a.user.email,"billing");return{success:true,requestId:id};}',
+    'function submitClientFeatureRequest(data,sid){var a=clientBillingAccessV12_(sid,true);if(!a.ok)return{success:false,message:a.message};data=data||{};var title=String(data.title||"").trim(),details=String(data.details||"").trim(),priority=String(data.priority||"normal").trim().toLowerCase();if(!title)return{success:false,message:"Please provide a feature title."};if(!details)return{success:false,message:"Please describe the feature you need."};if(details.length>4000)return{success:false,message:"Feature details are too long."};if(["low","normal","high"].indexOf(priority)<0)priority="normal";var ws=getWorkspaceFile(sid),s=ensureClientFeatureRequestSheetV12_(ws),id="FTR-"+Utilities.getUuid().replace(/-/g,"").slice(0,10).toUpperCase(),now=new Date().toISOString();s.appendRow([id,title,details,priority,"submitted",now,String(a.user.email||""),now]);logClientActivityV12_(a.user,"feature_request","Submitted custom feature request "+id,"billing");createClientNotificationV12_("all","feature_request","Feature request submitted","Your custom feature request has been submitted for review.",a.user.email,"billing");return{success:true,requestId:id};}'
   ].join(String.fromCharCode(10));
   runtime += String.fromCharCode(10) + v12AccountBridge + String.fromCharCode(10);
   // V12 session durability bridge: CacheService remains the fast path, but the
@@ -450,7 +462,8 @@ function testGenerateClientCodeSafelyV12(businessId) {
     masterApiUrl:getMasterApiUrl(),
     landingUrl:client.landingUrl || '',
     customDomain:client.customDomain || '',
-    applicationUrl:client.webAppUrl || ''
+    applicationUrl:client.webAppUrl || '',
+    featureProfile:(function(){try{return JSON.parse(String(client.Feature_Profile_JSON||'{}'))||{};}catch(e){return {};}})()
   };
 
   var packageResult = generateClientCodeSafelyV12(settings);
@@ -528,7 +541,8 @@ function getActiveClientForV12Test_() {
     logoUrl:String(client.Logo_Url || ''),
     landingUrl:String(client.Landing_URL || ''),
     customDomain:String(client.Custom_Domain || ''),
-    domain:String(client.Domain || '')
+    domain:String(client.Domain || ''),
+    Feature_Profile_JSON:String(client.Feature_Profile_JSON || '')
   };
 }
 
@@ -561,7 +575,8 @@ function testV12TwelveModuleSmokeAudit(businessId) {
     masterApiUrl:getMasterApiUrl(),
     landingUrl:client.landingUrl || '',
     customDomain:client.customDomain || '',
-    applicationUrl:client.webAppUrl || ''
+    applicationUrl:client.webAppUrl || '',
+    featureProfile:(function(){try{return JSON.parse(String(client.Feature_Profile_JSON||'{}'))||{};}catch(e){return {};}})()
   });
   var packageCheck = validateClientDeploymentPackageV12_(packageResult,{
     clientId:client.clientId,
@@ -711,7 +726,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var forbiddenRuntime=['function autoSetupClient','function redeployClientByBusinessId','function requireAdminSession_','function getBizOSMasterSpreadsheet_','function createAndDeployClientScriptSafe'];
   var leakedRuntime=forbiddenRuntime.filter(function(token){return code.indexOf(token)>=0;});
   if(leakedRuntime.length)return{success:false,code:'V12_MASTER_RUNTIME_LEAK',message:'V12 client runtime contains forbidden Master functions: '+leakedRuntime.join(', ')};
-  var requiredRuntime=['function doGet(e){','CLIENT_V12_PACKAGE_VERSION_','CLIENT_V12_PACKAGE_RELEASE_','CLIENT_V12_PACKAGE_PROVENANCE_','function v12PersistSession_','function v12ValidateWorkspaceBinding_','function getClientV12WorkspaceHealth','function clientFinanceAccessV12_','function getClientAppsData','function clientSettingsAccessV12_','function getClientSettingsData','function saveClientSettings','function changeClientPassword','function updateClientProfile','function getClientProfileData','function getClientBillingData','function submitClientMaintenanceRequest','function getClientNotificationsData','function markClientNotificationRead','function markAllClientNotificationsRead','function logClientActivityV12_','function createClientNotificationV12_','function getClientFinanceData','function saveClientFinanceTransaction','function deleteClientFinanceTransaction','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_','function getBusinessCenterData','function getClientBusinessCenterData','function getClientBusinessCenterConnectedData','function getClientBusinessCenterProductImages','function saveClientBusinessCenterProduct','function saveClientBusinessCenterProductsBulk','function saveClientBusinessCenterCustomer','function lookupClientBusinessCenterProduct','function completeClientBusinessCenterSale','function getClientBusinessCenterCustomerLedger','function recordClientBusinessCenterCustomerPayment','function getClientBusinessCenterSales','function getClientBusinessCenterSaleDetails','function updateClientBusinessCenterProduct','function adjustClientBusinessCenterStock','function getClientBusinessCenterStockMovements','function getClientBusinessCenterFinanceData','function recordClientBusinessCenterExpense'];
+  var requiredRuntime=['function doGet(e){','CLIENT_V12_PACKAGE_VERSION_','CLIENT_V12_PACKAGE_RELEASE_','function getClientFeatureProfileV12(sid)','CLIENT_V12_PACKAGE_PROVENANCE_','function v12PersistSession_','function v12ValidateWorkspaceBinding_','function getClientV12WorkspaceHealth','function clientFinanceAccessV12_','function getClientAppsData','function clientSettingsAccessV12_','function getClientSettingsData','function saveClientSettings','function changeClientPassword','function updateClientProfile','function getClientProfileData','function getClientBillingData','function submitClientMaintenanceRequest','function getClientNotificationsData','function markClientNotificationRead','function markAllClientNotificationsRead','function logClientActivityV12_','function createClientNotificationV12_','function getClientFinanceData','function saveClientFinanceTransaction','function deleteClientFinanceTransaction','function authenticateClient','function validateSession','function getUserFromSession','function clientLogout','function getClientDashboardData','function getClientDashboard(','function requireClientSession_','function getBusinessCenterData','function getClientBusinessCenterData','function getClientBusinessCenterConnectedData','function getClientBusinessCenterProductImages','function saveClientBusinessCenterProduct','function saveClientBusinessCenterProductsBulk','function saveClientBusinessCenterCustomer','function lookupClientBusinessCenterProduct','function completeClientBusinessCenterSale','function getClientBusinessCenterCustomerLedger','function recordClientBusinessCenterCustomerPayment','function getClientBusinessCenterSales','function getClientBusinessCenterSaleDetails','function updateClientBusinessCenterProduct','function adjustClientBusinessCenterStock','function getClientBusinessCenterStockMovements','function getClientBusinessCenterFinanceData','function recordClientBusinessCenterExpense'];
   var missingRuntime=requiredRuntime.filter(function(token){return code.indexOf(token)<0;});
   if(missingRuntime.length)return{success:false,code:'V12_RUNTIME_DEPENDENCY_MISSING',message:'V12 client runtime is missing required functions: '+missingRuntime.join(', ')};var securityRuntime=['function clientAssignedModulesV11_','CLIENT_LICENSE_INVALID','function removeTeamMemberLegacy_(bid,email,sid)','function getBusinessStaff(bid,sid)','function inviteStaffMember(bid,email,name,role,invitedBy,assignedModules,sid)','function resendStaffInvitation(bid,email,sid)','function assignModuleToStaff(email,bid,moduleName,assignedBy,sid)','function removeModuleFromStaff(email,bid,moduleName,sid)','String(u.businessId)!==String(bid)','function updateUserProfile(bid,name,phone,sid)','function changeUserPassword(email,currentPassword,newPassword,sid)','function createClientSessionV11_','function getOrCreateUserSheet_','function getOrCreateBusinessSheet_'];var missingSecurity=securityRuntime.filter(function(token){return code.indexOf(token)<0;});if(missingSecurity.length)return{success:false,code:'V12_SECURITY_DEPENDENCY_MISSING',message:'V12 client runtime is missing hardened security markers: '+missingSecurity.join(', ')};if(code.indexOf('function createSession(')>=0)return{success:false,code:'V12_PUBLIC_SESSION_FACTORY_LEAK',message:'V12 client runtime still exposes the public session factory.'};var forbiddenPublic=['function getOrCreateUserSheet(','function getOrCreateBusinessSheet('];var leakedPublic=forbiddenPublic.filter(function(token){return code.indexOf(token)>=0;});if(leakedPublic.length)return{success:false,code:'V12_INTERNAL_HELPER_EXPOSED',message:'V12 client runtime still exposes internal helper functions: '+leakedPublic.join(', ')};if(code.indexOf('var MODULES=')<0)return{success:false,code:'V12_MODULE_REGISTRY_MISSING',message:'V12 client runtime is missing the module registry.'};var requiredEntitlement=['function clientModulesForEntitlementV12_','function clientLicenseTierV12_','accessibleModules:clientModulesForEntitlementV12_'];var missingEntitlement=requiredEntitlement.filter(function(token){return code.indexOf(token)<0;});if(missingEntitlement.length)return{success:false,code:'V12_ENTITLEMENT_BRIDGE_MISSING',message:'V12 entitlement enforcement is incomplete: '+missingEntitlement.join(', ')};var requiredDashboard=['function getClientDashboard(sid,forceRefresh){','function getClientDashboardData(sid,forceRefresh){return getClientDashboard(sid,forceRefresh);}','function getClientUserFromSession(sid)','function getClientPackageInfo(sid)','function getClientV12ModuleSmokeAudit(sid)','businessSnapshot:businessSnapshot','modulesWithData','weekly:weekly','currency:clientCurrency','recentActivity:activity.slice','kpis:{revenue:{value:','profitMargin:{value:'];var missingDashboard=requiredDashboard.filter(function(token){return code.indexOf(token)<0;});if(missingDashboard.length)return{success:false,code:'V12_DASHBOARD_DEPENDENCY_MISSING',message:'V12 dashboard runtime is missing required parity markers: '+missingDashboard.join(', ')};
   var requiredShell=['ClientStylesV12','ClientStaffV12','ClientAppsV12','ClientSettingsV12','ClientProfileV12','ClientNotificationsV12','ClientBillingV12','ClientBusinessCenterV12','authenticateClient','validateSession','getUserFromSession','clientLogout','getClientDashboardData','bizos-kpi-grid','trendChart','weeklyTrendChart','operationalSnapshot','recentActivityView','OPERATIONAL SNAPSHOT','Workspace activity','breakdownChart','healthView'];
@@ -726,7 +741,7 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var requiredStaff=['staff-v12-root','getBusinessStaff','inviteStaffMember','resendStaffInvitation','removeTeamMember','assignModuleToStaff','getAvailableModulesForStaff'];
   var missingStaff=requiredStaff.filter(function(token){return staff.indexOf(token)<0;});
   if(missingStaff.length)return{success:false,code:'V12_STAFF_DEPENDENCY_MISSING',message:'V12 Staff workspace is missing required markers: '+missingStaff.join(', ')};
-  var requiredApps=['apps-v12-root','getClientAppsData'];var missingApps=requiredApps.filter(function(token){return apps.indexOf(token)<0;});if(missingApps.length)return{success:false,code:'V12_APPS_DEPENDENCY_MISSING',message:'V12 Apps workspace is missing required markers: '+missingApps.join(', ')};var requiredSettings=['settings-v12-root','getClientSettingsData','saveClientSettings','changeClientPassword'];var missingSettings=requiredSettings.filter(function(token){return settings.indexOf(token)<0;});if(missingSettings.length)return{success:false,code:'V12_SETTINGS_DEPENDENCY_MISSING',message:'V12 Settings workspace is missing required markers: '+missingSettings.join(', ')};var requiredProfile=['client-profile-v12','getClientProfileData','clientProfileInit','clientProfileSave','clientProfileChangePassword'];var missingProfile=requiredProfile.filter(function(token){return profile.indexOf(token)<0;});if(missingProfile.length)return{success:false,code:'V12_PROFILE_DEPENDENCY_MISSING',message:'V12 Profile workspace is missing required markers: '+missingProfile.join(', ')};var requiredBilling=['client-billing-v12','getClientBillingData','submitClientMaintenanceRequest','clientBillingInit','clientBillingSubmit'];var requiredNotifications=['client-notifications-v12','getClientNotificationsData','markClientNotificationRead','markAllClientNotificationsRead','clientNotificationsInit','clientNotificationsTab'];var missingNotifications=requiredNotifications.filter(function(token){return notifications.indexOf(token)<0;});if(missingNotifications.length)return{success:false,code:'V12_NOTIFICATIONS_DEPENDENCY_MISSING',message:'V12 Notifications workspace is missing required markers: '+missingNotifications.join(', ')};var missingBilling=requiredBilling.filter(function(token){return billing.indexOf(token)<0;});if(missingBilling.length)return{success:false,code:'V12_BILLING_DEPENDENCY_MISSING',message:'V12 Billing workspace is missing required markers: '+missingBilling.join(', ')};var requiredBusiness=['business-center-page','bc-pos-page','openBCScanner','BarcodeDetector','getUserMedia','saveBusinessCenterProduct','saveBusinessCenterProductsBulk','lookupBusinessCenterProduct','completeBusinessCenterSale','getBusinessCenterCustomerLedger','recordBusinessCenterCustomerPayment','getBusinessCenterSaleDetails','getBusinessCenterFinanceData','recordBusinessCenterExpense','printBCReceipt'];
+  var requiredApps=['apps-v12-root','getClientAppsData'];var missingApps=requiredApps.filter(function(token){return apps.indexOf(token)<0;});if(missingApps.length)return{success:false,code:'V12_APPS_DEPENDENCY_MISSING',message:'V12 Apps workspace is missing required markers: '+missingApps.join(', ')};var requiredSettings=['settings-v12-root','getClientSettingsData','saveClientSettings','changeClientPassword'];var missingSettings=requiredSettings.filter(function(token){return settings.indexOf(token)<0;});if(missingSettings.length)return{success:false,code:'V12_SETTINGS_DEPENDENCY_MISSING',message:'V12 Settings workspace is missing required markers: '+missingSettings.join(', ')};var requiredProfile=['client-profile-v12','getClientProfileData','clientProfileInit','clientProfileSave','clientProfileChangePassword'];var missingProfile=requiredProfile.filter(function(token){return profile.indexOf(token)<0;});if(missingProfile.length)return{success:false,code:'V12_PROFILE_DEPENDENCY_MISSING',message:'V12 Profile workspace is missing required markers: '+missingProfile.join(', ')};var requiredBilling=['client-billing-v12','getClientBillingData','submitClientMaintenanceRequest','submitClientFeatureRequest','clientBillingInit','clientBillingSubmit','clientBillingFeatureSubmit'];var requiredNotifications=['client-notifications-v12','getClientNotificationsData','markClientNotificationRead','markAllClientNotificationsRead','clientNotificationsInit','clientNotificationsTab'];var missingNotifications=requiredNotifications.filter(function(token){return notifications.indexOf(token)<0;});if(missingNotifications.length)return{success:false,code:'V12_NOTIFICATIONS_DEPENDENCY_MISSING',message:'V12 Notifications workspace is missing required markers: '+missingNotifications.join(', ')};var missingBilling=requiredBilling.filter(function(token){return billing.indexOf(token)<0;});if(missingBilling.length)return{success:false,code:'V12_BILLING_DEPENDENCY_MISSING',message:'V12 Billing workspace is missing required markers: '+missingBilling.join(', ')};var requiredBusiness=['business-center-page','bc-pos-page','openBCScanner','BarcodeDetector','getUserMedia','saveBusinessCenterProduct','saveBusinessCenterProductsBulk','lookupBusinessCenterProduct','completeBusinessCenterSale','getBusinessCenterCustomerLedger','recordBusinessCenterCustomerPayment','getBusinessCenterSaleDetails','getBusinessCenterFinanceData','recordBusinessCenterExpense','printBCReceipt'];
   var missingBusiness=requiredBusiness.filter(function(token){return business.indexOf(token)<0;});
   if(missingBusiness.length)return{success:false,code:'V12_BUSINESS_CENTER_DEPENDENCY_MISSING',message:'V12 Business Center UI is missing required markers: '+missingBusiness.join(', ')};
   var missingShell=requiredShell.filter(function(token){return shell.indexOf(token)<0;});
@@ -735,6 +750,8 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var missingStyles=requiredStyles.filter(function(token){return styles.indexOf(token)<0;});
   if(missingStyles.length)return{success:false,code:'V12_STYLE_DEPENDENCY_MISSING',message:'V12 client styles are missing required dashboard styles: '+missingStyles.join(', ')};
   try{var manifest=JSON.parse(manifestSource);if(!manifest||manifest.runtimeVersion!=='V8'||!manifest.webapp)return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is missing required V8/webapp configuration.'};}catch(e){return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is not valid JSON: '+e.message};}
+  if(code.indexOf("CLIENT_V12_PACKAGE_VERSION_ = '12.2.1'")<0)return{success:false,code:'V12_PACKAGE_VERSION_MISMATCH',message:'V12 runtime package version is not the approved prelaunch release.'};
+  if(code.indexOf("CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/prelaunch-user-readiness'")<0)return{success:false,code:'V12_PACKAGE_PROVENANCE_MISMATCH',message:'V12 runtime package provenance does not match the approved prelaunch branch.'};
   if(expected&&expected.clientId&&code.indexOf(String(expected.clientId))<0)return{success:false,code:'V12_CLIENT_ID_MISMATCH',message:'V12 runtime does not contain the expected client ID.'};
   if(expected&&expected.sheetId&&code.indexOf(String(expected.sheetId))<0)return{success:false,code:'V12_WORKSPACE_ID_MISMATCH',message:'V12 runtime does not contain the expected workspace ID.'};
   return{success:true,code:'V12_PACKAGE_VALID',version:CLIENT_V12_PACKAGE_VERSION_,release:CLIENT_V12_PACKAGE_RELEASE_,provenance:CLIENT_V12_PACKAGE_PROVENANCE_,fileCount:pkg.files.length,files:names,checks:{runtimeDependencies:true,shellDependencies:true,businessCenterDependencies:true,staffDependencies:true,appsDependencies:true,settingsDependencies:true,notificationsDependencies:true,styleDependencies:true,manifest:true,masterUiLeak:false,masterRuntimeLeak:false}};
@@ -748,22 +765,55 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
 // It does not publish, deploy, or modify client/registry data.
 // ============================================================
 
-function auditV12ClientDeploymentRuntime(businessId) {
-  var targetBusinessId = String(businessId || '').trim();
-  if (!targetBusinessId) {
+function auditV12ClientDeploymentRuntime(identifier) {
+  var targetIdentifier = String(identifier || '').trim();
+  if (!targetIdentifier) {
     return {
       success:false,
-      code:'BUSINESS_ID_REQUIRED',
-      message:'Business ID is required.'
+      code:'CLIENT_OR_BUSINESS_ID_REQUIRED',
+      message:'Client ID or Business ID is required.'
     };
   }
 
-  var client = getActiveClientByBusinessIdForRedeploy_(targetBusinessId);
+  // Accept either the registered Business_ID or Client_ID so this audit can
+  // be run safely from Apps Script without requiring the caller to know which
+  // registry identifier the underlying deployment helper expects.
+  var client = getActiveClientByBusinessIdForRedeploy_(targetIdentifier);
+  if (!client) {
+    try {
+      var registry = getBizOSMasterSpreadsheet_();
+      var clientsSheet = registry && registry.getSheetByName('Clients');
+      if (clientsSheet && clientsSheet.getLastRow() >= 2) {
+        var values = clientsSheet.getDataRange().getValues();
+        var headers = values[0] || [];
+        var clientIdCol = headers.indexOf('Client_ID');
+        var statusCol = headers.indexOf('Status');
+        for (var ci = 1; ci < values.length; ci++) {
+          var row = values[ci];
+          if (clientIdCol < 0 || String(row[clientIdCol] || '').trim() !== targetIdentifier) continue;
+          if (statusCol >= 0 && String(row[statusCol] || '').trim().toLowerCase() !== 'active') continue;
+          var rawClient = {};
+          headers.forEach(function(header, hi) {
+            rawClient[String(header || '').trim()] = row[hi] === undefined ? '' : row[hi];
+          });
+          client = normalizeExistingClientDeployment_(rawClient);
+          break;
+        }
+      }
+    } catch (lookupError) {
+      return {
+        success:false,
+        code:'CLIENT_LOOKUP_FAILED',
+        message:lookupError && lookupError.message ? lookupError.message : String(lookupError)
+      };
+    }
+  }
+
   if (!client) {
     return {
       success:false,
       code:'CLIENT_NOT_FOUND',
-      message:'No active client deployment was found for business ID: ' + targetBusinessId
+      message:'No active client deployment was found for client/business identifier: ' + targetIdentifier
     };
   }
 
@@ -786,7 +836,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
     };
     var base = 'https://script.googleapis.com/v1/projects/' + encodeURIComponent(client.scriptId);
 
-    // 1. Resolve the deployment to the exact version Google is serving.
     var deploymentResponse = UrlFetchApp.fetch(
       base + '/deployments/' + encodeURIComponent(client.deploymentId),
       {method:'get',headers:headers,muteHttpExceptions:true}
@@ -807,7 +856,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var config = deployment.deploymentConfig || {};
     var deployedVersion = String(config.versionNumber || '');
 
-    // 2. Fetch the exact immutable version attached to the deployment.
     var versionContent = null;
     if (deployedVersion) {
       var versionResponse = UrlFetchApp.fetch(
@@ -830,8 +878,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
       versionContent = JSON.parse(versionResponse.getContentText() || '{}');
     }
 
-    // 3. Also read project HEAD so we can distinguish deployed-version drift
-    // from a package-generation problem.
     var headResponse = UrlFetchApp.fetch(
       base + '/content',
       {method:'get',headers:headers,muteHttpExceptions:true}
@@ -897,9 +943,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var deployedChecks=inspectRuntime_(deployedCode.source);
     var headChecks=inspectRuntime_(headCode.source);
 
-    // Read-only live workspace/database validation. This is intentionally
-    // independent of the generated client runtime so the audit can distinguish
-    // a package problem from a malformed client spreadsheet.
     var workspaceHealth={success:false,clientInfo:false,modules:[],notificationsSheet:false,activitySheet:false};
     try{
       var ws=SpreadsheetApp.openById(String(client.sheetId||''));
@@ -912,11 +955,24 @@ function auditV12ClientDeploymentRuntime(businessId) {
         String(meta.Client_ID||'')===String(client.clientId||'') &&
         String(meta.Business_ID||client.businessId||'')===String(client.businessId||'') &&
         String(meta.Status||'active').toLowerCase()==='active';
-      var expectedModules=['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
-      expectedModules.forEach(function(name){
-        var sheetName=name+'_Data',sh=ws.getSheetByName(sheetName),headers=[];
+      var expectedModules=[
+        {name:'Finance',sheet:'Financial_Data'},
+        {name:'Sales',sheet:'Sales_Data'},
+        {name:'Ecommerce',sheet:'Ecommerce_Data'},
+        {name:'CRM',sheet:'CRM_Data'},
+        {name:'HR',sheet:'HR_Data'},
+        {name:'Logistics',sheet:'Logistics_Data'},
+        {name:'Tax',sheet:'Tax_Data'},
+        {name:'Agro',sheet:'Agro_Data'},
+        {name:'Productivity',sheet:'Productivity_Data'},
+        {name:'POS',sheet:'POS_Data'},
+        {name:'Attendance',sheet:'Attendance_Data'},
+        {name:'Warehouse',sheet:'Warehouse_Data'}
+      ];
+      expectedModules.forEach(function(def){
+        var sh=ws.getSheetByName(def.sheet),headers=[];
         if(sh&&sh.getLastColumn()>0)headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
-        workspaceHealth.modules.push({module:name,sheet:sheetName,exists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0});
+        workspaceHealth.modules.push({module:def.name,sheet:def.sheet,exists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0});
       });
       workspaceHealth.notificationsSheet=!!ws.getSheetByName('Client_Notifications');
       workspaceHealth.activitySheet=!!ws.getSheetByName('Client_Activity');
@@ -933,6 +989,7 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var result={
       success:!!(bindingOk && deployedVersion && deployedChecks.codePresent),
       audit:'V12_DEPLOYED_RUNTIME_AUDIT',
+      inputIdentifier:targetIdentifier,
       clientId:client.clientId,
       businessId:client.businessId,
       email:client.email,
@@ -955,6 +1012,7 @@ function auditV12ClientDeploymentRuntime(businessId) {
     };
 
     if (!bindingOk) {
+      result.success=false;
       result.diagnosis='DEPLOYMENT_BINDING_MISMATCH: the registered deployment does not belong to the registered client script.';
     } else if (!deployedVersion) {
       result.success=false;
@@ -978,8 +1036,10 @@ function auditV12ClientDeploymentRuntime(businessId) {
       result.success=false;
       result.diagnosis='GENERATOR_RUNTIME_MISSING_MODULES: project HEAD itself does not contain var MODULES=. The package generator/runtime assembly must be fixed before redeploying.';
     } else if (!result.deployedMatchesHead) {
+      result.success=false;
       result.diagnosis='DEPLOYED_VERSION_DIFFERS_FROM_HEAD: the deployment is serving an older/different immutable version than project HEAD. Compare deploymentVersion with the latest version before changing client code.';
     } else {
+      result.success=true;
       result.diagnosis='DEPLOYED_RUNTIME_CONTAINS_MODULES: source-level deployment inspection does not reproduce the reported MODULES error. The next step is runtime execution tracing/logging on the client login path, not another package-generation change.';
     }
 
@@ -1012,7 +1072,8 @@ function auditV12ReleaseCompleteness(businessId) {
     masterApiUrl:getMasterApiUrl(),
     landingUrl:client.landingUrl || '',
     customDomain:client.customDomain || '',
-    applicationUrl:client.webAppUrl || ''
+    applicationUrl:client.webAppUrl || '',
+    featureProfile:(function(){try{return JSON.parse(String(client.Feature_Profile_JSON||'{}'))||{};}catch(e){return {};}})()
   });
   var packageCheck=validateClientDeploymentPackageV12_(pkg,{clientId:client.clientId,sheetId:client.sheetId});
   var code=((pkg.files||[]).filter(function(f){return f.name==='Code';})[0]||{}).source||'';
@@ -1026,7 +1087,7 @@ function auditV12ReleaseCompleteness(businessId) {
     'function inviteStaffMember(bid,email,name,role,invitedBy,assignedModules,sid)',
     'function resendStaffInvitation(bid,email,sid)',
     'function assignModuleToStaff(email,bid,moduleName,assignedBy,sid)',
-    'function removeModuleFromStaff(bid,email,sid)',
+    'function removeModuleFromStaff(email,bid,moduleName,sid)',
     'function clientAssignedModulesV11_',
     'Assigned_Modules',
     'staff-v12-root'
@@ -1034,48 +1095,76 @@ function auditV12ReleaseCompleteness(businessId) {
   var staffChecks={};
   staffMarkers.forEach(function(token){staffChecks[token]=code.indexOf(token)>=0||staff.indexOf(token)>=0;});
 
-  var dashboardMarkers=[
-    'function getDashboardKPIs',
-    'function getEnhancedDashboardData',
-    'function getRecentTransactions',
-    'function getChartDataOptimized',
-    'function getDetailedFinancialMetrics',
-    'function getDailyTrends',
-    'function getWeeklyTrends',
-    'businessSnapshot',
-    'health',
-    'charts',
-    'recentActivity'
+  // The V12 client intentionally does not copy the Master Dashboard functions
+  // verbatim. It uses the dedicated getClientDashboard() implementation and
+  // exposes the same dashboard capabilities through a client-safe API.
+  var dashboardCapabilities=[
+    {name:'dashboardApi',master:['function getDashboardKPIs','function getEnhancedDashboardData'],client:['function getClientDashboard(sid,forceRefresh)','function getClientDashboardData(sid,forceRefresh)']},
+    {name:'kpis',master:['function getDashboardKPIs'],client:['kpis:{revenue:','netProfit:{value:','profitMargin:{value:']},
+    {name:'trends',master:['function getEnhancedDashboardData','function getDailyTrends','function getWeeklyTrends'],client:['trends:{categoryBreakdown:','daily:daily','weekly:weekly']},
+    {name:'charts',master:['function getChartDataOptimized','charts'],client:['charts:{revenueVsExpenses:','expenseBreakdown:{labels:']},
+    {name:'health',master:['health'],client:['health:health']},
+    {name:'recentActivity',master:['recentActivity'],client:['recentActivity:activity']},
+    {name:'recentTransactions',master:['function getRecentTransactions'],client:['recentTransactions:recent']},
+    {name:'businessSnapshot',master:['businessSnapshot'],client:['businessSnapshot:businessSnapshot']},
+    {name:'moduleSummary',master:['function getEnhancedDashboardData','moduleSummary'],client:['moduleSummary:moduleSummary']},
+    {name:'alertsRecommendations',master:['function getEnhancedDashboardData','alerts'],client:['alerts:alerts','recommendations:recommendations']}
   ];
-  var dashboardComparison={masterMarkers:{},clientMarkers:{},matched:0,total:dashboardMarkers.length};
-  dashboardMarkers.forEach(function(token){
-    var masterHas=dashboardSource.indexOf(token)>=0;
-    var clientHas=code.indexOf(token)>=0;
-    dashboardComparison.masterMarkers[token]=masterHas;
-    dashboardComparison.clientMarkers[token]=clientHas;
-    if(masterHas===clientHas) dashboardComparison.matched++;
+
+  var dashboardComparison={
+    parity:true,
+    matched:0,
+    total:dashboardCapabilities.length,
+    capabilities:{}
+  };
+  dashboardCapabilities.forEach(function(capability){
+    var masterHas=capability.master.some(function(token){return dashboardSource.indexOf(token)>=0;});
+    var clientHas=capability.client.every(function(token){return code.indexOf(token)>=0;});
+    var matched=masterHas&&clientHas;
+    dashboardComparison.capabilities[capability.name]={
+      master:masterHas,
+      client:clientHas,
+      matched:matched,
+      masterMarkers:capability.master,
+      clientMarkers:capability.client
+    };
+    if(matched) dashboardComparison.matched++;
+    if(!matched) dashboardComparison.parity=false;
   });
 
-  var names=['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+  var moduleDefinitions=[
+    {name:'Finance',sheet:'Financial_Data'},
+    {name:'Sales',sheet:'Sales_Data'},
+    {name:'Ecommerce',sheet:'Ecommerce_Data'},
+    {name:'CRM',sheet:'CRM_Data'},
+    {name:'HR',sheet:'HR_Data'},
+    {name:'Logistics',sheet:'Logistics_Data'},
+    {name:'Tax',sheet:'Tax_Data'},
+    {name:'Agro',sheet:'Agro_Data'},
+    {name:'Productivity',sheet:'Productivity_Data'},
+    {name:'POS',sheet:'POS_Data'},
+    {name:'Attendance',sheet:'Attendance_Data'},
+    {name:'Warehouse',sheet:'Warehouse_Data'}
+  ];
   var ws=SpreadsheetApp.openById(String(client.sheetId||''));
-  var modules=names.map(function(name){
-    var sh=ws.getSheetByName(name+'_Data');
+  var modules=moduleDefinitions.map(function(def){
+    var sh=ws.getSheetByName(def.sheet);
     var headers=sh&&sh.getLastColumn()>0?sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0]:[];
-    return {module:name,sheet:name+'_Data',sheetExists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0};
+    return {module:def.name,sheet:def.sheet,sheetExists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0};
   });
 
   var staffComplete=staffMarkers.every(function(token){return staffChecks[token];});
-  var dashboardParity=dashboardComparison.matched===dashboardComparison.total;
+  var dashboardParity=dashboardComparison.parity;
   var modulesComplete=modules.every(function(m){return m.sheetExists&&m.headersPresent;});
 
   return {
-    success:!!(packageCheck&&packageCheck.success&&staffComplete&&modulesComplete),
+    success:!!(packageCheck&&packageCheck.success&&staffComplete&&dashboardParity&&modulesComplete),
     audit:'V12_RELEASE_COMPLETENESS',
     liveClientRuntimeExecuted:false,
-    note:'This is a non-destructive source/workspace audit. It closes the static Staff, Master-dashboard comparison, and 12-module workspace checks. A real client session is still required for live Staff actions and live module reads/writes.',
+    note:'This is a non-destructive source/workspace audit. It compares client-safe Staff and Dashboard capabilities against the current Master source and validates the canonical 12-module workspace. A real client session is still required for live Staff actions and live module reads/writes.',
     package:{version:pkg.version,release:pkg.release,provenance:pkg.provenance,check:packageCheck},
     staffAudit:{complete:staffComplete,markers:staffChecks},
-    dashboardComparison:{parity:dashboardParity,matched:dashboardComparison.matched,total:dashboardComparison.total,markers:dashboardComparison},
+    dashboardComparison:dashboardComparison,
     modulesAudit:{complete:modulesComplete,count:modules.length,modules:modules}
   };
 }
