@@ -1595,6 +1595,7 @@ function archiveClientDeployment(clientId, sessionId) {
       }
     }
 
+    logClientRecoveryActivity_(getClientByIdForAdminAnyStatus_(wanted),'ACCOUNT_ARCHIVED',{status:'archived',message:'Client and business archived. Historical records were preserved.'});
     return{success:true,message:'Client and business archived. Historical records were preserved.'};
   }catch(error){
     console.error('archiveClientDeployment error:',error);
@@ -1642,6 +1643,7 @@ function restoreArchivedClientDeployment(clientId, sessionId) {
       }
     }
 
+    logClientRecoveryActivity_(getClientByIdForAdminAnyStatus_(wanted),'ACCOUNT_RESTORED',{status:'active',message:'Client and business restored.'});
     return{success:true,message:'Client and business restored.'};
   }catch(error){
     console.error('restoreArchivedClientDeployment error:',error);
