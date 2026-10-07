@@ -724,6 +724,38 @@
             <button onclick="exportAllData()" class="btn-secondary" style="padding: 12px;"><i class="fas fa-database mr-2"></i>Export All</button>
           </div>
         </div>
+
+        <div class="admin-table-wrapper" style="max-width: 760px; margin-top: 20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div>
+              <h3 style="margin:0;">Payment Pricing &amp; Exchange Rates</h3>
+              <p style="color:#6b7280;font-size:13px;margin:5px 0 18px;">
+                BizOS uses USD as the base price and converts it using these admin-managed rates.
+                Existing paid requests keep the rate that was used when the request was priced.
+              </p>
+            </div>
+            <span id="paymentPricingUpdated" style="font-size:12px;color:#6b7280;"></span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:minmax(180px,260px);gap:12px;margin-bottom:18px;">
+            <div>
+              <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">Sovereign base price (USD)</label>
+              <input id="paymentBasePrice" class="input-field" type="number" min="0.01" step="0.01" style="width:100%;">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+            <div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">NGN rate</label><input id="fxNGN" class="input-field" type="number" min="0.000001" step="0.000001" placeholder="1 USD = NGN"></div>
+            <div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">GBP rate</label><input id="fxGBP" class="input-field" type="number" min="0.000001" step="0.000001" placeholder="1 USD = GBP"></div>
+            <div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">EUR rate</label><input id="fxEUR" class="input-field" type="number" min="0.000001" step="0.000001" placeholder="1 USD = EUR"></div>
+            <div><label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px;">CAD rate</label><input id="fxCAD" class="input-field" type="number" min="0.000001" step="0.000001" placeholder="1 USD = CAD"></div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap;">
+            <button onclick="savePaymentPricing()" class="btn-primary" style="padding:10px 18px;"><i class="fas fa-save mr-1"></i>Save Payment Pricing</button>
+            <span id="paymentPricingResult" style="font-size:13px;"></span>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -820,6 +852,7 @@
       if (tabName === 'features') loadFeatures();
       if (tabName === 'modules') loadModules();
       if (tabName === 'whitelabel') loadWhiteLabelConfig();
+      if (tabName === 'settings') loadPaymentPricing();
       
       // Close mobile sidebar
       if (window.innerWidth <= 768) {
@@ -829,6 +862,66 @@
     }
     
     // ===== LOAD FUNCTIONS =====
+    // ===== PAYMENT PRICING =====
+    function loadPaymentPricing() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || !data.success) {
+            setPaymentPricingResult((data && data.message) || 'Could not load payment pricing.', true);
+            return;
+          }
+          document.getElementById('paymentBasePrice').value = data.basePrice || '';
+          var rates = data.exchangeRates || {};
+          ['NGN','GBP','EUR','CAD'].forEach(function(code) {
+            var el = document.getElementById('fx' + code);
+            if (el && rates[code]) el.value = rates[code].rate;
+          });
+          document.getElementById('paymentPricingUpdated').textContent = data.updatedAt
+            ? 'Last updated: ' + new Date(data.updatedAt).toLocaleString()
+            : 'Using configured default rates';
+          setPaymentPricingResult('', false);
+        })
+        .withFailureHandler(function() {
+          setPaymentPricingResult('Could not load payment pricing.', true);
+        })
+        .getPaymentPricingConfigForAdmin(getAdminSession());
+    }
+
+    function savePaymentPricing() {
+      var basePrice = Number(document.getElementById('paymentBasePrice').value);
+      var rates = {
+        NGN: document.getElementById('fxNGN').value,
+        GBP: document.getElementById('fxGBP').value,
+        EUR: document.getElementById('fxEUR').value,
+        CAD: document.getElementById('fxCAD').value
+      };
+      if (!isFinite(basePrice) || basePrice <= 0) {
+        setPaymentPricingResult('Enter a valid USD base price.', true);
+        return;
+      }
+      setPaymentPricingResult('Saving...', false);
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || !data.success) {
+            setPaymentPricingResult((data && data.message) || 'Payment pricing could not be saved.', true);
+            return;
+          }
+          document.getElementById('paymentPricingUpdated').textContent = 'Last updated: ' + new Date(data.updatedAt).toLocaleString();
+          setPaymentPricingResult('Payment pricing saved.', false);
+        })
+        .withFailureHandler(function() {
+          setPaymentPricingResult('Payment pricing could not be saved.', true);
+        })
+        .updatePaymentExchangeRates(getAdminSession(), rates, basePrice);
+    }
+
+    function setPaymentPricingResult(message, isError) {
+      var el = document.getElementById('paymentPricingResult');
+      if (!el) return;
+      el.textContent = message || '';
+      el.style.color = isError ? '#b42318' : '#027a48';
+    }
+
     
     function loadOverview() {
       google.script.run
