@@ -729,25 +729,27 @@ function getLocalizedPricing(country, requestedCurrency) {
 }
 
 function getAvailableBizOSCheckoutCurrencies_(country) {
-  var rates = getPaymentExchangeRates_();
-  var currencies = [];
-  Object.keys(rates).forEach(function(code) {
-    var cfg = getPaymentCurrencyConfig_(code);
-    if (!cfg) return;
-    var restrictions = (CONFIG.PRICING.payment && CONFIG.PRICING.payment.currencyCountryRestrictions) || {};
-    if (restrictions[code] && restrictions[code].indexOf(String(country || '').trim()) === -1) return;
+  var rates=getPaymentExchangeRates_(),currencies=[];
+  var paystackConfigured=false,paystackUsdEnabled=false,flutterwaveConfigured=false,flutterwaveCurrencies=['NGN','USD'];
+  try{
+    var props=PropertiesService.getScriptProperties();
+    paystackConfigured=!!props.getProperty('PAYSTACK_PUBLIC_KEY')&&!!props.getProperty('PAYSTACK_SECRET_KEY');
+    paystackUsdEnabled=String(props.getProperty('PAYSTACK_USD_ENABLED')||'').trim().toLowerCase()==='true';
+    flutterwaveConfigured=!!props.getProperty('FLUTTERWAVE_SECRET_KEY');
+    var raw=props.getProperty('FLUTTERWAVE_ENABLED_CURRENCIES');
+    if(raw){var parsed=String(raw).split(',').map(function(x){return String(x||'').trim().toUpperCase();}).filter(Boolean);if(parsed.length)flutterwaveCurrencies=parsed;}
+  }catch(e){}
+  Object.keys(rates).forEach(function(code){
+    var cfg=getPaymentCurrencyConfig_(code);if(!cfg)return;
+    var restrictions=(CONFIG.PRICING.payment&&CONFIG.PRICING.payment.currencyCountryRestrictions)||{};
+    if(restrictions[code]&&restrictions[code].indexOf(String(country||'').trim())===-1)return;
+    var route=(paystackConfigured&&code==='NGN')||(paystackConfigured&&code==='USD'&&paystackUsdEnabled)||(flutterwaveConfigured&&flutterwaveCurrencies.indexOf(code)!==-1);
+    if(!route)return;
     currencies.push({code:cfg.code,name:cfg.name,symbol:cfg.symbol,rate:cfg.rate,decimals:cfg.decimals});
   });
-  currencies.sort(function(a,b) {
-    if (a.code === 'USD') return -1;
-    if (b.code === 'USD') return 1;
-    if (a.code === 'NGN') return -1;
-    if (b.code === 'NGN') return 1;
-    return a.code.localeCompare(b.code);
-  });
+  currencies.sort(function(a,b){if(a.code==='USD')return-1;if(b.code==='USD')return 1;if(a.code==='NGN')return-1;if(b.code==='NGN')return 1;return a.code.localeCompare(b.code);});
   return currencies;
 }
-
 function getUpgradeCurrencyOptions(requestId, sessionId, accessToken) {
   try {
     var user = sessionId ? validateUpgradeSession(sessionId) : null;
