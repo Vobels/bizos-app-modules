@@ -71,7 +71,7 @@ function getUpgradePaymentDetails(requestId, sessionId, accessToken) {
           businessName:String(request.businessName || ''),
           tier:String(request.tier || 'sovereign'),
           displayAmount:Number(request.amount || 0),
-          currency:String(request.currency || 'NGN').toUpperCase(),
+          currency:String(request.currency || 'USD').toUpperCase(),
           country:String(request.country || ''),
           paymentConfirmed:true,
           ready:!!(setupStatus && setupStatus.success && (setupStatus.webAppUrl || setupStatus.landingUrl)),
@@ -205,7 +205,7 @@ function getPaystackCheckoutDetails(requestId, sessionId, accessToken) {
 }
 
 function savePaystackReference_(requestId, reference) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
+  var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Payments');
   if (!sheet) return;
   var data = sheet.getDataRange().getValues();
   if (!data.length) return;
@@ -316,7 +316,7 @@ var paymentWasAlreadyConfirmed = ['payment_confirmed','provisioning','provisioni
 }
 
 function markPaymentConfirmed_(requestId, reference, transaction) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getBizOSMasterSpreadsheet_();
 
   var upgrade = ss.getSheetByName('Upgrade_Requests');
   if (upgrade) {
