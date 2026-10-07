@@ -84,3 +84,80 @@ function handleFlutterwaveCallback(requestId,transactionId,status) {
     return {success:false,code:'FLUTTERWAVE_CALLBACK_ERROR',message:error.message||'Flutterwave payment completion failed.'};
   }
 }
+
+
+/**
+ * Resolve the payment providers that are actually appropriate for a BizOS
+ * upgrade request. The customer should only see routes that BizOS can safely
+ * attempt for the selected currency.
+ *
+ * Paystack currently supports NGN and USD for Nigerian businesses. USD is
+ * intentionally feature-flagged until the merchant account has USD settlement
+ * enabled. Flutterwave is the international hosted-checkout route for the
+ * currencies supported by its card checkout.
+ */
+function getAvailablePaymentMethods(requestId, sessionId, accessToken) {
+  try {
+    if (!requestId) return {success:false,code:'REQUEST_ID_REQUIRED',message:'Upgrade request ID is required.'};
+
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
+      return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
+    }
+    if (String(request.status || '').toLowerCase() !== 'pending_payment') {
+      return {success:false,code:'INVALID_PAYMENT_STATE',message:'This upgrade request is no longer awaiting payment.'};
+    }
+
+    var currency = String(request.currency || '').trim().toUpperCase();
+    if (!currency) return {success:false,code:'CURRENCY_REQUIRED',message:'A payment currency is required before checkout can continue.'};
+
+    var methods = [];
+    var paystackConfigured = false;
+    var flutterwaveConfigured = false;
+    try { paystackConfigured = !!PropertiesService.getScriptProperties().getProperty('PAYSTACK_PUBLIC_KEY') && !!PropertiesService.getScriptProperties().getProperty('PAYSTACK_SECRET_KEY'); } catch (e) {}
+    try { flutterwaveConfigured = !!PropertiesService.getScriptProperties().getProperty('FLUTTERWAVE_SECRET_KEY'); } catch (e) {}
+
+    // Paystack's Nigeria account supports NGN and USD. USD is opt-in here so
+    // enabling the code path does not accidentally promise USD settlement before
+    // the merchant has completed Paystack's USD setup.
+    var paystackUsdEnabled = false;
+    try {
+      var configured = PropertiesService.getScriptProperties().getProperty('PAYSTACK_USD_ENABLED');
+      paystackUsdEnabled = String(configured || '').trim().toLowerCase() === 'true';
+    } catch (e) {}
+
+    if (paystackConfigured && (currency === 'NGN' || (currency === 'USD' && paystackUsdEnabled))) {
+      methods.push({id:'paystack',name:'Paystack',available:true,description:currency === 'NGN' ? 'Secure card and supported local payment options.' : 'Secure international card checkout.'});
+    }
+
+    // Flutterwave's hosted card checkout supports a broad set of currencies.
+    // Account-level approval/settings can still restrict a currency, so checkout
+    // errors remain server-side and are surfaced as a friendly fallback message.
+    var flutterwaveCurrencies = ['USD','GBP','EUR','CAD','XAF','COP','EGP','GHS','KES','INR','NGN','RWF','SLL','ZAR','TZS','UGX','XOF','ZMW'];
+    if (flutterwaveConfigured && flutterwaveCurrencies.indexOf(currency) !== -1) {
+      methods.push({id:'flutterwave',name:'Flutterwave',available:true,description:'Secure international card and supported payment options.'});
+    }
+
+    return {
+      success:true,
+      requestId:String(request.requestId || requestId),
+      currency:currency,
+      amount:Number(request.amount || 0),
+      country:String(request.country || ''),
+      methods:methods,
+      hasPaymentRoute:methods.length > 0,
+      message:methods.length ? '' : 'There is currently no available payment method for this currency. Please choose another supported currency or contact BizOS support.'
+    };
+  } catch (error) {
+    console.error('getAvailablePaymentMethods error:',error);
+    return {success:false,code:'PAYMENT_METHODS_ERROR',message:'We could not determine the available payment methods right now. Please try again.'};
+  }
+}
