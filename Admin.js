@@ -1217,6 +1217,127 @@ function getAdminClientRegistryRecord_(identifier) {
   return null;
 }
 
+function auditAdminBusinessRelationships(sessionId) {
+  requireAdminSession_(sessionId);
+  var report = {
+    success:true,
+    checkedAt:new Date().toISOString(),
+    summary:{businesses:0,users:0,clients:0,staffModuleRows:0,issues:0},
+    issues:[],
+    safeRepairsAvailable:[]
+  };
+
+  function addIssue(type, key, message, details) {
+    report.issues.push({type:type,key:key,message:message,details:details||{}});
+  }
+
+  try {
+    var master=getBizOSMasterSpreadsheet_();
+    var businesses=master.getSheetByName('Businesses');
+    var users=master.getSheetByName('Users') || master.getSheetByName('User');
+    var clients=master.getSheetByName('Clients');
+    var staffModules=master.getSheetByName('Staff_Modules');
+
+    var businessMap={}, businessNames={};
+    if (businesses && businesses.getLastRow()>=2) {
+      var bv=businesses.getDataRange().getValues(), bh=bv[0].map(function(x){return String(x||'').trim();});
+      var bid=bh.indexOf('Business_ID'), bn=bh.indexOf('Business_Name');
+      report.summary.businesses=bv.length-1;
+      if(bid<0) addIssue('schema','Businesses','Business_ID column is missing.');
+      for(var bi=1;bi<bv.length;bi++){
+        var id=bid>=0?String(bv[bi][bid]||'').trim():'';
+        if(!id){addIssue('business_missing_id','row_'+(bi+1),'Business has no Business_ID.');continue;}
+        if(businessMap[id]) addIssue('business_duplicate_id',id,'Duplicate Business_ID.',{rows:[businessMap[id].row,bi+1]});
+        businessMap[id]={row:bi+1,status:String(bv[bi][bh.indexOf('Status')]||'').trim()};
+        businessNames[id]=bn>=0?String(bv[bi][bn]||'').trim():'';
+      }
+    } else addIssue('schema','Businesses','Businesses sheet is missing.');
+
+    if(users && users.getLastRow()>=2){
+      var uv=users.getDataRange().getValues(), uh=uv[0].map(function(x){return String(x||'').trim();});
+      var ub=uh.indexOf('Business_ID'), ue=uh.indexOf('Email'), un=uh.indexOf('Business_Name'), userKeys={};
+      report.summary.users=uv.length-1;
+      if(ub<0) addIssue('schema','Users','Business_ID column is missing.');
+      for(var ui=1;ui<uv.length;ui++){
+        var userBusiness=ub>=0?String(uv[ui][ub]||'').trim():'', email=ue>=0?String(uv[ui][ue]||'').trim().toLowerCase():'';
+        var key=email+'|'+userBusiness;
+        if(email&&userKeys[key]) addIssue('user_duplicate_membership',key,'Duplicate user membership for the same business.',{rows:[userKeys[key],ui+1]});
+        if(email) userKeys[key]=ui+1;
+        if(!userBusiness) addIssue('user_orphaned',email||('row_'+(ui+1)),'User/staff has no Business_ID.',{row:ui+1});
+        else if(!businessMap[userBusiness]) addIssue('user_unknown_business',email||('row_'+(ui+1)),'User/staff references a Business_ID that does not exist.',{businessId:userBusiness,row:ui+1});
+        else if(un>=0 && String(uv[ui][un]||'').trim()!==businessNames[userBusiness])
+          addIssue('user_business_name_mismatch',email||('row_'+(ui+1)),'User Business_Name does not match the canonical business name.',{businessId:userBusiness,row:ui+1});
+      }
+    } else addIssue('schema','Users','Users sheet is missing or empty.');
+
+    var activeClientByBusiness={};
+    if(clients && clients.getLastRow()>=2){
+      var cv=clients.getDataRange().getValues(), ch=cv[0].map(function(x){return String(x||'').trim();});
+      var cb=ch.indexOf('Business_ID'), cc=ch.indexOf('Client_ID'), cs=ch.indexOf('Status'), ce=ch.indexOf('Email'), clientIds={};
+      report.summary.clients=cv.length-1;
+      if(cb<0) addIssue('schema','Clients','Business_ID column is missing.');
+      for(var ci=1;ci<cv.length;ci++){
+        var cBusiness=cb>=0?String(cv[ci][cb]||'').trim():'', clientId=cc>=0?String(cv[ci][cc]||'').trim():'', cStatus=cs>=0?String(cv[ci][cs]||'').trim().toLowerCase():'';
+        if(!clientId) addIssue('client_missing_id','row_'+(ci+1),'Client registry row has no Client_ID.',{row:ci+1});
+        else if(clientIds[clientId]) addIssue('client_duplicate_id',clientId,'Duplicate Client_ID.',{rows:[clientIds[clientId],ci+1]});
+        else clientIds[clientId]=ci+1;
+        if(!cBusiness) addIssue('client_orphaned',clientId||('row_'+(ci+1)),'Client deployment has no Business_ID.',{row:ci+1});
+        else if(!businessMap[cBusiness]) addIssue('client_unknown_business',clientId||('row_'+(ci+1)),'Client deployment references a Business_ID that does not exist.',{businessId:cBusiness,row:ci+1});
+        if(cBusiness && cStatus==='active'){
+          if(activeClientByBusiness[cBusiness]) addIssue('multiple_active_clients',cBusiness,'More than one active client deployment is linked to this business.',{rows:[activeClientByBusiness[cBusiness],ci+1]});
+          else activeClientByBusiness[cBusiness]=ci+1;
+        }
+      }
+    } else addIssue('schema','Clients','Clients registry is missing or empty.');
+
+    if(staffModules && staffModules.getLastRow()>=2){
+      var sv=staffModules.getDataRange().getValues(), sh=sv[0].map(function(x){return String(x||'').trim();});
+      var sb=sh.indexOf('Business_ID'), se=sh.indexOf('Staff_Email'), sm=sh.indexOf('Module_Access');
+      report.summary.staffModuleRows=sv.length-1;
+      for(var si=1;si<sv.length;si++){
+        var sBiz=sb>=0?String(sv[si][sb]||'').trim():'', sEmail=se>=0?String(sv[si][se]||'').trim().toLowerCase():'', module=sm>=0?String(sv[si][sm]||'').trim():'';
+        if(!sBiz) addIssue('staff_module_orphaned',sEmail||('row_'+(si+1)),'Staff module assignment has no Business_ID.',{row:si+1,module:module});
+        else if(!businessMap[sBiz]) addIssue('staff_module_unknown_business',sEmail||('row_'+(si+1)),'Staff module assignment references an unknown Business_ID.',{businessId:sBiz,row:si+1,module:module});
+        if(!sEmail) addIssue('staff_module_missing_staff',sBiz||('row_'+(si+1)),'Staff module assignment has no Staff_Email.',{row:si+1});
+      }
+    }
+
+    report.summary.issues=report.issues.length;
+    report.safeRepairsAvailable=report.issues.filter(function(x){
+      return x.type==='user_business_name_mismatch';
+    }).map(function(x){return x.key;});
+    return report;
+  } catch(error) {
+    console.error('auditAdminBusinessRelationships error:',error);
+    return {success:false,message:'Business relationship audit could not be completed.',error:String(error&&error.message||error)};
+  }
+}
+
+function repairAdminBusinessRelationships(sessionId) {
+  requireAdminSession_(sessionId);
+  var audit=auditAdminBusinessRelationships(sessionId);
+  if(!audit.success)return audit;
+
+  var repaired=0, master=getBizOSMasterSpreadsheet_(), users=master.getSheetByName('Users')||master.getSheetByName('User');
+  if(users && users.getLastRow()>=2){
+    var v=users.getDataRange().getValues(), h=v[0].map(function(x){return String(x||'').trim();});
+    var b=h.indexOf('Business_ID'), n=h.indexOf('Business_Name'), businesses=master.getSheetByName('Businesses');
+    if(b>=0&&n>=0&&businesses&&businesses.getLastRow()>=2){
+      var bv=businesses.getDataRange().getValues(),bh=bv[0].map(function(x){return String(x||'').trim();}),bi=bh.indexOf('Business_ID'),bn=bh.indexOf('Business_Name'),names={};
+      for(var i=1;i<bv.length;i++){var id=bi>=0?String(bv[i][bi]||'').trim():'';if(id)names[id]=bn>=0?String(bv[i][bn]||'').trim():'';}
+      for(var ui=1;ui<v.length;ui++){var uid=String(v[ui][b]||'').trim();if(uid&&Object.prototype.hasOwnProperty.call(names,uid)&&String(v[ui][n]||'').trim()!==names[uid]){users.getRange(ui+1,n+1).setValue(names[uid]);repaired++;}}
+    }
+  }
+
+  return {
+    success:true,
+    repaired:repaired,
+    remainingIssues:audit.summary.issues-repaired,
+    message:repaired ? 'Safe business-name relationships were repaired. Orphaned or ambiguous records were not guessed or reassigned.' : 'No safe relationship repairs were required.',
+    audit:audit
+  };
+}
+
 function getAdminBusinessPeople_(businessId) {
   var wanted = String(businessId || '').trim();
   if (!wanted) return [];
