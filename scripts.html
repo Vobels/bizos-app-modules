@@ -1301,10 +1301,14 @@ function updateUserInfo() {
     const userNameSpan = document.getElementById('user-name');
     const userInitialSpan = document.getElementById('user-initial');
     const userTierSpan = document.getElementById('user-tier');
+    const rawTier = String(currentUser.subscriptionTier || 'free').trim().toLowerCase();
+    const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
     
     if (userNameSpan) userNameSpan.textContent = currentUser.name || currentUser.email;
     if (userInitialSpan) userInitialSpan.textContent = (currentUser.name || currentUser.email)[0].toUpperCase();
-    if (userTierSpan) userTierSpan.textContent = currentUser.subscriptionTier === 'free' ? 'Free Plan' : 'Tier 2 Pro';
+    if (userTierSpan) userTierSpan.textContent = isPaid
+      ? (rawTier === 'enterprise' ? 'Enterprise' : 'Sovereign')
+      : 'Free Plan';
   }
 }
 
@@ -4704,20 +4708,31 @@ function addUpgradeButton() {
   const container = document.getElementById('header-actions');
   if (!container) return;
 
-  // Remove any existing button (prevents duplicates)
+  // Remove any existing plan/status control so login refreshes never duplicate it.
   const existing = document.getElementById('upgrade-tier-btn');
   if (existing) existing.remove();
 
-  // Only show for free users
-  if (currentUser.subscriptionTier === 'free' && !currentUser.isDemo) {
-    const buttonHtml = `
+  const rawTier = String(currentUser.subscriptionTier || 'free').trim().toLowerCase();
+  const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+
+  if (isPaid) {
+    const label = rawTier === 'enterprise' ? 'Enterprise' : 'Sovereign';
+    container.insertAdjacentHTML('beforeend', `
+      <span id="upgrade-tier-btn" class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200" title="Paid plan">
+        <i class="fas fa-check-circle mr-2"></i>${label}
+      </span>
+    `);
+    return;
+  }
+
+  // Upgrade remains available to free users only.
+  if (rawTier === 'free' || rawTier === 'starter') {
+    container.insertAdjacentHTML('beforeend', `
       <button id="upgrade-tier-btn" onclick="triggerUpgrade('header')" 
         class="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-purple-900 transition shadow-sm">
         <i class="fas fa-crown mr-2"></i>Upgrade
       </button>
-    `;
-
-    container.insertAdjacentHTML('beforeend', buttonHtml);
+    `);
     console.log('Upgrade button added (header)');
   }
 }
