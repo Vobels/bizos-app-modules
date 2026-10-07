@@ -1195,3 +1195,53 @@ function getActiveClientByIdForAdmin_(clientId) {
   for(var i=1;i<v.length;i++){if(String(v[i][idCol]||'').trim()!==wanted)continue;var o={};h.forEach(function(k,j){o[k]=v[i][j];});if(statusCol<0||String(v[i][statusCol]||'').toLowerCase()==='active')return o;}
   return null;
 }
+
+
+function listClientRecoveryBackups(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var client=getActiveClientByIdForAdmin_(clientId);
+    if(!client)return{success:false,message:'Active client deployment not found.'};
+    var rootIt=DriveApp.getFoldersByName('BizOS_Client_Recovery');
+    if(!rootIt.hasNext())return{success:true,backups:[]};
+    var root=rootIt.next(),safeName=String(client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_')+'_'+String(client.Business_ID||'').replace(/[^a-zA-Z0-9]/g,'_'),folders=root.getFoldersByName(safeName);
+    if(!folders.hasNext())return{success:true,backups:[]};
+    var folder=folders.next(),files=folder.getFiles(),out=[];
+    while(files.hasNext()){var file=files.next();out.push({id:file.getId(),name:file.getName(),createdAt:file.getDateCreated().toISOString(),url:file.getUrl(),mimeType:file.getMimeType()});}
+    out.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
+    return{success:true,backups:out};
+  }catch(error){console.error('listClientRecoveryBackups error:',error);return{success:false,message:'Client recovery backups could not be loaded.'};}
+}
+
+function restoreClientWorkspaceFromRecoveryBackup(clientId, backupId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var client=getActiveClientByIdForAdmin_(clientId);
+    if(!client)return{success:false,message:'Active client deployment not found.'};
+    var targetId=String(client.sheetId||client.Sheet_ID||''),sourceId=String(backupId||'').trim();
+    if(!targetId||!sourceId)return{success:false,message:'Client workspace and backup are required.'};
+    if(targetId===sourceId)return{success:false,message:'The selected backup is already the live workspace.'};
+    var target=SpreadsheetApp.openById(targetId),source=SpreadsheetApp.openById(sourceId);
+    var safety=createClientRecoveryBackup_(target,String(client.clientName||client.Client_Name||''),String(client.businessId||client.Business_ID||''));
+    if(!safety||!safety.success)return{success:false,message:'A safety backup could not be created, so the restore was not started.'};
+    var sourceSheets=source.getSheets(),sourceNames={};
+    sourceSheets.forEach(function(sh){sourceNames[sh.getName()]=true;});
+    var targetSheets=target.getSheets();
+    targetSheets.forEach(function(sh){
+      var name=sh.getName();
+      if(!sourceNames[name]){if(target.getSheets().length>1)target.deleteSheet(sh);}
+    });
+    sourceSheets.forEach(function(src){
+      var name=src.getName(),existing=target.getSheetByName(name);
+      if(existing){
+        var temp=target.insertSheet('__RESTORE__'+Utilities.getUuid().replace(/-/g,'').slice(0,8));
+        src.getRange(1,1,Math.max(1,src.getLastRow()),Math.max(1,src.getLastColumn())).copyTo(temp.getRange(1,1),{contentsOnly:false});
+        temp.setName(name);
+        target.deleteSheet(existing);
+      }else{
+        var copy=src.copyTo(target);copy.setName(name);
+      }
+    });
+    return{success:true,message:'Client workspace restored from the selected recovery backup.',safetyBackup:safety,restoredFrom:sourceId};
+  }catch(error){console.error('restoreClientWorkspaceFromRecoveryBackup error:',error);return{success:false,message:'The client workspace could not be restored. The current workspace was not intentionally replaced unless the restore completed.'};}
+}
