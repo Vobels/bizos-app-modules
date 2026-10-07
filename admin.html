@@ -604,12 +604,13 @@
             <thead><tr>
               <th>Name</th>
               <th>Email</th>
+              <th>Business</th>
               <th>Role</th>
               <th>Verified</th>
               <th>Joined</th>
             </tr></thead>
             <tbody id="usersBody">
-              <tr><td colspan="5" class="empty-state"><div class="loading-spinner"></div> Loading...</td></tr>
+              <tr><td colspan="6" class="empty-state"><div class="loading-spinner"></div> Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -974,6 +975,7 @@
               <td><span class="status-badge ${biz.verificationStatus === 'verified' ? 'verified' : 'pending'}">${biz.verificationStatus || 'Pending'}</span></td>
               <td>${biz.createdAt ? new Date(biz.createdAt).toLocaleDateString() : 'N/A'}</td>
               <td style="text-align: center;">
+                <button onclick="openClientManagement('${String(biz.clientId || biz.businessId).replace(/\\/g, "\\\\").replace(/\'/g, "\\\'")}')" style="background:#f3e8ff;border:1px solid #d8b4fe;color:#5D2A86;cursor:pointer;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;" title="Manage client"><i class="fas fa-folder-open"></i> Manage</button>
                 <button onclick="toggleBusinessStatus('${biz.businessId}')" style="background: none; border: none; color: #f59e0b; cursor: pointer;" title="Toggle Status"><i class="fas fa-toggle-on"></i></button>
                 <button onclick="redeployClient('${biz.businessId}')" style="background: #f3e8ff; border: 1px solid #d8b4fe; color: #5D2A86; cursor: pointer; border-radius: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600;" title="Redeploy BizOS"><i class="fas fa-cloud-upload-alt"></i> Redeploy</button>
                 <button onclick="deleteBusiness('${biz.businessId}')" style="background: none; border: none; color: #ef4444; cursor: pointer;" title="Delete"><i class="fas fa-trash"></i></button>
@@ -1086,13 +1088,14 @@
         .withSuccessHandler(function(users) {
           const tbody = document.getElementById('usersBody');
           if (!users || users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><i class="fas fa-users"></i><p>No users found</p></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-users"></i><p>No users found</p></td></tr>';
             return;
           }
           tbody.innerHTML = users.map(user => `
             <tr>
               <td>${user.name || 'N/A'}</td>
               <td>${user.email}</td>
+              <td><span style="font-size:12px;color:#4b5563;">${user.businessName || user.businessId || 'Unassigned'}</span></td>
               <td><span class="status-badge ${user.role === 'owner' ? 'verified' : 'pending'}">${user.role || 'Staff'}</span></td>
               <td><span class="status-badge ${user.isVerified === 'YES' ? 'verified' : 'pending'}">${user.isVerified === 'YES' ? 'Verified' : 'Pending'}</span></td>
               <td>${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
@@ -1165,7 +1168,7 @@
                   <div style="font-weight: 600;">${m.label}</div>
                   <div style="font-size: 12px; color: #6b7280;">${m.recordCount || 0} records</div>
                 </div>
-                <span class="status-badge ${m.tier === 'free' ? 'pending' : 'active'}" style="margin-left: auto;">${m.tier}</span>
+                <span class="status-badge active" style="margin-left:auto;">${m.businessCount || 0} connected</span>
               </div>
             </div>
           `).join('');
@@ -1680,7 +1683,52 @@ function closeClientFeatureProfile(){document.getElementById('clientFeatureProfi
 </div>
 <script>
 var activeManagedClientId='';
-function openClientManagement(id){activeManagedClientId=String(id||'');document.getElementById('clientManagementModal').style.display='flex';document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>Loading client information…</p></div>';google.script.run.withSuccessHandler(function(r){if(!r||!r.success){document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>Client information could not be loaded.</p></div>';return;}document.getElementById('clientManagementTitle').textContent=r.client.clientName||'Client management';document.getElementById('clientManagementMeta').textContent=(r.client.email||'')+' · '+(r.client.tier||'')+' · '+(r.client.status||'');var b=r.billing||{};var w=r.workspace||{};document.getElementById('clientManagementBody').innerHTML='<div class="client-billing-grid"><section class="settings-panel"><div class="settings-panel-head"><h3>Client overview</h3><p>Deployment and workspace information.</p></div><div class="settings-note">Client ID: '+escAdmin(r.client.clientId)+'<br>Business ID: '+escAdmin(r.client.businessId)+'<br>Script ID: '+escAdmin(r.client.scriptId)+'<br>Deployment ID: '+escAdmin(r.client.deploymentId)+'<br>Workspace: '+(w.url?'<a href="'+escAdmin(w.url)+'" target="_blank">Open workspace</a>':'Not available')+'</div></section><section class="settings-panel"><div class="settings-panel-head"><h3>Billing & maintenance</h3><p>'+String(b.maintenance||[]).length+' maintenance requests · '+String(b.features||[]).length+' feature requests · '+String(b.quotes||[]).length+' quotes</p></div><div class="client-profile-form"><label>Quote title<input id="managed-quote-title" type="text" maxlength="120" placeholder="Additional service"></label><label>Amount<input id="managed-quote-amount" type="number" min="0" step="0.01" placeholder="0"></label><label>Currency<select id="managed-quote-currency"><option value="NGN">NGN</option><option value="USD">USD</option></select></label><label>Details<textarea id="managed-quote-details" rows="3" maxlength="4000" placeholder="Describe the service or custom work."></textarea></label></div><div class="client-profile-actions"><button class="settings-secondary" onclick="createManagedClientQuote()">Create quote</button></div><div id="managedBillingRecords" class="settings-note" style="margin-top:10px;">Loading billing records…</div></section></div><section class="settings-panel"><div class="settings-panel-head"><h3>Recent activity</h3><p>Latest workspace activity.</p></div><div class="settings-note">'+((b.activity||[]).slice(0,10).map(function(x){return escAdmin(x.Created_At||'')+' — '+escAdmin(x.Summary||x.Event_Type||'Activity');}).join('<br>')||'No activity recorded.')+'</div></section><section class="settings-panel"><div class="settings-panel-head"><h3>Backups</h3><p>Use the existing BizOS recovery backup system.</p></div><div id="clientManagementBackups" class="settings-note">Loading backups…</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button class="btn-secondary" onclick="createManagedClientBackup()">Create backup now</button><button class="btn-secondary" onclick="archiveManagedClient()">Archive client</button><button class="btn-secondary" onclick="restoreManagedClient()">Restore archived client</button></div></section>';renderManagedBilling(b);loadManagedBackups();}).withFailureHandler(function(){document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>Client information could not be loaded.</p></div>';}).getClientManagementOverview(activeManagedClientId,getAdminSession());}
+function openClientManagement(id){
+  activeManagedClientId=String(id||'');
+  document.getElementById('clientManagementModal').style.display='flex';
+  document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>Loading client information…</p></div>';
+
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.success){
+      document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>'+escAdmin((r&&r.message)||'Client information could not be loaded.')+'</p></div>';
+      return;
+    }
+
+    var c=r.client||{}, b=r.billing||{}, w=r.workspace||{}, people=r.people||[], modules=r.modules||[], fp=r.featureProfile||{enabledFeatureIds:[]};
+    document.getElementById('clientManagementTitle').textContent=c.clientName||'Client management';
+    document.getElementById('clientManagementMeta').textContent=(c.email||'')+' · Business '+(c.businessId||'')+' · '+(c.tier||'')+' · '+(c.status||'');
+
+    var moduleHtml=modules.map(function(m){
+      return '<span class="status-badge '+(m.enabled?'active':'pending')+'" style="margin:2px 4px 2px 0;display:inline-block;">'+escAdmin(m.label)+(m.enabled?'':' · unavailable')+'</span>';
+    }).join('')||'No module information';
+
+    var peopleHtml=people.slice(0,30).map(function(p){
+      return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #f3f4f6;"><span><strong>'+escAdmin(p.name||p.email)+'</strong><br><small style="color:#6b7280;">'+escAdmin(p.email)+'</small></span><span style="text-align:right;"><span class="status-badge '+(p.status==='accepted'||p.status==='active'?'active':'pending')+'">'+escAdmin(p.role||'staff')+'</span><br><small style="color:#6b7280;">'+escAdmin(p.status)+'</small></span></div>';
+    }).join('')||'<div class="empty-state"><p>No users are linked to this business.</p></div>';
+
+    document.getElementById('clientManagementBody').innerHTML=
+      '<div class="client-billing-grid">'+
+      '<section class="settings-panel"><div class="settings-panel-head"><h3>Business overview</h3><p>The business is the primary admin record.</p></div>'+
+      '<div class="settings-note"><strong>'+escAdmin(c.clientName)+'</strong><br>Business ID: '+escAdmin(c.businessId)+'<br>Client ID: '+escAdmin(c.clientId)+'<br>Owner: '+escAdmin(c.email)+'<br>Plan: '+escAdmin(c.tier)+'<br>Status: '+escAdmin(c.status)+'</div></section>'+
+      '<section class="settings-panel"><div class="settings-panel-head"><h3>Deployment</h3><p>Current client deployment and workspace binding.</p></div>'+
+      '<div class="settings-note">Version: '+escAdmin(c.provisioningVersion||'Not recorded')+'<br>Script ID: '+escAdmin(c.scriptId||'Not recorded')+'<br>Deployment ID: '+escAdmin(c.deploymentId||'Not recorded')+'<br>Workspace: '+(w.url?'<a href="'+escAdmin(w.url)+'" target="_blank">Open workspace</a>':'Not available')+'</div></section>'+
+      '</div>'+
+      '<div class="client-billing-grid" style="margin-top:16px;">'+
+      '<section class="settings-panel"><div class="settings-panel-head"><h3>People</h3><p>'+people.length+' people linked to this business.</p></div>'+peopleHtml+'</section>'+
+      '<section class="settings-panel"><div class="settings-panel-head"><h3>Modules</h3><p>Entitlement is resolved from the existing BizOS module configuration.</p></div><div>'+moduleHtml+'</div></section>'+
+      '</div>'+
+      '<section class="settings-panel" style="margin-top:16px;"><div class="settings-panel-head"><h3>Feature assignment</h3><p>'+((fp.enabledFeatureIds||[]).length)+' optional features assigned.</p></div><div class="settings-note">Feature IDs: '+escAdmin((fp.enabledFeatureIds||[]).join(', ')||'None')+'</div><div class="client-profile-actions"><button class="settings-secondary" onclick="openClientFeatureProfile(\''+String(c.clientId||c.businessId).replace(/\\/g,'\\\\').replace(/\'/g,"\\\'")+'\',\''+String(c.clientName||'').replace(/\\/g,'\\\\').replace(/\'/g,"\\\'")+'\')">Manage features</button></div></section>'+
+      '<section class="settings-panel" style="margin-top:16px;"><div class="settings-panel-head"><h3>Billing & maintenance</h3><p>'+String(b.maintenance||[]).length+' maintenance requests · '+String(b.features||[]).length+' feature requests · '+String(b.quotes||[]).length+' quotes · '+String(r.payments||[]).length+' payments</p></div>'+
+      '<div class="client-profile-form"><label>Quote title<input id="managed-quote-title" type="text" maxlength="120" placeholder="Additional service"></label><label>Amount<input id="managed-quote-amount" type="number" min="0" step="0.01" placeholder="0"></label><label>Currency<select id="managed-quote-currency"><option value="NGN">NGN</option><option value="USD">USD</option></select></label><label>Details<textarea id="managed-quote-details" rows="3" maxlength="4000" placeholder="Describe the service or custom work."></textarea></label></div><div class="client-profile-actions"><button class="settings-secondary" onclick="createManagedClientQuote()">Create quote</button></div><div id="managedBillingRecords" class="settings-note" style="margin-top:10px;">Loading billing records…</div></section></div>'+
+      '<section class="settings-panel" style="margin-top:16px;"><div class="settings-panel-head"><h3>Activity</h3><p>Recent activity stored in the client workspace.</p></div><div class="settings-note">'+((b.activity||[]).slice(0,20).map(function(x){return escAdmin(x.Created_At||'')+' — '+escAdmin(x.Summary||x.Event_Type||'Activity');}).join('<br>')||'No activity recorded.')+'</div></section>'+
+      '<section class="settings-panel" style="margin-top:16px;"><div class="settings-panel-head"><h3>Backups</h3><p>Recovery backups for this business workspace.</p></div><div id="clientManagementBackups" class="settings-note">Loading backups…</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button class="btn-secondary" onclick="createManagedClientBackup()">Create backup now</button><button class="btn-secondary" onclick="archiveManagedClient()">Archive client</button><button class="btn-secondary" onclick="restoreManagedClient()">Restore archived client</button></div></section>';
+
+    renderManagedBilling(b);
+    loadManagedBackups();
+  }).withFailureHandler(function(error){
+    document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>Client information could not be loaded.</p></div>';
+  }).getClientManagementOverview(activeManagedClientId,getAdminSession());
+}
 function escAdmin(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function loadManagedBackups(){google.script.run.withSuccessHandler(function(r){var x=document.getElementById('clientManagementBackups');if(!x)return;if(!r||!r.success){x.textContent='Backups could not be loaded.';return;}if(!r.backups||!r.backups.length){x.textContent='No recovery backups found.';return;}x.innerHTML=r.backups.slice(0,10).map(function(b){return '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;"><span>'+escAdmin(b.name)+'</span><button class="btn-secondary" style="padding:5px 8px;font-size:11px;" onclick="restoreManagedBackup(\''+String(b.id).replace(/'/g,"\\'")+'\')">Restore</button></div>';}).join('');}).withFailureHandler(function(){var x=document.getElementById('clientManagementBackups');if(x)x.textContent='Backups could not be loaded.';}).listClientRecoveryBackups(activeManagedClientId,getAdminSession());}
 function createManagedClientBackup(){google.script.run.withSuccessHandler(function(r){showNotification(r&&r.success?'Client backup created.':(r&&r.message)||'Backup could not be created.',r&&r.success?'success':'error');if(r&&r.success)loadManagedBackups();}).withFailureHandler(function(){showNotification('Backup could not be created.','error');}).createClientAdminRecoveryBackup(activeManagedClientId,getAdminSession());}
