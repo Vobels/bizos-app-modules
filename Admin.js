@@ -1128,6 +1128,92 @@ function generateAdminRecoveryKey() {
 }
 
 
+function getAdminClientRegistryRecord_(identifier) {
+  var wanted = String(identifier || '').trim();
+  if (!wanted) return null;
+
+  var sheet = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+  if (!sheet || sheet.getLastRow() < 2) return null;
+
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0].map(function(h) { return String(h || '').trim(); });
+  var clientIdCol = headers.indexOf('Client_ID');
+  var businessIdCol = headers.indexOf('Business_ID');
+
+  if (clientIdCol < 0 && businessIdCol < 0) return null;
+
+  for (var i = 1; i < values.length; i++) {
+    var clientId = clientIdCol >= 0 ? String(values[i][clientIdCol] || '').trim() : '';
+    var businessId = businessIdCol >= 0 ? String(values[i][businessIdCol] || '').trim() : '';
+    if (clientId !== wanted && businessId !== wanted) continue;
+
+    var record = {};
+    headers.forEach(function(h, j) { record[h] = values[i][j]; });
+    return record;
+  }
+
+  return null;
+}
+
+function getAdminBusinessPeople_(businessId) {
+  var wanted = String(businessId || '').trim();
+  if (!wanted) return [];
+
+  var sheet = getOrCreateUserSheet();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  var headers = values[0].map(function(h) { return String(h || '').trim(); });
+  var businessIdCol = headers.indexOf('Business_ID');
+  var emailCol = headers.indexOf('Email');
+  if (businessIdCol < 0 || emailCol < 0) return [];
+
+  var people = [];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][businessIdCol] || '').trim() !== wanted) continue;
+
+    var person = {};
+    headers.forEach(function(h, j) { person[h] = values[i][j]; });
+    people.push({
+      email: String(person.Email || ''),
+      name: String(person.Name || ''),
+      role: String(person.Role || 'staff'),
+      status: String(person.Invitation_Status || (String(person.Is_Verified || '').toUpperCase() === 'YES' ? 'active' : 'pending')),
+      verified: String(person.Is_Verified || '').toUpperCase() === 'YES',
+      assignedModules: String(person.Assigned_Modules || '').split(',').map(function(x) {
+        return String(x || '').trim();
+      }).filter(Boolean),
+      createdAt: person.Created_At || ''
+    });
+  }
+
+  return people;
+}
+
+function getAdminBusinessModules_(businessId, tier) {
+  var config = getConfig();
+  var key = String(tier || 'starter').trim().toLowerCase();
+  var access = config.MODULES && config.MODULES.access
+    ? (config.MODULES.access[key] || config.MODULES.access.starter || [])
+    : [];
+  var all = config.MODULES && Array.isArray(config.MODULES.all) ? config.MODULES.all : [];
+  var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
+  var labels = config.MODULES && config.MODULES.labels ? config.MODULES.labels : {};
+  var enabled = {};
+  access.forEach(function(name) { enabled[String(name)] = true; });
+
+  return all.map(function(name) {
+    return {
+      name: name,
+      label: labels[name] || name,
+      icon: icons[name] || 'fa-folder',
+      enabled: !!enabled[name],
+      businessId: String(businessId || ''),
+      tier: key
+    };
+  });
+}
+
 function getClientManagementOverview(clientId, sessionId) {
   requireAdminSession_(sessionId);
   try {
