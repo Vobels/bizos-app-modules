@@ -5286,7 +5286,9 @@ function toggleSidebar() {
     if (overlay) {
       overlay.classList.add('active');
     }
-    // Only lock page scrolling while the mobile sidebar is open.\n    // On desktop the sidebar is persistent and must never disable page scrolling.\n    document.body.style.overflow = window.matchMedia('(max-width: 768px)').matches ? 'hidden' : '';
+    // Only lock page scrolling while the mobile sidebar is open.
+    // On desktop the sidebar is persistent and must never disable page scrolling.
+    document.body.style.overflow = window.matchMedia('(max-width: 768px)').matches ? 'hidden' : '';
   }
 }
 
