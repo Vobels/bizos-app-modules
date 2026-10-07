@@ -51,7 +51,7 @@ function saveFlutterwaveReference_(requestId,reference) {
 }
 
 function getStoredFlutterwaveReference_(requestId) {
-  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payments');
+  var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Payments');
   if (!sheet) return '';
   var data=sheet.getDataRange().getValues(); if (!data.length) return '';
   var headers=data[0],requestIdCol=headers.indexOf('Request_ID'),refCol=headers.indexOf('Transaction_Ref');
