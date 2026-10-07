@@ -969,7 +969,7 @@
           }
           tbody.innerHTML = businesses.map(biz => `
             <tr>
-              <td><span style="font-weight: 500;">${biz.businessName || 'Unnamed'}</span></td>
+              <td><button type="button" onclick="openClientManagement('${String(biz.businessId || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" style="background:none;border:0;padding:0;color:#5D2A86;cursor:pointer;font-weight:600;text-align:left;" title="Open business details">${biz.businessName || 'Unnamed'}</button></td>
               <td>${biz.ownerEmail || 'N/A'}</td>
               <td><span class="status-badge ${biz.subscriptionTier === 'free' ? 'pending' : 'active'}">${biz.subscriptionTier || 'Free'}</span></td>
               <td><span class="status-badge ${biz.verificationStatus === 'verified' ? 'verified' : 'pending'}">${biz.verificationStatus || 'Pending'}</span></td>
