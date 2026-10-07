@@ -202,22 +202,29 @@ function resetAdminPassword(recoveryKey, newPassword) {
 function getAdminStats(sessionId) {
   requireAdminSession_(sessionId);
   try {
-    const businessSheet = getOrCreateBusinessSheet();
-    const userSheet = getOrCreateUserSheet();
-    
-    const bizData = businessSheet.getDataRange().getValues();
-    const userData = userSheet.getDataRange().getValues();
-    
+    // Use the same canonical master spreadsheet as the Businesses directory.
+    // Do not use getOrCreateBusinessSheet()/getOrCreateUserSheet() here because
+    // a web-app execution can otherwise resolve the bound/active spreadsheet
+    // instead of the configured BizOS master database.
+    const masterSpreadsheet = getBizOSMasterSpreadsheet_();
+    const businessSheet = masterSpreadsheet.getSheetByName('Businesses');
+    const userSheet = masterSpreadsheet.getSheetByName('Users') || masterSpreadsheet.getSheetByName('User');
+
+    const bizData = businessSheet ? businessSheet.getDataRange().getValues() : [[]];
+    const userData = userSheet ? userSheet.getDataRange().getValues() : [[]];
+
     const totalBusinesses = Math.max(0, bizData.length - 1);
     const totalUsers = Math.max(0, userData.length - 1);
-    
-    // Count tiers
-    const bizHeaders = bizData[0];
+
+    // Count tiers from the canonical Businesses registry. Payment confirmation
+    // may predate provisioning, so paid status is also reconciled from the
+    // payment/upgrade registries below.
+    const bizHeaders = bizData[0] || [];
     const tierCol = bizHeaders.indexOf('Subscription_Tier');
     let freeUsers = 0, paidUsers = 0;
-    
+
     for (let i = 1; i < bizData.length; i++) {
-      const tier = bizData[i][tierCol] || 'free';
+      const tier = tierCol >= 0 ? String(bizData[i][tierCol] || 'free').trim().toLowerCase() : 'free';
       if (tier === 'free' || tier === 'starter') freeUsers++;
       else paidUsers++;
     }
