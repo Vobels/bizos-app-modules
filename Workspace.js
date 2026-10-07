@@ -43,7 +43,7 @@ function createWorkspaceForBusiness(businessId, businessName, ownerEmail) {
     
   } catch (error) {
     console.error('Workspace creation error:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: 'We could not create your workspace right now. Please try again.' };
   }
 }
 
