@@ -83,7 +83,7 @@ var CONFIG = {
     freeModules: ["Finance", "Ecommerce"],
     access: {
       demo: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
-      starter: ["Ecommerce"],
+      starter: ["Finance", "Ecommerce"],
       sovereign: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
       enterprise: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
     },
