@@ -1522,7 +1522,14 @@ function getClientManagementOverview(clientId, sessionId) {
         provisioningVersion:String(client.Provisioning_Version || ''),
         recoveryBackupId:String(client.Recovery_Backup_ID || ''),
         recoveryBackupUrl:String(client.Recovery_Backup_URL || ''),
-        ownershipStatus:String(client.Workspace_Ownership_Status || '')
+        ownershipStatus:String(client.Workspace_Ownership_Status || ''),
+        maintenancePlan:String(client.Maintenance_Plan || 'none'),
+        maintenanceStatus:String(client.Maintenance_Status || 'inactive'),
+        maintenanceStartAt:String(client.Maintenance_Start_At || ''),
+        maintenanceNextBackupAt:String(client.Maintenance_Next_Backup_At || ''),
+        maintenanceLastBackupAt:String(client.Maintenance_Last_Backup_At || ''),
+        maintenanceLastBackupStatus:String(client.Maintenance_Last_Backup_Status || ''),
+        maintenanceLastBackupError:String(client.Maintenance_Last_Backup_Error || '')
       },
       people:people,
       modules:modules,
