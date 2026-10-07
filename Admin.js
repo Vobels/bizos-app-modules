@@ -1681,7 +1681,33 @@ function restoreClientWorkspaceFromRecoveryBackup(clientId, backupId, sessionId)
     var targetId=String(client.sheetId||client.Sheet_ID||''),sourceId=String(backupId||'').trim();
     if(!targetId||!sourceId)return{success:false,message:'Client workspace and backup are required.'};
     if(targetId===sourceId)return{success:false,message:'The selected backup is already the live workspace.'};
-    var target=SpreadsheetApp.openById(targetId),source=SpreadsheetApp.openById(sourceId);
+    var target=SpreadsheetApp.openById(targetId);
+    var sourceFile;
+    try {
+      sourceFile=DriveApp.getFileById(sourceId);
+    } catch (lookupError) {
+      return{success:false,code:'RECOVERY_BACKUP_NOT_FOUND',message:'The selected recovery backup could not be found.'};
+    }
+
+    // A restore may only use a snapshot created by the BizOS recovery chain
+    // for this exact business. Never accept an arbitrary spreadsheet ID.
+    var safeName=String(client.clientName||client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_');
+    var expectedFolderName=safeName+'_'+String(client.businessId||client.Business_ID||'').replace(/[^a-zA-Z0-9]/g,'_');
+    var expectedPrefix='BizOS Recovery - '+safeName+' - ';
+    var parentMatches=false;
+    var parents=sourceFile.getParents();
+    while(parents.hasNext()){
+      var parent=parents.next();
+      if(String(parent.getName()||'')===expectedFolderName){parentMatches=true;break;}
+    }
+    if(!parentMatches || String(sourceFile.getName()||'').indexOf(expectedPrefix)!==0){
+      return{success:false,code:'RECOVERY_BACKUP_SCOPE_MISMATCH',message:'The selected backup does not belong to this business recovery archive.'};
+    }
+    if(String(sourceFile.getMimeType()||'')!=='application/vnd.google-apps.spreadsheet'){
+      return{success:false,code:'RECOVERY_BACKUP_INVALID_TYPE',message:'The selected recovery backup is not a BizOS workspace snapshot.'};
+    }
+
+    var source=SpreadsheetApp.openById(sourceId);
     var safety=createClientRecoveryBackup_(target,String(client.clientName||client.Client_Name||''),String(client.businessId||client.Business_ID||''));
     if(!safety||!safety.success)return{success:false,message:'A safety backup could not be created, so the restore was not started.'};
     var sourceSheets=source.getSheets(),sourceNames={};
