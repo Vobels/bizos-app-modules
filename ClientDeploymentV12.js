@@ -7,9 +7,9 @@
 // ============================================================
 
 var CLIENT_V12_UI_FILES_ = ['ClientShellV12','ClientStylesV12'];
-var CLIENT_V12_PACKAGE_VERSION_ = '12.2.0';
-var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.0';
-var CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/full-client-bizos-package';
+var CLIENT_V12_PACKAGE_VERSION_ = '12.2.1';
+var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.1';
+var CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/prelaunch-user-readiness';
 
 function generateClientCodeSafelyV12(settings) {
   settings = settings || {};
@@ -30,7 +30,11 @@ function generateClientCodeSafelyV12(settings) {
     applicationUrl:String(settings.applicationUrl || ''),
     landingUrl:String(settings.landingUrl || ''),
     customDomain:String(settings.customDomain || ''),
-    featureProfile:settings.featureProfile&&typeof settings.featureProfile==='object'?settings.featureProfile:{}
+    featureProfile:settings.featureProfile&&typeof settings.featureProfile==='object'?settings.featureProfile:{},
+    generatedAt:new Date().toISOString(),
+    packageVersion:CLIENT_V12_PACKAGE_VERSION_,
+    packageRelease:CLIENT_V12_PACKAGE_RELEASE_,
+    packageProvenance:CLIENT_V12_PACKAGE_PROVENANCE_
   };
   config.businessProfile = getMasterBusinessProfileForV12_(config.businessId, config.email);
   config.currency = String((config.businessProfile&&config.businessProfile.currency)||(config.businessProfile&&config.businessProfile.Currency)||'NGN').toUpperCase();
