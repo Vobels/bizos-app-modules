@@ -765,22 +765,55 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
 // It does not publish, deploy, or modify client/registry data.
 // ============================================================
 
-function auditV12ClientDeploymentRuntime(businessId) {
-  var targetBusinessId = String(businessId || '').trim();
-  if (!targetBusinessId) {
+function auditV12ClientDeploymentRuntime(identifier) {
+  var targetIdentifier = String(identifier || '').trim();
+  if (!targetIdentifier) {
     return {
       success:false,
-      code:'BUSINESS_ID_REQUIRED',
-      message:'Business ID is required.'
+      code:'CLIENT_OR_BUSINESS_ID_REQUIRED',
+      message:'Client ID or Business ID is required.'
     };
   }
 
-  var client = getActiveClientByBusinessIdForRedeploy_(targetBusinessId);
+  // Accept either the registered Business_ID or Client_ID so this audit can
+  // be run safely from Apps Script without requiring the caller to know which
+  // registry identifier the underlying deployment helper expects.
+  var client = getActiveClientByBusinessIdForRedeploy_(targetIdentifier);
+  if (!client) {
+    try {
+      var registry = getBizOSMasterSpreadsheet_();
+      var clientsSheet = registry && registry.getSheetByName('Clients');
+      if (clientsSheet && clientsSheet.getLastRow() >= 2) {
+        var values = clientsSheet.getDataRange().getValues();
+        var headers = values[0] || [];
+        var clientIdCol = headers.indexOf('Client_ID');
+        var statusCol = headers.indexOf('Status');
+        for (var ci = 1; ci < values.length; ci++) {
+          var row = values[ci];
+          if (clientIdCol < 0 || String(row[clientIdCol] || '').trim() !== targetIdentifier) continue;
+          if (statusCol >= 0 && String(row[statusCol] || '').trim().toLowerCase() !== 'active') continue;
+          var rawClient = {};
+          headers.forEach(function(header, hi) {
+            rawClient[String(header || '').trim()] = row[hi] === undefined ? '' : row[hi];
+          });
+          client = normalizeExistingClientDeployment_(rawClient);
+          break;
+        }
+      }
+    } catch (lookupError) {
+      return {
+        success:false,
+        code:'CLIENT_LOOKUP_FAILED',
+        message:lookupError && lookupError.message ? lookupError.message : String(lookupError)
+      };
+    }
+  }
+
   if (!client) {
     return {
       success:false,
       code:'CLIENT_NOT_FOUND',
-      message:'No active client deployment was found for business ID: ' + targetBusinessId
+      message:'No active client deployment was found for client/business identifier: ' + targetIdentifier
     };
   }
 
@@ -803,7 +836,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
     };
     var base = 'https://script.googleapis.com/v1/projects/' + encodeURIComponent(client.scriptId);
 
-    // 1. Resolve the deployment to the exact version Google is serving.
     var deploymentResponse = UrlFetchApp.fetch(
       base + '/deployments/' + encodeURIComponent(client.deploymentId),
       {method:'get',headers:headers,muteHttpExceptions:true}
@@ -824,7 +856,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var config = deployment.deploymentConfig || {};
     var deployedVersion = String(config.versionNumber || '');
 
-    // 2. Fetch the exact immutable version attached to the deployment.
     var versionContent = null;
     if (deployedVersion) {
       var versionResponse = UrlFetchApp.fetch(
@@ -847,8 +878,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
       versionContent = JSON.parse(versionResponse.getContentText() || '{}');
     }
 
-    // 3. Also read project HEAD so we can distinguish deployed-version drift
-    // from a package-generation problem.
     var headResponse = UrlFetchApp.fetch(
       base + '/content',
       {method:'get',headers:headers,muteHttpExceptions:true}
@@ -914,9 +943,6 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var deployedChecks=inspectRuntime_(deployedCode.source);
     var headChecks=inspectRuntime_(headCode.source);
 
-    // Read-only live workspace/database validation. This is intentionally
-    // independent of the generated client runtime so the audit can distinguish
-    // a package problem from a malformed client spreadsheet.
     var workspaceHealth={success:false,clientInfo:false,modules:[],notificationsSheet:false,activitySheet:false};
     try{
       var ws=SpreadsheetApp.openById(String(client.sheetId||''));
@@ -929,11 +955,24 @@ function auditV12ClientDeploymentRuntime(businessId) {
         String(meta.Client_ID||'')===String(client.clientId||'') &&
         String(meta.Business_ID||client.businessId||'')===String(client.businessId||'') &&
         String(meta.Status||'active').toLowerCase()==='active';
-      var expectedModules=['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
-      expectedModules.forEach(function(name){
-        var sheetName=name+'_Data',sh=ws.getSheetByName(sheetName),headers=[];
+      var expectedModules=[
+        {name:'Finance',sheet:'Financial_Data'},
+        {name:'Sales',sheet:'Sales_Data'},
+        {name:'Ecommerce',sheet:'Ecommerce_Data'},
+        {name:'CRM',sheet:'CRM_Data'},
+        {name:'HR',sheet:'HR_Data'},
+        {name:'Logistics',sheet:'Logistics_Data'},
+        {name:'Tax',sheet:'Tax_Data'},
+        {name:'Agro',sheet:'Agro_Data'},
+        {name:'Productivity',sheet:'Productivity_Data'},
+        {name:'POS',sheet:'POS_Data'},
+        {name:'Attendance',sheet:'Attendance_Data'},
+        {name:'Warehouse',sheet:'Warehouse_Data'}
+      ];
+      expectedModules.forEach(function(def){
+        var sh=ws.getSheetByName(def.sheet),headers=[];
         if(sh&&sh.getLastColumn()>0)headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
-        workspaceHealth.modules.push({module:name,sheet:sheetName,exists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0});
+        workspaceHealth.modules.push({module:def.name,sheet:def.sheet,exists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0});
       });
       workspaceHealth.notificationsSheet=!!ws.getSheetByName('Client_Notifications');
       workspaceHealth.activitySheet=!!ws.getSheetByName('Client_Activity');
@@ -950,6 +989,7 @@ function auditV12ClientDeploymentRuntime(businessId) {
     var result={
       success:!!(bindingOk && deployedVersion && deployedChecks.codePresent),
       audit:'V12_DEPLOYED_RUNTIME_AUDIT',
+      inputIdentifier:targetIdentifier,
       clientId:client.clientId,
       businessId:client.businessId,
       email:client.email,
@@ -972,6 +1012,7 @@ function auditV12ClientDeploymentRuntime(businessId) {
     };
 
     if (!bindingOk) {
+      result.success=false;
       result.diagnosis='DEPLOYMENT_BINDING_MISMATCH: the registered deployment does not belong to the registered client script.';
     } else if (!deployedVersion) {
       result.success=false;
@@ -995,8 +1036,10 @@ function auditV12ClientDeploymentRuntime(businessId) {
       result.success=false;
       result.diagnosis='GENERATOR_RUNTIME_MISSING_MODULES: project HEAD itself does not contain var MODULES=. The package generator/runtime assembly must be fixed before redeploying.';
     } else if (!result.deployedMatchesHead) {
+      result.success=false;
       result.diagnosis='DEPLOYED_VERSION_DIFFERS_FROM_HEAD: the deployment is serving an older/different immutable version than project HEAD. Compare deploymentVersion with the latest version before changing client code.';
     } else {
+      result.success=true;
       result.diagnosis='DEPLOYED_RUNTIME_CONTAINS_MODULES: source-level deployment inspection does not reproduce the reported MODULES error. The next step is runtime execution tracing/logging on the client login path, not another package-generation change.';
     }
 
@@ -1044,7 +1087,7 @@ function auditV12ReleaseCompleteness(businessId) {
     'function inviteStaffMember(bid,email,name,role,invitedBy,assignedModules,sid)',
     'function resendStaffInvitation(bid,email,sid)',
     'function assignModuleToStaff(email,bid,moduleName,assignedBy,sid)',
-    'function removeModuleFromStaff(bid,email,sid)',
+    'function removeModuleFromStaff(email,bid,moduleName,sid)',
     'function clientAssignedModulesV11_',
     'Assigned_Modules',
     'staff-v12-root'
@@ -1052,48 +1095,76 @@ function auditV12ReleaseCompleteness(businessId) {
   var staffChecks={};
   staffMarkers.forEach(function(token){staffChecks[token]=code.indexOf(token)>=0||staff.indexOf(token)>=0;});
 
-  var dashboardMarkers=[
-    'function getDashboardKPIs',
-    'function getEnhancedDashboardData',
-    'function getRecentTransactions',
-    'function getChartDataOptimized',
-    'function getDetailedFinancialMetrics',
-    'function getDailyTrends',
-    'function getWeeklyTrends',
-    'businessSnapshot',
-    'health',
-    'charts',
-    'recentActivity'
+  // The V12 client intentionally does not copy the Master Dashboard functions
+  // verbatim. It uses the dedicated getClientDashboard() implementation and
+  // exposes the same dashboard capabilities through a client-safe API.
+  var dashboardCapabilities=[
+    {name:'dashboardApi',master:['function getDashboardKPIs','function getEnhancedDashboardData'],client:['function getClientDashboard(sid,forceRefresh)','function getClientDashboardData(sid,forceRefresh)']},
+    {name:'kpis',master:['function getDashboardKPIs'],client:['kpis:{revenue:','netProfit:{value:','profitMargin:{value:']},
+    {name:'trends',master:['function getEnhancedDashboardData','function getDailyTrends','function getWeeklyTrends'],client:['trends:{categoryBreakdown:','daily:daily','weekly:weekly']},
+    {name:'charts',master:['function getChartDataOptimized','charts'],client:['charts:{revenueVsExpenses:','expenseBreakdown:{labels:']},
+    {name:'health',master:['health'],client:['health:health']},
+    {name:'recentActivity',master:['recentActivity'],client:['recentActivity:activity']},
+    {name:'recentTransactions',master:['function getRecentTransactions'],client:['recentTransactions:recent']},
+    {name:'businessSnapshot',master:['businessSnapshot'],client:['businessSnapshot:businessSnapshot']},
+    {name:'moduleSummary',master:['function getEnhancedDashboardData','moduleSummary'],client:['moduleSummary:moduleSummary']},
+    {name:'alertsRecommendations',master:['function getEnhancedDashboardData','alerts'],client:['alerts:alerts','recommendations:recommendations']}
   ];
-  var dashboardComparison={masterMarkers:{},clientMarkers:{},matched:0,total:dashboardMarkers.length};
-  dashboardMarkers.forEach(function(token){
-    var masterHas=dashboardSource.indexOf(token)>=0;
-    var clientHas=code.indexOf(token)>=0;
-    dashboardComparison.masterMarkers[token]=masterHas;
-    dashboardComparison.clientMarkers[token]=clientHas;
-    if(masterHas===clientHas) dashboardComparison.matched++;
+
+  var dashboardComparison={
+    parity:true,
+    matched:0,
+    total:dashboardCapabilities.length,
+    capabilities:{}
+  };
+  dashboardCapabilities.forEach(function(capability){
+    var masterHas=capability.master.some(function(token){return dashboardSource.indexOf(token)>=0;});
+    var clientHas=capability.client.every(function(token){return code.indexOf(token)>=0;});
+    var matched=masterHas&&clientHas;
+    dashboardComparison.capabilities[capability.name]={
+      master:masterHas,
+      client:clientHas,
+      matched:matched,
+      masterMarkers:capability.master,
+      clientMarkers:capability.client
+    };
+    if(matched) dashboardComparison.matched++;
+    if(!matched) dashboardComparison.parity=false;
   });
 
-  var names=['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+  var moduleDefinitions=[
+    {name:'Finance',sheet:'Financial_Data'},
+    {name:'Sales',sheet:'Sales_Data'},
+    {name:'Ecommerce',sheet:'Ecommerce_Data'},
+    {name:'CRM',sheet:'CRM_Data'},
+    {name:'HR',sheet:'HR_Data'},
+    {name:'Logistics',sheet:'Logistics_Data'},
+    {name:'Tax',sheet:'Tax_Data'},
+    {name:'Agro',sheet:'Agro_Data'},
+    {name:'Productivity',sheet:'Productivity_Data'},
+    {name:'POS',sheet:'POS_Data'},
+    {name:'Attendance',sheet:'Attendance_Data'},
+    {name:'Warehouse',sheet:'Warehouse_Data'}
+  ];
   var ws=SpreadsheetApp.openById(String(client.sheetId||''));
-  var modules=names.map(function(name){
-    var sh=ws.getSheetByName(name+'_Data');
+  var modules=moduleDefinitions.map(function(def){
+    var sh=ws.getSheetByName(def.sheet);
     var headers=sh&&sh.getLastColumn()>0?sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0]:[];
-    return {module:name,sheet:name+'_Data',sheetExists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0};
+    return {module:def.name,sheet:def.sheet,sheetExists:!!sh,headersPresent:headers.length>0,recordCount:sh&&sh.getLastRow()>1?sh.getLastRow()-1:0};
   });
 
   var staffComplete=staffMarkers.every(function(token){return staffChecks[token];});
-  var dashboardParity=dashboardComparison.matched===dashboardComparison.total;
+  var dashboardParity=dashboardComparison.parity;
   var modulesComplete=modules.every(function(m){return m.sheetExists&&m.headersPresent;});
 
   return {
-    success:!!(packageCheck&&packageCheck.success&&staffComplete&&modulesComplete),
+    success:!!(packageCheck&&packageCheck.success&&staffComplete&&dashboardParity&&modulesComplete),
     audit:'V12_RELEASE_COMPLETENESS',
     liveClientRuntimeExecuted:false,
-    note:'This is a non-destructive source/workspace audit. It closes the static Staff, Master-dashboard comparison, and 12-module workspace checks. A real client session is still required for live Staff actions and live module reads/writes.',
+    note:'This is a non-destructive source/workspace audit. It compares client-safe Staff and Dashboard capabilities against the current Master source and validates the canonical 12-module workspace. A real client session is still required for live Staff actions and live module reads/writes.',
     package:{version:pkg.version,release:pkg.release,provenance:pkg.provenance,check:packageCheck},
     staffAudit:{complete:staffComplete,markers:staffChecks},
-    dashboardComparison:{parity:dashboardParity,matched:dashboardComparison.matched,total:dashboardComparison.total,markers:dashboardComparison},
+    dashboardComparison:dashboardComparison,
     modulesAudit:{complete:modulesComplete,count:modules.length,modules:modules}
   };
 }
