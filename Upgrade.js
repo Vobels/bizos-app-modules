@@ -701,7 +701,10 @@ function getMimeType(fileName) {
 function getLocalizedPricing(country, requestedCurrency) {
   var name = String(country || '').trim();
   var wanted = String(requestedCurrency || '').trim().toUpperCase();
-  if (!wanted) wanted = name === 'Nigeria' ? 'NGN' : 'USD';
+  if (!wanted) {
+    var countryDefaults = (CONFIG.PRICING.payment && CONFIG.PRICING.payment.countryDefaultCurrencies) || {};
+    wanted = countryDefaults[name] || (CONFIG.PRICING.payment && CONFIG.PRICING.payment.defaultCurrency) || 'USD';
+  }
 
   var converted = convertBizOSBasePriceToCurrency_(wanted);
   if (!converted.success) return converted;
@@ -729,7 +732,8 @@ function getAvailableBizOSCheckoutCurrencies_(country) {
   Object.keys(rates).forEach(function(code) {
     var cfg = getPaymentCurrencyConfig_(code);
     if (!cfg) return;
-    if (code === 'NGN' && String(country || '').trim() !== 'Nigeria') return;
+    var restrictions = (CONFIG.PRICING.payment && CONFIG.PRICING.payment.currencyCountryRestrictions) || {};
+    if (restrictions[code] && restrictions[code].indexOf(String(country || '').trim()) === -1) return;
     currencies.push({code:cfg.code,name:cfg.name,symbol:cfg.symbol,rate:cfg.rate,decimals:cfg.decimals});
   });
   currencies.sort(function(a,b) {
@@ -760,7 +764,7 @@ function getUpgradeCurrencyOptions(requestId, sessionId, accessToken) {
     var currencies = getAvailableBizOSCheckoutCurrencies_(request.country);
     return {
       success:true,
-      currentCurrency:String(request.currency || (request.country === 'Nigeria' ? 'NGN' : 'USD')).toUpperCase(),
+      currentCurrency:String(request.currency || getLocalizedPricing(request.country, '').sovereign.code).toUpperCase(),
       options:currencies
     };
   } catch (error) {
