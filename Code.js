@@ -365,7 +365,7 @@ function doPost(e) {
       case 'deleteBusinessAccount':
         const deleteBizId = payload[0];
         const deleteBizEmail = payload[1];
-        result = deleteBusinessAccount(deleteBizId, deleteBizEmail);
+        result = deleteBusinessAccount(deleteBizId, deleteBizEmail, sessionId);
         break;
       
       // Upgrade functions
