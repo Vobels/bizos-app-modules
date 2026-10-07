@@ -684,7 +684,9 @@ function uploadBusinessCertificate(base64Data, fileName, country, businessId, bu
     certFolder = existing.hasNext() ? existing.next() : businessFolder.createFolder('Certificates');
     var blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), getMimeType(fileName), fileName);
     var file = certFolder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // Certificates are private business documents. BizOS stores the file URL for
+    // internal verification; public link sharing is not required and would expose
+    // sensitive registration documents to anyone who obtains the URL.
     return {success:true, fileUrl:file.getUrl(), fileId:file.getId(), fileName:fileName};
   } catch (error) {
     console.error('Error uploading certificate:', error);
