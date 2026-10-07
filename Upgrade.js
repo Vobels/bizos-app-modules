@@ -203,6 +203,7 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     paymentSheet.appendRow([
       paymentId, requestId, user.email, workspaceEmail, amount, currency, 'pending', '', timestamp.toISOString(), ''
     ]);
+    snapshotPaymentFx_(requestId, pricing);
 
     if (upgradeLock) {
       upgradeLock.releaseLock();
@@ -700,42 +701,45 @@ function getMimeType(fileName) {
 function getLocalizedPricing(country, requestedCurrency) {
   var name = String(country || '').trim();
   var wanted = String(requestedCurrency || '').trim().toUpperCase();
+  if (!wanted) wanted = name === 'Nigeria' ? 'NGN' : 'USD';
 
-  var sovereignUsd = Number(CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.usd) || 500;
-  var sovereignNaira = Number(CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.naira) || 750000;
+  var converted = convertBizOSBasePriceToCurrency_(wanted);
+  if (!converted.success) return converted;
 
-  // Keep pricing authoritative and explicit. Do not invent FX rates at checkout.
-  // Additional currencies can be enabled later by adding an approved price to
-  // CONFIG.PRICING.sovereign.currencyPrices.
-  var configuredPrices = (CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.currencyPrices) || {};
-  var prices = {
-    USD: {price:sovereignUsd,currency:'$',code:'USD'},
-    NGN: {price:sovereignNaira,currency:'₦',code:'NGN'}
+  return {
+    success:true,
+    sovereign:{
+      price:converted.price,
+      currency:converted.symbol,
+      code:converted.currency,
+      name:converted.name,
+      basePrice:converted.baseAmount,
+      baseCurrency:converted.baseCurrency,
+      exchangeRate:converted.rate,
+      exchangeRateSource:converted.rateSource,
+      exchangeRateUpdatedAt:converted.rateUpdatedAt,
+      decimals:converted.decimals
+    }
   };
-  Object.keys(configuredPrices).forEach(function(code){
-    var entry = configuredPrices[code];
-    if (!entry) return;
-    var normalized = String(code).toUpperCase();
-    var value = typeof entry === 'object' ? Number(entry.price) : Number(entry);
-    if (!value || value <= 0) return;
-    prices[normalized] = {
-      price:value,
-      currency:typeof entry === 'object' && entry.symbol ? String(entry.symbol) : normalized,
-      code:normalized
-    };
+}
+
+function getAvailableBizOSCheckoutCurrencies_(country) {
+  var rates = getPaymentExchangeRates_();
+  var currencies = [];
+  Object.keys(rates).forEach(function(code) {
+    var cfg = getPaymentCurrencyConfig_(code);
+    if (!cfg) return;
+    if (code === 'NGN' && String(country || '').trim() !== 'Nigeria') return;
+    currencies.push({code:cfg.code,name:cfg.name,symbol:cfg.symbol,rate:cfg.rate,decimals:cfg.decimals});
   });
-
-  if (wanted && prices[wanted]) {
-    // NGN remains restricted to the Nigeria price unless a separate approved
-    // NGN price is explicitly configured.
-    if (wanted === 'NGN' && name !== 'Nigeria') return {success:false,message:'NGN pricing is only available for Nigeria.'};
-    return {success:true,sovereign:prices[wanted]};
-  }
-
-  if (wanted) return {success:false,message:'This currency is not currently available for BizOS checkout.'};
-
-  if (name === 'Nigeria') return {success:true,sovereign:prices.NGN};
-  return {success:true,sovereign:prices.USD};
+  currencies.sort(function(a,b) {
+    if (a.code === 'USD') return -1;
+    if (b.code === 'USD') return 1;
+    if (a.code === 'NGN') return -1;
+    if (b.code === 'NGN') return 1;
+    return a.code.localeCompare(b.code);
+  });
+  return currencies;
 }
 
 function getUpgradeCurrencyOptions(requestId, sessionId, accessToken) {
@@ -753,19 +757,59 @@ function getUpgradeCurrencyOptions(requestId, sessionId, accessToken) {
       return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
     }
 
-    var options = [{code:'USD',name:'US Dollar',symbol:'$'}];
-    if (String(request.country || '').trim() === 'Nigeria') options.push({code:'NGN',name:'Nigerian Naira',symbol:'₦'});
-    var configuredPrices = (CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.currencyPrices) || {};
-    Object.keys(configuredPrices).forEach(function(code){
-      var normalized=String(code).toUpperCase();
-      if (normalized==='USD'||normalized==='NGN') return;
-      var entry=configuredPrices[code];
-      options.push({code:normalized,name:typeof entry==='object'&&entry.name?String(entry.name):normalized,symbol:typeof entry==='object'&&entry.symbol?String(entry.symbol):normalized});
-    });
-    return {success:true,currentCurrency:String(request.currency || 'USD').toUpperCase(),options:options};
+    var currencies = getAvailableBizOSCheckoutCurrencies_(request.country);
+    return {
+      success:true,
+      currentCurrency:String(request.currency || (request.country === 'Nigeria' ? 'NGN' : 'USD')).toUpperCase(),
+      options:currencies
+    };
   } catch (error) {
-    console.error('getUpgradeCurrencyOptions error:',error);
+    console.error('getUpgradeCurrencyOptions error:', error);
     return {success:false,message:'We could not load the available currencies right now.'};
+  }
+}
+
+function ensurePaymentFxColumns_(sheet) {
+  if (!sheet) return;
+  var headers = sheet.getRange(1,1,1,Math.max(1,sheet.getLastColumn())).getValues()[0] || [];
+  var required = ['Base_Amount','Base_Currency','FX_Rate','FX_Rate_Source','FX_Rate_Updated_At'];
+  required.forEach(function(header) {
+    if (headers.indexOf(header) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+      headers.push(header);
+    }
+  });
+}
+
+function snapshotPaymentFx_(requestId, pricing) {
+  try {
+    var ss = getBizOSMasterSpreadsheet_();
+    var sheets = [ss.getSheetByName('Upgrade_Requests'), ss.getSheetByName('Payments')];
+    sheets.forEach(function(sheet) {
+      if (!sheet) return;
+      ensurePaymentFxColumns_(sheet);
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0] || [];
+      var idCol = headers.indexOf('Request_ID');
+      if (idCol === -1) return;
+      for (var i=1;i<data.length;i++) {
+        if (String(data[i][idCol] || '').trim() !== String(requestId || '').trim()) continue;
+        var values = {
+          Base_Amount:pricing.sovereign.basePrice,
+          Base_Currency:pricing.sovereign.baseCurrency,
+          FX_Rate:pricing.sovereign.exchangeRate,
+          FX_Rate_Source:pricing.sovereign.exchangeRateSource || 'admin',
+          FX_Rate_Updated_At:pricing.sovereign.exchangeRateUpdatedAt || new Date().toISOString()
+        };
+        Object.keys(values).forEach(function(header) {
+          var col=headers.indexOf(header);
+          if(col!==-1) sheet.getRange(i+1,col+1).setValue(values[header]);
+        });
+        return;
+      }
+    });
+  } catch(error) {
+    console.error('snapshotPaymentFx_ error:',error);
   }
 }
 
@@ -805,7 +849,8 @@ function updateUpgradeRequestCurrency(requestId, currency, sessionId, accessToke
             break;
           }
         }
-        return {success:true,currency:pricing.sovereign.code,amount:pricing.sovereign.price,symbol:pricing.sovereign.currency};
+        snapshotPaymentFx_(requestId, pricing);
+        return {success:true,currency:pricing.sovereign.code,amount:pricing.sovereign.price,symbol:pricing.sovereign.currency,baseAmount:pricing.sovereign.basePrice,baseCurrency:pricing.sovereign.baseCurrency,exchangeRate:pricing.sovereign.exchangeRate};
       }
     }
     return {success:false,message:'Upgrade request not found.'};
