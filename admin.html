@@ -975,7 +975,7 @@
               <td><span class="status-badge ${biz.verificationStatus === 'verified' ? 'verified' : 'pending'}">${biz.verificationStatus || 'Pending'}</span></td>
               <td>${biz.createdAt ? new Date(biz.createdAt).toLocaleDateString() : 'N/A'}</td>
               <td style="text-align: center;">
-                <button onclick="openClientManagement('${String(biz.clientId || biz.businessId).replace(/\\/g, "\\\\").replace(/\'/g, "\\\'")}')" style="background:#f3e8ff;border:1px solid #d8b4fe;color:#5D2A86;cursor:pointer;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;" title="Manage client"><i class="fas fa-folder-open"></i> Manage</button>
+                <button onclick="openClientManagement('${String(biz.businessId || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" style="background:#f3e8ff;border:1px solid #d8b4fe;color:#5D2A86;cursor:pointer;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;" title="Manage client"><i class="fas fa-folder-open"></i> Manage</button>
                 <button onclick="toggleBusinessStatus('${biz.businessId}')" style="background: none; border: none; color: #f59e0b; cursor: pointer;" title="Toggle Status"><i class="fas fa-toggle-on"></i></button>
                 <button onclick="redeployClient('${biz.businessId}')" style="background: #f3e8ff; border: 1px solid #d8b4fe; color: #5D2A86; cursor: pointer; border-radius: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600;" title="Redeploy BizOS"><i class="fas fa-cloud-upload-alt"></i> Redeploy</button>
                 <button onclick="deleteBusiness('${biz.businessId}')" style="background: none; border: none; color: #ef4444; cursor: pointer;" title="Delete"><i class="fas fa-trash"></i></button>
