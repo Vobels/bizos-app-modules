@@ -379,7 +379,8 @@ function getActiveClientByBusinessIdForRedeploy_(businessId) {
       status:String(client.Status || ''),
       landingUrl:String(client.Landing_URL || ''),
       customDomain:String(client.Custom_Domain || ''),
-      domain:String(client.Domain || '')
+      domain:String(client.Domain || ''),
+      featureProfileJson:String(client.Feature_Profile_JSON || '')
     };
   }
 
