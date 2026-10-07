@@ -163,7 +163,7 @@ function ensureClientRegistryColumns_() {
     'Client_ID','Email','Client_Name','Business_ID','Domain','Primary_Color',
     'Logo_Url','Custom_Domain','Tier','Status','Sheet_ID','Workspace_ID',
     'Web_App_URL','Landing_URL','API_Key','Created_At','Updated_At',
-    'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email'
+    'Script_ID','Deployment_ID','Provisioning_Version','Recovery_Backup_ID','Recovery_Backup_URL','Workspace_Ownership_Status','Workspace_Owner_Email','Feature_Profile_JSON'
   ];
 
   required.forEach(function (header) {
