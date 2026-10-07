@@ -182,7 +182,8 @@ function handleUpgradeRequest(upgradeData, sessionId) {
     var requestId = 'UPG_' + Utilities.getUuid().substring(0, 8).toUpperCase();
     var paymentId = 'PAY_' + Utilities.getUuid().substring(0, 8).toUpperCase();
     var timestamp = new Date();
-    var pricing = getLocalizedPricing(country);
+    var requestedCurrency = String(upgradeData.currency || '').trim().toUpperCase();
+    var pricing = getLocalizedPricing(country, requestedCurrency);
     var amount = pricing.sovereign && pricing.sovereign.price || 500;
     var currency = pricing.sovereign && pricing.sovereign.code || 'USD';
     var symbol = pricing.sovereign && pricing.sovereign.currency || '$';
@@ -538,7 +539,8 @@ function updatePendingUpgradeRequest_(upgradeData, sessionId, requestId) {
       return {success:false, message:'This upgrade request has expired. Please start a new upgrade request.'};
     }
 
-    var pricing = getLocalizedPricing(country);
+    var requestedCurrency = String(upgradeData.currency || '').trim().toUpperCase();
+    var pricing = getLocalizedPricing(country, requestedCurrency);
     var amount = pricing.sovereign && Number(pricing.sovereign.price) || 500;
     var currency = pricing.sovereign && String(pricing.sovereign.code || 'USD').toUpperCase() || 'USD';
 
@@ -695,21 +697,124 @@ function getMimeType(fileName) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-function getLocalizedPricing(country) {
+function getLocalizedPricing(country, requestedCurrency) {
   var name = String(country || '').trim();
+  var wanted = String(requestedCurrency || '').trim().toUpperCase();
+
   var sovereignUsd = Number(CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.usd) || 500;
   var sovereignNaira = Number(CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.naira) || 750000;
-  if (name === 'Nigeria') {
-    return {
-      sovereign:{price:sovereignNaira,currency:'₦',code:'NGN'},
-      enterprise:{price:2990,currency:'$',code:'USD'}
-    };
-  }
-  return {
-    sovereign:{price:sovereignUsd,currency:'$',code:'USD'},
-    enterprise:{price:2990,currency:'$',code:'USD'}
+
+  // Keep pricing authoritative and explicit. Do not invent FX rates at checkout.
+  // Additional currencies can be enabled later by adding an approved price to
+  // CONFIG.PRICING.sovereign.currencyPrices.
+  var configuredPrices = (CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.currencyPrices) || {};
+  var prices = {
+    USD: {price:sovereignUsd,currency:'$',code:'USD'},
+    NGN: {price:sovereignNaira,currency:'₦',code:'NGN'}
   };
+  Object.keys(configuredPrices).forEach(function(code){
+    var entry = configuredPrices[code];
+    if (!entry) return;
+    var normalized = String(code).toUpperCase();
+    var value = typeof entry === 'object' ? Number(entry.price) : Number(entry);
+    if (!value || value <= 0) return;
+    prices[normalized] = {
+      price:value,
+      currency:typeof entry === 'object' && entry.symbol ? String(entry.symbol) : normalized,
+      code:normalized
+    };
+  });
+
+  if (wanted && prices[wanted]) {
+    // NGN remains restricted to the Nigeria price unless a separate approved
+    // NGN price is explicitly configured.
+    if (wanted === 'NGN' && name !== 'Nigeria') return {success:false,message:'NGN pricing is only available for Nigeria.'};
+    return {success:true,sovereign:prices[wanted]};
+  }
+
+  if (wanted) return {success:false,message:'This currency is not currently available for BizOS checkout.'};
+
+  if (name === 'Nigeria') return {success:true,sovereign:prices.NGN};
+  return {success:true,sovereign:prices.USD};
 }
+
+function getUpgradeCurrencyOptions(requestId, sessionId, accessToken) {
+  try {
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,code:'UNAUTHORIZED',message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,code:'REQUEST_NOT_FOUND',message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) {
+      return {success:false,code:'REQUEST_ACCESS_DENIED',message:'This upgrade request does not belong to the current BizOS account.'};
+    }
+
+    var options = [{code:'USD',name:'US Dollar',symbol:'$'}];
+    if (String(request.country || '').trim() === 'Nigeria') options.push({code:'NGN',name:'Nigerian Naira',symbol:'₦'});
+    var configuredPrices = (CONFIG && CONFIG.PRICING && CONFIG.PRICING.sovereign && CONFIG.PRICING.sovereign.currencyPrices) || {};
+    Object.keys(configuredPrices).forEach(function(code){
+      var normalized=String(code).toUpperCase();
+      if (normalized==='USD'||normalized==='NGN') return;
+      var entry=configuredPrices[code];
+      options.push({code:normalized,name:typeof entry==='object'&&entry.name?String(entry.name):normalized,symbol:typeof entry==='object'&&entry.symbol?String(entry.symbol):normalized});
+    });
+    return {success:true,currentCurrency:String(request.currency || 'USD').toUpperCase(),options:options};
+  } catch (error) {
+    console.error('getUpgradeCurrencyOptions error:',error);
+    return {success:false,message:'We could not load the available currencies right now.'};
+  }
+}
+
+function updateUpgradeRequestCurrency(requestId, currency, sessionId, accessToken) {
+  try {
+    var user = sessionId ? validateUpgradeSession(sessionId) : null;
+    if (!user && accessToken) {
+      var access = validatePaymentAccessToken_(accessToken, requestId);
+      if (access) user = {email:access.email};
+    }
+    if (!user) return {success:false,message:'Your payment-page access has expired. Please return to BizOS and reopen the payment request.'};
+
+    var request = getUpgradeRequest(requestId);
+    if (!request) return {success:false,message:'Upgrade request not found.'};
+    if (String(request.email || '').trim().toLowerCase() !== String(user.email || '').trim().toLowerCase()) return {success:false,message:'This upgrade request does not belong to the current BizOS account.'};
+    if (String(request.status || '').toLowerCase() !== 'pending_payment') return {success:false,message:'This upgrade request is no longer editable.'};
+
+    var pricing = getLocalizedPricing(request.country, currency);
+    if (!pricing || !pricing.success || !pricing.sovereign) return {success:false,message:(pricing && pricing.message)||'This currency is not currently available for BizOS checkout.'};
+
+    var ss=getBizOSMasterSpreadsheet_();
+    var sheet=ss.getSheetByName('Upgrade_Requests');
+    var rows=sheet.getDataRange().getValues(), headers=rows[0]||[];
+    var idCol=headers.indexOf('Request_ID'), amountCol=headers.indexOf('Amount'), currencyCol=headers.indexOf('Currency'), updatedCol=headers.indexOf('Updated_At');
+    for(var i=1;i<rows.length;i++){
+      if(idCol!==-1&&String(rows[i][idCol])===String(requestId)){
+        if(amountCol!==-1) sheet.getRange(i+1,amountCol+1).setValue(pricing.sovereign.price);
+        if(currencyCol!==-1) sheet.getRange(i+1,currencyCol+1).setValue(pricing.sovereign.code);
+        if(updatedCol!==-1) sheet.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());
+        var payments=ss.getSheetByName('Payments');
+        if(payments){
+          var pdata=payments.getDataRange().getValues(), ph=pdata[0]||[];
+          var pReq=ph.indexOf('Request_ID'),pAmount=ph.indexOf('Amount'),pCurrency=ph.indexOf('Currency');
+          for(var p=1;p<pdata.length;p++) if(pReq!==-1&&String(pdata[p][pReq])===String(requestId)){
+            if(pAmount!==-1) payments.getRange(p+1,pAmount+1).setValue(pricing.sovereign.price);
+            if(pCurrency!==-1) payments.getRange(p+1,pCurrency+1).setValue(pricing.sovereign.code);
+            break;
+          }
+        }
+        return {success:true,currency:pricing.sovereign.code,amount:pricing.sovereign.price,symbol:pricing.sovereign.currency};
+      }
+    }
+    return {success:false,message:'Upgrade request not found.'};
+  } catch(error) {
+    console.error('updateUpgradeRequestCurrency error:',error);
+    return {success:false,message:'We could not update the payment currency right now. Please try again.'};
+  }
+}
+
 function validateUpgradeSession(sessionId) {
   try {
     if (!sessionId) return null;
