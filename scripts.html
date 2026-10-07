@@ -5089,17 +5089,17 @@ function requestAccountDeletion() {
     return;
   }
   
-  if (confirm('WARNING: This will permanently delete ALL your business data. This action cannot be undone.\n\nAre you ABSOLUTELY sure?')) {
-    const confirmation = prompt('Type "DELETE MY BUSINESS" to confirm:');
-    if (confirmation === 'DELETE MY BUSINESS') {
+  if (confirm('This will archive your business account. Your records, workspace history, payments, and activity will be retained and can be reviewed or restored by BizOS support. Your account will no longer be active.\n\nNo permanent data deletion will be performed.')) {
+    const confirmation = prompt('Type "ARCHIVE MY BUSINESS" to confirm:');
+    if (confirmation === 'ARCHIVE MY BUSINESS') {
       callGoogleScript('deleteBusinessAccount', [currentUser.businessId, currentUser.email], (response) => {
         if (response.success) {
-          showNotification('Account deletion requested.', 'warning');
+          showNotification('Account archived. Your business records have been retained.', 'warning');
           handleLogout();
         } else {
           showNotification(response.message, 'error');
         }
-      }, () => showNotification('Deletion failed', 'error'));
+      }, () => showNotification('Account closure failed', 'error'));
     }
   }
 }
