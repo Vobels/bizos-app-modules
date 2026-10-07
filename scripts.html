@@ -5286,7 +5286,7 @@ function toggleSidebar() {
     if (overlay) {
       overlay.classList.add('active');
     }
-    document.body.style.overflow = 'hidden';
+    // Only lock page scrolling while the mobile sidebar is open.\n    // On desktop the sidebar is persistent and must never disable page scrolling.\n    document.body.style.overflow = window.matchMedia('(max-width: 768px)').matches ? 'hidden' : '';
   }
 }
 
@@ -5552,6 +5552,14 @@ function handleDocumentClick(event) {
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM Content Loaded - Initializing...');
+
+  // Recover from any stale sidebar scroll lock and release it after mobile navigation.
+  document.body.style.overflow = '';
+  document.querySelectorAll('#sidebar nav button:not(#settings-sidebar-toggle)').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      setTimeout(closeSidebar, 0);
+    });
+  });
   
   // Check for invite code in URL
   checkForInviteCode();
