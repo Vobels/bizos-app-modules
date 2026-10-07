@@ -1342,7 +1342,8 @@ function getAdminBusinessPeople_(businessId) {
   var wanted = String(businessId || '').trim();
   if (!wanted) return [];
 
-  var sheet = getOrCreateUserSheet();
+  var master = getBizOSMasterSpreadsheet_();
+  var sheet = master.getSheetByName('Users') || master.getSheetByName('User') || getOrCreateUserSheet();
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
 
