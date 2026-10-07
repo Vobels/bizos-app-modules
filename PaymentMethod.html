@@ -122,7 +122,7 @@
         details=r;businessEl.textContent=r.businessName||'Your Business';planEl.textContent='Sovereign';countryEl.textContent=r.country||'—';amountEl.textContent=money(r.displayAmount,r.currency);
         loadCurrencyOptions(r);
         if(r.paymentConfirmed){
-          paystack.disabled=true;flutterwave.disabled=true;
+          currencyEl.disabled=true;paystack.disabled=true;flutterwave.disabled=true;
           status(r.message||'Your payment is already confirmed. You do not need to pay again.','info');
           var deploymentLink=document.createElement('a');
           deploymentLink.className='back';
