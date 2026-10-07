@@ -202,7 +202,7 @@ function verifyBusiness(businessId, adminEmail) {
     return { success: true, message: "Business verified successfully! Workspace created." };
   } catch (error) {
     console.error('Business verification error:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: 'We could not complete business verification right now. Please try again or contact support.' };
   }
 }
 
@@ -342,7 +342,7 @@ function verifyEmailToken(token) {
     return { success: true, message: "Email verified successfully! You can now login.", businessName: businessName, email: email, workspaceCreated: workspaceResult.success };
   } catch (error) {
     console.error("Verification error:", error);
-    return { success: false, message: "Verification failed: " + error.message };
+    return { success: false, message: "We could not verify your email right now. Please try again or request a new verification email." };
   }
 }
 
@@ -393,5 +393,5 @@ function deleteBusinessAccount(businessId, email) {
     if (rowIndex !== -1 && activeCol !== -1) businessSheet.getRange(rowIndex + 1, activeCol + 1).setValue('NO');
     GmailApp.sendEmail(CONFIG.EMAIL.supportEmail, `Account Deletion Request - ${businessId}`, `Business ${businessId} requested deletion. Owner: ${email}`);
     return { success: true };
-  } catch(error) { return { success: false, message: error.message }; }
+  } catch(error) { return { success: false, message: 'We could not process your account request right now. Please try again or contact support.' }; }
 }
