@@ -139,7 +139,7 @@
     dashboardCache=r;
     dashboardCacheAt=Date.now();
     var stale=fromCache?'<span class="live-note">Showing recent data · refreshing…</span>':'<span class="live-note">Updated just now</span>';var canWrite=!!(user&&['owner','admin'].indexOf(String(user.role||'staff').toLowerCase())>=0&&user.isDemo!=='YES');
-    var appNames=Object.keys(d.moduleSummary||d.moduleCounts||{}).filter(function(n){return !d.moduleSummary||!d.moduleSummary[n]||d.moduleSummary[n].isAccessible!==false;}).slice(0,8);
+    var appNames=Object.keys(d.moduleSummary||d.moduleCounts||{}).filter(function(n){return !d.moduleSummary||!d.moduleSummary[n]||d.moduleSummary[n].isAccessible!==false;}).slice(0,4);
     c.innerHTML='<div class="overview-topline"><div><p class="overview-welcome">Business overview · '+esc((user&&user.name)||'there')+'</p><p class="overview-sub">Key business activity and financial performance across '+esc((user&&user.businessName)||cfg().name||'your workspace')+'.</p></div>'+stale+'</div>'+
       '<div class="bizos-kpi-grid">'+
       card('Total Revenue',k.revenue,'revenue',false)+
