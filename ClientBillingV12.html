@@ -27,15 +27,5 @@ window.clientBillingInit=function(){load();};
 window.clientBillingSubmit=function(){var type=document.getElementById('billing-v12-type').value,details=document.getElementById('billing-v12-details').value.trim();if(!details){msg('Please describe what you need help with.',true);return;}google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Request could not be submitted.',true);return;}document.getElementById('billing-v12-details').value='';msg('Maintenance request submitted.');load();}).withFailureHandler(function(e){msg(window.clientFriendlyError(e&&e.message,'Request could not be submitted.'),true);}).submitClientMaintenanceRequest({type:type,details:details},window.clientSessionId);};
 window.clientBillingFeatureSubmit=function(){var title=document.getElementById('billing-v12-feature-title').value.trim(),priority=document.getElementById('billing-v12-feature-priority').value,details=document.getElementById('billing-v12-feature-details').value.trim();if(!title){msg('Please provide a feature title.',true);return;}if(!details){msg('Please describe the feature you need.',true);return;}google.script.run.withSuccessHandler(function(r){if(!r||!r.success){msg(r&&r.message||'Feature request could not be submitted.',true);return;}document.getElementById('billing-v12-feature-title').value='';document.getElementById('billing-v12-feature-details').value='';msg('Feature request submitted.');load();}).withFailureHandler(function(e){msg(window.clientFriendlyError(e&&e.message,'Feature request could not be submitted.'),true);}).submitClientFeatureRequest({title:title,priority:priority,details:details},window.clientSessionId);};
 })();
-window.clientBillingPayQuote=function(quoteId){
-  google.script.run.withSuccessHandler(function(r){
-    if(!r||!r.success){msg(r&&r.message||'Payment could not be prepared.',true);return;}
-    var s=document.createElement('script');s.src='https://js.paystack.co/v1/inline.js';s.onload=function(){
-      if(!window.PaystackPop){msg('Secure payment checkout could not be loaded. Please try again.',true);return;}
-      var handler=window.PaystackPop.setup({key:r.publicKey,email:r.email||'',amount:r.amount,currency:r.currency,ref:r.reference,onClose:function(){msg('Payment window closed.');},callback:function(response){
-        msg('Verifying payment...');google.script.run.withSuccessHandler(function(v){if(v&&v.success){msg('Payment confirmed.');load();}else msg(v&&v.message||'Payment could not be confirmed.',true);}).withFailureHandler(function(e){msg(window.clientFriendlyError(e&&e.message,'Payment could not be confirmed.'),true);}).verifyClientQuotePayment(r.quoteId,response.reference,window.clientSessionId);
-      }});handler.openIframe();
-    };s.onerror=function(){msg('Secure payment checkout could not be loaded. Please try again.',true);};document.head.appendChild(s);
-  }).withFailureHandler(function(e){msg(window.clientFriendlyError(e&&e.message,'Payment could not be prepared.'),true);}).getClientQuotePaymentDetails(quoteId,window.clientSessionId);
-};
+
 </script>
