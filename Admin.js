@@ -719,21 +719,49 @@ function getAllModules(sessionId) {
         var client=clientByBusiness[businessId]||{};
         var tier=String((tierCol>=0?bv[bi][tierCol]:'') || client.Tier || 'starter').trim().toLowerCase();
         var status=String((statusCol>=0?bv[bi][statusCol]:'') || 'active').trim().toLowerCase();
-        businesses.push({businessId:businessId,businessName:nameCol>=0?String(bv[bi][nameCol]||''):'',tier:tier,status:status});
+        var workspaceIdCol = bh.indexOf('Workspace_ID');
+        businesses.push({
+          businessId:businessId,
+          businessName:nameCol>=0?String(bv[bi][nameCol]||''):'',
+          tier:tier,
+          status:status,
+          workspaceId:workspaceIdCol>=0?String(bv[bi][workspaceIdCol]||'').trim():''
+        });
       }
     }
+
+    var sheetByModule = {
+      Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
+      CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
+      Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
+      POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
+    };
 
     return all.map(function(name){
       var connected=businesses.filter(function(b){
         var allowed=access[b.tier] || access.starter || [];
         return allowed.indexOf(name) >= 0 && b.status !== 'archived';
       });
+      var recordCount=0;
+      var sheetName=sheetByModule[name];
+      if(sheetName){
+        connected.forEach(function(b){
+          if(!b.workspaceId) return;
+          try {
+            var ws=SpreadsheetApp.openById(b.workspaceId);
+            var sh=ws.getSheetByName(sheetName);
+            if(sh && sh.getLastRow()>1) recordCount += sh.getLastRow()-1;
+          } catch(e) {
+            console.warn('Unable to count '+name+' records for '+b.businessId+': '+e.message);
+          }
+        });
+      }
       return {
         name:name,
         label:labels[name] || name,
         icon:icons[name] || 'fa-folder',
         tier:'starter',
-        recordCount:0,
+        recordCount:recordCount,
         visible:true,
         businessCount:connected.length,
         businesses:connected.slice(0,50)
