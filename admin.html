@@ -857,6 +857,24 @@
           </div>
         </div>
       </div>
+      <!-- ===== BUSINESS MANAGEMENT DETAIL TAB ===== -->
+      <div id="tab-business-management" class="tab-content">
+        <div class="admin-table-wrapper" style="margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div>
+              <h3 id="clientManagementTitle" style="margin:0 0 4px;">Business Management</h3>
+              <div id="clientManagementMeta" style="font-size:12px;color:#6b7280;"></div>
+            </div>
+            <button onclick="closeClientManagement()" class="btn-secondary" style="padding:8px 14px;">
+              <i class="fas fa-arrow-left mr-1"></i>Back to Businesses
+            </button>
+          </div>
+        </div>
+        <div id="clientManagementBody">
+          <div class="empty-state"><p>Loading client information…</p></div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -938,7 +956,8 @@
         modules: 'Modules',
         features: 'Features',
         whitelabel: 'White Label',
-        settings: 'Settings'
+        settings: 'Settings',
+        'business-management': 'Business Management'
       };
       document.getElementById('pageTitle').textContent = titles[tabName] || tabName;
       
@@ -1791,17 +1810,14 @@ function saveClientFeatureProfile(){
 }
 function closeClientFeatureProfile(){document.getElementById('clientFeatureProfileModal').style.display='none';activeClientFeatureProfileId='';}
 </script>
-<div id="clientManagementModal" class="modal hidden" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:510;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:28px;max-width:900px;width:94%;max-height:90vh;overflow:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><div><h3 id="clientManagementTitle" style="margin:0 0 4px;">Client management</h3><div id="clientManagementMeta" style="font-size:12px;color:#6b7280;"></div></div><button onclick="closeClientManagement()" style="background:none;border:0;font-size:24px;color:#6b7280;cursor:pointer;">&times;</button></div>
-    <div id="clientManagementBody"><div class="empty-state"><p>Loading client information…</p></div></div>
-  </div>
-</div>
+
 <script>
 var activeManagedClientId='';
 function openClientManagement(id){
   activeManagedClientId=String(id||'');
-  document.getElementById('clientManagementModal').style.display='flex';
+  switchTab('business-management');
+  var businessNav=document.querySelector('.admin-nav-item[data-tab="businesses"]');
+  if(businessNav) businessNav.classList.add('active');
   document.getElementById('clientManagementBody').innerHTML='<div class="empty-state"><p>Loading client information…</p></div>';
 
   google.script.run.withSuccessHandler(function(r){
@@ -1855,7 +1871,7 @@ function createManagedClientBackup(){google.script.run.withSuccessHandler(functi
 function restoreManagedBackup(id){if(!confirm('Restore this client workspace from the selected recovery backup? A safety backup will be created first.'))return;google.script.run.withSuccessHandler(function(r){showNotification(r&&r.success?'Client workspace restored.':(r&&r.message)||'Restore could not be completed.',r&&r.success?'success':'error');if(r&&r.success)openClientManagement(activeManagedClientId);}).withFailureHandler(function(){showNotification('Restore could not be completed.','error');}).restoreClientWorkspaceFromRecoveryBackup(activeManagedClientId,id,getAdminSession());}
 function archiveManagedClient(){if(!confirm('Archive this client? The deployment record will be preserved and can be restored later.'))return;google.script.run.withSuccessHandler(function(r){showNotification(r&&r.success?'Client archived.':(r&&r.message)||'Client could not be archived.',r&&r.success?'success':'error');if(r&&r.success){closeClientManagement();loadDeployments();}}).withFailureHandler(function(){showNotification('Client could not be archived.','error');}).archiveClientDeployment(activeManagedClientId,getAdminSession());}
 function restoreManagedClient(){google.script.run.withSuccessHandler(function(r){showNotification(r&&r.success?'Client restored.':(r&&r.message)||'Client could not be restored.',r&&r.success?'success':'error');if(r&&r.success){closeClientManagement();loadDeployments();}}).withFailureHandler(function(){showNotification('Client could not be restored.','error');}).restoreArchivedClientDeployment(activeManagedClientId,getAdminSession());}
-function closeClientManagement(){document.getElementById('clientManagementModal').style.display='none';activeManagedClientId='';}
+function closeClientManagement(){activeManagedClientId='';switchTab('businesses');}
 function createManagedClientQuote(){var title=document.getElementById('managed-quote-title').value.trim(),amount=Number(document.getElementById('managed-quote-amount').value),currency=document.getElementById('managed-quote-currency').value,details=document.getElementById('managed-quote-details').value.trim();if(!title||!amount){showNotification('Enter a quote title and amount.','error');return;}google.script.run.withSuccessHandler(function(r){showNotification(r&&r.success?'Quote created.':(r&&r.message)||'Quote could not be created.',r&&r.success?'success':'error');if(r&&r.success)openClientManagement(activeManagedClientId);}).withFailureHandler(function(){showNotification('Quote could not be created.','error');}).createClientQuote(activeManagedClientId,{title:title,amount:amount,currency:currency,details:details},getAdminSession());}
 function renderManagedBilling(b){var x=document.getElementById('managedBillingRecords');if(!x)return;var q=b&&b.quotes||[],m=b&&b.maintenance||[],f=b&&b.features||[];var html='<div style="margin-top:10px;"><strong>Quotes</strong>';html+=q.length?q.map(function(o){var id=escAdmin(o.Quote_ID),st=escAdmin(o.Status||'pending');return '<div style="padding:8px 0;border-bottom:1px solid #f3f4f6;">'+escAdmin(o.Title||id)+' · '+escAdmin(o.Currency||'')+' '+escAdmin(o.Amount||'')+' · '+st+' <button class="btn-secondary" style="padding:4px 7px;font-size:10px;" onclick="setManagedQuoteStatus(\''+id.replace(/'/g,"\\'")+'\',\'paid\')">Mark paid</button> <button class="btn-secondary" style="padding:4px 7px;font-size:10px;" onclick="setManagedQuoteStatus(\''+id.replace(/'/g,"\\'")+'\',\'cancelled\')">Cancel</button></div>';}).join(''):'<div style="padding:8px 0;color:#98a2b3;">No quotes.</div>';html+='</div><div style="margin-top:12px;"><strong>Maintenance requests</strong>';html+=m.length?m.slice(0,10).map(function(o){return '<div style="padding:6px 0;border-bottom:1px solid #f3f4f6;">'+escAdmin(o.Type)+' · '+escAdmin(o.Status)+' — '+escAdmin(o.Details)+'</div>';}).join(''):'<div style="padding:8px 0;color:#98a2b3;">No maintenance requests.</div>';html+='</div><div style="margin-top:12px;"><strong>Feature requests</strong>';html+=f.length?f.slice(0,10).map(function(o){return '<div style="padding:6px 0;border-bottom:1px solid #f3f4f6;">'+escAdmin(o.Title)+' · '+escAdmin(o.Priority)+' · '+escAdmin(o.Status)+'</div>';}).join(''):'<div style="padding:8px 0;color:#98a2b3;">No feature requests.</div>';html+='</div>';x.innerHTML=html;}
 function setManagedQuoteStatus(id,status){google.script.run.withSuccessHandler(function(r){showNotification(r&&r.success?'Quote status updated.':(r&&r.message)||'Quote status could not be updated.',r&&r.success?'success':'error');if(r&&r.success)openClientManagement(activeManagedClientId);}).withFailureHandler(function(){showNotification('Quote status could not be updated.','error');}).updateClientQuoteStatus(activeManagedClientId,id,status,getAdminSession());}
