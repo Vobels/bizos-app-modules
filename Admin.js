@@ -1414,12 +1414,58 @@ function getAdminBusinessModules_(businessId, tier) {
   var enabled = {};
   access.forEach(function(name) { enabled[String(name)] = true; });
 
+  // Keep entitlement (what the plan allows) separate from usage (what the
+  // workspace currently contains), for both free and paid businesses.
+  var sheetByModule = {
+    Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
+    CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
+    Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
+    POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
+  };
+  var workspaceId = '';
+  try {
+    var master = getBizOSMasterSpreadsheet_();
+    var bs = master.getSheetByName('Businesses');
+    if (bs && bs.getLastRow() >= 2) {
+      var bv = bs.getDataRange().getValues();
+      var bh = bv[0].map(function(h) { return String(h || '').trim(); });
+      var bid = bh.indexOf('Business_ID');
+      var wid = bh.indexOf('Workspace_ID');
+      for (var i = 1; i < bv.length; i++) {
+        if (bid >= 0 && String(bv[i][bid] || '').trim() === String(businessId || '').trim()) {
+          workspaceId = wid >= 0 ? String(bv[i][wid] || '').trim() : '';
+          break;
+        }
+      }
+    }
+  } catch (workspaceLookupError) {
+    console.warn('Admin module workspace lookup failed:', workspaceLookupError);
+  }
+
+  var workspace = null;
+  if (workspaceId) {
+    try { workspace = SpreadsheetApp.openById(workspaceId); }
+    catch (workspaceOpenError) { console.warn('Admin could not open business workspace:', workspaceOpenError); }
+  }
+
   return all.map(function(name) {
+    var recordCount = 0;
+    var sheetName = sheetByModule[name] || '';
+    if (workspace && sheetName) {
+      try {
+        var s = workspace.getSheetByName(sheetName);
+        if (s && s.getLastRow() > 1) recordCount = s.getLastRow() - 1;
+      } catch (moduleCountError) {
+        console.warn('Admin module count failed for ' + name + ':', moduleCountError);
+      }
+    }
     return {
       name: name,
       label: labels[name] || name,
       icon: icons[name] || 'fa-folder',
       enabled: !!enabled[name],
+      recordCount: recordCount,
+      hasRecords: recordCount > 0,
       businessId: String(businessId || ''),
       tier: key
     };
@@ -1431,7 +1477,38 @@ function getClientManagementOverview(clientId, sessionId) {
   try {
     var wanted = String(clientId || '').trim();
     var client = getAdminClientRegistryRecord_(wanted);
-    if (!client) return {success:false, code:'CLIENT_NOT_FOUND', message:'No client was found for this client or business ID.'};
+
+    // Businesses is the canonical grouping for the Admin Businesses page.
+    // Free businesses may not have a Clients deployment-registry row, so the
+    // business drill-down must still work for them.
+    if (!client) {
+      var masterForBusiness = getBizOSMasterSpreadsheet_();
+      var businessesSheet = masterForBusiness.getSheetByName('Businesses');
+      if (businessesSheet && businessesSheet.getLastRow() >= 2) {
+        var bv = businessesSheet.getDataRange().getValues();
+        var bh = bv[0].map(function(h) { return String(h || '').trim(); });
+        var bidCol = bh.indexOf('Business_ID');
+        for (var bi = 1; bi < bv.length; bi++) {
+          if (bidCol >= 0 && String(bv[bi][bidCol] || '').trim() === wanted) {
+            var fallback = {};
+            bh.forEach(function(h, j) { fallback[h] = bv[bi][j]; });
+            client = {
+              Client_ID: '',
+              Business_ID: String(fallback.Business_ID || wanted),
+              Email: String(fallback.Owner_Email || ''),
+              Client_Name: String(fallback.Business_Name || ''),
+              Tier: String(fallback.Subscription_Tier || 'free'),
+              Status: String(fallback.Status || 'active'),
+              Created_At: fallback.Created_At || '',
+              Updated_At: fallback.Last_Active || '',
+              Sheet_ID: String(fallback.Workspace_ID || '')
+            };
+            break;
+          }
+        }
+      }
+    }
+    if (!client) return {success:false, code:'CLIENT_NOT_FOUND', message:'No business was found for this business ID.'};
 
     var businessId = String(client.Business_ID || '').trim();
     var tier = String(client.Tier || 'starter').trim().toLowerCase();
