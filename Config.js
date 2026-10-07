@@ -70,6 +70,9 @@ var CONFIG = {
       // Gateway capabilities are resolved separately from pricing.
       // Paystack USD remains feature-flagged until USD settlement is enabled.
       paystackUsdEnabledProperty: "PAYSTACK_USD_ENABLED",
+      defaultCurrency: "USD",
+      countryDefaultCurrencies: { Nigeria: "NGN" },
+      currencyCountryRestrictions: { NGN: ["Nigeria"] },
       flutterwaveSupportedCurrencies: [
         "USD", "GBP", "EUR", "CAD", "XAF", "COP", "EGP", "GHS",
         "KES", "INR", "NGN", "RWF", "SLL", "ZAR", "TZS", "UGX", "XOF", "ZMW"
