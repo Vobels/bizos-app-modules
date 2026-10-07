@@ -607,15 +607,44 @@ function getAllUsers(sessionId) {
     const sheet = getOrCreateUserSheet();
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
+    const businessNameById = {};
+
+    try {
+      const businessSheet = getBizOSMasterSpreadsheet_().getSheetByName('Businesses');
+      if (businessSheet && businessSheet.getLastRow() >= 2) {
+        const bv = businessSheet.getDataRange().getValues();
+        const bh = bv[0].map(function(h){ return String(h || '').trim(); });
+        const idCol = bh.indexOf('Business_ID');
+        const nameCol = bh.indexOf('Business_Name');
+        if (idCol >= 0 && nameCol >= 0) {
+          for (let i = 1; i < bv.length; i++) {
+            var bid = String(bv[i][idCol] || '').trim();
+            if (bid) businessNameById[bid] = String(bv[i][nameCol] || '');
+          }
+        }
+      }
+    } catch (businessError) {
+      console.error('Unable to load business names for admin users:', businessError);
+    }
+
     const users = [];
+    const emailCol = headers.indexOf('Email');
+    const nameCol = headers.indexOf('Name');
+    const roleCol = headers.indexOf('Role');
+    const businessIdCol = headers.indexOf('Business_ID');
+    const verifiedCol = headers.indexOf('Is_Verified');
+    const createdCol = headers.indexOf('Created_At');
+
     for (let i = 1; i < data.length; i++) {
+      const businessId = businessIdCol >= 0 ? String(data[i][businessIdCol] || '').trim() : '';
       users.push({
-        email: data[i][headers.indexOf('Email')],
-        name: data[i][headers.indexOf('Name')],
-        role: data[i][headers.indexOf('Role')],
-        businessId: data[i][headers.indexOf('Business_ID')],
-        isVerified: data[i][headers.indexOf('Is_Verified')],
-        createdAt: data[i][headers.indexOf('Created_At')]
+        email: emailCol >= 0 ? data[i][emailCol] : '',
+        name: nameCol >= 0 ? data[i][nameCol] : '',
+        role: roleCol >= 0 ? data[i][roleCol] : '',
+        businessId: businessId,
+        businessName: businessNameById[businessId] || '',
+        isVerified: verifiedCol >= 0 ? data[i][verifiedCol] : '',
+        createdAt: createdCol >= 0 ? data[i][createdCol] : ''
       });
     }
     return users;
