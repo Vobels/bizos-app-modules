@@ -422,6 +422,99 @@ function getLatestPaidUpgradeRequestForUser_(email) {
   }
 }
 
+
+/**
+ * Reconcile a confirmed payment into the canonical Businesses entitlement.
+ *
+ * Payment confirmation is the authoritative trigger for the paid entitlement;
+ * provisioning may fail or be retried independently. This keeps the master
+ * account paid state truthful without creating a second billing system.
+ */
+function reconcilePaidBusinessEntitlement_(email, businessId, businessName) {
+  try {
+    var paidRequest = getLatestPaidUpgradeRequestForUser_(email);
+    if (!paidRequest) return {success:true,updated:false,reason:'NO_CONFIRMED_PAYMENT'};
+
+    var requestedTier = String(paidRequest.tier || 'sovereign').trim().toLowerCase();
+    if (!requestedTier) requestedTier = 'sovereign';
+
+    var business = null;
+    if (businessId) {
+      var sheet = getOrCreateBusinessSheet();
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0] || [];
+      var idCol = headers.indexOf('Business_ID');
+      if (idCol !== -1) {
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][idCol] || '').trim() === String(businessId).trim()) {
+            business = {sheet:sheet,rowNumber:i + 1,headers:headers,row:data[i]};
+            break;
+          }
+        }
+      }
+    }
+
+    // Email + exact business name is the safe fallback when Business_ID is absent.
+    if (!business && email) {
+      var resolved = getBusinessByEmail(email, businessName);
+      if (resolved && resolved.businessId) {
+        var sheet2 = getOrCreateBusinessSheet();
+        var data2 = sheet2.getDataRange().getValues();
+        var headers2 = data2[0] || [];
+        var idCol2 = headers2.indexOf('Business_ID');
+        if (idCol2 !== -1) {
+          for (var j = 1; j < data2.length; j++) {
+            if (String(data2[j][idCol2] || '').trim() === String(resolved.businessId).trim()) {
+              business = {sheet:sheet2,rowNumber:j + 1,headers:headers2,row:data2[j]};
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!business) {
+      return {success:false,updated:false,reason:'BUSINESS_NOT_FOUND'};
+    }
+
+    var tierCol = business.headers.indexOf('Subscription_Tier');
+    var statusCol = business.headers.indexOf('Subscription_Status');
+    var activeCol = business.headers.indexOf('Is_Active');
+
+    if (tierCol === -1) {
+      return {success:false,updated:false,reason:'SUBSCRIPTION_TIER_COLUMN_MISSING'};
+    }
+
+    var currentTier = String(business.row[tierCol] || '').trim().toLowerCase();
+    var changed = currentTier !== requestedTier;
+
+    business.sheet.getRange(business.rowNumber, tierCol + 1).setValue(requestedTier);
+
+    if (statusCol !== -1) {
+      business.sheet.getRange(business.rowNumber, statusCol + 1).setValue('active');
+    }
+    if (activeCol !== -1) {
+      business.sheet.getRange(business.rowNumber, activeCol + 1).setValue('YES');
+    }
+
+    return {
+      success:true,
+      updated:changed,
+      businessId:String(business.row[business.headers.indexOf('Business_ID')] || businessId || ''),
+      tier:requestedTier,
+      reason:changed ? 'ENTITLEMENT_SYNCHRONIZED' : 'ENTITLEMENT_ALREADY_CURRENT'
+    };
+  } catch (error) {
+    console.error('reconcilePaidBusinessEntitlement_ error:', error);
+    return {
+      success:false,
+      updated:false,
+      reason:'ENTITLEMENT_SYNC_ERROR',
+      message:error && error.message ? error.message : String(error)
+    };
+  }
+}
+
 function getCurrentUpgradePaymentStatus(sessionId) {
   try {
     var user = validateUpgradeSession(sessionId);
