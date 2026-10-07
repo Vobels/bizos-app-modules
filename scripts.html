@@ -4217,15 +4217,10 @@ function getPricingByCountryCode(countryCode) {
 function showUpgradeModal() {
   console.log('showUpgradeModal called');
   if (typeof window.clearUpgradeEditMode === 'function') window.clearUpgradeEditMode();
-  
-  // Declare modal first
+
   const modal = document.getElementById('upgrade-modal');
-  
   if (modal) {
-    // Remove hidden class
     modal.classList.remove('hidden');
-    
-    // Force styles
     modal.style.display = 'flex';
     modal.style.zIndex = '9999999';
     modal.style.position = 'fixed';
@@ -4234,21 +4229,63 @@ function showUpgradeModal() {
     modal.style.right = '0';
     modal.style.bottom = '0';
     modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    
-    // Reset form
+
     const form = document.getElementById('upgrade-form');
+    const paidStatus = document.getElementById('paid-billing-status');
+    const rawTier = String(currentUser?.subscriptionTier || 'free').trim().toLowerCase();
+    const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+    const modalTitle = modal.querySelector('.modal-content > .flex h2');
+
+    if (isPaid) {
+      if (form) form.classList.add('hidden');
+      if (modalTitle) modalTitle.textContent = rawTier === 'enterprise' ? 'Enterprise Billing' : 'Sovereign Billing';
+      if (paidStatus) {
+        paidStatus.className = 'mb-5';
+        paidStatus.innerHTML =
+          '<div class="rounded-lg border border-green-200 bg-green-50 p-5">' +
+            '<div class="flex items-center gap-3 mb-3"><i class="fas fa-check-circle text-green-600 text-2xl"></i><div><p class="font-semibold text-green-800">Payment confirmed</p><p class="text-sm text-green-700">Your BizOS account is on the Sovereign paid plan.</p></div></div>' +
+            '<div id="paid-billing-details" class="text-sm text-green-900"><p>Checking your payment record…</p></div>' +
+          '</div>';
+      }
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          const details = document.getElementById('paid-billing-details');
+          if (!details) return;
+          if (!response || !response.success || !response.active) {
+            details.innerHTML = '<p>Your account is marked as paid. Payment history details are not currently available.</p>';
+            return;
+          }
+          var rows = [];
+          if (response.requestId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Request ID</span><strong>' + String(response.requestId) + '</strong></div>');
+          if (response.paymentId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Payment ID</span><strong>' + String(response.paymentId) + '</strong></div>');
+          if (response.amount && response.currency) rows.push('<div class="flex justify-between gap-4 py-1"><span>Amount paid</span><strong>' + String(response.currency) + ' ' + String(response.amount) + '</strong></div>');
+          if (response.paidAt) rows.push('<div class="flex justify-between gap-4 py-1"><span>Paid</span><strong>' + String(response.paidAt) + '</strong></div>');
+          rows.push('<div class="flex justify-between gap-4 py-1"><span>Workspace</span><strong>' + (response.ready ? 'Ready' : 'Setup in progress') + '</strong></div>');
+          details.innerHTML = rows.join('');
+        })
+        .withFailureHandler(function() {
+          const details = document.getElementById('paid-billing-details');
+          if (details) details.innerHTML = '<p>Your account is marked as paid. Payment history details are temporarily unavailable.</p>';
+        })
+        .getCurrentUpgradePaymentStatus(currentSessionId);
+      return;
+    }
+
+    if (form) form.classList.remove('hidden');
+    if (paidStatus) {
+      paidStatus.className = 'hidden mb-5';
+      paidStatus.innerHTML = '';
+    }
+    if (modalTitle) modalTitle.textContent = 'Upgrade to Sovereign';
+
     if (form) form.reset();
-    
     const fieldsContainer = document.getElementById('upgrade-country-fields');
     if (fieldsContainer) fieldsContainer.innerHTML = '';
-    
     const requirementsDiv = document.getElementById('upgrade-requirements');
     if (requirementsDiv) requirementsDiv.classList.add('hidden');
-    
-    console.log('Modal should now be visible');
 
     setTimeout(() => addCountrySelectorToUpgrade(), 100);
-
   } else {
     console.error('Upgrade modal not found');
     showNotification('Upgrade is not available yet. Please contact support.', 'info');
