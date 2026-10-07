@@ -4,6 +4,17 @@
 // Secrets are read only from Apps Script Script Properties.
 // ============================================================
 
+function getFlutterwaveEnabledCurrencies_() {
+  try {
+    var raw=PropertiesService.getScriptProperties().getProperty('FLUTTERWAVE_ENABLED_CURRENCIES');
+    if(raw){
+      var list=String(raw).split(',').map(function(x){return String(x||'').trim().toUpperCase();}).filter(Boolean);
+      if(list.length)return list;
+    }
+  }catch(e){}
+  return ['NGN','USD'];
+}
+
 function getFlutterwaveSecretKey_() {
   var key = PropertiesService.getScriptProperties().getProperty('FLUTTERWAVE_SECRET_KEY');
   if (!key) throw new Error('FLUTTERWAVE_SECRET_KEY is not configured in Script Properties.');
@@ -142,7 +153,7 @@ function getAvailablePaymentMethods(requestId, sessionId, accessToken) {
     // Flutterwave capabilities are centralized in BizOS payment config.
     // Account-level approval/settings can still restrict a currency, so the
     // actual checkout remains the final server-side authority.
-    var flutterwaveCurrencies = (CONFIG.PRICING && CONFIG.PRICING.payment && CONFIG.PRICING.payment.flutterwaveSupportedCurrencies) || [];
+    var flutterwaveCurrencies = getFlutterwaveEnabledCurrencies_();
     if (flutterwaveConfigured && flutterwaveCurrencies.indexOf(currency) !== -1) {
       methods.push({id:'flutterwave',name:'Flutterwave',available:true,description:'Secure international card and supported payment options.'});
     }
