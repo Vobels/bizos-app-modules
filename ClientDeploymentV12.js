@@ -534,7 +534,8 @@ function getActiveClientForV12Test_() {
     logoUrl:String(client.Logo_Url || ''),
     landingUrl:String(client.Landing_URL || ''),
     customDomain:String(client.Custom_Domain || ''),
-    domain:String(client.Domain || '')
+    domain:String(client.Domain || ''),
+    Feature_Profile_JSON:String(client.Feature_Profile_JSON || '')
   };
 }
 
