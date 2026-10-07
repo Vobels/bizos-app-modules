@@ -1126,3 +1126,72 @@ function generateAdminRecoveryKey() {
   console.log('ADMIN RECOVERY KEY (store securely, then remove this log entry): ' + key);
   return { success: true, message: 'Recovery key generated. Check the execution log and store it securely.' };
 }
+
+
+function getClientManagementOverview(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim();
+    var ss=getBizOSMasterSpreadsheet_(),registry=ss.getSheetByName('Clients');
+    if(!registry)return{success:false,message:'Client registry is unavailable.'};
+    var values=registry.getDataRange().getValues(),headers=values[0].map(function(h){return String(h||'').trim();}),idCol=headers.indexOf('Client_ID'),row=null;
+    for(var i=1;i<values.length;i++)if(String(values[i][idCol]||'').trim()===wanted){row=values[i];break;}
+    if(!row)return{success:false,message:'Client was not found.'};
+    var client={};headers.forEach(function(h,j){client[h]=row[j]===undefined?'':row[j];});
+    var workspace={success:false},billing={maintenance:[],features:[],quotes:[],services:[],activity:[]};
+    try{
+      var ws=SpreadsheetApp.openById(String(client.Sheet_ID||''));
+      workspace={success:true,sheetId:String(client.Sheet_ID||''),url:ws.getUrl(),sheets:ws.getSheets().map(function(s){return s.getName();})};
+      function rows(name){var s=ws.getSheetByName(name);if(!s||s.getLastRow()<2)return[];var v=s.getDataRange().getValues(),h=v[0]||[];return v.slice(1).map(function(r){var o={};h.forEach(function(k,j){o[String(k||'')]=r[j];});return o;}).slice(-50).reverse();}
+      billing.maintenance=rows('Client_Maintenance_Requests');
+      billing.features=rows('Client_Feature_Requests');
+      billing.quotes=rows('Client_Quotes');
+      billing.services=rows('Client_Service_History');
+      billing.activity=rows('Client_Activity');
+    }catch(workspaceError){workspace={success:false,message:'Client workspace could not be read by the admin service.'};}
+    return{success:true,client:{clientId:client.Client_ID,email:client.Email,clientName:client.Client_Name,businessId:client.Business_ID,tier:client.Tier,status:client.Status,scriptId:client.Script_ID,deploymentId:client.Deployment_ID,webAppUrl:client.Web_App_URL,createdAt:client.Created_At,updatedAt:client.Updated_At,recoveryBackupId:client.Recovery_Backup_ID,recoveryBackupUrl:client.Recovery_Backup_URL,ownershipStatus:client.Workspace_Ownership_Status},workspace:workspace,billing:billing};
+  }catch(error){console.error('getClientManagementOverview error:',error);return{success:false,message:'We could not load the client management overview.'};}
+}
+
+function createClientAdminRecoveryBackup(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var client=getActiveClientByIdForAdmin_(clientId);
+    if(!client)return{success:false,message:'Active client deployment not found.'};
+    var ws=SpreadsheetApp.openById(String(client.sheetId||client.Sheet_ID||''));
+    var result=createClientRecoveryBackup_(ws,String(client.clientName||client.Client_Name||''),String(client.businessId||client.Business_ID||''));
+    if(!result||!result.success)return result||{success:false,message:'Backup could not be created.'};
+    return result;
+  }catch(error){console.error('createClientAdminRecoveryBackup error:',error);return{success:false,message:'BizOS could not create the client backup.'};}
+}
+
+function archiveClientDeployment(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim(),sheet=getBizOSMasterSpreadsheet_(),s=sheet.getSheetByName('Clients');
+    if(!s)return{success:false,message:'Client registry is unavailable.'};
+    var v=s.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();}),idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),updatedCol=h.indexOf('Updated_At');
+    for(var i=1;i<v.length;i++)if(String(v[i][idCol]||'').trim()===wanted){s.getRange(i+1,statusCol+1).setValue('archived');if(updatedCol>=0)s.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());return{success:true,message:'Client deployment archived.'};}
+    return{success:false,message:'Client was not found.'};
+  }catch(error){console.error('archiveClientDeployment error:',error);return{success:false,message:'Client could not be archived.'};}
+}
+
+function restoreArchivedClientDeployment(clientId, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim(),sheet=getBizOSMasterSpreadsheet_(),s=sheet.getSheetByName('Clients');
+    if(!s)return{success:false,message:'Client registry is unavailable.'};
+    var v=s.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();}),idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),updatedCol=h.indexOf('Updated_At');
+    for(var i=1;i<v.length;i++)if(String(v[i][idCol]||'').trim()===wanted){var current=String(v[i][statusCol]||'').toLowerCase();if(current!=='archived')return{success:false,message:'Only archived clients can be restored.'};s.getRange(i+1,statusCol+1).setValue('active');if(updatedCol>=0)s.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());return{success:true,message:'Client deployment restored.'};}
+    return{success:false,message:'Client was not found.'};
+  }catch(error){console.error('restoreArchivedClientDeployment error:',error);return{success:false,message:'Client could not be restored.'};}
+}
+
+function getActiveClientByIdForAdmin_(clientId) {
+  var wanted=String(clientId||'').trim();if(!wanted)return null;
+  var s=getBizOSMasterSpreadsheet_().getSheetByName('Clients');if(!s)return null;
+  var v=s.getDataRange().getValues();if(v.length<2)return null;
+  var h=v[0].map(function(x){return String(x||'').trim();}),idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status');if(idCol<0)return null;
+  for(var i=1;i<v.length;i++){if(String(v[i][idCol]||'').trim()!==wanted)continue;var o={};h.forEach(function(k,j){o[k]=v[i][j];});if(statusCol<0||String(v[i][statusCol]||'').toLowerCase()==='active')return o;}
+  return null;
+}
