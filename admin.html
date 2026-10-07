@@ -959,6 +959,21 @@
         .getAdminStats(getAdminSession());
     }
     
+    document.addEventListener('click', function(event) {
+      var trigger = event.target.closest ? event.target.closest('[data-business-manage]') : null;
+      if (!trigger) return;
+      var businessId = trigger.getAttribute('data-business-manage') || '';
+      if (!businessId) {
+        if (typeof showNotification === 'function') showNotification('Business ID is missing.', 'error');
+        return;
+      }
+      if (typeof openClientManagement === 'function') {
+        openClientManagement(businessId);
+      } else if (typeof showNotification === 'function') {
+        showNotification('Business management is unavailable. Please reload the Admin page.', 'error');
+      }
+    });
+
     function loadBusinesses() {
       google.script.run
         .withSuccessHandler(function(businesses) {
@@ -969,13 +984,13 @@
           }
           tbody.innerHTML = businesses.map(biz => `
             <tr>
-              <td><button type="button" onclick="openClientManagement('${String(biz.businessId || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" style="background:none;border:0;padding:0;color:#5D2A86;cursor:pointer;font-weight:600;text-align:left;" title="Open business details">${biz.businessName || 'Unnamed'}</button></td>
+              <td><button type="button" data-business-manage="${String(biz.businessId || '').replace(/"/g, '&quot;')}" style="background:none;border:0;padding:0;color:#5D2A86;cursor:pointer;font-weight:600;text-align:left;" title="Open business details">${biz.businessName || 'Unnamed'}</button></td>
               <td>${biz.ownerEmail || 'N/A'}</td>
               <td><span class="status-badge ${biz.subscriptionTier === 'free' ? 'pending' : 'active'}">${biz.subscriptionTier || 'Free'}</span></td>
               <td><span class="status-badge ${biz.verificationStatus === 'verified' ? 'verified' : 'pending'}">${biz.verificationStatus || 'Pending'}</span></td>
               <td>${biz.createdAt ? new Date(biz.createdAt).toLocaleDateString() : 'N/A'}</td>
               <td style="text-align: center;">
-                <button onclick="openClientManagement('${String(biz.businessId || '').replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')" style="background:#f3e8ff;border:1px solid #d8b4fe;color:#5D2A86;cursor:pointer;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;" title="Manage client"><i class="fas fa-folder-open"></i> Manage</button>
+                <button type="button" data-business-manage="${String(biz.businessId || '').replace(/"/g, '&quot;')}" style="background:#f3e8ff;border:1px solid #d8b4fe;color:#5D2A86;cursor:pointer;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;" title="Manage client"><i class="fas fa-folder-open"></i> Manage</button>
                 <button onclick="toggleBusinessStatus('${biz.businessId}')" style="background: none; border: none; color: #f59e0b; cursor: pointer;" title="Toggle Status"><i class="fas fa-toggle-on"></i></button>
                 <button onclick="redeployClient('${biz.businessId}')" style="background: #f3e8ff; border: 1px solid #d8b4fe; color: #5D2A86; cursor: pointer; border-radius: 6px; padding: 5px 8px; font-size: 12px; font-weight: 600;" title="Redeploy BizOS"><i class="fas fa-cloud-upload-alt"></i> Redeploy</button>
                 <button onclick="deleteBusiness('${biz.businessId}')" style="background: none; border: none; color: #ef4444; cursor: pointer;" title="Delete"><i class="fas fa-trash"></i></button>
