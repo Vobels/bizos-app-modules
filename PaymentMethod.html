@@ -23,8 +23,9 @@
         <div class="row total"><span>Total</span><strong id="amount">Loading...</strong></div>
       </div>
       <div class="methods">
-        <button id="paystack" class="method" type="button" disabled><span><strong>Paystack</strong><span>Card, bank transfer and supported local payment options</span></span><b class="arrow">›</b></button>
-        <button id="flutterwave" class="method" type="button" disabled><span><strong>Flutterwave</strong><span>Card, bank and other supported payment options</span></span><b class="arrow">›</b></button>
+        <button id="paystack" class="method" type="button" disabled style="display:none"><span><strong>Paystack</strong><span>Secure card and supported payment options</span></span><b class="arrow">›</b></button>
+        <button id="flutterwave" class="method" type="button" disabled style="display:none"><span><strong>Flutterwave</strong><span>Secure international card and supported payment options</span></span><b class="arrow">›</b></button>
+        <div id="no-methods" class="status error" style="display:none">There is currently no available payment method for this currency. Please return to your upgrade details and choose another supported currency.</div>
       </div>
       <div id="status" class="status"></div>
       <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:20px">
@@ -64,7 +65,7 @@
       function setBusy(button,text){button.disabled=true;button.querySelector('strong').textContent=text;}
       function clearLoading(message){
         businessEl.textContent='—';planEl.textContent='—';countryEl.textContent='—';currencyEl.textContent='—';amountEl.textContent='—';
-        paystack.disabled=true;flutterwave.disabled=true;
+        paystack.disabled=true;flutterwave.disabled=true;paystack.style.display='none';flutterwave.style.display='none';
         if(message) status(message,'error');
       }
       if(!requestId){clearLoading('This payment page is missing your upgrade request. Please return to BizOS and submit the upgrade again.');return;}
@@ -89,7 +90,25 @@
           statusEl.appendChild(deploymentLink);
           return;
         }
-        paystack.disabled=false;flutterwave.disabled=false;status('Choose a payment provider to continue.','info');
+        google.script.run.withSuccessHandler(function(methods){
+          if(!methods||!methods.success){
+            clearLoading(methods&&methods.message||'We could not determine the available payment methods. Please try again.');
+            return;
+          }
+          paystack.style.display='none';flutterwave.style.display='none';
+          (methods.methods||[]).forEach(function(method){
+            if(method.id==='paystack'){paystack.style.display='flex';paystack.disabled=false;}
+            if(method.id==='flutterwave'){flutterwave.style.display='flex';flutterwave.disabled=false;}
+          });
+          if(!methods.hasPaymentRoute){
+            paystack.style.display='none';flutterwave.style.display='none';
+            status(methods.message||'There is currently no available payment method for this currency. Please choose another supported currency.','error');
+            return;
+          }
+          status('Choose an available payment option to continue.','info');
+        }).withFailureHandler(function(){
+          clearLoading('We could not determine the available payment methods. Please refresh and try again.');
+        }).getAvailablePaymentMethods(requestId, getStoredSession(), accessToken);
       }).withFailureHandler(function(){clearLoading('We could not connect to BizOS. Please refresh and try again.');}).getUpgradePaymentDetails(requestId, getStoredSession(), accessToken);
       paystack.addEventListener('click',function(){
         if(!details)return;setBusy(paystack,'Opening Paystack...');flutterwave.disabled=true;status('Opening secure Paystack checkout...','info');
