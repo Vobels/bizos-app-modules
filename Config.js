@@ -44,8 +44,9 @@ var CONFIG = {
   // ============================================================
   PRICING: {
     sovereign: {
+      // USD is the single authoritative base price. Customer-facing
+      // currencies are calculated from the admin-managed FX table below.
       usd: 500,
-      naira: 750000,
       description: "Lifetime access + Custom Domain + White Label",
       includes: [
         "All 12 Business Modules",
@@ -65,10 +66,24 @@ var CONFIG = {
     },
     payment: {
       provider: "Paystack",
-      currency: "USD",
-      convertToLocal: true,
+      baseCurrency: "USD",
+      // Gateway capabilities are resolved separately from pricing.
+      // Paystack USD remains feature-flagged until USD settlement is enabled.
+      paystackUsdEnabledProperty: "PAYSTACK_USD_ENABLED",
+      flutterwaveSupportedCurrencies: [
+        "USD", "GBP", "EUR", "CAD", "XAF", "COP", "EGP", "GHS",
+        "KES", "INR", "NGN", "RWF", "SLL", "ZAR", "TZS", "UGX", "XOF", "ZMW"
+      ]
     },
-    exchangeRateFallback: 1500,
+    // Rates are expressed as 1 USD = rate units of the target currency.
+    // Admin can update these occasionally; checkout snapshots the rate used.
+    exchangeRates: {
+      USD: { rate: 1, name: "US Dollar", symbol: "$", decimals: 2, enabled: true },
+      NGN: { rate: 1500, name: "Nigerian Naira", symbol: "₦", decimals: 0, enabled: true },
+      GBP: { rate: 0.76, name: "British Pound", symbol: "£", decimals: 2, enabled: true },
+      EUR: { rate: 0.86, name: "Euro", symbol: "€", decimals: 2, enabled: true },
+      CAD: { rate: 1.38, name: "Canadian Dollar", symbol: "C$", decimals: 2, enabled: true }
+    }
   },
 
   // ============================================================
@@ -379,6 +394,132 @@ function getSupportEmail() {
 function getSovereignPrice() {
   return CONFIG.PRICING.sovereign;
 }
+
+function getPaymentExchangeRates_() {
+  return (CONFIG.PRICING && CONFIG.PRICING.exchangeRates) || {};
+}
+
+function getPaymentCurrencyConfig_(currency) {
+  var code = String(currency || '').trim().toUpperCase();
+  var rates = getPaymentExchangeRates_();
+  var entry = rates[code];
+  if (!entry || entry.enabled === false) return null;
+  var rate = Number(entry.rate);
+  if (!isFinite(rate) || rate <= 0) return null;
+  return {
+    code: code,
+    rate: rate,
+    name: entry.name || code,
+    symbol: entry.symbol || code,
+    decimals: Number.isFinite(Number(entry.decimals)) ? Number(entry.decimals) : 2,
+    enabled: true
+  };
+}
+
+function convertBizOSBasePriceToCurrency_(currency) {
+  var code = String(currency || '').trim().toUpperCase();
+  var config = getPaymentCurrencyConfig_(code);
+  if (!config) return {success:false,message:'This currency is not currently available for BizOS checkout.'};
+  var baseAmount = Number(CONFIG.PRICING.sovereign.usd);
+  if (!isFinite(baseAmount) || baseAmount <= 0) {
+    return {success:false,message:'BizOS base pricing is not configured correctly.'};
+  }
+  var raw = baseAmount * config.rate;
+  var factor = Math.pow(10, Math.max(0, config.decimals));
+  var amount = Math.round(raw * factor) / factor;
+  return {
+    success:true,
+    baseAmount:baseAmount,
+    baseCurrency:'USD',
+    rate:config.rate,
+    rateSource:'admin',
+    rateUpdatedAt:CONFIG.PRICING.exchangeRatesUpdatedAt || '',
+    currency:config.code,
+    price:amount,
+    symbol:config.symbol,
+    name:config.name,
+    decimals:config.decimals
+  };
+}
+
+function getPaymentPricingConfigForAdmin() {
+  return {
+    success:true,
+    baseCurrency:'USD',
+    basePrice:Number(CONFIG.PRICING.sovereign.usd),
+    exchangeRates:getPaymentExchangeRates_(),
+    updatedAt:CONFIG.PRICING.exchangeRatesUpdatedAt || ''
+  };
+}
+
+function updatePaymentExchangeRates(sessionId, rates, basePrice) {
+  requireAdminSession_(sessionId);
+  try {
+    rates = rates || {};
+    var current = getPaymentExchangeRates_();
+    var next = {};
+    Object.keys(current).forEach(function(code) {
+      var existing = current[code] || {};
+      var incoming = rates[code];
+      var value = incoming === undefined || incoming === '' ? existing.rate : Number(incoming);
+      if (code === 'USD') value = 1;
+      if (!isFinite(value) || value <= 0) throw new Error('Invalid exchange rate for ' + code + '.');
+      next[code] = {
+        rate:value,
+        name:existing.name || code,
+        symbol:existing.symbol || code,
+        decimals:Number.isFinite(Number(existing.decimals)) ? Number(existing.decimals) : 2,
+        enabled:existing.enabled !== false
+      };
+    });
+
+    var parsedBase = basePrice === undefined || basePrice === '' ? Number(CONFIG.PRICING.sovereign.usd) : Number(basePrice);
+    if (!isFinite(parsedBase) || parsedBase <= 0) throw new Error('Base USD price must be greater than zero.');
+
+    CONFIG.PRICING.sovereign.usd = parsedBase;
+    CONFIG.PRICING.exchangeRates = next;
+    CONFIG.PRICING.exchangeRatesUpdatedAt = new Date().toISOString();
+
+    // Keep the editable config persistent without requiring a code deployment.
+    PropertiesService.getScriptProperties().setProperty(
+      'BIZOS_PAYMENT_PRICING_CONFIG',
+      JSON.stringify({
+        basePrice:parsedBase,
+        exchangeRates:next,
+        updatedAt:CONFIG.PRICING.exchangeRatesUpdatedAt
+      })
+    );
+
+    return getPaymentPricingConfigForAdmin();
+  } catch (error) {
+    console.error('updatePaymentExchangeRates error:', error);
+    return {success:false,message:error.message || 'Payment pricing could not be updated.'};
+  }
+}
+
+function loadPersistedPaymentPricingConfig_() {
+  try {
+    var raw = PropertiesService.getScriptProperties().getProperty('BIZOS_PAYMENT_PRICING_CONFIG');
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    if (!saved || !saved.exchangeRates) return;
+    var base = Number(saved.basePrice);
+    if (isFinite(base) && base > 0) CONFIG.PRICING.sovereign.usd = base;
+    Object.keys(saved.exchangeRates).forEach(function(code) {
+      if (!CONFIG.PRICING.exchangeRates[code]) return;
+      var savedEntry = saved.exchangeRates[code];
+      var rate = Number(savedEntry.rate);
+      if (!isFinite(rate) || rate <= 0) return;
+      CONFIG.PRICING.exchangeRates[code].rate = code === 'USD' ? 1 : rate;
+      if (savedEntry.enabled !== undefined) CONFIG.PRICING.exchangeRates[code].enabled = savedEntry.enabled !== false;
+    });
+    CONFIG.PRICING.exchangeRatesUpdatedAt = saved.updatedAt || '';
+  } catch (error) {
+    console.error('loadPersistedPaymentPricingConfig_ error:', error);
+  }
+}
+
+loadPersistedPaymentPricingConfig_();
 
 function getServiceFee() {
   return CONFIG.PRICING.services.default;
