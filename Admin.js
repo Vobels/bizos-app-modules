@@ -1840,18 +1840,55 @@ function listClientRecoveryBackups(clientId, sessionId) {
 
 function restoreClientWorkspaceFromRecoveryBackup(clientId, backupId, sessionId) {
   requireAdminSession_(sessionId);
+  var client=null;
   try {
-    var client=getClientByIdForAdminAnyStatus_(clientId);
+    client=getClientByIdForAdminAnyStatus_(clientId);
     if(!client)return{success:false,message:'Client not found.'};
-    var rootIt=DriveApp.getFoldersByName('BizOS_Client_Recovery');
-    if(!rootIt.hasNext())return{success:true,backups:[]};
-    var root=rootIt.next(),safeName=String(client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_')+'_'+String(client.Business_ID||'').replace(/[^a-zA-Z0-9]/g,'_'),folders=root.getFoldersByName(safeName);
-    if(!folders.hasNext())return{success:true,backups:[]};
-    var folder=folders.next(),files=folder.getFiles(),out=[];
-    while(files.hasNext()){var file=files.next();out.push({id:file.getId(),name:file.getName(),createdAt:file.getDateCreated().toISOString(),url:file.getUrl(),mimeType:file.getMimeType()});}
-    out.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
-    return{success:true,backups:out};
-  }catch(error){console.error('listClientRecoveryBackups error:',error);return{success:false,message:'Client recovery backups could not be loaded.'};}
+    var targetId=String(client.Sheet_ID||client.Workspace_ID||'').trim(),sourceId=String(backupId||'').trim();
+    if(!targetId||!sourceId)return{success:false,message:'Client workspace and backup are required.'};
+    if(targetId===sourceId)return{success:false,message:'The selected backup is already the live workspace.'};
+
+    var target=SpreadsheetApp.openById(targetId),sourceFile;
+    try{sourceFile=DriveApp.getFileById(sourceId);}catch(e){return{success:false,code:'RECOVERY_BACKUP_NOT_FOUND',message:'The selected recovery backup could not be found.'};}
+
+    var safeName=String(client.Client_Name||'Client').replace(/[^a-zA-Z0-9]/g,'_');
+    var businessId=String(client.Business_ID||'').trim();
+    var expectedFolderName=safeName+'_'+businessId.replace(/[^a-zA-Z0-9]/g,'_');
+    var expectedPrefix='BizOS Recovery - '+safeName+' - ';
+    var parentMatches=false,parents=sourceFile.getParents();
+    while(parents.hasNext()){if(String(parents.next().getName()||'')===expectedFolderName){parentMatches=true;break;}}
+    if(!parentMatches||String(sourceFile.getName()||'').indexOf(expectedPrefix)!==0)return{success:false,code:'RECOVERY_BACKUP_SCOPE_MISMATCH',message:'The selected backup does not belong to this business recovery archive.'};
+    if(String(sourceFile.getMimeType()||'')!=='application/vnd.google-apps.spreadsheet')return{success:false,code:'RECOVERY_BACKUP_INVALID_TYPE',message:'The selected recovery backup is not a BizOS workspace snapshot.'};
+
+    var health=auditClientRecoveryBackup(clientId,sourceId,sessionId);
+    if(!health.success||!health.healthy)return{success:false,code:'RECOVERY_BACKUP_UNHEALTHY',message:'The selected recovery snapshot did not pass integrity checks. The live workspace was not changed.',audit:health};
+
+    var safety=createClientRecoveryBackup_(target,String(client.Client_Name||''),businessId);
+    if(!safety||!safety.success)return{success:false,message:'A safety backup could not be created, so the restore was not started.'};
+    updateClientRecoveryMetadata_(client,safety);
+    logClientRecoveryActivity_(client,'BACKUP_RESTORE_STARTED',{status:'started',backupId:sourceId,safetyBackupId:safety.backupId,message:'Client workspace restore started.'});
+
+    var source=SpreadsheetApp.openById(sourceId);
+    source.getSheets().forEach(function(src){
+      var name=src.getName(),dst=target.getSheetByName(name);
+      if(!dst)dst=target.insertSheet(name);
+      dst.clear({contentsOnly:false});
+      var range=src.getDataRange();
+      if(range.getNumRows()&&range.getNumColumns())range.copyTo(dst.getRange(1,1),{contentsOnly:false});
+    });
+
+    var verification=verifyRestoredClientWorkspace_(client,target);
+    if(!verification.success){
+      logClientRecoveryActivity_(client,'BACKUP_RESTORE_FAILED',{status:'failed',backupId:sourceId,safetyBackupId:safety.backupId,message:'Post-restore verification failed.',verification:verification});
+      return{success:false,code:'RESTORE_VERIFICATION_FAILED',message:'The workspace was restored, but post-restore verification found missing required components. The safety backup was preserved.',safetyBackup:safety,verification:verification};
+    }
+    logClientRecoveryActivity_(client,'BACKUP_RESTORED',{status:'restored',backupId:sourceId,safetyBackupId:safety.backupId,message:'Client workspace restored and verified.'});
+    return{success:true,message:'Client workspace restored and verified.',safetyBackup:safety,restoredFrom:sourceId,verification:verification};
+  }catch(error){
+    console.error('restoreClientWorkspaceFromRecoveryBackup error:',error);
+    try{logClientRecoveryActivity_(client,'BACKUP_RESTORE_FAILED',{status:'failed',backupId:String(backupId||''),message:error.message||String(error)});}catch(ignore){}
+    return{success:false,message:'The client workspace could not be restored. The safety backup remains available.'};
+  }
 }
 
 function createClientQuote(clientId,data,sessionId){
