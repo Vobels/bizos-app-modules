@@ -1409,23 +1409,99 @@ function createClientAdminRecoveryBackup(clientId, sessionId) {
 function archiveClientDeployment(clientId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    var wanted=String(clientId||'').trim(),sheet=getBizOSMasterSpreadsheet_(),s=sheet.getSheetByName('Clients');
-    if(!s)return{success:false,message:'Client registry is unavailable.'};
-    var v=s.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();}),idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),updatedCol=h.indexOf('Updated_At');
-    for(var i=1;i<v.length;i++)if(String(v[i][idCol]||'').trim()===wanted){s.getRange(i+1,statusCol+1).setValue('archived');if(updatedCol>=0)s.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());return{success:true,message:'Client deployment archived.'};}
-    return{success:false,message:'Client was not found.'};
-  }catch(error){console.error('archiveClientDeployment error:',error);return{success:false,message:'Client could not be archived.'};}
+    var wanted=String(clientId||'').trim();
+    var master=getBizOSMasterSpreadsheet_();
+    var clients=master.getSheetByName('Clients');
+    if(!clients)return{success:false,message:'Client registry is unavailable.'};
+
+    var v=clients.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),businessIdCol=h.indexOf('Business_ID'),updatedCol=h.indexOf('Updated_At');
+    if(idCol<0||statusCol<0)return{success:false,message:'Client registry schema is incomplete.'};
+
+    var businessId='';
+    var clientRow=-1;
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idCol]||'').trim()!==wanted)continue;
+      businessId=businessIdCol>=0?String(v[i][businessIdCol]||'').trim():'';
+      clientRow=i+1;
+      break;
+    }
+    if(clientRow<0)return{success:false,message:'Client was not found.'};
+
+    clients.getRange(clientRow,statusCol+1).setValue('archived');
+    if(updatedCol>=0)clients.getRange(clientRow,updatedCol+1).setValue(new Date().toISOString());
+
+    // Keep the business lifecycle aligned with the client deployment lifecycle.
+    // Historical users, workspace data, payments and deployment metadata remain
+    // intact; only the active state is changed.
+    if(businessId){
+      var businesses=master.getSheetByName('Businesses');
+      if(businesses && businesses.getLastRow()>=2){
+        var bv=businesses.getDataRange().getValues(),bh=bv[0].map(function(x){return String(x||'').trim();});
+        var bb=bh.indexOf('Business_ID'), bs=bh.indexOf('Status');
+        if(bb>=0&&bs>=0){
+          for(var bi=1;bi<bv.length;bi++){
+            if(String(bv[bi][bb]||'').trim()===businessId){
+              businesses.getRange(bi+1,bs+1).setValue('archived');
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return{success:true,message:'Client and business archived. Historical records were preserved.'};
+  }catch(error){
+    console.error('archiveClientDeployment error:',error);
+    return{success:false,message:'Client could not be archived.'};
+  }
 }
 
 function restoreArchivedClientDeployment(clientId, sessionId) {
   requireAdminSession_(sessionId);
   try {
-    var wanted=String(clientId||'').trim(),sheet=getBizOSMasterSpreadsheet_(),s=sheet.getSheetByName('Clients');
-    if(!s)return{success:false,message:'Client registry is unavailable.'};
-    var v=s.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();}),idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),updatedCol=h.indexOf('Updated_At');
-    for(var i=1;i<v.length;i++)if(String(v[i][idCol]||'').trim()===wanted){var current=String(v[i][statusCol]||'').toLowerCase();if(current!=='archived')return{success:false,message:'Only archived clients can be restored.'};s.getRange(i+1,statusCol+1).setValue('active');if(updatedCol>=0)s.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());return{success:true,message:'Client deployment restored.'};}
-    return{success:false,message:'Client was not found.'};
-  }catch(error){console.error('restoreArchivedClientDeployment error:',error);return{success:false,message:'Client could not be restored.'};}
+    var wanted=String(clientId||'').trim();
+    var master=getBizOSMasterSpreadsheet_(),clients=master.getSheetByName('Clients');
+    if(!clients)return{success:false,message:'Client registry is unavailable.'};
+
+    var v=clients.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idCol=h.indexOf('Client_ID'),statusCol=h.indexOf('Status'),businessIdCol=h.indexOf('Business_ID'),updatedCol=h.indexOf('Updated_At');
+    if(idCol<0||statusCol<0)return{success:false,message:'Client registry schema is incomplete.'};
+
+    var businessId='',clientRow=-1;
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idCol]||'').trim()!==wanted)continue;
+      businessId=businessIdCol>=0?String(v[i][businessIdCol]||'').trim():'';
+      clientRow=i+1;
+      break;
+    }
+    if(clientRow<0)return{success:false,message:'Client was not found.'};
+    if(String(v[clientRow-1][statusCol]||'').toLowerCase()!=='archived')return{success:false,message:'Only archived clients can be restored.'};
+
+    clients.getRange(clientRow,statusCol+1).setValue('active');
+    if(updatedCol>=0)clients.getRange(clientRow,updatedCol+1).setValue(new Date().toISOString());
+
+    if(businessId){
+      var businesses=master.getSheetByName('Businesses');
+      if(businesses && businesses.getLastRow()>=2){
+        var bv=businesses.getDataRange().getValues(),bh=bv[0].map(function(x){return String(x||'').trim();});
+        var bb=bh.indexOf('Business_ID'), bs=bh.indexOf('Status');
+        if(bb>=0&&bs>=0){
+          for(var bi=1;bi<bv.length;bi++){
+            if(String(bv[bi][bb]||'').trim()===businessId){
+              businesses.getRange(bi+1,bs+1).setValue('active');
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return{success:true,message:'Client and business restored.'};
+  }catch(error){
+    console.error('restoreArchivedClientDeployment error:',error);
+    return{success:false,message:'Client could not be restored.'};
+  }
 }
 
 function getActiveClientByIdForAdmin_(clientId) {
