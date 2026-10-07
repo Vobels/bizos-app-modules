@@ -1545,6 +1545,7 @@ function createClientAdminRecoveryBackup(clientId, sessionId) {
     var ws=SpreadsheetApp.openById(String(client.sheetId||client.Sheet_ID||''));
     var result=createClientRecoveryBackup_(ws,String(client.clientName||client.Client_Name||''),String(client.businessId||client.Business_ID||''));
     if(!result||!result.success)return result||{success:false,message:'Backup could not be created.'};
+    updateClientRecoveryMetadata_(client,result);
     logClientRecoveryActivity_(client,'BACKUP_CREATED',{status:'created',backupId:result.backupId,message:'Client recovery backup created.'});
     return result;
   }catch(error){console.error('createClientAdminRecoveryBackup error:',error);return{success:false,message:'BizOS could not create the client backup.'};}
@@ -1666,6 +1667,26 @@ function getClientByIdForAdminAnyStatus_(clientId) {
     return o;
   }
   return null;
+}
+
+function updateClientRecoveryMetadata_(client, backup) {
+  try {
+    if(!client || !backup || !backup.success)return;
+    var clientId=String(client.Client_ID||client.clientId||'').trim();
+    if(!clientId)return;
+    var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if(!sheet)return;
+    var v=sheet.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idCol=h.indexOf('Client_ID'),backupIdCol=h.indexOf('Recovery_Backup_ID'),backupUrlCol=h.indexOf('Recovery_Backup_URL'),updatedCol=h.indexOf('Updated_At');
+    if(idCol<0)return;
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idCol]||'').trim()!==clientId)continue;
+      if(backupIdCol>=0)sheet.getRange(i+1,backupIdCol+1).setValue(String(backup.backupId||''));
+      if(backupUrlCol>=0)sheet.getRange(i+1,backupUrlCol+1).setValue(String(backup.backupUrl||''));
+      if(updatedCol>=0)sheet.getRange(i+1,updatedCol+1).setValue(new Date().toISOString());
+      return;
+    }
+  }catch(error){console.warn('Client recovery metadata update warning:',error&&error.message?error.message:error);}
 }
 
 function logClientRecoveryActivity_(client, type, details) {
