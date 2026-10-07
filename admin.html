@@ -291,6 +291,105 @@
     .status-badge.pending { background: #fef3c7; color: #d97706; }
     .status-badge.suspended { background: #fee2e2; color: #dc2626; }
     .status-badge.verified { background: #dbeafe; color: #2563eb; }
+
+    /* Business management detail panel */
+    .client-billing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .settings-panel {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .settings-panel-head {
+      margin-bottom: 12px;
+    }
+    .settings-panel-head h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+      font-weight: 650;
+      color: #1f2937;
+    }
+    .settings-panel-head p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #6b7280;
+    }
+    .settings-note {
+      padding: 12px;
+      background: #f9fafb;
+      border: 1px solid #eef0f2;
+      border-radius: 8px;
+      color: #374151;
+      font-size: 13px;
+      line-height: 1.65;
+      word-break: break-word;
+    }
+    .client-profile-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .settings-secondary,
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid #d8b4fe;
+      background: #f3e8ff;
+      color: #5D2A86;
+      border-radius: 7px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .settings-secondary:hover,
+    .btn-secondary:hover {
+      background: #ead7ff;
+    }
+    .client-profile-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .client-profile-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .client-profile-form input,
+    .client-profile-form select,
+    .client-profile-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      padding: 8px 10px;
+      background: #fff;
+      color: #111827;
+      font: inherit;
+      font-weight: 400;
+    }
+    .client-profile-form textarea {
+      resize: vertical;
+    }
+    @media (max-width: 720px) {
+      .client-billing-grid,
+      .client-profile-form {
+        grid-template-columns: 1fr;
+      }
+    }
     
     /* ===== TABS ===== */
     .tab-content {
