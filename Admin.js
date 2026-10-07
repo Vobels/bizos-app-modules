@@ -1376,64 +1376,23 @@ function getAdminBusinessModules_(businessId, tier) {
   var enabled = {};
   access.forEach(function(name) { enabled[String(name)] = true; });
 
-  // Keep entitlement (what the plan allows) separate from usage (what the
-  // workspace currently contains), for both free and paid businesses.
-  var sheetByModule = {
-    Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
-    CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
-    Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
-    POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
-  };
-  var workspaceId = '';
-  try {
-    var master = getBizOSMasterSpreadsheet_();
-    var bs = master.getSheetByName('Businesses');
-    if (bs && bs.getLastRow() >= 2) {
-      var bv = bs.getDataRange().getValues();
-      var bh = bv[0].map(function(h) { return String(h || '').trim(); });
-      var bid = bh.indexOf('Business_ID');
-      var wid = bh.indexOf('Workspace_ID');
-      for (var i = 1; i < bv.length; i++) {
-        if (bid >= 0 && String(bv[i][bid] || '').trim() === String(businessId || '').trim()) {
-          workspaceId = wid >= 0 ? String(bv[i][wid] || '').trim() : '';
-          break;
-        }
-      }
-    }
-  } catch (workspaceLookupError) {
-    console.warn('Admin module workspace lookup failed:', workspaceLookupError);
-  }
-
-  var workspace = null;
-  if (workspaceId) {
-    try { workspace = SpreadsheetApp.openById(workspaceId); }
-    catch (workspaceOpenError) { console.warn('Admin could not open business workspace:', workspaceOpenError); }
-  }
-
+  // This helper is for entitlement display only. Do not open the client
+  // workspace here: Admin has no canonical cross-business usage aggregator,
+  // and opening 12 module sheets makes the management page unnecessarily slow.
   return all.map(function(name) {
-    var recordCount = 0;
-    var sheetName = sheetByModule[name] || '';
-    if (workspace && sheetName) {
-      try {
-        var s = workspace.getSheetByName(sheetName);
-        if (s && s.getLastRow() > 1) recordCount = s.getLastRow() - 1;
-      } catch (moduleCountError) {
-        console.warn('Admin module count failed for ' + name + ':', moduleCountError);
-      }
-    }
     return {
       name: name,
       label: labels[name] || name,
       icon: icons[name] || 'fa-folder',
       enabled: !!enabled[name],
-      recordCount: recordCount,
-      hasRecords: recordCount > 0,
+      recordCount: null,
+      recordCountAvailable: false,
+      hasRecords: false,
       businessId: String(businessId || ''),
       tier: key
     };
   });
 }
-
 function getClientManagementOverview(clientId, sessionId) {
   requireAdminSession_(sessionId);
   try {
@@ -1553,12 +1512,15 @@ function getClientManagementOverview(clientId, sessionId) {
         function rows(name) {
           var s=ws.getSheetByName(name);
           if(!s||s.getLastRow()<2)return[];
-          var v=s.getDataRange().getValues(),h=v[0]||[];
-          return v.slice(1).map(function(r){
+          var lastRow=s.getLastRow(), lastCol=s.getLastColumn();
+          var header=s.getRange(1,1,1,lastCol).getValues()[0]||[];
+          var startRow=Math.max(2,lastRow-49);
+          var v=s.getRange(startRow,1,lastRow-startRow+1,lastCol).getValues();
+          return v.reverse().map(function(r){
             var o={};
-            h.forEach(function(k,j){o[String(k||'')]=r[j];});
+            header.forEach(function(k,j){o[String(k||'')]=r[j];});
             return o;
-          }).slice(-50).reverse();
+          });
         }
 
         billing.maintenance=rows('Client_Maintenance_Requests');
