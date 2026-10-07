@@ -1537,6 +1537,93 @@ function getClientManagementOverview(clientId, sessionId) {
   }
 }
 
+function setClientMaintenancePlan(clientId, planId, status, sessionId) {
+  requireAdminSession_(sessionId);
+  try {
+    var wanted=String(clientId||'').trim(), plan=String(planId||'none').trim().toLowerCase(), state=String(status||'inactive').trim().toLowerCase();
+    var allowedPlans=['none','monthly'];
+    if(allowedPlans.indexOf(plan)<0)return{success:false,message:'Unsupported maintenance plan.'};
+    if(['active','inactive'].indexOf(state)<0)return{success:false,message:'Invalid maintenance status.'};
+    if(plan==='none')state='inactive';
+    var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if(!sheet)return{success:false,message:'Client registry is unavailable.'};
+    var v=sheet.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idc=h.indexOf('Client_ID');if(idc<0)return{success:false,message:'Client registry is missing Client_ID.'};
+    var pc=h.indexOf('Maintenance_Plan'),sc=h.indexOf('Maintenance_Status'),startc=h.indexOf('Maintenance_Start_At'),nextc=h.indexOf('Maintenance_Next_Backup_At');
+    if(pc<0||sc<0||startc<0||nextc<0)return{success:false,message:'Maintenance registry columns are unavailable.'};
+    for(var i=1;i<v.length;i++){
+      if(String(v[i][idc]||'').trim()!==wanted)continue;
+      var now=new Date(),start=state==='active'?now:'';
+      var next=state==='active'?(new Date(now.getTime()+30*24*60*60*1000)):''; 
+      if(plan==='monthly'&&state==='active'){
+        // First scheduled backup is due after the plan starts; manual backups remain available immediately.
+        sheet.getRange(i+1,pc+1).setValue(plan);
+        sheet.getRange(i+1,sc+1).setValue(state);
+        sheet.getRange(i+1,startc+1).setValue(start.toISOString());
+        sheet.getRange(i+1,nextc+1).setValue(next.toISOString());
+      }else{
+        sheet.getRange(i+1,pc+1).setValue('none');
+        sheet.getRange(i+1,sc+1).setValue('inactive');
+        sheet.getRange(i+1,startc+1).setValue('');
+        sheet.getRange(i+1,nextc+1).setValue('');
+      }
+      return{success:true,plan:plan,status:state,nextBackupAt:next?next.toISOString():'',message:state==='active'?'Monthly recovery backups enabled.':'Recurring recovery backups disabled.'};
+    }
+    return{success:false,message:'Client was not found.'};
+  }catch(error){console.error('setClientMaintenancePlan error:',error);return{success:false,message:'Maintenance backup settings could not be updated.'};}
+}
+
+function runScheduledClientMaintenanceBackups() {
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(5000))return{success:false,message:'A maintenance backup run is already in progress.'};
+  var results=[];
+  try{
+    var sheet=getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if(!sheet||sheet.getLastRow()<2)return{success:true,processed:0,backups:0,skipped:0};
+    var v=sheet.getDataRange().getValues(),h=v[0].map(function(x){return String(x||'').trim();});
+    var idx={};['Client_ID','Status','Sheet_ID','Workspace_ID','Client_Name','Business_ID','Maintenance_Plan','Maintenance_Status','Maintenance_Next_Backup_At','Maintenance_Last_Backup_At','Maintenance_Last_Backup_Status','Maintenance_Last_Backup_Error'].forEach(function(k){idx[k]=h.indexOf(k);});
+    var now=new Date(),processed=0,backups=0,skipped=0;
+    for(var i=1;i<v.length;i++){
+      var status=idx.Status>=0?String(v[i][idx.Status]||'').trim().toLowerCase():'';
+      var plan=idx.Maintenance_Plan>=0?String(v[i][idx.Maintenance_Plan]||'').trim().toLowerCase():'';
+      var active=idx.Maintenance_Status>=0?String(v[i][idx.Maintenance_Status]||'').trim().toLowerCase():'';
+      if(status!=='active'||plan!=='monthly'||active!=='active'){skipped++;continue;}
+      var nextRaw=idx.Maintenance_Next_Backup_At>=0?String(v[i][idx.Maintenance_Next_Backup_At]||'').trim():'';
+      var next=nextRaw?new Date(nextRaw):now;
+      if(isNaN(next.getTime())||next>now){skipped++;continue;}
+      processed++;
+      var client={};h.forEach(function(k,j){client[k]=v[i][j];});
+      try{
+        var sheetId=String(client.Sheet_ID||client.Workspace_ID||'').trim();
+        if(!sheetId)throw new Error('Client workspace ID is missing.');
+        var ws=SpreadsheetApp.openById(sheetId);
+        var backup=createClientRecoveryBackup_(ws,String(client.Client_Name||''),String(client.Business_ID||''));
+        if(!backup||!backup.success)throw new Error(String(backup&&backup.message||'Recovery backup failed.'));
+        updateClientRecoveryMetadata_(client,backup);
+        var nextDate=new Date(now.getTime()+30*24*60*60*1000);
+        if(idx.Maintenance_Last_Backup_At>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_At+1).setValue(now.toISOString());
+        if(idx.Maintenance_Last_Backup_Status>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Status+1).setValue('success');
+        if(idx.Maintenance_Last_Backup_Error>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Error+1).setValue('');
+        if(idx.Maintenance_Next_Backup_At>=0)sheet.getRange(i+1,idx.Maintenance_Next_Backup_At+1).setValue(nextDate.toISOString());
+        logClientRecoveryActivity_(client,'BACKUP_CREATED',{status:'created',backupId:backup.backupId,source:'scheduled_maintenance',message:'Scheduled monthly recovery backup created.'});
+        results.push({clientId:String(client.Client_ID||''),success:true,backupId:String(backup.backupId||''),nextBackupAt:nextDate.toISOString()});backups++;
+      }catch(error){
+        if(idx.Maintenance_Last_Backup_Status>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Status+1).setValue('failed');
+        if(idx.Maintenance_Last_Backup_Error>=0)sheet.getRange(i+1,idx.Maintenance_Last_Backup_Error+1).setValue(String(error&&error.message||error).slice(0,1000));
+        results.push({clientId:String(client.Client_ID||''),success:false,message:String(error&&error.message||error)});
+      }
+    }
+    return{success:true,processed:processed,backups:backups,skipped:skipped,results:results};
+  }finally{lock.releaseLock();}
+}
+
+function installClientMaintenanceBackupTrigger() {
+  var existing=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()==='runScheduledClientMaintenanceBackups';});
+  existing.slice(1).forEach(function(t){ScriptApp.deleteTrigger(t);});
+  if(existing.length===0)ScriptApp.newTrigger('runScheduledClientMaintenanceBackups').timeBased().everyDays(1).atHour(2).create();
+  return{success:true,message:'Daily client maintenance backup trigger is installed.',triggerCount:1};
+}
+
 function createClientAdminRecoveryBackup(clientId, sessionId) {
   requireAdminSession_(sessionId);
   try {
