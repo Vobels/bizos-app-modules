@@ -1306,22 +1306,43 @@ function getClientManagementOverview(clientId, sessionId) {
     }
 
     try {
-      var masterPayments = getBizOSMasterSpreadsheet_().getSheetByName('Payments');
+      var master = getBizOSMasterSpreadsheet_();
+      var masterPayments = master.getSheetByName('Payments');
+      var masterUpgrades = master.getSheetByName('Upgrade_Requests');
+      var requestOwners = {};
+
+      if (masterUpgrades && masterUpgrades.getLastRow() >= 2) {
+        var uv=masterUpgrades.getDataRange().getValues(), uh=uv[0].map(function(h){return String(h||'').trim();});
+        var ur=uh.indexOf('Request_ID'), ue=uh.indexOf('Email'), uw=uh.indexOf('Workspace_Email'), ub=uh.indexOf('Business_Name');
+        for(var ui=1;ui<uv.length;ui++){
+          var rid=ur>=0?String(uv[ui][ur]||'').trim():'';
+          if(!rid)continue;
+          requestOwners[rid]={
+            email:ue>=0?String(uv[ui][ue]||'').trim().toLowerCase():'',
+            workspaceEmail:uw>=0?String(uv[ui][uw]||'').trim().toLowerCase():'',
+            businessName:ub>=0?String(uv[ui][ub]||'').trim():''
+          };
+        }
+      }
+
       if (masterPayments && masterPayments.getLastRow() >= 2) {
         var pv = masterPayments.getDataRange().getValues();
         var ph = pv[0].map(function(h){return String(h || '').trim();});
-        var pBiz = ph.indexOf('Business_ID');
         var pReq = ph.indexOf('Request_ID');
-        var pStatus = ph.indexOf('Status');
-        var pAmount = ph.indexOf('Amount');
-        var pCurrency = ph.indexOf('Currency');
-        var pRef = ph.indexOf('Transaction_Ref');
-        var pCreated = ph.indexOf('Created_At');
         for (var pi = 1; pi < pv.length; pi++) {
-          var rowBusiness = pBiz >= 0 ? String(pv[pi][pBiz] || '').trim() : '';
-          if (businessId && rowBusiness && rowBusiness !== businessId) continue;
+          var requestId = pReq >= 0 ? String(pv[pi][pReq] || '').trim() : '';
+          var owner = requestOwners[requestId] || {};
+          var ownerMatches = !requestId ||
+            String(owner.email || '').toLowerCase() === String(client.Email || '').trim().toLowerCase() ||
+            String(owner.workspaceEmail || '').toLowerCase() === String(client.Email || '').trim().toLowerCase();
+
+          if (!ownerMatches) continue;
+
           var payment = {};
           ph.forEach(function(h,j){payment[h]=pv[pi][j];});
+          payment.Business_ID = businessId;
+          payment.Client_ID = String(client.Client_ID || '');
+          payment.Business_Name = owner.businessName || String(client.Client_Name || '');
           payments.push(payment);
         }
       }
