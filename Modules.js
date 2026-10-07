@@ -122,7 +122,7 @@ function getModuleDataWithSync(moduleName, sessionId) {
 
 function getModuleSummary(sessionId) {
   const cache = CacheService.getScriptCache();
-  const cacheKey = `module_summary_${sessionId}`;
+  const cacheKey = `module_summary_v2_${sessionId}`;
   const cached = cache.get(cacheKey);
   if (cached) {
     console.log("Returning cached module summary");
@@ -227,8 +227,8 @@ function getModuleSummary(sessionId) {
         // Demo: All modules but read-only
         accessibleModules = Object.keys(allModules);
       } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
-        // Free: Business Center/Ecommerce only
-        accessibleModules = ['Ecommerce'];
+        // Free/Starter: Finance + Ecommerce are the core BizOS apps
+        accessibleModules = ['Finance', 'Ecommerce'];
       } else {
         // Sovereign/Enterprise: All modules
         accessibleModules = Object.keys(allModules);
