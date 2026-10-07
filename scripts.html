@@ -4408,13 +4408,21 @@ function loadNotifications() {
 }
 
 function updateNotificationBadge() {
-  const badge = document.getElementById('notification-badge');
-  if (!badge) return;
+  const badges = [
+    document.getElementById('notification-badge'),
+    document.getElementById('settings-notification-badge')
+  ].filter(Boolean);
+  if (!badges.length) return;
   if (notificationCount > 0) {
-    badge.textContent = notificationCount > 9 ? '9+' : notificationCount;
-    badge.classList.remove('hidden');
+    const label = notificationCount > 9 ? '9+' : notificationCount;
+    badges.forEach(function(badge) {
+      badge.textContent = label;
+      badge.classList.remove('hidden');
+    });
   } else {
-    badge.classList.add('hidden');
+    badges.forEach(function(badge) {
+      badge.classList.add('hidden');
+    });
   }
 }
 
