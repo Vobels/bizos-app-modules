@@ -1236,8 +1236,8 @@ function restoreClientWorkspaceFromRecoveryBackup(clientId, backupId, sessionId)
       if(existing){
         var temp=target.insertSheet('__RESTORE__'+Utilities.getUuid().replace(/-/g,'').slice(0,8));
         src.getRange(1,1,Math.max(1,src.getLastRow()),Math.max(1,src.getLastColumn())).copyTo(temp.getRange(1,1),{contentsOnly:false});
-        temp.setName(name);
         target.deleteSheet(existing);
+        temp.setName(name);
       }else{
         var copy=src.copyTo(target);copy.setName(name);
       }
