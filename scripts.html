@@ -4765,8 +4765,10 @@ function addUpgradeButton() {
     return;
   }
 
-  // Upgrade is intentionally available to free/starter users only.
-  if (rawTier === 'free' || rawTier === 'starter') {
+  // The header Upgrade action is strictly for Free accounts.
+  // Starter, Sovereign, Professional, Enterprise, and any other non-free
+  // entitlement must never receive an Upgrade button here.
+  if (rawTier === 'free') {
     container.insertAdjacentHTML('beforeend', `
       <button id="upgrade-tier-btn" data-bizos-upgrade-header="1" onclick="triggerUpgrade('header')" 
         class="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-purple-900 transition shadow-sm">
