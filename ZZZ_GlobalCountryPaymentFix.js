@@ -34,10 +34,3 @@
 
   console.log('ZZZ global country/payment compatibility fix loaded');
 })();
-, code: 'USD' },
-      enterprise: { price: 2990, currency: '$', code: 'USD' }
-    };
-  };
-
-  console.log('ZZZ global country/payment compatibility fix loaded');
-})();
