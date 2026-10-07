@@ -437,7 +437,7 @@ function checkModuleAccess(moduleName) {
   }
   
   // ===== FREE: Only Finance and Ecommerce =====
-  if (tier === 'free' && !['Ecommerce'].includes(moduleName)) {
+  if ((tier === 'free' || tier === 'starter') && !['Finance', 'Ecommerce'].includes(moduleName)) {
     showNotification('Upgrade to Sovereign to access all apps!', 'warning');
     return false;
   }
