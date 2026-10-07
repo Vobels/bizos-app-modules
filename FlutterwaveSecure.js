@@ -118,6 +118,7 @@ function getAvailablePaymentMethods(requestId, sessionId, accessToken) {
 
     var currency = String(request.currency || '').trim().toUpperCase();
     if (!currency) return {success:false,code:'CURRENCY_REQUIRED',message:'A payment currency is required before checkout can continue.'};
+    if (!getPaymentCurrencyConfig_(currency)) return {success:false,code:'CURRENCY_UNAVAILABLE',message:'This currency is no longer available for BizOS checkout.'};
 
     var methods = [];
     var paystackConfigured = false;
