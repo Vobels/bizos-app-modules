@@ -147,6 +147,21 @@ function authenticateUser(email, password, businessName) {
       if (businessRowFound) {
         subscriptionTier = tierCol !== -1 ? businessRowFound[tierCol] || 'free' : 'free';
         workspaceId = workspaceIdCol !== -1 ? businessRowFound[workspaceIdCol] || null : null;
+
+        // Reconcile confirmed historical payments before building the session
+        // user. This repairs accounts that were paid before entitlement sync
+        // was added, while leaving unpaid accounts unchanged.
+        if (typeof reconcilePaidBusinessEntitlement_ === 'function') {
+          var entitlementSync = reconcilePaidBusinessEntitlement_(
+            email,
+            businessId,
+            businessName
+          );
+          if (entitlementSync && entitlementSync.success && entitlementSync.tier) {
+            subscriptionTier = entitlementSync.tier;
+          }
+        }
+
         console.log('📊 Business found:', { businessId, tier: subscriptionTier });
       }
     }
