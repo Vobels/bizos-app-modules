@@ -41,6 +41,13 @@ function generateClientCodeSafelyV12(settings) {
 
   var runtime = buildClientRuntimeV11_(config);
 
+  // V12 release/provenance markers are part of the generated client runtime,
+  // not only the master generator source. This lets package validation and a
+  // deployed-client audit identify the exact V12 release actually shipped.
+  runtime = 'var CLIENT_V12_PACKAGE_VERSION_='+JSON.stringify(CLIENT_V12_PACKAGE_VERSION_)+';\\n' +
+    'var CLIENT_V12_PACKAGE_RELEASE_='+JSON.stringify(CLIENT_V12_PACKAGE_RELEASE_)+';\\n' +
+    'var CLIENT_V12_PACKAGE_PROVENANCE_='+JSON.stringify(CLIENT_V12_PACKAGE_PROVENANCE_)+';\\n' + runtime;
+
   // V12 entitlement, Apps and module-workspace logic requires the canonical
   // module registry to be present inside the generated client runtime.
   // Keep this dependency explicit so a future V11 runtime change cannot
