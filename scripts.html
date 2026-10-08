@@ -1232,6 +1232,7 @@ function loadDashboard() {
   updateUserInfo();
   loadUpgradePaymentStatus();
   addStaffManagementButton();
+  updateStaffSidebarForRole();
   addUpgradeButton();
   
   console.log("🟢 About to call loadEnhancedDashboard");
@@ -5237,7 +5238,7 @@ function switchRecentTab(tabType) {
 
 // ==================== SIDEBAR ====================
 
-function toggleSidebar() {
+function updateStaffSidebarForRole() {\n  const link = document.getElementById('staff-sidebar-link');\n  const label = document.getElementById('staff-sidebar-label');\n  if (!link) return;\n  const user = currentUser || {};\n  const role = String(user.role || user.Role || 'staff').trim().toLowerCase();\n  const isManager = role === 'owner' || role === 'admin';\n  // Both roles need Staff, but the label makes the destination explicit.\n  if (label) label.textContent = isManager ? 'Staff Management' : 'My Staff Workspace';\n  link.setAttribute('title', isManager ? 'Manage staff and invitations' : 'View your staff workspace');\n}\n\nfunction toggleSidebar() {
   console.log('toggleSidebar called');
   
   var sidebar = document.getElementById('sidebar');
@@ -5552,6 +5553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (result && result.success && result.user) {
           currentUser = result.user;
           saveSession(savedSessionId, result.user);
+          updateStaffSidebarForRole();
           const landingPage = document.getElementById('landing-page');
           const dashboardPage = document.getElementById('dashboard-page');
           if (landingPage) landingPage.classList.add('hidden');
@@ -5798,6 +5800,7 @@ window.openModuleFromLanding = function(moduleName) {
 
 // Also expose sidebar functions globally
 window.toggleSidebar = toggleSidebar;
+  window.updateStaffSidebarForRole = updateStaffSidebarForRole;
 window.closeSidebar = closeSidebar;
 window.toggleProfileSidebar = toggleProfileSidebar;
 window.closeProfileSidebar = closeProfileSidebar;
