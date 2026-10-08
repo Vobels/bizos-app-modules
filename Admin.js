@@ -763,10 +763,9 @@ function getAllModules(sessionId) {
         // rules used everywhere else in BizOS. Do not depend on a raw access
         // object lookup alone: paid/deployed customers can arrive through the
         // merged Clients/Payments view with legacy tier labels.
-        var allowed = getModuleAccess(b.tier);
-        if (!Array.isArray(allowed) || !allowed.length) {
-          allowed = access[b.tier] || [];
-        }
+        var allowed = access[b.tier] || [];
+        // CONFIG.MODULES.access is the canonical module entitlement map.
+        // Do not call a helper that is not part of the Admin runtime.
 
         // A confirmed paid deployment is an operational sovereign workspace.
         // This fallback protects historical records whose Businesses row still
@@ -778,7 +777,7 @@ function getAllModules(sessionId) {
 
         if (hasConfirmedPaidDeployment &&
             normalizeSubscriptionTier(b.tier) === 'free') {
-          allowed = access.sovereign || getModuleAccess('sovereign');
+          allowed = access.sovereign || [];
         }
 
         return allowed.indexOf(name) >= 0;
