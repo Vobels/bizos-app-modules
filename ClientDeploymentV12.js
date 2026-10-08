@@ -63,9 +63,9 @@ function generateClientCodeSafelyV12(settings) {
   runtime = moduleRegistryHelperV12_ + runtime;
   // Replace only direct registry lookups. The declaration itself remains
   // "var MODULES=" for package validation/provenance compatibility.
-  runtime = runtime.replace(/Object\\.keys\\(MODULES\\)/g,'Object.keys(clientModuleRegistryV12_())');
-  runtime = runtime.replace(/MODULES\\[/g,'clientModuleRegistryV12_()[');
-  runtime = runtime.replace(/MODULES\\./g,'clientModuleRegistryV12_().');
+  runtime = runtime.split('Object.keys(MODULES)').join('Object.keys(clientModuleRegistryV12_())');
+  runtime = runtime.split('MODULES[').join('clientModuleRegistryV12_()[');
+  runtime = runtime.split('MODULES.').join('clientModuleRegistryV12_().');
 
   // F security hardening: internal helpers must not be exposed through google.script.run.
   runtime = runtime
