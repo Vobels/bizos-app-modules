@@ -1225,10 +1225,11 @@ function loadDashboard() {
   
   console.log("Loading dashboard for user:", currentUser.email);
   
+  // The enhanced dashboard already returns moduleSummary and should be the
+  // single initial source for module navigation/counts. Avoid starting a
+  // second getModuleSummary request in parallel with getEnhancedDashboardData.
   loadRecentTransactions();
-  loadModuleSummary();
   loadDashboardRecentEntries('finance');
-  loadModulesList();
   updateUserInfo();
   loadUpgradePaymentStatus();
   addStaffManagementButton();
@@ -1584,7 +1585,14 @@ function loadEnhancedDashboard() {
         console.log("✅ Enhanced dashboard loaded successfully");
        
         updateEnhancedKPIs(response.dashboard.kpis);
+
+        // Reuse the module summary returned by the enhanced dashboard so
+        // module navigation does not need a second server round trip.
+        BIZ_CACHE.data.kpis = response.dashboard.kpis;
+        BIZ_CACHE.data.modules = response.dashboard.moduleSummary || {};
+        BIZ_CACHE.initialized = true;
         updateDashboardBusinessSnapshot(response.dashboard.businessSnapshot, response.dashboard.moduleSummary);
+        loadModulesList();
         updateBusinessHealth(response.dashboard.health);
         updateCharts(response.dashboard.charts);
         updateRecentActivity(response.dashboard.recentActivity);
