@@ -457,6 +457,7 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
     var copied = 0, updated = 0, skipped = 0;
     values.slice(1).forEach(function(row, sourceIndex) {
       if (String(row[businessIdCol] || '') !== String(businessId || '')) return;
+      sourceRows++;
 
       var email = String(row[emailCol] || '').trim().toLowerCase();
       var role = String(roleCol >= 0 ? row[roleCol] || 'staff' : 'staff').trim().toLowerCase();
@@ -529,7 +530,7 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
       }
     });
 
-    return {copied:copied,updated:updated,skipped:skipped,sourceRows:values.length-1};
+    return {copied:copied,updated:updated,skipped:skipped,sourceRows:sourceRows};
   } catch (error) {
     console.error('Free-to-paid staff migration failed:', error);
     return {success:false,copied:0,updated:0,skipped:0,reason:'STAFF_MIGRATION_FAILED',message:error.message || 'Staff migration failed.'};
