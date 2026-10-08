@@ -1671,12 +1671,18 @@
     
     function logoutAdmin() {
       if (confirm('Logout from admin panel?')) {
+        var sessionId = getAdminSession();
         google.script.run
-          .withSuccessHandler(function() { 
+          .withSuccessHandler(function() {
+            try { localStorage.removeItem('admin_session'); } catch (ignore) {}
+            ADMIN_SESSION = '';
             var adminUrl = <?!= JSON.stringify(publicBizOSUrl) ?>;
             window.top.location.href = adminUrl + (adminUrl.indexOf('?') === -1 ? '?page=admin' : '&page=admin');
           })
-          .adminLogout();
+          .withFailureHandler(function(error) {
+            showNotification('Logout failed: ' + ((error && error.message) || 'Please try again.'), 'error');
+          })
+          .adminLogout(sessionId);
       }
     }
 
