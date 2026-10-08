@@ -4196,7 +4196,16 @@ function showUpgradeModal() {
             '<p class="text-sm text-green-800 mb-3"><i class="fas fa-shield-alt mr-2"></i>No payment is due for your Sovereign plan. All 12 BizOS modules are included.</p>' +
             '<div id="paid-billing-details" class="text-sm text-green-900"><p>Checking your payment record…</p></div>' +
           '</div>';
-        }
+      }
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          const details = document.getElementById('paid-billing-details');
+          if (!details) return;
+          if (!response || !response.success || !response.active) {
+            details.innerHTML = '<p>Your account is marked as paid. Payment history details are not currently available.</p>';
+            return;
+          }
           var rows = [];
           if (response.requestId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Request ID</span><strong>' + String(response.requestId) + '</strong></div>');
           if (response.paymentId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Payment ID</span><strong>' + String(response.paymentId) + '</strong></div>');
