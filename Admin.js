@@ -706,6 +706,7 @@ function getAllModules(sessionId) {
       return {
         businessId: String(b.businessId || '').trim(),
         businessName: String(b.businessName || '').trim(),
+        ownerEmail: String(b.ownerEmail || '').trim().toLowerCase(),
         tier: tier,
         status: String(b.status || '').trim().toLowerCase(),
         workspaceId: String(b.workspaceId || '').trim()
