@@ -4187,19 +4187,16 @@ function showUpgradeModal() {
         paidStatus.className = 'mb-5';
         paidStatus.innerHTML =
           '<div class="rounded-lg border border-green-200 bg-green-50 p-5">' +
-            '<div class="flex items-center gap-3 mb-3"><i class="fas fa-check-circle text-green-600 text-2xl"></i><div><p class="font-semibold text-green-800">Payment confirmed</p><p class="text-sm text-green-700">Your BizOS account is on the Sovereign paid plan.</p></div></div>' +
+            '<div class="flex items-center gap-3 mb-3"><i class="fas fa-check-circle text-green-600 text-2xl"></i><div><p class="font-semibold text-green-800">Sovereign — Paid & Active</p><p class="text-sm text-green-700">Your BizOS account has already paid for Sovereign access. You do not need to purchase this plan again.</p></div></div>' +
+            '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">' +
+              '<div class="rounded-lg bg-white border border-green-100 p-3"><p class="text-xs text-gray-500">Plan</p><p class="font-semibold text-green-800">Sovereign</p></div>' +
+              '<div class="rounded-lg bg-white border border-green-100 p-3"><p class="text-xs text-gray-500">Payment</p><p class="font-semibold text-green-800">Paid / Confirmed</p></div>' +
+              '<div class="rounded-lg bg-white border border-green-100 p-3"><p class="text-xs text-gray-500">Access</p><p class="font-semibold text-green-800">Lifetime</p></div>' +
+            '</div>' +
+            '<p class="text-sm text-green-800 mb-3"><i class="fas fa-shield-alt mr-2"></i>No payment is due for your Sovereign plan. All 12 BizOS modules are included.</p>' +
             '<div id="paid-billing-details" class="text-sm text-green-900"><p>Checking your payment record…</p></div>' +
           '</div>';
-      }
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          const details = document.getElementById('paid-billing-details');
-          if (!details) return;
-          if (!response || !response.success || !response.active) {
-            details.innerHTML = '<p>Your account is marked as paid. Payment history details are not currently available.</p>';
-            return;
-          }
+        }
           var rows = [];
           if (response.requestId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Request ID</span><strong>' + String(response.requestId) + '</strong></div>');
           if (response.paymentId) rows.push('<div class="flex justify-between gap-4 py-1"><span>Payment ID</span><strong>' + String(response.paymentId) + '</strong></div>');
