@@ -694,15 +694,19 @@ function getAllModules(sessionId) {
     var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
     var access = config.MODULES && config.MODULES.access ? config.MODULES.access : {};
 
-    // Reuse the canonical Admin business directory instead of reading only the
-    // Businesses sheet. This keeps Module Management aligned with paid
-    // deployments that are already represented by successful payment/client
-    // registry data but may not yet have a Businesses row.
+    // Use the same canonical business/deployment directory used by Admin.
+    // Module Management is an entitlement/usage view, so it must not depend
+    // on a separate module registry or an obsolete per-module sheet.
     var businesses = getAllBusinesses(sessionId).map(function(b) {
+      var rawTier = String(b.subscriptionTier || '').trim().toLowerCase();
+      var tier = normalizeSubscriptionTier(rawTier);
+      // Be tolerant of historical paid-tier spellings without changing the
+      // canonical entitlement configuration.
+      if (['tier2','professional','enterprise','paid','premium'].indexOf(rawTier) >= 0) tier = 'sovereign';
       return {
         businessId: String(b.businessId || '').trim(),
         businessName: String(b.businessName || '').trim(),
-        tier: normalizeSubscriptionTier(b.subscriptionTier),
+        tier: tier,
         status: String(b.status || '').trim().toLowerCase(),
         workspaceId: String(b.workspaceId || '').trim()
       };
@@ -712,22 +716,50 @@ function getAllModules(sessionId) {
 
     return all.map(function(name) {
       var connected = businesses.filter(function(b) {
-        var allowed = access[b.tier] || access.free || [];
-        return allowed.indexOf(name) >= 0 && b.status !== 'archived' && b.status !== 'suspended';
+        var allowed = access[b.tier] || [];
+        return allowed.indexOf(name) >= 0 &&
+          ['archived','suspended'].indexOf(b.status) < 0;
       });
 
-      // Admin does not yet have a canonical cross-business record aggregator.
-      // Do not present a zero as authoritative usage data.
+      var recordCount = 0;
+      var recordCountAvailable = true;
+      var connectedDetails = connected.slice(0, 50).map(function(b) {
+        var count = null;
+        if (b.workspaceId) {
+          try {
+            var workspace = SpreadsheetApp.openById(b.workspaceId);
+            var def = {
+              Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
+              CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
+              Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
+              POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
+            };
+            var sheetName = def[name];
+            var sheet = sheetName ? workspace.getSheetByName(sheetName) : null;
+            count = sheet ? Math.max(0, sheet.getLastRow() - 1) : 0;
+            recordCount += count;
+          } catch (workspaceError) {
+            // Entitlement/connection remains valid even when the workspace
+            // cannot currently be opened by the Admin execution.
+            recordCountAvailable = false;
+          }
+        } else {
+          recordCountAvailable = false;
+        }
+        b.recordCount = count;
+        return b;
+      });
+
       return {
         name: name,
         label: labels[name] || name,
         icon: icons[name] || 'fa-folder',
-        tier: 'free',
-        recordCount: null,
-        recordCountAvailable: false,
+        tier: 'mixed',
+        recordCount: recordCountAvailable ? recordCount : null,
+        recordCountAvailable: recordCountAvailable,
         visible: true,
         businessCount: connected.length,
-        businesses: connected.slice(0, 50)
+        businesses: connectedDetails
       };
     });
   } catch(error) {
