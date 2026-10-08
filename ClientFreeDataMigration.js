@@ -465,7 +465,8 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
 
       var invitationStatus = String(statusCol >= 0 ? row[statusCol] || '' : '').trim().toLowerCase();
       var status = invitationStatus === 'pending' ? 'invited' :
-                   invitationStatus === 'suspended' ? 'suspended' : 'active';
+                   invitationStatus === 'suspended' ? 'suspended' :
+                   invitationStatus === 'accepted' ? 'active' : 'active';
       var assigned = [];
       if (assignedCol >= 0 && row[assignedCol]) {
         try {
