@@ -45,7 +45,9 @@ var MODULES=window.BIZOS_MODULES={
 // This avoids page-specific MODULES declarations while remaining compatible
 // with the V12 package generator's exact \"var MODULES=\" marker.
 function getBizOSModuleRegistry_() {
-  return window.BIZOS_MODULES || MODULES;
+  if (window.BIZOS_MODULES) return window.BIZOS_MODULES;
+  if (typeof MODULES !== 'undefined' && MODULES) return MODULES;
+  return {};
 }
 
 // ==================== SESSION MANAGEMENT ====================
@@ -2511,7 +2513,7 @@ function openModule(moduleName) {
   
   const pageTitle = document.getElementById('page-title');
   const moduleTitle = document.getElementById('module-title');
-  const moduleRegistry = window.BIZOS_MODULES || MODULES;
+  const moduleRegistry = getBizOSModuleRegistry_();
   const moduleConfig = moduleRegistry[moduleName];
   
   if (pageTitle) pageTitle.textContent = moduleConfig?.label || moduleName;
