@@ -8,10 +8,12 @@ function userHasAccess(moduleName, sessionId) {
   const userRole = user.role || 'staff';
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
-  // Owner/Admin: Check subscription tier
+  // Owner/Admin: use the canonical subscription/module access map.
+  // The old path referenced a browser-style MODULES registry that does not
+  // exist in the Apps Script server runtime.
   if (isOwnerOrAdmin) {
-    const module = MODULES[moduleName];
-    return module ? module.tiers.includes(user.subscriptionTier) : false;
+    const allowedModules = getModuleAccess(user.subscriptionTier);
+    return Array.isArray(allowedModules) && allowedModules.includes(moduleName);
   }
   
   // Staff: Check assigned modules
@@ -30,7 +32,9 @@ function getSheetHeaders(moduleName, sessionId) {
   try {
     if (!userHasAccess(moduleName, sessionId)) return [];
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) return [];
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return [];
     return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   } catch (error) {
@@ -122,7 +126,8 @@ function getDeploymentIdFromSession(sessionId) {
 function getRecordCount(moduleName, sessionId) {
   try {
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName]?.sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    const sheet = definition ? workspace.getSheetByName(definition.sheet) : null;
     if (!sheet) return 0;
     const lastRow = sheet.getLastRow();
     return lastRow > 1 ? lastRow - 1 : 0;
