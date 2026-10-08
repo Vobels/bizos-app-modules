@@ -685,7 +685,7 @@ function getAllFeatures(sessionId) {
   }
 }
 
-function getAllModules(sessionId) {
+function getAdminModuleManagementData(sessionId) {
   requireAdminSession_(sessionId);
   try {
     var config = getConfig();
