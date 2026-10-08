@@ -41,16 +41,16 @@ const MODULES = {
 // ==================== SESSION MANAGEMENT ====================
 function saveSession(sessionId, user) {
   if (sessionId) {
-    localStorage.setItem('bizos_session', sessionId);
-    localStorage.setItem('bizos_user', JSON.stringify(user));
+    sessionStorage.setItem('bizos_session', sessionId);
+    sessionStorage.setItem('bizos_user', JSON.stringify(user));
     currentSessionId = sessionId;
     currentUser = user;
   }
 }
 
 function loadSession() {
-  const sessionId = localStorage.getItem('bizos_session');
-  const userJson = localStorage.getItem('bizos_user');
+  const sessionId = sessionStorage.getItem('bizos_session');
+  const userJson = sessionStorage.getItem('bizos_user');
 
   if (sessionId && userJson) {
     try {
@@ -65,6 +65,10 @@ function loadSession() {
 }
 
 function clearSession() {
+  sessionStorage.removeItem('bizos_session');
+  sessionStorage.removeItem('bizos_user');
+  // Clear legacy browser-persisted auth so an older BizOS deployment cannot
+  // silently re-authenticate this page after the session-storage migration.
   localStorage.removeItem('bizos_session');
   localStorage.removeItem('bizos_user');
   currentSessionId = null;
@@ -538,7 +542,7 @@ window.handleLogin = function(event) {
           businessId: currentUser?.businessId
         });
 
-        const testSession = localStorage.getItem('bizos_session');
+        const testSession = sessionStorage.getItem('bizos_session');
         console.log('LocalStorage session exists:', !!testSession);
 
         if (window.pendingUpgrade && res.user.subscriptionTier === 'free') {
@@ -637,7 +641,7 @@ function closeLoginModal() {
 function handleLogout() {
   // Clear the browser session immediately so logout cannot leave the user
   // visually authenticated while the server request is still running.
-  const sessionId = currentSessionId || localStorage.getItem('bizos_session');
+  const sessionId = currentSessionId || sessionStorage.getItem('bizos_session');
 
   clearSession();
 
@@ -2134,7 +2138,7 @@ function loadAllApps() {
   // If no session, try to load from localStorage
   if (!currentSessionId) {
     console.log("No currentSessionId, attempting to reload from localStorage");
-    const storedSession = localStorage.getItem('bizos_session');
+    const storedSession = sessionStorage.getItem('bizos_session');
     if (storedSession) {
       currentSessionId = storedSession;
       console.log("Restored sessionId from localStorage:", currentSessionId);
