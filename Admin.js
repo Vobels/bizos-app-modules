@@ -37,7 +37,7 @@ function approveUpgradeRequest(requestId, adminEmail, sessionId) {
       const workspaceResult = createWorkspaceForBusiness(businessId, businessName, ownerEmail);
       
       if (workspaceResult.success) {
-        businessSheet.getRange(bizRowIndex + 1, tierCol + 1).setValue('tier2');
+        businessSheet.getRange(bizRowIndex + 1, tierCol + 1).setValue('sovereign');
         businessSheet.getRange(bizRowIndex + 1, statusColBiz + 1).setValue('verified');
         businessSheet.getRange(bizRowIndex + 1, workspaceIdCol + 1).setValue(workspaceResult.workspaceId);
         
@@ -997,9 +997,11 @@ function manuallyUpgradeUser(email, targetTier, sessionId) {
   requireAdminSession_(sessionId);
   try {
     // Validate tier
-    const validTiers = ['free', 'starter', 'sovereign', 'professional', 'enterprise'];
-    if (!validTiers.includes(targetTier)) {
-      return { success: false, message: "Invalid tier. Must be: " + validTiers.join(', ') };
+    const rawTargetTier = String(targetTier || 'free').trim().toLowerCase();
+    const targetTierNormalized = normalizeSubscriptionTier(rawTargetTier);
+    const validLegacyInputs = ['free', 'starter', 'sovereign', 'tier2', 'professional', 'enterprise'];
+    if (!validLegacyInputs.includes(rawTargetTier)) {
+      return { success: false, message: "Invalid tier. Use Free or Sovereign." };
     }
     
     // Find user
@@ -1048,12 +1050,12 @@ function manuallyUpgradeUser(email, targetTier, sessionId) {
     }
     
     // Update tier
-    businessSheet.getRange(bizRowIndex + 1, tierCol + 1).setValue(targetTier);
+    businessSheet.getRange(bizRowIndex + 1, tierCol + 1).setValue(targetTierNormalized);
     businessSheet.getRange(bizRowIndex + 1, statusCol + 1).setValue('verified');
     
     // Create workspace if upgrading from free and none exists
     const currentWorkspaceId = businessData[bizRowIndex][workspaceIdCol];
-    if (!currentWorkspaceId && targetTier !== 'free') {
+    if (!currentWorkspaceId && targetTierNormalized !== 'free') {
       const businessName = businessData[bizRowIndex][businessHeaders.indexOf('Business_Name')];
       const ownerEmail = businessData[bizRowIndex][businessHeaders.indexOf('Owner_Email')];
       const workspaceResult = createWorkspaceForBusiness(businessId, businessName, ownerEmail);
@@ -1066,14 +1068,14 @@ function manuallyUpgradeUser(email, targetTier, sessionId) {
     // Log the upgrade
     logAdminAction('manual_upgrade', {
       email: email,
-      tier: targetTier,
+      tier: targetTierNormalized,
       businessId: businessId,
       performedBy: Session.getActiveUser().getEmail()
     });
     
     return {
       success: true,
-      message: `User ${email} upgraded to ${targetTier} successfully`
+      message: `User ${email} updated to ${targetTierNormalized} successfully`
     };
     
   } catch (error) {
