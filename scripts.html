@@ -4696,26 +4696,21 @@ function addUpgradeButton() {
   if (!container) return;
 
   // Clear every header plan/upgrade control before rendering the authoritative one.
-  // Older page state can leave a duplicate button behind, especially after
-  // login/session restoration. Only the header controls are touched here.
   container.querySelectorAll('#upgrade-tier-btn, [data-bizos-upgrade-header="1"], button[onclick*="triggerUpgrade"]').forEach(function(el) {
     el.remove();
   });
 
-  const effectiveTier = normalizeClientTier(currentUser.subscriptionTier);
+  function renderHeaderTier(tier) {
+    const effectiveTier = normalizeClientTier(tier);
+    if (effectiveTier === 'sovereign') {
+      container.insertAdjacentHTML('beforeend', `
+        <span id="upgrade-tier-btn" data-bizos-upgrade-header="1" class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200" title="Paid plan">
+          <i class="fas fa-check-circle mr-2"></i>Sovereign
+        </span>
+      `);
+      return;
+    }
 
-  if (effectiveTier === 'sovereign') {
-    const label = 'Sovereign';
-    container.insertAdjacentHTML('beforeend', `
-      <span id="upgrade-tier-btn" data-bizos-upgrade-header="1" class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200" title="Paid plan">
-        <i class="fas fa-check-circle mr-2"></i>${label}
-      </span>
-    `);
-    return;
-  }
-
-  // The header Upgrade action is strictly for Free accounts.
-  if (effectiveTier === 'free') {
     container.insertAdjacentHTML('beforeend', `
       <button id="upgrade-tier-btn" data-bizos-upgrade-header="1" onclick="triggerUpgrade('header')" 
         class="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-purple-900 transition shadow-sm">
@@ -4724,6 +4719,37 @@ function addUpgradeButton() {
     `);
     console.log('Upgrade button added (header)');
   }
+
+  const localTier = normalizeClientTier(currentUser.subscriptionTier);
+
+  // The server-side payment record is authoritative. This extra check prevents
+  // a stale Free session/user object from rendering Upgrade for a customer who
+  // has already completed payment, even if entitlement reconciliation has not
+  // yet repaired the Businesses row.
+  if (localTier === 'free' && currentSessionId) {
+    google.script.run
+      .withSuccessHandler(function(response) {
+        if (!currentUser || currentSessionId === null) return;
+
+        if (response && response.success && response.active && response.paymentConfirmed) {
+          currentUser.subscriptionTier = 'sovereign';
+          saveSession(currentSessionId, currentUser);
+          renderHeaderTier('sovereign');
+          console.log('Header entitlement refreshed from confirmed payment.');
+          return;
+        }
+
+        renderHeaderTier('free');
+      })
+      .withFailureHandler(function(error) {
+        console.warn('Header payment entitlement check failed:', error);
+        renderHeaderTier(localTier);
+      })
+      .getCurrentUpgradePaymentStatus(currentSessionId);
+    return;
+  }
+
+  renderHeaderTier(localTier);
 }
 
 function triggerUpgrade(source = 'general') {
