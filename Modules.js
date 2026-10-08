@@ -59,7 +59,8 @@ function getModuleDataWithSync(moduleName, sessionId) {
   try {
     if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
     
-    const user = getUserFromSession(sessionId);
+    // userHasAccess() already validates the session. Avoid a second
+    // user lookup here before resolving the workspace.
     const workspace = getWorkspaceFile(sessionId);
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) return { success: false, message: "Module not found" };
