@@ -5238,7 +5238,19 @@ function switchRecentTab(tabType) {
 
 // ==================== SIDEBAR ====================
 
-function updateStaffSidebarForRole() {\n  const link = document.getElementById('staff-sidebar-link');\n  const label = document.getElementById('staff-sidebar-label');\n  if (!link) return;\n  const user = currentUser || {};\n  const role = String(user.role || user.Role || 'staff').trim().toLowerCase();\n  const isManager = role === 'owner' || role === 'admin';\n  // Both roles need Staff, but the label makes the destination explicit.\n  if (label) label.textContent = isManager ? 'Staff Management' : 'My Staff Workspace';\n  link.setAttribute('title', isManager ? 'Manage staff and invitations' : 'View your staff workspace');\n}\n\nfunction toggleSidebar() {
+function updateStaffSidebarForRole() {
+  const link = document.getElementById('staff-sidebar-link');
+  const label = document.getElementById('staff-sidebar-label');
+  if (!link) return;
+  const user = currentUser || {};
+  const role = String(user.role || user.Role || 'staff').trim().toLowerCase();
+  const isManager = role === 'owner' || role === 'admin';
+  // Both roles need Staff, but the label makes the destination explicit.
+  if (label) label.textContent = isManager ? 'Staff Management' : 'My Staff Workspace';
+  link.setAttribute('title', isManager ? 'Manage staff and invitations' : 'View your staff workspace');
+}
+
+function toggleSidebar() {
   console.log('toggleSidebar called');
   
   var sidebar = document.getElementById('sidebar');
