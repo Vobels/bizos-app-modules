@@ -711,7 +711,11 @@ function getAllModules(sessionId) {
         workspaceId: String(b.workspaceId || '').trim()
       };
     }).filter(function(b) {
-      return !!b.businessId;
+      // A paid customer can temporarily exist only through the payment/
+      // deployment registry before Business_ID is written back to Businesses.
+      // Keep that customer visible in Module Management; do not make the
+      // global getAllBusinesses() contract stricter just for this view.
+      return !!(b.businessId || b.businessName || b.ownerEmail);
     });
 
     return all.map(function(name) {
