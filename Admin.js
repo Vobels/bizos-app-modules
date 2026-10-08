@@ -790,14 +790,11 @@ function getAdminModuleManagementData(sessionId) {
         if (b.workspaceId) {
           try {
             var workspace = SpreadsheetApp.openById(b.workspaceId);
-            var def = {
-              Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
-              CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
-              Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
-              POS:'Point of Sale', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
-            };
-            var sheetName = def[name];
-            var sheet = sheetName ? workspace.getSheetByName(sheetName) : null;
+            // Use the canonical module definition shared by the module runtime.
+            // This prevents Admin record counts from drifting from the actual
+            // workspace sheet names used by BizOS modules.
+            var definition = getBizOSModuleDefinition_(name);
+            var sheet = definition ? workspace.getSheetByName(definition.sheet) : null;
             count = sheet ? Math.max(0, sheet.getLastRow() - 1) : 0;
             recordCount += count;
           } catch (workspaceError) {
