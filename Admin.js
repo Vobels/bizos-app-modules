@@ -743,7 +743,15 @@ function getAllModules(sessionId) {
           b.sheetId ||
           b.Sheet_ID ||
           ''
-        ).trim()
+        ).trim(),
+        // Preserve deployment/payment evidence through this local projection.
+        // getAllBusinesses() can legitimately supply a paid customer through
+        // the Clients/Payments merge even when the Businesses row has an old
+        // or missing tier value.
+        clientId: String(b.clientId || b.Client_ID || '').trim(),
+        deploymentId: String(b.deploymentId || b.Deployment_ID || '').trim(),
+        paymentStatus: String(b.paymentStatus || b.Payment_Status || '').trim().toLowerCase(),
+        deploymentAction: String(b.deploymentAction || '').trim().toLowerCase()
       };
     }).filter(function(b) {
       return !b.inactive && !!(b.businessId || b.businessName || b.ownerEmail);
