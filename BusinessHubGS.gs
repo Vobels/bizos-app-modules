@@ -80,14 +80,6 @@ function businessCenterImageData_(fileId) {
   }
 }
 
-function getBusinessCenterData(sessionId) {
-  try {
-    const access = businessCenterAccess_(sessionId, false);
-    if (!access.ok) return { success: false, message: access.message };
-    const workspace = getWorkspaceFile(sessionId);
-    const sheets = getBusinessCenterSheets_(workspace);
-    const products = businessCenterRows_(sheets.products);
-    const customers = businessCenterRows_(sheets.customers);
 function getBusinessCenterProductImages(productIds, sessionId) {
   try {
     const access = businessCenterAccess_(sessionId, false);
@@ -113,6 +105,16 @@ function getBusinessCenterProductImages(productIds, sessionId) {
     return { success: false, message: error.message };
   }
 }
+
+
+function getBusinessCenterData(sessionId) {
+  try {
+    const access = businessCenterAccess_(sessionId, false);
+    if (!access.ok) return { success: false, message: access.message };
+    const workspace = getWorkspaceFile(sessionId);
+    const sheets = getBusinessCenterSheets_(workspace);
+    const products = businessCenterRows_(sheets.products);
+    const customers = businessCenterRows_(sheets.customers);
 
     const customerBalances = getBusinessCenterCustomerBalanceMap_(workspace);
     customers.forEach(function(customer) {
