@@ -383,6 +383,31 @@ function getUserFromSession(sessionId) {
 function validateBizOSSession(sessionId) {
   var user = getUserFromSession(sessionId);
   if (!user) return {success:false, code:'SESSION_EXPIRED', message:'Your session has ended. Please sign in again.'};
+
+  // A valid browser session is not, by itself, the authoritative subscription
+  // state. Confirmed payment is authoritative, so reconcile it before returning
+  // the user to the dashboard. This prevents a paid customer from seeing the
+  // Free-only Upgrade action because an older session/user record still says
+  // "free".
+  try {
+    if (typeof reconcilePaidBusinessEntitlement_ === 'function') {
+      var entitlementSync = reconcilePaidBusinessEntitlement_(
+        user.email,
+        user.businessId,
+        user.businessName
+      );
+      if (entitlementSync && entitlementSync.success && entitlementSync.tier) {
+        // Re-read the user so accessibleModules and subscriptionTier are both
+        // rebuilt from the synchronized business entitlement.
+        user = getUserFromSession(sessionId) || user;
+      }
+    }
+  } catch (e) {
+    // Session validation must remain available even if entitlement repair
+    // encounters a transient billing/provisioning data issue.
+    console.warn('Paid entitlement reconciliation during session validation failed:', e);
+  }
+
   return {success:true, user:user};
 }
 
