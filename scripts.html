@@ -2335,10 +2335,14 @@ function loadAllApps() {
 }
 
 function loadFeaturedApps() {
-  callGoogleScript(
-    'getModuleSummary',
-    [],
-    (summary) => {
+  const cachedSummary = BIZ_CACHE &&
+    BIZ_CACHE.data &&
+    BIZ_CACHE.data.modules &&
+    Object.keys(BIZ_CACHE.data.modules).length
+      ? BIZ_CACHE.data.modules
+      : null;
+
+  const renderFeaturedApps = (summary) => {
       const container = document.getElementById('featured-apps');
       if (!container) return;
       
@@ -2415,6 +2419,19 @@ function loadFeaturedApps() {
           `;
         }
       });
+  };
+
+  if (cachedSummary) {
+    renderFeaturedApps(cachedSummary);
+    return;
+  }
+
+  callGoogleScript(
+    'getModuleSummary',
+    [],
+    (summary) => {
+      BIZ_CACHE.data.modules = summary || {};
+      renderFeaturedApps(BIZ_CACHE.data.modules);
     },
     () => {}
   );
