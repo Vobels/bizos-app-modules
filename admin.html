@@ -1281,32 +1281,89 @@
     }
     
     function loadModules() {
+      var grid = document.getElementById('modulesGrid');
+      if (!grid) return;
+
       google.script.run
         .withSuccessHandler(function(modules) {
-          const grid = document.getElementById('modulesGrid');
-          const colors = {
-            Finance: '#7c3aed', Sales: '#2563eb', Ecommerce: '#059669',
-            CRM: '#db2777', HR: '#dc2626', Logistics: '#d97706',
-            Tax: '#f59e0b', Agro: '#10b981'
+          var iconMap = {
+            Finance: 'fa-calculator',
+            Sales: 'fa-chart-line',
+            Ecommerce: 'fa-cart-shopping',
+            CRM: 'fa-users',
+            HR: 'fa-briefcase',
+            Logistics: 'fa-truck',
+            Tax: 'fa-file-invoice',
+            Agro: 'fa-seedling',
+            Productivity: 'fa-clock',
+            POS: 'fa-cash-register',
+            Attendance: 'fa-fingerprint',
+            Warehouse: 'fa-warehouse'
           };
+          var accentMap = {
+            Finance: '#7c3aed',
+            Sales: '#2563eb',
+            Ecommerce: '#059669',
+            CRM: '#db2777',
+            HR: '#dc2626',
+            Logistics: '#d97706',
+            Tax: '#ca8a04',
+            Agro: '#10b981',
+            Productivity: '#4f46e5',
+            POS: '#db2777',
+            Attendance: '#0891b2',
+            Warehouse: '#475569'
+          };
+
           if (!modules || modules.length === 0) {
             grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-th-large"></i><p>No modules found</p></div>';
             return;
           }
-          grid.innerHTML = modules.map(m => `
-            <div style="background: white; border-radius: 12px; padding: 16px 20px; border: 1px solid #f0f0f0;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: ${colors[m.name] || '#6b7280'}20; color: ${colors[m.name] || '#6b7280'}; display: flex; align-items: center; justify-content: center;">
-                  <i class="fas ${m.icon || 'fa-folder'}"></i>
-                </div>
-                <div>
-                  <div style="font-weight: 600;">${m.label || m.name || 'Module'}</div>
-                  <div style="font-size: 12px; color: #6b7280;">${m.businessCount || 0} businesses connected</div><div style="font-size:11px;color:#9ca3af;margin-top:4px;">${m.recordCountAvailable ? ((m.recordCount || 0).toLocaleString() + " records") : "Record count unavailable"} · ${(m.businesses || []).slice(0,4).map(function(b){return escAdmin(b.businessName || b.businessId);}).join(" · ")}${(m.businesses || []).length > 4 ? " · +" + ((m.businesses || []).length - 4) + " more" : ""}</div>
-                </div>
-                <span class="status-badge active" style="margin-left:auto;">${m.businessCount || 0} connected</span>
-              </div>
-            </div>
-          `).join('');
+
+          grid.innerHTML = modules.map(function(m) {
+            var name = String(m.name || 'Module');
+            var label = String(m.label || name);
+            var icon = m.icon || iconMap[name] || 'fa-cube';
+            var accent = accentMap[name] || '#5D2A86';
+            var connected = Number(m.businessCount || 0);
+            var records = m.recordCountAvailable ? Number(m.recordCount || 0).toLocaleString() : 'Unavailable';
+            var businessNames = (m.businesses || []).slice(0, 4).map(function(b) {
+              return escAdmin(b.businessName || b.businessId || 'Business');
+            });
+            var connectedText = connected === 1 ? '1 business connected' : connected + ' businesses connected';
+            var businessText = businessNames.length
+              ? businessNames.join(' · ') + ((m.businesses || []).length > 4 ? ' · +' + ((m.businesses || []).length - 4) + ' more' : '')
+              : 'No businesses connected yet';
+
+            return '<article style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05);">' +
+              '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+                '<div style="width:46px;height:46px;flex:0 0 46px;border-radius:12px;background:' + accent + '18;color:' + accent + ';display:flex;align-items:center;justify-content:center;">' +
+                  '<i class="fas ' + icon + '" style="font-size:19px;"></i>' +
+                '</div>' +
+                '<div style="min-width:0;flex:1;">' +
+                  '<div style="font-size:16px;font-weight:700;color:#111827;">' + escAdmin(name) + '</div>' +
+                  '<div style="font-size:12px;color:#6b7280;margin-top:2px;">' + escAdmin(label) + '</div>' +
+                '</div>' +
+                '<span class="status-badge ' + (connected ? 'active' : 'pending') + '" style="white-space:nowrap;">' +
+                  (connected ? 'Connected' : 'Not connected') +
+                '</span>' +
+              '</div>' +
+              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;">' +
+                '<div style="background:#f9fafb;border-radius:9px;padding:10px;">' +
+                  '<div style="font-size:11px;color:#6b7280;">Businesses</div>' +
+                  '<div style="font-size:18px;font-weight:700;color:#111827;margin-top:2px;">' + connected + '</div>' +
+                '</div>' +
+                '<div style="background:#f9fafb;border-radius:9px;padding:10px;">' +
+                  '<div style="font-size:11px;color:#6b7280;">Records</div>' +
+                  '<div style="font-size:18px;font-weight:700;color:#111827;margin-top:2px;">' + escAdmin(records) + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div style="margin-top:13px;font-size:12px;color:#6b7280;line-height:1.5;">' +
+                '<strong style="color:#374151;">' + escAdmin(connectedText) + '</strong><br>' +
+                escAdmin(businessText) +
+              '</div>' +
+            '</article>';
+          }).join('');
         })
         .withFailureHandler(function(error) {
           grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-triangle"></i><p>Unable to load module management data</p><small style="color:#9ca3af;">' + escAdmin((error && error.message) || 'Please refresh the Admin page.') + '</small></div>';
@@ -1314,7 +1371,7 @@
         })
         .getAllModules(getAdminSession());
     }
-    
+
     function loadWhiteLabelConfig() {
       google.script.run
         .withSuccessHandler(function(config) {
