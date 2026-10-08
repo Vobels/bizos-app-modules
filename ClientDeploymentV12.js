@@ -231,6 +231,12 @@ function generateClientCodeSafelyV12(settings) {
     'function doGet(e){var traceToken=String(e&&e.parameter&&e.parameter.v12TraceToken||"").trim();if(traceToken)return renderV12RuntimeTrace_(traceToken);var t=HtmlService.createTemplateFromFile("ClientShellV12");return t.evaluate().setTitle(CLIENT_CONFIG.clientName+" - BizOS").addMetaTag("viewport","width=device-width,initial-scale=1").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}\n' +
     runtime.slice(includeStart);
 
+  // Finalize registry hardening after every V12 bridge has been appended.
+  // This catches direct MODULES lookups introduced by future bridge code too.
+  runtime = runtime.split('Object.keys(MODULES)').join('Object.keys(clientModuleRegistryV12_())');
+  runtime = runtime.split('MODULES[').join('clientModuleRegistryV12_()[');
+  runtime = runtime.split('MODULES.').join('clientModuleRegistryV12_().');
+
   var modulesSource = String(getMasterSourceForV12_('Modules') || '');
   var recordsSource = String(getMasterSourceForV12_('Records') || '');
   var businessCenterServerSource = String(getMasterSourceForV12_('BusinessHubGS') || '');
