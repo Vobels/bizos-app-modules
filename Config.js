@@ -101,9 +101,8 @@ var CONFIG = {
     freeModules: ["Finance", "Ecommerce"],
     access: {
       demo: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
-      starter: ["Finance", "Ecommerce"],
+      free: ["Finance", "Ecommerce"],
       sovereign: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
-      enterprise: ["Finance", "Ecommerce", "Sales", "CRM", "HR", "Logistics", "Tax", "Agro", "Productivity", "POS", "Attendance", "Warehouse"],
     },
     icons: {
       Finance: "fa-calculator",
@@ -174,7 +173,7 @@ var CONFIG = {
       badge: "(Demo)",
       upgradeMessage: "Demo Mode - Read Only",
     },
-    starter: {
+    free: {
       name: "Free",
       isReadOnly: false,
       maxRecords: 500,
@@ -186,13 +185,6 @@ var CONFIG = {
       isReadOnly: false,
       maxRecords: null,
       badge: "⭐ Sovereign",
-      upgradeMessage: "",
-    },
-    enterprise: {
-      name: "Enterprise",
-      isReadOnly: false,
-      maxRecords: null,
-      badge: "🏢 Enterprise",
       upgradeMessage: "",
     },
   },
@@ -349,7 +341,7 @@ var CONFIG = {
     dateFormat: "YYYY-MM-DD",
     currency: "USD",
     currencySymbol: "$",
-    defaultTier: "starter",
+    defaultTier: "free",
     defaultCountry: "Nigeria",
   },
 
@@ -361,7 +353,6 @@ var CONFIG = {
     defaultTier: 'sovereign',
     moduleAccess: {
       free: ['Finance', 'Ecommerce'],
-      starter: ['Finance', 'Ecommerce'],
       sovereign: ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse']
     },
     // Client provisioning settings
@@ -536,8 +527,14 @@ function getAllModules() {
   return CONFIG.MODULES.all;
 }
 
+function normalizeSubscriptionTier(tier) {
+  var raw = String(tier || 'free').trim().toLowerCase();
+  if (raw === 'sovereign' || raw === 'tier2' || raw === 'professional' || raw === 'enterprise') return 'sovereign';
+  return 'free';
+}
+
 function getModuleAccess(tier) {
-  return CONFIG.MODULES.access[tier] || CONFIG.MODULES.access.starter;
+  return CONFIG.MODULES.access[normalizeSubscriptionTier(tier)] || CONFIG.MODULES.access.free;
 }
 
 function getCountryRequirements(country) {
