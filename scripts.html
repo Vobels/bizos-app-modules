@@ -41,6 +41,13 @@ var MODULES=window.BIZOS_MODULES={
   Warehouse: { label: 'Warehouse Management', icon: 'warehouse' }
 };
 
+// Keep all Master module consumers on the same authoritative registry.
+// This avoids page-specific MODULES declarations while remaining compatible
+// with the V12 package generator's exact \"var MODULES=\" marker.
+function getBizOSModuleRegistry_() {
+  return window.BIZOS_MODULES || MODULES;
+}
+
 // ==================== SESSION MANAGEMENT ====================
 function saveSession(sessionId, user) {
   if (sessionId) {
@@ -3348,7 +3355,7 @@ function submitModuleForm() {
     }
   });
   
-  if (!data.Date && MODULES[currentModuleName]?.sheet === 'Financial_Data') {
+  if (!data.Date && getBizOSModuleRegistry_()[currentModuleName]?.sheet === 'Financial_Data') {
     data.Date = new Date().toISOString().split('T')[0];
   }
   
@@ -3472,7 +3479,7 @@ function loadModuleTableWithSync(moduleName) {
         const summaryHtml = `
           <div class="bg-gray-50 p-3 rounded-lg mb-4 flex justify-between items-center">
             <div>
-              <span class="text-sm text-gray-600">Total Revenue from ${MODULES[moduleName]?.label}:</span>
+              <span class="text-sm text-gray-600">Total Revenue from ${getBizOSModuleRegistry_()[moduleName]?.label}:</span>
               <span class="font-semibold text-green-600 ml-2">${formatCurrency(financialSummary.totalRevenue)}</span>
             </div>
             <div>
