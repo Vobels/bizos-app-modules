@@ -23,7 +23,10 @@ let recordsPerPage = 10;
 let filteredRecords = [];
 
 // ==================== MODULES CONFIGURATION ====================
-const MODULES = {
+// Keep one canonical browser-visible registry. The exact "var MODULES="
+// marker is intentional because the V12 package generator uses it when
+// deciding whether its package-safe fallback registry is necessary.
+var MODULES=window.BIZOS_MODULES={
   Finance: { label: "Financial Management", icon: "calculator" },
   Sales: { label: "Sales Pipeline", icon: "chart-line" },
   Ecommerce: { label: "E-commerce", icon: "cart" },
@@ -35,7 +38,7 @@ const MODULES = {
   Productivity: { label: "Productivity Suite", icon: "clock" },
   POS: { label: "Point of Sale", icon: "cash-register" },
   Attendance: { label: "Staff Attendance", icon: "fingerprint" },
-  Warehouse: {  label: 'Warehouse Management', icon: 'warehouse' }
+  Warehouse: { label: 'Warehouse Management', icon: 'warehouse' }
 };
 
 // ==================== SESSION MANAGEMENT ====================
@@ -2157,10 +2160,16 @@ function loadAllApps() {
     }
   }
   
-  callGoogleScript(
-    'getModuleSummary',
-    [],
-    (summary) => {
+  // Reuse a valid dashboard module summary when available. Apps should
+  // not trigger another identical server read just to render the directory.
+  const cachedSummary = BIZ_CACHE &&
+    BIZ_CACHE.data &&
+    BIZ_CACHE.data.modules &&
+    Object.keys(BIZ_CACHE.data.modules).length
+      ? BIZ_CACHE.data.modules
+      : null;
+
+  const renderApps = (summary) => {
       console.log("getModuleSummary SUCCESS. Response:", summary);
       console.log("Number of modules:", Object.keys(summary).length);
       
@@ -2304,6 +2313,19 @@ function loadAllApps() {
       if (appsRendered === 0) {
         container.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No apps available. Please refresh.</div>';
       }
+    };
+  
+  if (cachedSummary) {
+    renderApps(cachedSummary);
+    return;
+  }
+
+  callGoogleScript(
+    'getModuleSummary',
+    [],
+    (summary) => {
+      BIZ_CACHE.data.modules = summary || {};
+      renderApps(BIZ_CACHE.data.modules);
     },
     (error) => {
       console.error("getModuleSummary FAILED:", error);
@@ -2465,7 +2487,8 @@ function openModule(moduleName) {
   
   const pageTitle = document.getElementById('page-title');
   const moduleTitle = document.getElementById('module-title');
-  const moduleConfig = MODULES[moduleName];
+  const moduleRegistry = window.BIZOS_MODULES || MODULES;
+  const moduleConfig = moduleRegistry[moduleName];
   
   if (pageTitle) pageTitle.textContent = moduleConfig?.label || moduleName;
   if (moduleTitle) moduleTitle.textContent = moduleConfig?.label || moduleName;
