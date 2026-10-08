@@ -12,7 +12,7 @@
         <nav class="space-y-2">
           <button onclick="window.showDashboardHome()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-home text-gray-500"></i><span>Dashboard</span></button>
           <button onclick="window.showBusinessCenter()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-store text-gray-500"></i><span>Business Center</span></button>
-          <button onclick="window.showStaffPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-users text-gray-500"></i><span>Staff</span></button>
+          <button id="staff-sidebar-link" onclick="window.showStaffPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-users text-gray-500"></i><span id="staff-sidebar-label">Staff</span></button>
           <button onclick="window.showAppsPage()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3"><i class="fas fa-th-large text-gray-500"></i><span>Apps</span></button>
           <div class="relative">
             <button id="settings-sidebar-toggle" onclick="toggleSettingsSidebarMenu(event)" aria-expanded="false" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center justify-between">
