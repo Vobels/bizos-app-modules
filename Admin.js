@@ -751,7 +751,28 @@ function getAllModules(sessionId) {
 
     return all.map(function(name) {
       var connected = businesses.filter(function(b) {
-        var allowed = access[b.tier] || [];
+        // Resolve the effective module entitlement from the same canonical tier
+        // rules used everywhere else in BizOS. Do not depend on a raw access
+        // object lookup alone: paid/deployed customers can arrive through the
+        // merged Clients/Payments view with legacy tier labels.
+        var allowed = getModuleAccess(b.tier);
+        if (!Array.isArray(allowed) || !allowed.length) {
+          allowed = access[b.tier] || [];
+        }
+
+        // A confirmed paid deployment is an operational sovereign workspace.
+        // This fallback protects historical records whose Businesses row still
+        // carries a legacy/free tier even though payment and deployment exist.
+        var hasConfirmedPaidDeployment =
+          String(b.paymentStatus || '').toLowerCase() === 'success' ||
+          !!String(b.deploymentId || '').trim() ||
+          !!String(b.clientId || '').trim();
+
+        if (hasConfirmedPaidDeployment &&
+            normalizeSubscriptionTier(b.tier) === 'free') {
+          allowed = access.sovereign || getModuleAccess('sovereign');
+        }
+
         return allowed.indexOf(name) >= 0;
       });
 
