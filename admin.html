@@ -1301,14 +1301,17 @@
                 </div>
                 <div>
                   <div style="font-weight: 600;">${m.label || m.name || 'Module'}</div>
-                  <div style="font-size: 12px; color: #6b7280;">${m.businessCount || 0} businesses connected</div><div style="font-size:11px;color:#9ca3af;margin-top:4px;">${(m.businesses || []).slice(0,4).map(function(b){return escAdmin(b.businessName || b.businessId);}).join(" · ")}${(m.businesses || []).length > 4 ? " · +" + ((m.businesses || []).length - 4) + " more" : ""}</div>
+                  <div style="font-size: 12px; color: #6b7280;">${m.businessCount || 0} businesses connected</div><div style="font-size:11px;color:#9ca3af;margin-top:4px;">${m.recordCountAvailable ? ((m.recordCount || 0).toLocaleString() + " records") : "Record count unavailable"} · ${(m.businesses || []).slice(0,4).map(function(b){return escAdmin(b.businessName || b.businessId);}).join(" · ")}${(m.businesses || []).length > 4 ? " · +" + ((m.businesses || []).length - 4) + " more" : ""}</div>
                 </div>
                 <span class="status-badge active" style="margin-left:auto;">${m.businessCount || 0} connected</span>
               </div>
             </div>
           `).join('');
         })
-        .withFailureHandler(function() { showNotification('Error loading modules', 'error'); })
+        .withFailureHandler(function(error) {
+          grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-triangle"></i><p>Unable to load module management data</p><small style="color:#9ca3af;">' + escAdmin((error && error.message) || 'Please refresh the Admin page.') + '</small></div>';
+          showNotification('Error loading modules', 'error');
+        })
         .getAllModules(getAdminSession());
     }
     
