@@ -50,15 +50,15 @@
     try {
       if (typeof window.clearSession === 'function') window.clearSession();
       else {
-        localStorage.removeItem('bizos_session');
-        localStorage.removeItem('bizos_user');
+        sessionStorage.removeItem('bizos_session');
+        sessionStorage.removeItem('bizos_user');
       }
-      localStorage.removeItem('bizos_last_activity');
+      sessionStorage.removeItem('bizos_last_activity');
     } catch (e) {
       try {
-        localStorage.removeItem('bizos_session');
-        localStorage.removeItem('bizos_user');
-        localStorage.removeItem('bizos_last_activity');
+        sessionStorage.removeItem('bizos_session');
+        sessionStorage.removeItem('bizos_user');
+        sessionStorage.removeItem('bizos_last_activity');
       } catch (ignore) {}
     }
     forceLanding();
@@ -66,22 +66,22 @@
 
   function touchActivity(force) {
     var sessionId = null;
-    try { sessionId = localStorage.getItem('bizos_session'); } catch (e) {}
+    try { sessionId = sessionStorage.getItem('bizos_session'); } catch (e) {}
     if (!sessionId) return;
 
     var now = Date.now();
     if (!force && now - lastActivityWrite < ACTIVITY_WRITE_INTERVAL_MS) return;
     lastActivityWrite = now;
-    try { localStorage.setItem('bizos_last_activity', String(now)); } catch (e) {}
+    try { sessionStorage.setItem('bizos_last_activity', String(now)); } catch (e) {}
   }
 
   function isIdleExpired() {
     var sessionId = null;
-    try { sessionId = localStorage.getItem('bizos_session'); } catch (e) {}
+    try { sessionId = sessionStorage.getItem('bizos_session'); } catch (e) {}
     if (!sessionId) return true;
 
     var raw = null;
-    try { raw = localStorage.getItem('bizos_last_activity'); } catch (e) {}
+    try { raw = sessionStorage.getItem('bizos_last_activity'); } catch (e) {}
     var last = Number(raw);
 
     // A session created by the existing login code may not have the new
@@ -100,7 +100,7 @@
 
     ['click', 'keydown', 'mousemove', 'mousedown', 'touchstart', 'scroll'].forEach(function (eventName) {
       window.addEventListener(eventName, function () {
-        if (localStorage.getItem('bizos_session')) touchActivity(false);
+        if (sessionStorage.getItem('bizos_session')) touchActivity(false);
       }, {passive: true});
     });
 
@@ -127,7 +127,7 @@
     var guardedLogout = function () {
       // Capture the session before clearing it so the server can invalidate it too.
       var sessionId = null;
-      try { sessionId = currentSessionId || localStorage.getItem('bizos_session'); } catch (e) {}
+      try { sessionId = currentSessionId || sessionStorage.getItem('bizos_session'); } catch (e) {}
 
       clearAndLand();
 
@@ -146,9 +146,9 @@
 
   function enforceNoSession() {
     var sessionId = null;
-    try { sessionId = localStorage.getItem('bizos_session'); } catch (e) {}
+    try { sessionId = sessionStorage.getItem('bizos_session'); } catch (e) {}
     var userJson = null;
-    try { userJson = localStorage.getItem('bizos_user'); } catch (e) {}
+    try { userJson = sessionStorage.getItem('bizos_user'); } catch (e) {}
 
     if (!sessionId || !userJson) {
       var route = String(window.__BIZOS_PUBLIC_ROUTE || '/').toLowerCase();
