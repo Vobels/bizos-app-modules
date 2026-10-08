@@ -226,7 +226,7 @@ function getModuleSummary(sessionId) {
       if (isDemo) {
         // Demo: All modules but read-only
         accessibleModules = Object.keys(allModules);
-      } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
+      } else if (normalizeSubscriptionTier(subscriptionTier) === 'free') {
         // Free/Starter: Finance + Ecommerce are the core BizOS apps
         accessibleModules = ['Finance', 'Ecommerce'];
       } else {
