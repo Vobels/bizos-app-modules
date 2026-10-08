@@ -979,7 +979,7 @@ function getSystemLogs(sessionId) {
 function getClientConfig() {
   return {
     company: { name: "BizOS", tagline: "Business Operating System" },
-    modules: MODULES,
+    modules: CONFIG.MODULES,
     tiers: TIERS,
     pricing: PRICING
   };
