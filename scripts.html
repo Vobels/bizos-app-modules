@@ -415,7 +415,7 @@ function callGoogleScript(functionName, params, successHandler, errorHandler) {
 
 // ==================== MODULE ACCESS CONTROL ====================
 function checkModuleAccess(moduleName) {
-  const tier = currentUser?.subscriptionTier || 'free';
+  const tier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
   const userRole = currentUser?.role || 'staff';
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
@@ -437,7 +437,7 @@ function checkModuleAccess(moduleName) {
   }
   
   // ===== FREE: Only Finance and Ecommerce =====
-  if ((tier === 'free' || tier === 'starter') && !['Finance', 'Ecommerce'].includes(moduleName)) {
+  if (tier === 'free' && !['Finance', 'Ecommerce'].includes(moduleName)) {
     showNotification('Upgrade to Sovereign to access all apps!', 'warning');
     return false;
   }
@@ -2584,7 +2584,7 @@ function loadModulesList() {
     }
     
     // FREE USERS: Only Finance and Ecommerce
-    if (userTier === 'free' || userTier === 'starter') {
+    if (userTier === 'free') {
       if (isAccessibleForFree) {
         container.innerHTML += `
           <button onclick="openModule('${moduleName}')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3">
@@ -4852,14 +4852,11 @@ function loadProfileData() {
     if (currentUser.subscriptionTier === 'free') {
       tierBadge.textContent = 'Free Plan';
       tierBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700';
-    } else if (currentUser.subscriptionTier === 'tier2') {
-      tierBadge.textContent = 'Tier 2 (Monthly)';
+    } else if (normalizeClientTier(currentUser.subscriptionTier) === 'sovereign') {
+      tierBadge.textContent = 'Sovereign';
       tierBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700';
-    } else if (currentUser.subscriptionTier === 'tier3') {
-      tierBadge.textContent = 'Tier 3 (Lifetime)';
-      tierBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700';
     } else {
-      tierBadge.textContent = currentUser.subscriptionTier || 'Free Plan';
+      tierBadge.textContent = 'Free Plan';
       tierBadge.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700';
     }
   }
@@ -4887,16 +4884,16 @@ function loadProfileData() {
         if (bizTier) {
           if (response.subscriptionTier === 'free') {
             bizTier.innerHTML = '<span class="px-2 py-1 bg-gray-100 rounded text-sm">Free Plan</span>';
-          } else if (response.subscriptionTier === 'tier2') {
-            bizTier.innerHTML = '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-sm">Tier 2 (Monthly Subscription)</span>';
-          } else if (response.subscriptionTier === 'tier3') {
-            bizTier.innerHTML = '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">Tier 3 (Lifetime)</span>';
+          } else if (normalizeClientTier(response.subscriptionTier) === 'sovereign') {
+            bizTier.innerHTML = '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-sm">Sovereign</span>';
+          } else {
+            bizTier.innerHTML = '<span class="px-2 py-1 bg-gray-100 rounded text-sm">Free Plan</span>';
           }
         }
         
         if (statusSpan) {
           if (response.verificationStatus === 'verified') {
-            statusSpan.innerHTML = '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm"><i class="fas fa-check-circle mr-1"></i>Business Verified - Tier 2 Active</span>';
+            statusSpan.innerHTML = '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm"><i class="fas fa-check-circle mr-1"></i>Business Verified - Sovereign Active</span>';
             const docsSection = document.getElementById('verification-docs-section');
             if (docsSection) docsSection.classList.add('hidden');
           } else if (response.verificationStatus === 'pending') {
