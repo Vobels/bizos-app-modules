@@ -23,9 +23,13 @@ function createWorkspaceForBusiness(businessId, businessName, ownerEmail) {
     // Move workspace into that subfolder
     workspaceFile.moveTo(businessFolder);
     
-    // Create sheets
-    Object.keys(MODULES).forEach(moduleName => {
-      const sheet = newWorkspace.insertSheet(MODULES[moduleName].sheet);
+    // Create sheets from the canonical module definitions used by BizOS.
+    // MODULES is a browser/client registry and is not available in the
+    // Apps Script server runtime.
+    CONFIG.MODULES.all.forEach(moduleName => {
+      const definition = getBizOSModuleDefinition_(moduleName);
+      if (!definition) return;
+      const sheet = newWorkspace.insertSheet(definition.sheet);
       addDefaultHeadersToModule(sheet, moduleName);
     });
     
@@ -176,7 +180,8 @@ function getWorkspaceFile(sessionId) {
 
 function updateSourceRecordWithLink(workspace, moduleName, recordId, financialId) {
   try {
-    const sheet = workspace.getSheetByName(MODULES[moduleName]?.sheet);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    const sheet = definition ? workspace.getSheetByName(definition.sheet) : null;
     if (!sheet) return;
     
     const data = sheet.getDataRange().getValues();
