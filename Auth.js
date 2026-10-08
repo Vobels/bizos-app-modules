@@ -145,7 +145,7 @@ function authenticateUser(email, password, businessName) {
     if (businessId && bizIdCol !== -1) {
       businessRowFound = businessData.find(row => row[bizIdCol] === businessId);
       if (businessRowFound) {
-        subscriptionTier = tierCol !== -1 ? businessRowFound[tierCol] || 'free' : 'free';
+        subscriptionTier = normalizeSubscriptionTier(tierCol !== -1 ? businessRowFound[tierCol] : 'free');
         workspaceId = workspaceIdCol !== -1 ? businessRowFound[workspaceIdCol] || null : null;
 
         // Reconcile confirmed historical payments before building the session
@@ -339,12 +339,12 @@ function getUserFromSession(sessionId) {
   // ===== GET ACCESSIBLE MODULES =====
   let accessibleModules = [];
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
-  const subscriptionTier = businessRow ? (tierCol !== -1 ? businessRow[tierCol] : 'free') : 'free';
+  const subscriptionTier = normalizeSubscriptionTier(businessRow ? (tierCol !== -1 ? businessRow[tierCol] : 'free') : 'free');
   
   if (isOwnerOrAdmin) {
     if (isDemo) {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
-    } else if (subscriptionTier === 'free' || subscriptionTier === 'starter') {
+    } else if (subscriptionTier === 'free') {
       accessibleModules = ['Finance', 'Ecommerce'];
     } else {
       accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
