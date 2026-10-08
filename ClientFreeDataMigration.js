@@ -454,7 +454,7 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
       if (email) existingByEmail[email] = index + 2;
     });
 
-    var copied = 0, updated = 0, skipped = 0;
+    var copied = 0, updated = 0, skipped = 0, sourceRows = 0;
     values.slice(1).forEach(function(row, sourceIndex) {
       if (String(row[businessIdCol] || '') !== String(businessId || '')) return;
       sourceRows++;
@@ -498,7 +498,7 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
         Department: departmentCol >= 0 ? row[departmentCol] || '' : '',
         Status: status,
         Password_Hash: passwordCol >= 0 ? row[passwordCol] || '' : '',
-        Must_Change_Password: passwordCol >= 0 && row[passwordCol] ? 'YES' : 'YES',
+        Must_Change_Password: invitationStatus === 'accepted' && passwordCol >= 0 && row[passwordCol] ? 'NO' : 'YES',
         Invited_By: ownerEmail || '',
         Created_At: createdCol >= 0 ? row[createdCol] || now : now,
         Updated_At: now,
@@ -515,7 +515,6 @@ function migrateFreeWorkspaceStaffToPaidClient_(businessId, target, ownerEmail) 
             // and subsequently changed by the client.
             if (
               (header === 'Password_Hash' ||
-               header === 'Status' ||
                header === 'Assigned_Modules' ||
                header === 'Last_Login') &&
               targetData[col]
