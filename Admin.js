@@ -364,7 +364,7 @@ function getAllBusinesses(sessionId) {
         subscriptionTier: data[i][headers.indexOf('Subscription_Tier')] || deployment.Subscription_Tier || deployment.Tier || 'free',
         verificationStatus: data[i][headers.indexOf('Verification_Status')] || 'pending',
         createdAt: data[i][headers.indexOf('Created_At')],
-        status: data[i][headers.indexOf('Status')] || 'active',
+        status: data[i][headers.indexOf('Subscription_Status')] || data[i][headers.indexOf('Status')] || 'active',
         clientId: deployment.Client_ID || '',
         scriptId: deployment.Script_ID || '',
         deploymentId: deployment.Deployment_ID || '',
@@ -694,36 +694,65 @@ function getAllModules(sessionId) {
     var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
     var access = config.MODULES && config.MODULES.access ? config.MODULES.access : {};
 
-    // Use the same canonical business/deployment directory used by Admin.
-    // Module Management is an entitlement/usage view, so it must not depend
-    // on a separate module registry or an obsolete per-module sheet.
+    // Module Management needs the effective entitlement/connection state,
+    // not a fragile copy of one Businesses column. Keep this resolution local
+    // so other Admin business views retain their existing contract.
     var businesses = getAllBusinesses(sessionId).map(function(b) {
-      var rawTier = String(b.subscriptionTier || '').trim().toLowerCase();
+      var rawTier = String(
+        b.subscriptionTier ||
+        b.Subscription_Tier ||
+        b.tier ||
+        b.Tier ||
+        ''
+      ).trim().toLowerCase();
+
       var tier = normalizeSubscriptionTier(rawTier);
-      // Be tolerant of historical paid-tier spellings without changing the
-      // canonical entitlement configuration.
-      if (['tier2','professional','enterprise','paid','premium'].indexOf(rawTier) >= 0) tier = 'sovereign';
+      if (['tier2','professional','enterprise','paid','premium','sovereign'].indexOf(rawTier) >= 0) {
+        tier = 'sovereign';
+      }
+
+      var rawStatus = String(
+        b.status ||
+        b.subscriptionStatus ||
+        b.Subscription_Status ||
+        b.deploymentStatus ||
+        ''
+      ).trim().toLowerCase();
+
+      var isInactive = ['archived','suspended','inactive','disabled'].indexOf(rawStatus) >= 0;
+      var activeFlag = String(
+        b.isActive ||
+        b.Is_Active ||
+        ''
+      ).trim().toLowerCase();
+
+      if (activeFlag === 'no' || activeFlag === 'false' || activeFlag === '0') {
+        isInactive = true;
+      }
+
       return {
-        businessId: String(b.businessId || '').trim(),
-        businessName: String(b.businessName || '').trim(),
-        ownerEmail: String(b.ownerEmail || '').trim().toLowerCase(),
+        businessId: String(b.businessId || b.Business_ID || '').trim(),
+        businessName: String(b.businessName || b.Business_Name || '').trim(),
+        ownerEmail: String(b.ownerEmail || b.Email || '').trim().toLowerCase(),
         tier: tier,
-        status: String(b.status || '').trim().toLowerCase(),
-        workspaceId: String(b.workspaceId || '').trim()
+        status: rawStatus || 'active',
+        inactive: isInactive,
+        workspaceId: String(
+          b.workspaceId ||
+          b.Workspace_ID ||
+          b.sheetId ||
+          b.Sheet_ID ||
+          ''
+        ).trim()
       };
     }).filter(function(b) {
-      // A paid customer can temporarily exist only through the payment/
-      // deployment registry before Business_ID is written back to Businesses.
-      // Keep that customer visible in Module Management; do not make the
-      // global getAllBusinesses() contract stricter just for this view.
-      return !!(b.businessId || b.businessName || b.ownerEmail);
+      return !b.inactive && !!(b.businessId || b.businessName || b.ownerEmail);
     });
 
     return all.map(function(name) {
       var connected = businesses.filter(function(b) {
         var allowed = access[b.tier] || [];
-        return allowed.indexOf(name) >= 0 &&
-          ['archived','suspended'].indexOf(b.status) < 0;
+        return allowed.indexOf(name) >= 0;
       });
 
       var recordCount = 0;
@@ -737,15 +766,13 @@ function getAllModules(sessionId) {
               Finance:'Financial_Data', Sales:'Sales_Data', Ecommerce:'Ecommerce_Data',
               CRM:'CRM_Data', HR:'HR_Data', Logistics:'Logistics_Data',
               Tax:'Tax_Data', Agro:'Agro_Data', Productivity:'Productivity_Data',
-              POS:'POS_Data', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
+              POS:'Point of Sale', Attendance:'Attendance_Data', Warehouse:'Warehouse_Data'
             };
             var sheetName = def[name];
             var sheet = sheetName ? workspace.getSheetByName(sheetName) : null;
             count = sheet ? Math.max(0, sheet.getLastRow() - 1) : 0;
             recordCount += count;
           } catch (workspaceError) {
-            // Entitlement/connection remains valid even when the workspace
-            // cannot currently be opened by the Admin execution.
             recordCountAvailable = false;
           }
         } else {
@@ -768,7 +795,7 @@ function getAllModules(sessionId) {
       };
     });
   } catch(error) {
-    console.error('Error getting modules:',error);
+    console.error('Error getting modules:', error);
     return [];
   }
 }
