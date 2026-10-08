@@ -220,14 +220,32 @@ function repairExistingPaidClientData(email) {
     ).trim();
 
     if (!sourceWorkspaceId) {
+      // Staff membership lives in the Master Users directory, not in the
+      // legacy workspace spreadsheet. Repair that part independently so an
+      // already-paid client can recover invited and accepted staff even when
+      // the old workspace reference is missing.
+      var staffOnlyTarget = SpreadsheetApp.openById(targetWorkspaceId);
+      var staffOnly = migrateFreeWorkspaceStaffToPaidClient_(businessId, staffOnlyTarget, wantedEmail);
+      if (staffOnly && staffOnly.success === false) {
+        return {
+          success:false,
+          code:'STAFF_REPAIR_FAILED',
+          clientId:client.clientId,
+          businessId:businessId,
+          targetWorkspaceId:targetWorkspaceId,
+          staff:staffOnly,
+          message:staffOnly.message || 'Existing paid client staff repair failed.'
+        };
+      }
       return {
         success:true,
-        repaired:false,
-        reason:'NO_SOURCE_WORKSPACE',
+        repaired:true,
+        reason:'STAFF_ONLY_REPAIR',
         clientId:client.clientId,
         businessId:businessId,
         targetWorkspaceId:targetWorkspaceId,
-        message:'No separate free workspace is registered for this business; nothing was migrated.'
+        staff:staffOnly,
+        message:'Existing paid client staff repair completed. No legacy workspace was available for other data migration.'
       };
     }
 
