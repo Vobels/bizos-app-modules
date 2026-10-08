@@ -445,8 +445,12 @@ function checkModuleAccess(moduleName) {
   return true;
 }
 
+function normalizeClientTier(tier) {
+  const raw = String(tier || 'free').trim().toLowerCase();
+  return ['sovereign', 'tier2', 'professional', 'enterprise'].includes(raw) ? 'sovereign' : 'free';
+}
+
 function getModuleAccess(moduleName) {
-  // SAFE: Check if currentUser exists
   if (!currentUser) {
     console.log("getModuleAccess: No currentUser, returning default access");
     return {
@@ -458,17 +462,15 @@ function getModuleAccess(moduleName) {
       message: 'Please log in to access modules'
     };
   }
-  
-  const rawTier = currentUser?.subscriptionTier || 'free';
+
+  const effectiveTier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
   const userRole = currentUser?.role || 'staff';
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
-  
-  // ===== STAFF: Check if module is assigned =====
+
   if (!isOwnerOrAdmin) {
     const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
     const isAssigned = assignedModules.includes(moduleName);
-    
     return {
       isAccessible: isAssigned,
       isLocked: !isAssigned,
@@ -478,66 +480,24 @@ function getModuleAccess(moduleName) {
       message: isAssigned ? 'View only' : 'This module is not assigned to you'
     };
   }
-  
-  // ===== OWNER/ADMIN: Check subscription tier =====
-  // IMPORTANT: isDemo should NOT affect premium users
-  let tierCode = 'starter';
-  
-  // Check if user is premium (sovereign, professional, tier2, enterprise)
-  const isPremium = rawTier === 'sovereign' || rawTier === 'tier2' || 
-                    rawTier === 'professional' || rawTier === 'enterprise';
-  
-  if (isDemo && !isPremium) {
-    // Only show demo for non-premium users
-    tierCode = 'demo';
-  } else if (isPremium) {
-    tierCode = 'sovereign';  // Premium gets all modules
-  } else if (rawTier === 'enterprise') {
-    tierCode = 'enterprise';
-  } else {
-    tierCode = 'starter';    // Free users get Finance + Ecommerce
-  }
-  
-  const tierConfig = {
-    demo: {
-      accessibleModules: ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse' ],
-      isReadOnly: true,
-      showAllModules: true,
-      badge: '(Demo)'
-    },
-    starter: {
-      accessibleModules: ['Finance', 'Ecommerce'],
-      isReadOnly: false,
-      showAllModules: true,
-      badge: ''
-    },
-    sovereign: {
-      accessibleModules: ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse' ],
-      isReadOnly: false,
-      showAllModules: true,
-      badge: ''
-    },
-    enterprise: {
-      accessibleModules: ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse' ],
-      isReadOnly: false,
-      showAllModules: true,
-      badge: ''
-    }
-  };
-  
-  const config = tierConfig[tierCode] || tierConfig.starter;
-  const isAccessible = config.accessibleModules.includes(moduleName);
-  
+
+  const allModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
+  const tierConfig = isDemo
+    ? { accessibleModules: allModules, isReadOnly: true, showAllModules: true, badge: '(Demo)' }
+    : effectiveTier === 'sovereign'
+      ? { accessibleModules: allModules, isReadOnly: false, showAllModules: true, badge: '' }
+      : { accessibleModules: ['Finance', 'Ecommerce'], isReadOnly: false, showAllModules: true, badge: '' };
+
+  const isAccessible = tierConfig.accessibleModules.includes(moduleName);
   return {
     isAccessible: isAccessible,
-    isLocked: !isAccessible && tierCode === 'starter',
-    isReadOnly: config.isReadOnly && isAccessible,
-    showInSidebar: config.showAllModules,
-    badge: config.badge,
-    message: isAccessible ? (config.isReadOnly ? 'Demo Mode - Read Only' : '') : 'Upgrade to Sovereign to access this module'
+    isLocked: !isAccessible && effectiveTier === 'free' && !isDemo,
+    isReadOnly: tierConfig.isReadOnly && isAccessible,
+    showInSidebar: tierConfig.showAllModules,
+    badge: tierConfig.badge,
+    message: isAccessible ? (tierConfig.isReadOnly ? 'Demo Mode - Read Only' : '') : 'Upgrade to Sovereign to access this module'
   };
 }
-
 
 // ==================== AUTHENTICATION - LOGIN ====================
 window.handleLogin = function(event) {
@@ -1301,14 +1261,11 @@ function updateUserInfo() {
     const userNameSpan = document.getElementById('user-name');
     const userInitialSpan = document.getElementById('user-initial');
     const userTierSpan = document.getElementById('user-tier');
-    const rawTier = String(currentUser.subscriptionTier || 'free').trim().toLowerCase();
-    const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+    const effectiveTier = normalizeClientTier(currentUser.subscriptionTier);
     
     if (userNameSpan) userNameSpan.textContent = currentUser.name || currentUser.email;
     if (userInitialSpan) userInitialSpan.textContent = (currentUser.name || currentUser.email)[0].toUpperCase();
-    if (userTierSpan) userTierSpan.textContent = isPaid
-      ? (rawTier === 'enterprise' ? 'Enterprise' : 'Sovereign')
-      : 'Free Plan';
+    if (userTierSpan) userTierSpan.textContent = effectiveTier === 'sovereign' ? 'Sovereign' : 'Free Plan';
   }
 }
 
@@ -2235,14 +2192,13 @@ function loadAllApps() {
       
       const allModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
       
-      const userTier = currentUser?.subscriptionTier || 'free';
+      const userTier = normalizeClientTier(currentUser?.subscriptionTier);
       const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
       const userRole = currentUser?.role || 'staff';
       const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
       
       // ===== CHECK IF USER IS PREMIUM =====
-      const isPremium = userTier === 'sovereign' || userTier === 'tier2' || 
-                        userTier === 'professional' || userTier === 'enterprise';
+      const isPremium = userTier === 'sovereign';
       
       let accessibleModules = [];
       let showDemoBadge = false;
@@ -2264,13 +2220,13 @@ function loadAllApps() {
         showDemoBadge = true;
       } 
       // ===== FREE: Only Finance + Ecommerce =====
-      else if (userTier === 'free' || userTier === 'starter') {
+      else if (userTier === 'free') {
         accessibleModules = ['Finance', 'Ecommerce'];
         showDemoBadge = false;
       } 
       // ===== FALLBACK =====
       else {
-        accessibleModules = allModules;
+        accessibleModules = ['Finance', 'Ecommerce'];
         showDemoBadge = false;
       }
       
@@ -2407,10 +2363,7 @@ function loadFeaturedApps() {
           `;
         } else {
           // Check if user is premium to hide demo badge
-          const isPremium = currentUser?.subscriptionTier === 'sovereign' || 
-                           currentUser?.subscriptionTier === 'tier2' || 
-                           currentUser?.subscriptionTier === 'professional' ||
-                           currentUser?.subscriptionTier === 'enterprise';
+          const isPremium = normalizeClientTier(currentUser?.subscriptionTier) === 'sovereign';
           
           let badgeHtml = '';
           if (access.isReadOnly && !isPremium) {
@@ -2558,14 +2511,13 @@ function loadModulesList() {
   };
 
   const moduleOrder = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
-  const userTier = currentUser?.subscriptionTier || 'free';
+  const userTier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
   const userRole = currentUser?.role || 'staff';
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
   // ===== CHECK IF USER IS PREMIUM =====
-  const isPremium = userTier === 'sovereign' || userTier === 'tier2' || 
-                    userTier === 'professional' || userTier === 'enterprise';
+  const isPremium = userTier === 'sovereign';
   
   // ===== STAFF: Get assigned modules =====
   let staffAssignedModules = [];
@@ -4197,21 +4149,10 @@ function updatePricingDisplay() {
 
 // Get pricing by country code
 function getPricingByCountryCode(countryCode) {
-  const pricing = {
-    US: { pro_monthly: '$19', pro_yearly: '$190', enterprise: '$2,990' },
-    GB: { pro_monthly: '£15', pro_yearly: '£150', enterprise: '£2,390' },
-    NG: { pro_monthly: '₦28,500', pro_yearly: '₦285,000', enterprise: '₦4,485,000' },
-    KE: { pro_monthly: 'KSh 2,470', pro_yearly: 'KSh 24,700', enterprise: 'KSh 388,700' },
-    PH: { pro_monthly: '₱1,064', pro_yearly: '₱10,640', enterprise: '₱167,440' },
-    IN: { pro_monthly: '₹1,596', pro_yearly: '₹15,960', enterprise: '₹251,160' },
-    ZA: { pro_monthly: 'R 361', pro_yearly: 'R 3,610', enterprise: 'R 56,810' },
-    AE: { pro_monthly: 'د.إ 70', pro_yearly: 'د.إ 698', enterprise: 'د.إ 10,980' },
-    EU: { pro_monthly: '€18', pro_yearly: '€180', enterprise: '€2,830' }
-  };
-  
-  return pricing[countryCode] || pricing.NG;
+  // Legacy helper retained for compatibility. Current checkout pricing is
+  // calculated from the admin-managed Sovereign USD base price and FX table.
+  return { sovereign: 'Sovereign' };
 }
-
 
 // ==================== UPGRADE SYSTEM ====================
 function showUpgradeModal() {
@@ -4232,13 +4173,12 @@ function showUpgradeModal() {
 
     const form = document.getElementById('upgrade-form');
     const paidStatus = document.getElementById('paid-billing-status');
-    const rawTier = String(currentUser?.subscriptionTier || 'free').trim().toLowerCase();
-    const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+    const effectiveTier = normalizeClientTier(currentUser?.subscriptionTier);
     const modalTitle = modal.querySelector('.modal-content > .flex h2');
 
-    if (isPaid) {
+    if (effectiveTier === 'sovereign') {
       if (form) form.classList.add('hidden');
-      if (modalTitle) modalTitle.textContent = rawTier === 'enterprise' ? 'Enterprise Billing' : 'Sovereign Billing';
+      if (modalTitle) modalTitle.textContent = 'Sovereign Billing';
       if (paidStatus) {
         paidStatus.className = 'mb-5';
         paidStatus.innerHTML =
@@ -4752,11 +4692,10 @@ function addUpgradeButton() {
     el.remove();
   });
 
-  const rawTier = String(currentUser.subscriptionTier || 'free').trim().toLowerCase();
-  const isPaid = ['sovereign','tier2','professional','enterprise'].includes(rawTier);
+  const effectiveTier = normalizeClientTier(currentUser.subscriptionTier);
 
-  if (isPaid) {
-    const label = rawTier === 'enterprise' ? 'Enterprise' : 'Sovereign';
+  if (effectiveTier === 'sovereign') {
+    const label = 'Sovereign';
     container.insertAdjacentHTML('beforeend', `
       <span id="upgrade-tier-btn" data-bizos-upgrade-header="1" class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200" title="Paid plan">
         <i class="fas fa-check-circle mr-2"></i>${label}
@@ -4766,9 +4705,7 @@ function addUpgradeButton() {
   }
 
   // The header Upgrade action is strictly for Free accounts.
-  // Starter, Sovereign, Professional, Enterprise, and any other non-free
-  // entitlement must never receive an Upgrade button here.
-  if (rawTier === 'free') {
+  if (effectiveTier === 'free') {
     container.insertAdjacentHTML('beforeend', `
       <button id="upgrade-tier-btn" data-bizos-upgrade-header="1" onclick="triggerUpgrade('header')" 
         class="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-purple-900 transition shadow-sm">
@@ -4784,7 +4721,7 @@ function triggerUpgrade(source = 'general') {
   showUpgradeModal();
 }
 
-function showUpgradeFromLanding(tier = 'professional') {
+function showUpgradeFromLanding(tier = 'sovereign') {
   window.pendingUpgrade = true;
   window.pendingUpgradeTier = tier;
   showLoginModal();
@@ -5818,7 +5755,7 @@ window.scrollToSection = function(sectionId) {
 };
 
 window.contactSales = function() {
-  showNotification('Please email sales@bizos.com for enterprise pricing', 'info');
+  showNotification('Please contact BizOS support for pricing assistance.', 'info');
 };
 
 window.openModuleFromLanding = function(moduleName) {
