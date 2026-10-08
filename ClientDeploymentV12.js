@@ -56,11 +56,16 @@ function generateClientCodeSafelyV12(settings) {
     runtime = 'var MODULES={Finance:{sheet:"Financial_Data",label:"Financial Management",icon:"calculator"},Sales:{sheet:"Sales_Data",label:"Sales Pipeline",icon:"chart-line"},Ecommerce:{sheet:"Ecommerce_Data",label:"E-commerce",icon:"cart"},CRM:{sheet:"CRM_Data",label:"Customer Relations",icon:"users"},HR:{sheet:"HR_Data",label:"Human Resources",icon:"briefcase"},Logistics:{sheet:"Logistics_Data",label:"Logistics",icon:"truck"},Tax:{sheet:"Tax_Data",label:"Tax Compliance",icon:"file-invoice"},Agro:{sheet:"Agro_Data",label:"Agriculture",icon:"seedling"},Productivity:{sheet:"Productivity_Data",label:"Productivity Suite",icon:"clock"},POS:{sheet:"POS_Data",label:"Point of Sale",icon:"cash-register"},Attendance:{sheet:"Attendance_Data",label:"Staff Attendance",icon:"fingerprint"},Warehouse:{sheet:"Warehouse_Data",label:"Warehouse Management",icon:"warehouse"}};\n' + runtime;
   }
 
-  // Runtime-safe module accessor: login/session creation must never fail merely
-  // because the generated MODULES registry is unavailable in a runtime scope.
-  // When MODULES exists, it remains the single canonical registry.
-  var moduleRegistryHelperV12_ = 'function clientModuleNamesV12_(){var fallback=["Finance","Sales","Ecommerce","CRM","HR","Logistics","Tax","Agro","Productivity","POS","Attendance","Warehouse"];try{return typeof MODULES!=="undefined"&&MODULES?Object.keys(MODULES):fallback;}catch(e){return fallback;}}\n';
+  // Runtime-safe module registry. Every generated client module consumer uses
+  // this accessor so a missing/isolated MODULES binding can never become a
+  // browser-visible "MODULES is not defined" failure.
+  var moduleRegistryHelperV12_ = 'function clientModuleRegistryV12_(){var fallback={Finance:{sheet:"Financial_Data",label:"Financial Management",icon:"calculator"},Sales:{sheet:"Sales_Data",label:"Sales Pipeline",icon:"chart-line"},Ecommerce:{sheet:"Ecommerce_Data",label:"E-commerce",icon:"cart"},CRM:{sheet:"CRM_Data",label:"Customer Relations",icon:"users"},HR:{sheet:"HR_Data",label:"Human Resources",icon:"briefcase"},Logistics:{sheet:"Logistics_Data",label:"Logistics",icon:"truck"},Tax:{sheet:"Tax_Data",label:"Tax Compliance",icon:"file-invoice"},Agro:{sheet:"Agro_Data",label:"Agriculture",icon:"seedling"},Productivity:{sheet:"Productivity_Data",label:"Productivity Suite",icon:"clock"},POS:{sheet:"POS_Data",label:"Point of Sale",icon:"cash-register"},Attendance:{sheet:"Attendance_Data",label:"Staff Attendance",icon:"fingerprint"},Warehouse:{sheet:"Warehouse_Data",label:"Warehouse Management",icon:"warehouse"}};try{return typeof MODULES!=="undefined"&&MODULES?MODULES:fallback;}catch(e){return fallback;}}\nfunction clientModuleNamesV12_(){return Object.keys(clientModuleRegistryV12_());}\n';
   runtime = moduleRegistryHelperV12_ + runtime;
+  // Replace only direct registry lookups. The declaration itself remains
+  // "var MODULES=" for package validation/provenance compatibility.
+  runtime = runtime.replace(/Object\\.keys\\(MODULES\\)/g,'Object.keys(clientModuleRegistryV12_())');
+  runtime = runtime.replace(/MODULES\\[/g,'clientModuleRegistryV12_()[');
+  runtime = runtime.replace(/MODULES\\./g,'clientModuleRegistryV12_().');
 
   // F security hardening: internal helpers must not be exposed through google.script.run.
   runtime = runtime
