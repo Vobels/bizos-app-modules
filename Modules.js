@@ -752,8 +752,8 @@ function deleteRecord(moduleName, index, sessionId) {
 
 function getEcommerceUsage(sessionId) {
   const user = getUserFromSession(sessionId);
-  if (user.subscriptionTier !== 'free') {
-    return { tier: 'tier2', unlimited: true };
+  if (normalizeSubscriptionTier(user.subscriptionTier) === 'sovereign') {
+    return { tier: 'sovereign', unlimited: true };
   }
   
   const workspace = getWorkspaceFile(sessionId);
@@ -813,7 +813,7 @@ function getModuleAccess(licenseResult, moduleName) {
     return {
       hasAccess: false,
       isReadOnly: true,
-      message: `${moduleName} requires ${licenseResult.tier === LICENSE_TIERS.STARTER ? 'Sovereign' : 'upgrade'} license`
+      message: `${moduleName} requires a Sovereign plan`
     };
   }
   
