@@ -702,7 +702,7 @@ function getAllModules(sessionId) {
       return {
         businessId: String(b.businessId || '').trim(),
         businessName: String(b.businessName || '').trim(),
-        tier: String(b.subscriptionTier || 'starter').trim().toLowerCase(),
+        tier: normalizeSubscriptionTier(b.subscriptionTier),
         status: String(b.status || '').trim().toLowerCase(),
         workspaceId: String(b.workspaceId || '').trim()
       };
@@ -712,7 +712,7 @@ function getAllModules(sessionId) {
 
     return all.map(function(name) {
       var connected = businesses.filter(function(b) {
-        var allowed = access[b.tier] || access.starter || [];
+        var allowed = access[b.tier] || access.free || [];
         return allowed.indexOf(name) >= 0 && b.status !== 'archived' && b.status !== 'suspended';
       });
 
@@ -722,7 +722,7 @@ function getAllModules(sessionId) {
         name: name,
         label: labels[name] || name,
         icon: icons[name] || 'fa-folder',
-        tier: 'starter',
+        tier: 'free',
         recordCount: null,
         recordCountAvailable: false,
         visible: true,
@@ -1368,9 +1368,9 @@ function getAdminBusinessPeople_(businessId) {
 
 function getAdminBusinessModules_(businessId, tier) {
   var config = getConfig();
-  var key = String(tier || 'starter').trim().toLowerCase();
+  var key = normalizeSubscriptionTier(tier);
   var access = config.MODULES && config.MODULES.access
-    ? (config.MODULES.access[key] || config.MODULES.access.starter || [])
+    ? (config.MODULES.access[key] || config.MODULES.access.free || [])
     : [];
   var all = config.MODULES && Array.isArray(config.MODULES.all) ? config.MODULES.all : [];
   var icons = config.MODULES && config.MODULES.icons ? config.MODULES.icons : {};
@@ -1434,7 +1434,7 @@ function getClientManagementOverview(clientId, sessionId) {
     if (!client) return {success:false, code:'CLIENT_NOT_FOUND', message:'No business was found for this business ID.'};
 
     var businessId = String(client.Business_ID || '').trim();
-    var tier = String(client.Tier || 'starter').trim().toLowerCase();
+    var tier = normalizeSubscriptionTier(client.Tier);
     var workspace = {success:false};
     var billing = {maintenance:[],features:[],quotes:[],services:[],activity:[]};
     var payments = [];
