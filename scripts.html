@@ -3497,7 +3497,7 @@ function confirmDelete() {
   
   callGoogleScript(
     'deleteRecord',
-    [currentModuleName, currentDeleteIndex],
+    [currentModuleName, (currentModuleData[currentDeleteIndex] && Number.isFinite(Number(currentModuleData[currentDeleteIndex]._row))) ? Number(currentModuleData[currentDeleteIndex]._row) - 2 : currentDeleteIndex],
     (res) => {
       showNotification(res.message, res.success ? 'success' : 'error');
       if (res.success) {
