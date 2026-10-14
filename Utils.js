@@ -12,7 +12,7 @@ function userHasAccess(moduleName, sessionId) {
   // The old path referenced a browser-style MODULES registry that does not
   // exist in the Apps Script server runtime.
   if (isOwnerOrAdmin) {
-    const allowedModules = getModuleAccess(user.subscriptionTier);
+    const allowedModules = getAllowedModulesForTier_(user.subscriptionTier);
     return Array.isArray(allowedModules) && allowedModules.includes(moduleName);
   }
   
@@ -154,7 +154,7 @@ function executeOperation(operation, moduleName, data, sessionId) {
 function validateLicense(businessId, deploymentId, sessionId) {
   try {
     const user = getUserFromSession(sessionId);
-    
+
     if (!user) {
       return {
         valid: true,
@@ -165,37 +165,23 @@ function validateLicense(businessId, deploymentId, sessionId) {
         message: 'Demo Mode'
       };
     }
-    
-    // Map subscription tier to access
-    let accessibleModules = ['Finance', 'Ecommerce'];
-    let isReadOnly = false;
-    let maxRecords = null;
-    let tier = user.subscriptionTier || 'free';
-    
-    if (user.isDemo === 'YES') {
-      isReadOnly = true;
-      accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro'];
-      maxRecords = 50;
-    } else if (tier === 'free') {
-      accessibleModules = ['Finance', 'Ecommerce'];
-      maxRecords = 500;
-    } else if (tier === 'tier2' || tier === 'professional') {
-      accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro'];
-      maxRecords = null;
-    } else if (tier === 'enterprise') {
-      accessibleModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro'];
-      maxRecords = null;
-    }
-    
+
+    const isDemo = user.isDemo === 'YES';
+    const tier = normalizeSubscriptionTier(user.subscriptionTier);
+    const accessibleModules = isDemo
+      ? ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro']
+      : getAllowedModulesForTier_(tier);
+    const isReadOnly = isDemo;
+    const maxRecords = isDemo ? 50 : (tier === 'free' ? 500 : null);
+
     return {
       valid: true,
-      tier: tier,
+      tier: isDemo ? 'demo' : tier,
       isReadOnly: isReadOnly,
       accessibleModules: accessibleModules,
       maxRecords: maxRecords,
-      message: `${tier.toUpperCase()} License Active`
+      message: isDemo ? 'Demo Mode' : tier.toUpperCase() + ' License Active'
     };
-    
   } catch (error) {
     console.error('validateLicense error:', error);
     return {
