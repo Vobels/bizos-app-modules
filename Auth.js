@@ -148,21 +148,31 @@ function authenticateUser(email, password, businessName) {
         subscriptionTier = normalizeSubscriptionTier(tierCol !== -1 ? businessRowFound[tierCol] : 'free');
         workspaceId = workspaceIdCol !== -1 ? businessRowFound[workspaceIdCol] || null : null;
 
-        // Reconcile confirmed historical payments before building the session
-        // user. This repairs accounts that were paid before entitlement sync
-        // was added, while leaving unpaid accounts unchanged.
-        if (typeof reconcilePaidBusinessEntitlement_ === 'function') {
-          var entitlementSync = reconcilePaidBusinessEntitlement_(
-            email,
-            businessId,
-            businessName
-          );
-          if (entitlementSync && entitlementSync.success && entitlementSync.tier) {
-            subscriptionTier = entitlementSync.tier;
-          }
-        }
-
         console.log('📊 Business found:', { businessId, tier: subscriptionTier });
+      }
+    }
+
+    // Reconcile paid entitlement even when the Businesses row was missing.
+    // The reconciler may safely restore that row from the matching owner and
+    // confirmed payment; then re-read the canonical row for tier/workspace.
+    if (typeof reconcilePaidBusinessEntitlement_ === 'function') {
+      var entitlementSync = reconcilePaidBusinessEntitlement_(email, businessId, businessName);
+      if (entitlementSync && entitlementSync.success && entitlementSync.tier) {
+        subscriptionTier = normalizeSubscriptionTier(entitlementSync.tier);
+      }
+      if (businessId) {
+        const refreshedBusinessData = getOrCreateBusinessSheet().getDataRange().getValues();
+        const refreshedHeaders = refreshedBusinessData[0] || [];
+        const refreshedIdCol = refreshedHeaders.indexOf('Business_ID');
+        const refreshedTierCol = refreshedHeaders.indexOf('Subscription_Tier');
+        const refreshedWorkspaceCol = refreshedHeaders.indexOf('Workspace_ID');
+        const refreshedRow = refreshedIdCol < 0 ? null : refreshedBusinessData.slice(1).find(
+          row => String(row[refreshedIdCol] || '').trim() === String(businessId || '').trim()
+        );
+        if (refreshedRow) {
+          if (refreshedTierCol >= 0) subscriptionTier = normalizeSubscriptionTier(refreshedRow[refreshedTierCol]);
+          if (refreshedWorkspaceCol >= 0) workspaceId = refreshedRow[refreshedWorkspaceCol] || null;
+        }
       }
     }
     
