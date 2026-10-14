@@ -13,7 +13,10 @@ function userHasAccess(moduleName, sessionId) {
     : (sessionValidation ? null : getUserFromSession(sessionId));
   if (!user) return false;
   
-  const userRole = user.role || 'staff';
+  // Role values can originate from older Users rows with inconsistent casing.
+  // Normalize before choosing the owner/admin entitlement path, matching Auth.js
+  // and getModuleSummary() so paid owners are not mistaken for restricted staff.
+  const userRole = String(user.role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
   // Owner/Admin: use the canonical subscription/module access map.
