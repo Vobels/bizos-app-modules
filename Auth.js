@@ -303,13 +303,13 @@ function getUserFromSession(sessionId) {
   }
   
   const session = getSessionData_(sessionId);
-  const sessionBusinessId = session && session.businessId ? String(session.businessId) : '';
+  const sessionBusinessId = session && session.businessId ? String(session.businessId).trim() : '';
 
   const matchingRows = data.map(function(row, index) {
     return { row: row, index: index };
   }).filter(function(item) {
     const rowEmail = String(item.row[emailCol] || '').trim().toLowerCase();
-    const rowBusinessId = businessIdCol !== -1 ? String(item.row[businessIdCol] || '') : '';
+    const rowBusinessId = businessIdCol !== -1 ? String(item.row[businessIdCol] || '').trim() : '';
     return rowEmail === String(email || '').trim().toLowerCase() &&
       (!sessionBusinessId || rowBusinessId === sessionBusinessId);
   });
