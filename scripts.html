@@ -3383,164 +3383,70 @@ function submitModuleForm() {
 
 // ==================== MODULE TABLE (Data Display) ====================
 function loadModuleTable(moduleName) {
-  callGoogleScript(
-    'getModuleData',
-    [moduleName],
-    (data) => {
-      currentModuleData = data || [];
-
-      const thead = document.getElementById('module-table-head');
-      const tbody = document.getElementById('module-table-body');
-      
-      if (!thead || !tbody) return;
-
-      if (!data || data.length === 0) {
-        thead.innerHTML = '';
-        tbody.innerHTML = '<tr><td colspan="100" class="text-center text-gray-500 py-8">No data available. Add your first record above.</td></tr>';
-        return;
-      }
-
-      const headers = Object.keys(data[0]);
-      
-      thead.innerHTML = `
-        <tr>
-          ${headers.map(h => `<th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">${h}</th>`).join('')}
-          <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Actions</th>
-        </tr>
-      `;
-      
-      tbody.innerHTML = data.map((row, i) => `
-        <tr class="hover:bg-gray-50">
-          ${headers.map(h => `<td class="px-4 py-2 text-sm text-gray-600">${row[h] || ''}</td>`).join('')}
-          <td class="px-4 py-2 text-sm">
-            <button onclick="editRecord(${i})" class="text-blue-600 hover:text-blue-800 mr-3">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button onclick="showDeleteModal(${i})" class="text-red-600 hover:text-red-800">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `).join('');
-    },
-    () => showNotification('Failed to load module data', 'error')
-  );
+  // Use one authoritative data path for opening, saving, deleting and refreshing.
+  // The legacy getModuleData endpoint converted server errors into an empty array.
+  return loadModuleTableWithSync(moduleName);
 }
 
 function refreshModuleData() {
   if (currentModuleName) {
-    loadModuleTable(currentModuleName);
-    showNotification('Data refreshed', 'success');
+    loadModuleTableWithSync(currentModuleName);
   }
 }
-
 
 function loadModuleTableWithSync(moduleName) {
   callGoogleScript(
     'getModuleDataWithSync',
     [moduleName],
     (response) => {
-      // ===== ADD THIS SAFETY CHECK AT THE VERY TOP =====
-      if (!response) {
-        console.error('getModuleDataWithSync returned null');
-        const thead = document.getElementById('module-table-head');
-        const tbody = document.getElementById('module-table-body');
-        if (thead) thead.innerHTML = '';
-        if (tbody) tbody.innerHTML = '<tr><td colspan="100" class="text-center text-red-500 py-8">Failed to load data. Please refresh.</div>';
-        showNotification('Failed to load data. Please refresh.', 'error');
-        return;
-      }
-      
-      // ===== ADD THIS CHECK FOR ERROR RESPONSE =====
-      if (response.success === false) {
-        showNotification(response.message || 'Failed to load module data', 'error');
-        return;
-      }
-      
-      // ===== HANDLE RESPONSE THAT MIGHT BE DIRECT ARRAY =====
-      let records = [];
-      let financialSummary = { totalRevenue: 0, totalExpenses: 0 };
-      
-      if (Array.isArray(response)) {
-        records = response;
-      } else if (response.records) {
-        records = response.records;
-        financialSummary = response.financialSummary || { totalRevenue: 0, totalExpenses: 0 };
-      } else {
-        records = response;
-      }
-      
-      currentModuleData = records || [];
-      
       const thead = document.getElementById('module-table-head');
       const tbody = document.getElementById('module-table-body');
-      
       if (!thead || !tbody) return;
-      
-      if (financialSummary && (financialSummary.totalRevenue > 0 || financialSummary.totalExpenses > 0)) {
-        const summaryHtml = `
-          <div class="bg-gray-50 p-3 rounded-lg mb-4 flex justify-between items-center">
-            <div>
-              <span class="text-sm text-gray-600">Total Revenue from ${getBizOSModuleRegistry_()[moduleName]?.label}:</span>
-              <span class="font-semibold text-green-600 ml-2">${formatCurrency(financialSummary.totalRevenue)}</span>
-            </div>
-            <div>
-              <span class="text-sm text-gray-600">Total Expenses:</span>
-              <span class="font-semibold text-red-600 ml-2">${formatCurrency(financialSummary.totalExpenses)}</span>
-            </div>
-            <div>
-              <span class="text-sm text-gray-600">Net:</span>
-              <span class="font-semibold ${financialSummary.totalRevenue - financialSummary.totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'} ml-2">
-                ${formatCurrency(financialSummary.totalRevenue - financialSummary.totalExpenses)}
-              </span>
-            </div>
-          </div>
-        `;
-        
-        if (!document.getElementById('module-financial-summary')) {
-          const tableContainer = document.querySelector('#module-view .overflow-x-auto');
-          if (tableContainer && !tableContainer.previousElementSibling?.id === 'module-financial-summary') {
-            tableContainer.insertAdjacentHTML('beforebegin', summaryHtml);
-          }
-        }
-      }
-      
-      if (!records || records.length === 0) {
+
+      if (!response || response.success === false) {
+        const message = response && response.message
+          ? response.message
+          : 'Failed to load module data. Please refresh.';
+        console.error('Module data load failed:', message);
         thead.innerHTML = '';
-        tbody.innerHTML = '<tr><td colspan="100" class="text-center text-gray-500 py-8">No data available. Add your first record above.复制前行';
+        tbody.innerHTML = '<tr><td colspan="100" class="text-center text-red-500 py-8">Could not load records. Please refresh.</td></tr>';
+        showNotification(message, 'error');
         return;
       }
-      
+
+      const records = Array.isArray(response)
+        ? response
+        : (Array.isArray(response.records) ? response.records : []);
+      currentModuleData = records;
+
+      if (!records.length) {
+        thead.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="100" class="text-center text-gray-500 py-8">No data available. Add your first record above.</td></tr>';
+        return;
+      }
+
       const headers = Object.keys(records[0]);
-      
-      thead.innerHTML = `
-        <tr>
-          ${headers.map(h => `<th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">${escapeHtml(h)}</th>`).join('')}
-          <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Actions</th>
-        </table>
-      `;
-      
-      tbody.innerHTML = records.map((row, i) => `
-        <tr class="hover:bg-gray-50">
-          ${headers.map(h => `<td class="px-4 py-2 text-sm text-gray-600">${escapeHtml(row[h] || '')}</td>`).join('')}
-          <td class="px-4 py-2 text-sm">
-            <button onclick="editRecord(${i})" class="text-blue-600 hover:text-blue-800 mr-3">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button onclick="showDeleteModal(${i})" class="text-red-600 hover:text-red-800">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-         </tr>
-      `).join('');
+      thead.innerHTML = '<tr>' +
+        headers.map(h => '<th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">' + escapeHtml(h) + '</th>').join('') +
+        '<th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Actions</th></tr>';
+
+      tbody.innerHTML = records.map((row, i) => '<tr class="hover:bg-gray-50">' +
+        headers.map(h => '<td class="px-4 py-2 text-sm text-gray-600">' + escapeHtml(row[h] == null ? '' : String(row[h])) + '</td>').join('') +
+        '<td class="px-4 py-2 text-sm">' +
+        '<button onclick="editRecord(' + i + ')" class="text-blue-600 hover:text-blue-800 mr-3" aria-label="Edit record"><i class="fas fa-edit"></i></button>' +
+        '<button onclick="showDeleteModal(' + i + ')" class="text-red-600 hover:text-red-800" aria-label="Delete record"><i class="fas fa-trash"></i></button>' +
+        '</td></tr>').join('');
     },
     (error) => {
       console.error('Failed to load module data:', error);
+      const thead = document.getElementById('module-table-head');
+      const tbody = document.getElementById('module-table-body');
+      if (thead) thead.innerHTML = '';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="100" class="text-center text-red-500 py-8">Could not load records. Please refresh.</td></tr>';
       showNotification('Failed to load module data. Please refresh.', 'error');
     }
   );
 }
-
 
 function editRecord(index) {
   const record = currentModuleData[index];
