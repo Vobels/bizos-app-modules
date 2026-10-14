@@ -2,7 +2,15 @@
 // ==================== HELPER FUNCTIONS ==================
 
 function userHasAccess(moduleName, sessionId) {
-  const user = getUserFromSession(sessionId);
+  // Reconcile confirmed payments before authorizing module data access. The
+  // dashboard bootstrap already performs this check; module endpoints must
+  // enforce the same authoritative entitlement rather than a stale tier.
+  const sessionValidation = typeof validateBizOSSession === 'function'
+    ? validateBizOSSession(sessionId)
+    : null;
+  const user = sessionValidation && sessionValidation.success
+    ? sessionValidation.user
+    : (sessionValidation ? null : getUserFromSession(sessionId));
   if (!user) return false;
   
   const userRole = user.role || 'staff';
