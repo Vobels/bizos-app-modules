@@ -19,11 +19,18 @@ function runBizOSLogicTests() {
     return true;
   }
 
-  test('Free tier exposes Business Center/Ecommerce, not direct Finance', function() {
-    return assert(CONFIG.MODULES.freeModules.length === 1 &&
-      CONFIG.MODULES.freeModules[0] === 'Ecommerce' &&
-      CONFIG.MODULES.access.starter.length === 1 &&
-      CONFIG.MODULES.access.starter[0] === 'Ecommerce');
+  test('Free plan exposes Finance and Ecommerce modules', function() {
+    return assert(JSON.stringify(getAllowedModulesForTier_('free')) === JSON.stringify(['Finance', 'Ecommerce']));
+  });
+
+  test('Sovereign plan exposes all configured modules', function() {
+    return assert(JSON.stringify(getAllowedModulesForTier_('sovereign')) === JSON.stringify(CONFIG.MODULES.all));
+  });
+
+  test('Legacy paid tier values normalize to Sovereign for existing users', function() {
+    return assert(normalizeSubscriptionTier('tier2') === 'sovereign' &&
+      normalizeSubscriptionTier('professional') === 'sovereign' &&
+      normalizeSubscriptionTier('enterprise') === 'sovereign');
   });
 
   test('Free tier product limit is 10', function() {
