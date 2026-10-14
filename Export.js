@@ -6,8 +6,8 @@ function exportModuleData(moduleName, sessionId) {
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) throw new Error('Module not found');
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(definition.sheet);
-    if (!sheet) return { success: false, message: "Sheet not found" };
+    const sheet = getOrCreateModuleSheet_(workspace, moduleName);
+    if (!sheet) return { success: false, message: "Module not found" };
     
     const data = sheet.getDataRange().getValues();
     const csv = data.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -30,8 +30,8 @@ function importCSV(moduleName, rows, sessionId) {
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) throw new Error('Module not found');
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(definition.sheet);
-    if (!sheet) return { success: false, message: "Sheet not found" };
+    const sheet = getOrCreateModuleSheet_(workspace, moduleName);
+    if (!sheet) return { success: false, message: "Module not found" };
     
     const headers = getSheetHeaders(moduleName, sessionId);
     
