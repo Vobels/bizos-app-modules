@@ -50,9 +50,10 @@ function registerBusiness(businessData) {
     const token = Utilities.getUuid();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
-    let verificationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Email_Verifications');
+    const accountSpreadsheet = getBizOSMasterSpreadsheet_();
+    let verificationSheet = accountSpreadsheet.getSheetByName('Email_Verifications');
     if (!verificationSheet) {
-      verificationSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Email_Verifications');
+      verificationSheet = accountSpreadsheet.insertSheet('Email_Verifications');
       verificationSheet.appendRow(['Email', 'Token', 'Business_Name', 'Business_Id', 'Created_At', 'Expires_At', 'Is_Used']);
     }
     verificationSheet.appendRow([ownerEmail, token, businessName, businessId, new Date().toISOString(), expiresAt.toISOString(), 'NO']);
@@ -84,7 +85,7 @@ function generateBusinessId() {
 }
 
 function getOrCreateBusinessSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheet = getBizOSMasterSpreadsheet_();
   let businessSheet = spreadsheet.getSheetByName('Businesses');
   if (!businessSheet) {
     businessSheet = spreadsheet.insertSheet('Businesses');
@@ -248,7 +249,7 @@ function getBusinessDetails(businessId, sessionId) {
 }
 
 function getOrCreateUserSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheet = getBizOSMasterSpreadsheet_();
   let userSheet = spreadsheet.getSheetByName('Users');
   if (!userSheet) {
     userSheet = spreadsheet.insertSheet('Users');
@@ -275,7 +276,8 @@ function verifyEmailToken(token) {
   try {
     token = String(token || '').trim();
     if (!token) return { success: false, message: "Invalid verification token." };
-    const verificationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Email_Verifications');
+    const accountSpreadsheet = getBizOSMasterSpreadsheet_();
+    const verificationSheet = accountSpreadsheet.getSheetByName('Email_Verifications');
     if (!verificationSheet) return { success: false, message: "Invalid verification token." };
     const data = verificationSheet.getDataRange().getValues();
     const headers = data[0];
@@ -347,7 +349,7 @@ function verifyEmailToken(token) {
 }
 
 function fixEmailVerificationsSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getBizOSMasterSpreadsheet_();
   let sheet = ss.getSheetByName('Email_Verifications');
   if (!sheet) {
     sheet = ss.insertSheet('Email_Verifications');
