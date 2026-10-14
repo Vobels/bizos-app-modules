@@ -70,6 +70,7 @@ function getModuleDataWithSync(moduleName, sessionId) {
   }
   
   try {
+    if (!userHasAccess(moduleName, sessionId)) {
       // Temporary safe diagnostics for the shared record-list failure.
       // Never log session IDs, email addresses, or credentials.
       let diagnosticUser = null;
