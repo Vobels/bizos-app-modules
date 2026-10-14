@@ -533,7 +533,7 @@ function normalizeSubscriptionTier(tier) {
   return 'free';
 }
 
-function getModuleAccess(tier) {
+function getAllowedModulesForTier_(tier) {
   return CONFIG.MODULES.access[normalizeSubscriptionTier(tier)] || CONFIG.MODULES.access.free;
 }
 
