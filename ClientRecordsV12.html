@@ -30,7 +30,7 @@
     google.script.run.withSuccessHandler(function(r){
       if(!r||r.success===false){box.innerHTML='<div class="client-records-empty error">We could not load your records. Please try again.</div>';return;}
       allRecords=Array.isArray(r.records)?r.records:[];clientRecordsV12Render();
-    }).withFailureHandler(function(){box.innerHTML='<div class="client-records-empty error">We could not load your records. Please try again.</div>';}).getRecordsDirectory(window.clientSessionId);
+    }).withFailureHandler(function(){box.innerHTML='<div class="client-records-empty error">We could not load your records. Please try again.</div>';}).getClientRecordsDirectory(window.clientSessionId);
   };
   window.clientRecordsV12Open=function(key){
     if(String(key||'').indexOf('BC:')===0){if(window.selectView)window.selectView('business');return;}
