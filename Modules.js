@@ -35,6 +35,41 @@ function getOrCreateModuleSheet_(workspace, moduleName) {
 function getModuleData(moduleName, sessionId) {
   try {
     if (!userHasAccess(moduleName, sessionId)) {
+      throw new Error("Access denied");
+    }
+    
+    const workspace = getWorkspaceFile(sessionId);
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) throw new Error("Module not found");
+    const sheet = getOrCreateModuleSheet_(workspace, moduleName);
+    if (!sheet) throw new Error("Module not found");
+    
+    const values = sheet.getDataRange().getValues();
+    if (values.length < 2) return [];
+    
+    const headers = values[0];
+    return values.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i]; });
+      return obj;
+    }).filter(row => Object.keys(row).length > 0);
+    
+  } catch (error) {
+    console.error('Error getting module data:', error);
+    return [];
+  }
+}
+
+
+
+function getModuleDataWithSync(moduleName, sessionId) {
+  // Handle case where parameters are swapped
+  if (typeof moduleName === 'string' && moduleName.length > 30 && sessionId === undefined) {
+    sessionId = moduleName;
+    moduleName = 'Finance';
+  }
+  
+  try {
       // Temporary safe diagnostics for the shared record-list failure.
       // Never log session IDs, email addresses, or credentials.
       let diagnosticUser = null;
@@ -77,40 +112,6 @@ function getModuleData(moduleName, sessionId) {
       }));
       throw new Error("Access denied");
     }
-    
-    const workspace = getWorkspaceFile(sessionId);
-    const definition = getBizOSModuleDefinition_(moduleName);
-    if (!definition) throw new Error("Module not found");
-    const sheet = getOrCreateModuleSheet_(workspace, moduleName);
-    if (!sheet) throw new Error("Module not found");
-    
-    const values = sheet.getDataRange().getValues();
-    if (values.length < 2) return [];
-    
-    const headers = values[0];
-    return values.slice(1).map(row => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = row[i]; });
-      return obj;
-    }).filter(row => Object.keys(row).length > 0);
-    
-  } catch (error) {
-    console.error('Error getting module data:', error);
-    return [];
-  }
-}
-
-
-
-function getModuleDataWithSync(moduleName, sessionId) {
-  // Handle case where parameters are swapped
-  if (typeof moduleName === 'string' && moduleName.length > 30 && sessionId === undefined) {
-    sessionId = moduleName;
-    moduleName = 'Finance';
-  }
-  
-  try {
-    if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
     
     // userHasAccess() already validates the session. Avoid a second
     // user lookup here before resolving the workspace.
