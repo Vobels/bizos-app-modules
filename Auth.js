@@ -445,10 +445,11 @@ function resetPassword(email) {
     }
     
     const resetToken = Utilities.getUuid();
-    let resetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Password_Resets');
+    const accountSpreadsheet = getBizOSMasterSpreadsheet_();
+    let resetSheet = accountSpreadsheet.getSheetByName('Password_Resets');
     
     if (!resetSheet) {
-      resetSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Password_Resets');
+      resetSheet = accountSpreadsheet.insertSheet('Password_Resets');
       resetSheet.appendRow(['Email', 'Token', 'Created_At', 'Used']);
     }
     
@@ -473,7 +474,8 @@ function resetPassword(email) {
  */
 function confirmPasswordReset(token, newPassword) {
   try {
-    let resetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Password_Resets');
+    const accountSpreadsheet = getBizOSMasterSpreadsheet_();
+    let resetSheet = accountSpreadsheet.getSheetByName('Password_Resets');
     if (!resetSheet) {
       return { success: false, message: "Invalid reset request" };
     }
