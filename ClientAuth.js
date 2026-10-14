@@ -115,7 +115,39 @@ function getClientUserFromSession(sessionId){var session=validateClientSession(s
 function clientLogout(sessionId){try{if(sessionId)CacheService.getScriptCache().remove(sessionId);return{success:true,message:'Logged out successfully',code:'LOGOUT_SUCCESS'};}catch(error){return{success:false,message:error.message,code:'LOGOUT_ERROR'};}}
 function getClientDashboardData(sessionId){try{var session=validateClientSession(sessionId);if(!session)return{success:false,message:'Session expired. Please login again.',code:'SESSION_EXPIRED'};var client=getClientById(session.clientId);if(!client)client=getClientFromWorkspace(session.sheetId,session.clientId);if(!client)return{success:false,message:'Client workspace could not be verified.',code:'CLIENT_NOT_FOUND'};var ss=SpreadsheetApp.openById(session.sheetId),financeSheet=ss.getSheetByName('Financial_Data'),revenue=0,expenses=0,recentTransactions=[];if(financeSheet){var data=financeSheet.getDataRange().getValues();if(data.length>1){var headers=data[0],typeCol=headers.indexOf('Type'),amountCol=headers.indexOf('Amount'),dateCol=headers.indexOf('Date'),descCol=headers.indexOf('Description');for(var i=1;i<data.length;i++){var amount=parseFloat(data[i][amountCol])||0,type=String(data[i][typeCol]||'').toLowerCase();if(type==='revenue'||type==='income')revenue+=Math.abs(amount);else if(type==='expense')expenses+=Math.abs(amount);}if(dateCol!==-1)recentTransactions=data.slice(1).filter(function(r){return r[dateCol];}).sort(function(a,b){return new Date(b[dateCol])-new Date(a[dateCol]);}).slice(0,5).map(function(r){return{date:r[dateCol],description:descCol!==-1?r[descCol]:'',amount:amountCol!==-1?r[amountCol]:0,type:typeCol!==-1?r[typeCol]:''};});}}var profit=revenue-expenses,margin=revenue>0?(profit/revenue)*100:0,names=['Finance','Ecommerce','Sales','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'],modules=names.map(function(name){var sheet=ss.getSheetByName(name+'_Data')||ss.getSheetByName(name);return{name:name,label:getModuleLabel(name),icon:getModuleIcon(name),count:sheet&&sheet.getLastRow()>1?sheet.getLastRow()-1:0,isAccessible:true};});return{success:true,dashboard:{kpis:{revenue:Math.round(revenue*100)/100,expenses:Math.round(expenses*100)/100,profit:Math.round(profit*100)/100,margin:Math.round(margin*10)/10},modules:modules,recentTransactions:recentTransactions,clientName:client.clientName||client.businessName||session.businessName,primaryColor:client.primaryColor||'#5D2A86',logoUrl:client.logoUrl||'',sheetId:session.sheetId},code:'SUCCESS'};}catch(error){return{success:false,message:error.message,code:'DASHBOARD_ERROR'};}}
 function getClientModuleData(moduleName,sessionId){try{var session=validateClientSession(sessionId);if(!session)return{success:false,message:'Session expired',code:'SESSION_EXPIRED'};var ss=SpreadsheetApp.openById(session.sheetId),sheet=ss.getSheetByName(moduleName+'_Data')||ss.getSheetByName(moduleName);if(!sheet)return{success:true,data:[],code:'SHEET_NOT_FOUND'};var values=sheet.getDataRange().getValues();if(values.length<2)return{success:true,data:[],code:'NO_DATA'};var headers=values[0],records=values.slice(1).map(function(row){var obj={};headers.forEach(function(h,i){if(h&&String(h).trim())obj[String(h).trim()]=row[i]!==undefined?row[i]:'';});return obj;});return{success:true,data:records,code:'SUCCESS'};}catch(error){return{success:false,message:error.message,code:'FETCH_ERROR'};}}
-function saveClientModuleRecord(moduleName,record,sessionId){try{var session=validateClientSession(sessionId);if(!session)return{success:false,message:'Session expired',code:'SESSION_EXPIRED'};var ss=SpreadsheetApp.openById(session.sheetId),sheet=ss.getSheetByName(moduleName+'_Data')||ss.getSheetByName(moduleName);if(!sheet){sheet=ss.insertSheet(moduleName+'_Data');sheet.appendRow(['Date','Description','Amount','Created_At']);}var headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];sheet.appendRow(headers.map(function(h){return record[h]!==undefined?record[h]:'';}));return{success:true,message:'Record saved successfully',code:'SAVE_SUCCESS'};}catch(error){return{success:false,message:error.message,code:'SAVE_ERROR'};}}
+function saveClientModuleRecord(moduleName, record, sessionId) {
+  try {
+    var session = validateClientSession(sessionId);
+    if (!session) return {success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    if (!getClientModuleSheetNameV12_(moduleName)) return {success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
+    if (getClientAccessibleModulesV12_(session).indexOf(String(moduleName)) === -1) return {success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
+    var role = String(session.user && session.user.role || 'owner').toLowerCase();
+    if (role !== 'owner' && role !== 'admin') return {success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    var ss = SpreadsheetApp.openById(session.sheetId), sheet = getClientModuleSheetV12_(ss, moduleName);
+    if (!sheet) return {success:false,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
+    var width = sheet.getLastColumn();
+    if (!width || sheet.getLastRow() < 1) return {success:false,message:'The existing app sheet has no headers. No data was changed.',code:'INVALID_HEADERS'};
+    var headers = sheet.getRange(1,1,1,width).getValues()[0];
+    if (!headers.some(function(h){return String(h || '').trim() !== '';})) return {success:false,message:'The existing app sheet has no headers. No data was changed.',code:'INVALID_HEADERS'};
+    record = record && typeof record === 'object' ? record : {};
+    var idColumn = getClientModuleIdColumnV12_(moduleName), now = new Date().toISOString();
+    var idValue = record[idColumn] || (idColumn ? getClientModuleRecordIdV12_(moduleName) : '');
+    var row = headers.map(function(header) {
+      var key = String(header || '').trim();
+      if (!key) return '';
+      if (key === idColumn) return idValue;
+      if (key === 'Created_By' && record[key] === undefined) return session.email || '';
+      if (key === 'Created_At' && record[key] === undefined) return now;
+      return Object.prototype.hasOwnProperty.call(record,key) ? record[key] : '';
+    });
+    sheet.appendRow(row);
+    return {success:true,message:'Record saved successfully.',code:'SAVE_SUCCESS',recordId:idValue};
+  } catch (error) {
+    console.error('saveClientModuleRecord error:', error);
+    return {success:false,message:'We could not save this record. No existing records were deleted.',code:'SAVE_ERROR'};
+  }
+}
+
 function getDefaultDashboardData(clientName){return{kpis:{revenue:0,expenses:0,profit:0,margin:0},modules:[{name:'Finance',label:getModuleLabel('Finance'),icon:getModuleIcon('Finance'),count:0},{name:'Ecommerce',label:getModuleLabel('Ecommerce'),icon:getModuleIcon('Ecommerce'),count:0}],recentTransactions:[],clientName:clientName||'My Business',primaryColor:'#5D2A86',logoUrl:''};}
 function getModuleLabel(n){var x={Finance:'Financial Management',Ecommerce:'E-commerce',Sales:'Sales Pipeline',CRM:'Customer Relations',HR:'Human Resources',Logistics:'Logistics',Tax:'Tax Compliance',Agro:'Agriculture',Productivity:'Productivity Suite',POS:'Point of Sale',Attendance:'Staff Attendance',Warehouse:'Warehouse Management'};return x[n]||n;}
 function getModuleIcon(n){var x={Finance:'fa-calculator',Ecommerce:'fa-cart-shopping',Sales:'fa-chart-line',CRM:'fa-users',HR:'fa-briefcase',Logistics:'fa-truck',Tax:'fa-file-invoice',Agro:'fa-seedling',Productivity:'fa-clock',POS:'fa-cash-register',Attendance:'fa-fingerprint',Warehouse:'fa-warehouse'};return x[n]||'fa-folder';}
@@ -124,67 +156,125 @@ function getModuleIcon(n){var x={Finance:'fa-calculator',Ecommerce:'fa-cart-shop
 // and client workspace, never the Master getUserFromSession()/getWorkspaceFile()
 // path, because CLIENT_SESS_* tokens are not Master sessions.
 function getClientModuleSheetNameV12_(moduleName) {
-  var names = {
-    Finance: 'Financial_Data',
-    Sales: 'Sales_Data',
-    Ecommerce: 'Ecommerce_Data',
-    CRM: 'CRM_Data',
-    HR: 'HR_Data',
-    Logistics: 'Logistics_Data',
-    Tax: 'Tax_Data',
-    Agro: 'Agro_Data',
-    Productivity: 'Productivity_Data',
-    POS: 'POS_Data',
-    Attendance: 'Attendance_Data',
-    Warehouse: 'Warehouse_Data'
-  };
+  var names = {Finance:'Financial_Data',Sales:'Sales_Data',Ecommerce:'Ecommerce_Data',CRM:'CRM_Data',HR:'HR_Data',Logistics:'Logistics_Data',Tax:'Tax_Data',Agro:'Agro_Data',Productivity:'Productivity_Data',POS:'POS_Data',Attendance:'Attendance_Data',Warehouse:'Warehouse_Data'};
   return names[String(moduleName || '')] || '';
 }
 
-function getClientAccessibleModulesV12_(session) {
-  var user = session && session.user ? session.user : {};
-  var role = String(user.role || 'owner').toLowerCase();
-  if (Array.isArray(user.accessibleModules) && user.accessibleModules.length) {
-    return user.accessibleModules;
-  }
-  if (role === 'owner' || role === 'admin') {
-    if (typeof clientModulesForEntitlementV12_ === 'function') {
-      return clientModulesForEntitlementV12_(role, user.subscriptionTier || 'sovereign', []);
-    }
-    return ['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
-  }
-  return [];
+function getClientModuleSheetV12_(spreadsheet, moduleName) {
+  if (!spreadsheet) throw new Error('Client workspace is unavailable.');
+  var canonical = getClientModuleSheetNameV12_(moduleName);
+  if (!canonical) return null;
+  var candidates = [canonical, String(moduleName || '') + '_Data', String(moduleName || '')];
+  if (String(moduleName) === 'Finance') candidates.push('Finance_Data');
+  var unique = [];
+  candidates.forEach(function(name) { if (name && unique.indexOf(name) === -1) unique.push(name); });
+  var existing = unique.map(function(name) { return spreadsheet.getSheetByName(name); }).filter(Boolean);
+  if (!existing.length) return null;
+  if (existing.length === 1) return existing[0];
+  var populated = existing.filter(function(sheet) { return sheet.getLastRow() > 1; });
+  if (populated.length === 1) return populated[0];
+  if (populated.length > 1) throw new Error('Multiple populated sheets exist for ' + moduleName + '. No data was changed; resolve the sheet-name conflict first.');
+  for (var i = 0; i < existing.length; i++) if (existing[i].getName() === canonical) return existing[i];
+  return existing[0];
+}
+
+function getClientModuleIdColumnV12_(moduleName) {
+  var ids = {Finance:'Transaction_ID',Sales:'Deal_ID',Ecommerce:'Order_ID',CRM:'Contact_ID',HR:'Employee_ID',Logistics:'Shipment_ID',Tax:'Tax_ID',Agro:'Record_ID',Productivity:'Record_ID',POS:'Transaction_ID',Attendance:'Record_ID',Warehouse:'Item_ID'};
+  return ids[String(moduleName || '')] || '';
+}
+
+function getClientModuleRecordIdV12_(moduleName) {
+  var prefixes = {Finance:'TXN',Sales:'DEAL',Ecommerce:'ORD',CRM:'CRM',HR:'EMP',Logistics:'SHIP',Tax:'TAX',Agro:'AGRO',Productivity:'TASK',POS:'POS',Attendance:'ATT',Warehouse:'ITEM'};
+  return (prefixes[String(moduleName || '')] || 'REC') + '-' + Utilities.getUuid().substring(0,8).toUpperCase();
 }
 
 function getClientModuleDataWithSync(moduleName, sessionId) {
   try {
     var session = validateClientSession(sessionId);
-    if (!session) return {success:false, message:'Session expired. Please sign in again.', code:'SESSION_EXPIRED'};
-    var sheetName = getClientModuleSheetNameV12_(moduleName);
-    if (!sheetName) return {success:false, message:'Module not found.', code:'MODULE_NOT_FOUND'};
-    if (getClientAccessibleModulesV12_(session).indexOf(String(moduleName)) === -1) {
-      return {success:false, message:'You do not have access to this module.', code:'ACCESS_DENIED'};
-    }
-    var ss = SpreadsheetApp.openById(session.sheetId);
-    var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(String(moduleName));
-    if (!sheet) return {success:true, headers:[], records:[], recordCount:0, financialSummary:{totalRevenue:0,totalExpenses:0}, code:'NO_DATA'};
+    if (!session) return {success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    if (!getClientModuleSheetNameV12_(moduleName)) return {success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
+    if (getClientAccessibleModulesV12_(session).indexOf(String(moduleName)) === -1) return {success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
+    var ss = SpreadsheetApp.openById(session.sheetId), sheet = getClientModuleSheetV12_(ss,moduleName);
+    if (!sheet) return {success:false,headers:[],records:[],recordCount:0,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
     var lastRow = sheet.getLastRow(), width = sheet.getLastColumn();
-    if (!lastRow || !width) return {success:true,headers:[],records:[],recordCount:0,financialSummary:{totalRevenue:0,totalExpenses:0},code:'NO_DATA'};
+    if (!lastRow || !width) return {success:false,headers:[],records:[],recordCount:0,message:'The existing app sheet has no readable headers.',code:'INVALID_HEADERS'};
     var headers = sheet.getRange(1,1,1,width).getValues()[0];
-    if (lastRow < 2) return {success:true,headers:headers,records:[],recordCount:0,financialSummary:{totalRevenue:0,totalExpenses:0},code:'NO_DATA'};
-    var startRow = Math.max(2,lastRow-999);
-    var values = sheet.getRange(startRow,1,lastRow-startRow+1,width).getValues();
-    var records = values.map(function(row,offset) {
-      var item = {};
-      headers.forEach(function(h,i) { if (h !== '' && h != null) item[String(h)] = row[i]; });
-      item._row = startRow + offset;
-      return item;
-    });
-    return {success:true,headers:headers,records:records,recordCount:records.length,financialSummary:{totalRevenue:0,totalExpenses:0},code:'SUCCESS'};
+    if (lastRow < 2) return {success:true,headers:headers,records:[],recordCount:0,financialSummary:{totalRevenue:0,totalExpenses:0},code:'NO_DATA',sheetName:sheet.getName()};
+    var startRow = Math.max(2,lastRow-999), values = sheet.getRange(startRow,1,lastRow-startRow+1,width).getValues();
+    var records = values.map(function(row,offset) { var item={}; headers.forEach(function(h,i){if(h!==''&&h!=null)item[String(h)]=row[i];}); item._row=startRow+offset; return item; });
+    return {success:true,headers:headers,records:records,recordCount:records.length,financialSummary:{totalRevenue:0,totalExpenses:0},code:'SUCCESS',sheetName:sheet.getName()};
   } catch (error) {
-    console.error('getClientModuleDataWithSync error:', error);
-    return {success:false,message:'We could not load this app’s records. Please refresh and try again.',code:'FETCH_ERROR'};
+    console.error('getClientModuleDataWithSync error:',error);
+    return {success:false,message:String(error&&error.message||'We could not load this app’s records. Please refresh and try again.'),code:'FETCH_ERROR'};
   }
+}
+
+function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
+  try {
+    var session=validateClientSession(sessionId);
+    if(!session)return{success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
+    if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
+    var role=String(session.user&&session.user.role||'owner').toLowerCase();
+    if(role!=='owner'&&role!=='admin')return{success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    var idColumn=getClientModuleIdColumnV12_(moduleName);
+    if(!idColumn||recordId==null||String(recordId)==='')return{success:false,message:'Record ID is missing.',code:'RECORD_ID_MISSING'};
+    var ss=SpreadsheetApp.openById(session.sheetId),sheet=getClientModuleSheetV12_(ss,moduleName);
+    if(!sheet)return{success:false,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
+    var lastRow=sheet.getLastRow(),width=sheet.getLastColumn();
+    if(lastRow<2||!width)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    var headers=sheet.getRange(1,1,1,width).getValues()[0],idIndex=headers.indexOf(idColumn);
+    if(idIndex<0)return{success:false,message:'The existing sheet is missing its record ID column.',code:'ID_COLUMN_MISSING'};
+    var values=sheet.getRange(2,1,lastRow-1,width).getValues(),targetRow=-1;
+    for(var i=0;i<values.length;i++)if(String(values[i][idIndex])===String(recordId)){targetRow=i+2;break;}
+    if(targetRow<0)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    var current=sheet.getRange(targetRow,1,1,width).getValues()[0],incoming=record&&typeof record==='object'?record:{};
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key&&key!==idColumn&&key!=='Created_At'&&key!=='_row'&&Object.prototype.hasOwnProperty.call(incoming,key))current[i]=incoming[key];});
+    sheet.getRange(targetRow,1,1,width).setValues([current]);
+    return{success:true,message:'Record updated successfully.',code:'UPDATE_SUCCESS'};
+  }catch(error){console.error('updateClientModuleRecord error:',error);return{success:false,message:'We could not update this record. No existing records were deleted.',code:'UPDATE_ERROR'};}
+}
+
+function deleteClientModuleRecord(moduleName, dataIndex, sessionId) {
+  try {
+    var session=validateClientSession(sessionId);
+    if(!session)return{success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
+    if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
+    var role=String(session.user&&session.user.role||'owner').toLowerCase();
+    if(role!=='owner'&&role!=='admin')return{success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    var index=Number(dataIndex);
+    if(!Number.isInteger(index)||index<0)return{success:false,message:'Invalid record position.',code:'INVALID_ROW'};
+    var ss=SpreadsheetApp.openById(session.sheetId),sheet=getClientModuleSheetV12_(ss,moduleName);
+    if(!sheet)return{success:false,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
+    var rowNumber=index+2;
+    if(rowNumber>sheet.getLastRow())return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    sheet.deleteRow(rowNumber);
+    return{success:true,message:'Record deleted successfully.',code:'DELETE_SUCCESS'};
+  }catch(error){console.error('deleteClientModuleRecord error:',error);return{success:false,message:'We could not delete this record.',code:'DELETE_ERROR'};}
+}
+
+function updateClientModuleRecordField(moduleName, dataIndex, columnName, newValue, sessionId) {
+  try {
+    var session=validateClientSession(sessionId);
+    if(!session)return{success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
+    if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
+    var role=String(session.user&&session.user.role||'owner').toLowerCase();
+    if(role!=='owner'&&role!=='admin')return{success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    var index=Number(dataIndex);
+    if(!Number.isInteger(index)||index<0)return{success:false,message:'Invalid record position.',code:'INVALID_ROW'};
+    var ss=SpreadsheetApp.openById(session.sheetId),sheet=getClientModuleSheetV12_(ss,moduleName);
+    if(!sheet)return{success:false,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
+    var lastRow=sheet.getLastRow(),width=sheet.getLastColumn();
+    if(lastRow<2||!width)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    var headers=sheet.getRange(1,1,1,width).getValues()[0],columnIndex=headers.indexOf(String(columnName||''));
+    if(columnIndex<0)return{success:false,message:'The requested field does not exist in this sheet.',code:'FIELD_NOT_FOUND'};
+    var startRow=Math.max(2,lastRow-999),rowNumber=startRow+index;
+    if(rowNumber>lastRow)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    sheet.getRange(rowNumber,columnIndex+1).setValue(newValue);
+    return{success:true,message:'Record updated successfully.',code:'UPDATE_SUCCESS'};
+  }catch(error){console.error('updateClientModuleRecordField error:',error);return{success:false,message:'We could not update this field.',code:'UPDATE_ERROR'};}
 }
 
 function getClientRecordsDirectory(sessionId) {
