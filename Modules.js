@@ -16,6 +16,21 @@ function getBizOSModuleDefinition_(moduleName) {
   return definitions[String(moduleName || '')] || null;
 }
 
+// Resolve a module sheet consistently for legacy workspaces that predate
+// the full module-sheet set. Creation is idempotent and uses canonical names.
+function getOrCreateModuleSheet_(workspace, moduleName) {
+  if (!workspace) throw new Error('Workspace is unavailable.');
+  const definition = getBizOSModuleDefinition_(moduleName);
+  if (!definition) return null;
+
+  let sheet = workspace.getSheetByName(definition.sheet);
+  if (!sheet) {
+    sheet = workspace.insertSheet(definition.sheet);
+    addDefaultHeadersToModule(sheet, moduleName);
+  }
+  return sheet;
+}
+
 // modules.gs
 function getModuleData(moduleName, sessionId) {
   try {
@@ -24,12 +39,8 @@ function getModuleData(moduleName, sessionId) {
     const workspace = getWorkspaceFile(sessionId);
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) throw new Error("Module not found");
-    const sheet = workspace.getSheetByName(definition.sheet);
-    
-    if (!sheet) {
-      console.log(`Sheet ${definition.sheet} not found in workspace`);
-      return [];
-    }
+    const sheet = getOrCreateModuleSheet_(workspace, moduleName);
+    if (!sheet) throw new Error("Module not found");
     
     const values = sheet.getDataRange().getValues();
     if (values.length < 2) return [];
@@ -64,7 +75,7 @@ function getModuleDataWithSync(moduleName, sessionId) {
     const workspace = getWorkspaceFile(sessionId);
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) return { success: false, message: "Module not found" };
-    const sheet = workspace.getSheetByName(definition.sheet);
+    const sheet = getOrCreateModuleSheet_(workspace, moduleName);
     if (!sheet) return { success: false, message: "Module not found" };
     
     const lastRow = sheet.getLastRow();
