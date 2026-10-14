@@ -34,7 +34,49 @@ function getOrCreateModuleSheet_(workspace, moduleName) {
 // modules.gs
 function getModuleData(moduleName, sessionId) {
   try {
-    if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
+    if (!userHasAccess(moduleName, sessionId)) {
+      // Temporary safe diagnostics for the shared record-list failure.
+      // Never log session IDs, email addresses, or credentials.
+      let diagnosticUser = null;
+      let sessionValid = false;
+      try {
+        if (typeof validateBizOSSession === "function") {
+          const validation = validateBizOSSession(sessionId);
+          sessionValid = !!(validation && validation.success);
+          diagnosticUser = sessionValid ? validation.user : null;
+        } else {
+          diagnosticUser = getUserFromSession(sessionId);
+          sessionValid = !!diagnosticUser;
+        }
+      } catch (diagnosticError) {
+        console.warn("Module access diagnostic: session resolution threw", String(diagnosticError && diagnosticError.message || diagnosticError));
+      }
+
+      const role = String(diagnosticUser && diagnosticUser.role || "unknown").trim().toLowerCase();
+      const tier = String(diagnosticUser && diagnosticUser.subscriptionTier || "unknown").trim().toLowerCase();
+      const ownerOrAdmin = role === "owner" || role === "admin";
+      let allowedModules = [];
+      try {
+        allowedModules = ownerOrAdmin
+          ? (getAllowedModulesForTier_(tier) || [])
+          : ((diagnosticUser && Array.isArray(diagnosticUser.accessibleModules))
+              ? diagnosticUser.accessibleModules
+              : ["Finance"]);
+      } catch (diagnosticError) {
+        console.warn("Module access diagnostic: could not resolve allowed modules");
+      }
+
+      console.warn("Module data authorization denied", JSON.stringify({
+        requestedModule: String(moduleName || ""),
+        sessionValid: sessionValid,
+        role: role,
+        tier: tier,
+        ownerOrAdmin: ownerOrAdmin,
+        requestedModuleAllowed: Array.isArray(allowedModules) && allowedModules.includes(moduleName),
+        allowedModules: Array.isArray(allowedModules) ? allowedModules : []
+      }));
+      throw new Error("Access denied");
+    }
     
     const workspace = getWorkspaceFile(sessionId);
     const definition = getBizOSModuleDefinition_(moduleName);
