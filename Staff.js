@@ -513,9 +513,9 @@ function getStaffDashboard(sessionId) {
   
   const workspace = getWorkspaceFile(sessionId);
   for (const moduleName of accessibleModules) {
-    const module = MODULES[moduleName];
+    const module = getBizOSModuleDefinition_(moduleName);
     if (!module) continue;
-    
+
     const sheet = workspace.getSheetByName(module.sheet);
     if (!sheet) continue;
     
@@ -530,7 +530,7 @@ function getStaffDashboard(sessionId) {
     dashboardData.modules.push({
       name: moduleName,
       label: module.label,
-      icon: module.icon,
+      icon: CONFIG.MODULES.icons[moduleName] || '',
       recordCount: records.length,
       recentRecords: records.slice(0, 5)
     });
