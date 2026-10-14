@@ -135,7 +135,12 @@ function getModuleDataWithSync(moduleName, sessionId) {
 function getModuleSummary(sessionId) {
   // Resolve the same session-scoped user/business record used by server-side
   // authorization. Do not independently select the first Users row by email.
-  const sessionUser = getUserFromSession(sessionId);
+  const sessionValidation = typeof validateBizOSSession === "function"
+    ? validateBizOSSession(sessionId)
+    : null;
+  const sessionUser = sessionValidation
+    ? (sessionValidation.success ? sessionValidation.user : null)
+    : getUserFromSession(sessionId);
   if (!sessionUser) {
     console.warn("Module summary denied: no valid session user.");
     return {};
