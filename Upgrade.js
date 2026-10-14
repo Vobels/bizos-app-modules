@@ -424,6 +424,65 @@ function getLatestPaidUpgradeRequestForUser_(email) {
 
 
 /**
+ * Resolve the existing active client workspace for a master account.
+ * Prefer exact Business_ID; otherwise use a unique active deployment for the
+ * owner email, with business-name matching to disambiguate multiple deployments.
+ */
+function resolveActiveClientWorkspaceIdForBusiness_(email, businessId, businessName) {
+  try {
+    var ss = getBizOSMasterSpreadsheet_();
+    var sheet = ss.getSheetByName('Clients');
+    if (!sheet || sheet.getLastRow() < 2) return '';
+    var values = sheet.getDataRange().getValues();
+    var headers = (values[0] || []).map(function(h) { return String(h || '').trim(); });
+    var emailCol = headers.indexOf('Email');
+    var idCol = headers.indexOf('Business_ID');
+    var statusCol = headers.indexOf('Status');
+    var nameCol = headers.indexOf('Client_Name');
+    if (nameCol < 0) nameCol = headers.indexOf('Business_Name');
+    var sheetIdCol = headers.indexOf('Sheet_ID');
+    if (sheetIdCol < 0) sheetIdCol = headers.indexOf('Workspace_ID');
+    if (emailCol < 0 || sheetIdCol < 0) return '';
+
+    var wantedEmail = String(email || '').trim().toLowerCase();
+    var wantedId = String(businessId || '').trim();
+    var wantedName = String(businessName || '').trim().toLowerCase();
+    var active = [];
+    for (var i = 1; i < values.length; i++) {
+      var row = values[i];
+      if (String(row[emailCol] || '').trim().toLowerCase() !== wantedEmail) continue;
+      if (statusCol >= 0 && String(row[statusCol] || '').trim().toLowerCase() !== 'active') continue;
+      var workspaceId = String(row[sheetIdCol] || '').trim();
+      if (!workspaceId) continue;
+      active.push({row:row,workspaceId:workspaceId});
+    }
+    if (!active.length) return '';
+
+    if (wantedId && idCol >= 0) {
+      var exactId = active.filter(function(x) {
+        return String(x.row[idCol] || '').trim() === wantedId;
+      });
+      if (exactId.length === 1) return exactId[0].workspaceId;
+      if (exactId.length > 1) return '';
+    }
+
+    if (wantedName && nameCol >= 0) {
+      var exactName = active.filter(function(x) {
+        return String(x.row[nameCol] || '').trim().toLowerCase() === wantedName;
+      });
+      if (exactName.length === 1) return exactName[0].workspaceId;
+      if (exactName.length > 1) return '';
+    }
+
+    // An email-only fallback is safe only when it identifies one active deployment.
+    return active.length === 1 ? active[0].workspaceId : '';
+  } catch (error) {
+    console.warn('Could not resolve existing client workspace:', error && error.message || error);
+    return '';
+  }
+}
+
+/**
  * Restore a missing master Businesses row only when a confirmed paid upgrade
  * and the matching owner account provide an unambiguous business identity.
  * This never creates or redeploys a client workspace.
@@ -476,28 +535,7 @@ function restoreMissingPaidBusinessRecord_(email, businessId, businessName, paid
     ).trim();
     if (!canonicalName) return false;
 
-    // Use a client workspace ID only when the existing deployment registry
-    // matches both the same master Business_ID and owner email.
-    var workspaceId = '';
-    var registry = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
-    if (registry && registry.getLastRow() > 1) {
-      var clients = registry.getDataRange().getValues();
-      var ch = (clients[0] || []).map(function(h) { return String(h || '').trim(); });
-      var clientBusinessCol = ch.indexOf('Business_ID');
-      var clientEmailCol = ch.indexOf('Email');
-      var clientStatusCol = ch.indexOf('Status');
-      var clientSheetCol = ch.indexOf('Sheet_ID');
-      if (clientSheetCol < 0) clientSheetCol = ch.indexOf('Workspace_ID');
-      if (clientBusinessCol >= 0 && clientEmailCol >= 0 && clientSheetCol >= 0) {
-        for (var c = 1; c < clients.length; c++) {
-          if (String(clients[c][clientBusinessCol] || '').trim() !== wantedId) continue;
-          if (String(clients[c][clientEmailCol] || '').trim().toLowerCase() !== wantedEmail) continue;
-          if (clientStatusCol >= 0 && String(clients[c][clientStatusCol] || '').trim().toLowerCase() !== 'active') continue;
-          workspaceId = String(clients[c][clientSheetCol] || '').trim();
-          break;
-        }
-      }
-    }
+    var workspaceId = resolveActiveClientWorkspaceIdForBusiness_(wantedEmail, wantedId, canonicalName);
 
     var restored = new Array(headers.length).fill('');
     function setField(name, value) {
@@ -600,6 +638,21 @@ function reconcilePaidBusinessEntitlement_(email, businessId, businessName) {
     var tierCol = business.headers.indexOf('Subscription_Tier');
     var statusCol = business.headers.indexOf('Subscription_Status');
     var activeCol = business.headers.indexOf('Is_Active');
+    var workspaceCol = business.headers.indexOf('Workspace_ID');
+
+    // Existing paid rows may predate deployment linkage. Attach the already
+    // provisioned workspace only when the registry resolves it unambiguously.
+    if (workspaceCol !== -1 && !String(business.row[workspaceCol] || '').trim()) {
+      var resolvedWorkspaceId = resolveActiveClientWorkspaceIdForBusiness_(
+        email,
+        businessId || business.row[business.headers.indexOf('Business_ID')],
+        businessName || (business.headers.indexOf('Business_Name') >= 0 ? business.row[business.headers.indexOf('Business_Name')] : '')
+      );
+      if (resolvedWorkspaceId) {
+        business.sheet.getRange(business.rowNumber, workspaceCol + 1).setValue(resolvedWorkspaceId);
+        business.row[workspaceCol] = resolvedWorkspaceId;
+      }
+    }
 
     if (tierCol === -1) {
       return {success:false,updated:false,reason:'SUBSCRIPTION_TIER_COLUMN_MISSING'};
