@@ -143,7 +143,7 @@ function authenticateUser(email, password, businessName) {
     let businessRowFound = null;
     
     if (businessId && bizIdCol !== -1) {
-      businessRowFound = businessData.find(row => row[bizIdCol] === businessId);
+      businessRowFound = businessData.slice(1).find(row => String(row[bizIdCol] || '').trim() === String(businessId || '').trim()) || null;
       if (businessRowFound) {
         subscriptionTier = normalizeSubscriptionTier(tierCol !== -1 ? businessRowFound[tierCol] : 'free');
         workspaceId = workspaceIdCol !== -1 ? businessRowFound[workspaceIdCol] || null : null;
@@ -329,8 +329,11 @@ function getUserFromSession(sessionId) {
   const tierCol = businessHeaders.indexOf('Subscription_Tier');
   const workspaceIdCol = businessHeaders.indexOf('Workspace_ID');
   
-  const businessId = businessIdCol !== -1 ? userRow[businessIdCol] : '';
-  const businessRow = businessData.find(row => row[bizIdCol] === businessId);
+  // Compare normalized IDs and exclude the header row when resolving the business.
+  const businessId = businessIdCol !== -1 ? String(userRow[businessIdCol] || '').trim() : '';
+  const businessRow = bizIdCol !== -1 && businessId
+    ? (businessData.slice(1).find(row => String(row[bizIdCol] || '').trim() === businessId) || null)
+    : null;
   
   const userRole = roleCol !== -1 ? userRow[roleCol] || 'staff' : 'staff';
   const isDemo = isDemoCol !== -1 && userRow[isDemoCol] === 'YES';
