@@ -424,6 +424,113 @@ function getLatestPaidUpgradeRequestForUser_(email) {
 
 
 /**
+ * Restore a missing master Businesses row only when a confirmed paid upgrade
+ * and the matching owner account provide an unambiguous business identity.
+ * This never creates or redeploys a client workspace.
+ */
+function restoreMissingPaidBusinessRecord_(email, businessId, businessName, paidRequest) {
+  if (!email || !businessId || !paidRequest) return false;
+
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return false;
+  try {
+    var sheet = getOrCreateBusinessSheet();
+    var values = sheet.getDataRange().getValues();
+    var headers = (values[0] || []).map(function(h) { return String(h || '').trim(); });
+    var idCol = headers.indexOf('Business_ID');
+    if (idCol < 0) return false;
+
+    var wantedId = String(businessId).trim();
+    var wantedEmail = String(email).trim().toLowerCase();
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][idCol] || '').trim() === wantedId) return true;
+    }
+
+    var users = getOrCreateUserSheet();
+    var userValues = users.getDataRange().getValues();
+    var uh = (userValues[0] || []).map(function(h) { return String(h || '').trim(); });
+    var userEmailCol = uh.indexOf('Email');
+    var userBusinessIdCol = uh.indexOf('Business_ID');
+    var roleCol = uh.indexOf('Role');
+    var nameCol = uh.indexOf('Name');
+    var phoneCol = uh.indexOf('Phone');
+    var businessNameCol = uh.indexOf('Business_Name');
+    var createdCol = uh.indexOf('Created_At');
+    var verifiedCol = uh.indexOf('Is_Verified');
+    if (userEmailCol < 0 || userBusinessIdCol < 0) return false;
+
+    var owner = null;
+    for (var u = 1; u < userValues.length; u++) {
+      var row = userValues[u];
+      if (String(row[userEmailCol] || '').trim().toLowerCase() !== wantedEmail) continue;
+      if (String(row[userBusinessIdCol] || '').trim() !== wantedId) continue;
+      if (roleCol >= 0 && String(row[roleCol] || '').trim().toLowerCase() !== 'owner') continue;
+      owner = row;
+      break;
+    }
+    if (!owner) return false;
+
+    var canonicalName = String(
+      (businessNameCol >= 0 && owner[businessNameCol]) || businessName ||
+      paidRequest.businessName || ''
+    ).trim();
+    if (!canonicalName) return false;
+
+    // Use a client workspace ID only when the existing deployment registry
+    // matches both the same master Business_ID and owner email.
+    var workspaceId = '';
+    var registry = getBizOSMasterSpreadsheet_().getSheetByName('Clients');
+    if (registry && registry.getLastRow() > 1) {
+      var clients = registry.getDataRange().getValues();
+      var ch = (clients[0] || []).map(function(h) { return String(h || '').trim(); });
+      var clientBusinessCol = ch.indexOf('Business_ID');
+      var clientEmailCol = ch.indexOf('Email');
+      var clientStatusCol = ch.indexOf('Status');
+      var clientSheetCol = ch.indexOf('Sheet_ID');
+      if (clientSheetCol < 0) clientSheetCol = ch.indexOf('Workspace_ID');
+      if (clientBusinessCol >= 0 && clientEmailCol >= 0 && clientSheetCol >= 0) {
+        for (var c = 1; c < clients.length; c++) {
+          if (String(clients[c][clientBusinessCol] || '').trim() !== wantedId) continue;
+          if (String(clients[c][clientEmailCol] || '').trim().toLowerCase() !== wantedEmail) continue;
+          if (clientStatusCol >= 0 && String(clients[c][clientStatusCol] || '').trim().toLowerCase() !== 'active') continue;
+          workspaceId = String(clients[c][clientSheetCol] || '').trim();
+          break;
+        }
+      }
+    }
+
+    var restored = new Array(headers.length).fill('');
+    function setField(name, value) {
+      var col = headers.indexOf(name);
+      if (col >= 0) restored[col] = value;
+    }
+    setField('Business_ID', wantedId);
+    setField('Business_Name', canonicalName);
+    setField('Owner_Email', wantedEmail);
+    setField('Owner_Name', nameCol >= 0 ? String(owner[nameCol] || '') : '');
+    setField('Owner_Phone', phoneCol >= 0 ? String(owner[phoneCol] || '') : '');
+    setField('Subscription_Tier', normalizeSubscriptionTier(paidRequest.tier || 'sovereign'));
+    setField('Subscription_Status', 'active');
+    setField('Workspace_ID', workspaceId);
+    setField('Created_At', createdCol >= 0 && owner[createdCol] ? owner[createdCol] : new Date().toISOString());
+    setField('Is_Active', 'YES');
+    sheet.appendRow(restored);
+    console.warn('Recovered missing paid Businesses row', {
+      businessId: wantedId,
+      ownerEmail: wantedEmail,
+      tier: normalizeSubscriptionTier(paidRequest.tier || 'sovereign'),
+      workspaceLinked: !!workspaceId
+    });
+    return true;
+  } catch (error) {
+    console.error('restoreMissingPaidBusinessRecord_ failed:', error && error.message || error);
+    return false;
+  } finally {
+    try { lock.releaseLock(); } catch (ignore) {}
+  }
+}
+
+/**
  * Reconcile a confirmed payment into the canonical Businesses entitlement.
  *
  * Payment confirmation is the authoritative trigger for the paid entitlement;
@@ -469,6 +576,19 @@ function reconcilePaidBusinessEntitlement_(email, businessId, businessName) {
               break;
             }
           }
+        }
+      }
+    }
+
+    if (!business && restoreMissingPaidBusinessRecord_(email, businessId, businessName, paidRequest) && businessId) {
+      var restoredSheet = getOrCreateBusinessSheet();
+      var restoredData = restoredSheet.getDataRange().getValues();
+      var restoredHeaders = restoredData[0] || [];
+      var restoredIdCol = restoredHeaders.indexOf('Business_ID');
+      for (var r = 1; r < restoredData.length; r++) {
+        if (restoredIdCol !== -1 && String(restoredData[r][restoredIdCol] || '').trim() === String(businessId).trim()) {
+          business = {sheet:restoredSheet,rowNumber:r + 1,headers:restoredHeaders,row:restoredData[r]};
+          break;
         }
       }
     }
