@@ -3,8 +3,10 @@ function exportModuleData(moduleName, sessionId) {
   try {
     if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
     
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) throw new Error('Module not found');
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
     
     const data = sheet.getDataRange().getValues();
@@ -25,8 +27,10 @@ function importCSV(moduleName, rows, sessionId) {
   try {
     if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
     
+    const definition = getBizOSModuleDefinition_(moduleName);
+    if (!definition) throw new Error('Module not found');
     const workspace = getWorkspaceFile(sessionId);
-    const sheet = workspace.getSheetByName(MODULES[moduleName].sheet);
+    const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
     
     const headers = getSheetHeaders(moduleName, sessionId);
