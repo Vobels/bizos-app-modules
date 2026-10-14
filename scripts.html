@@ -3419,6 +3419,23 @@ function loadModuleTableWithSync(moduleName) {
         : (Array.isArray(response.records) ? response.records : []);
       currentModuleData = records;
 
+      // Preserve the Finance summary area when the endpoint supplies totals.
+      const financialSummary = response && response.financialSummary;
+      let summaryElement = document.getElementById('module-financial-summary');
+      if (financialSummary && (Number(financialSummary.totalRevenue) > 0 || Number(financialSummary.totalExpenses) > 0)) {
+        const summaryHtml = '<div id="module-financial-summary" class="bg-gray-50 p-3 rounded-lg mb-4 flex justify-between items-center">' +
+          '<div><span class="text-sm text-gray-600">Total Revenue:</span><span class="font-semibold text-green-600 ml-2">' + formatCurrency(Number(financialSummary.totalRevenue) || 0) + '</span></div>' +
+          '<div><span class="text-sm text-gray-600">Total Expenses:</span><span class="font-semibold text-red-600 ml-2">' + formatCurrency(Number(financialSummary.totalExpenses) || 0) + '</span></div>' +
+          '<div><span class="text-sm text-gray-600">Net:</span><span class="font-semibold ml-2">' + formatCurrency((Number(financialSummary.totalRevenue) || 0) - (Number(financialSummary.totalExpenses) || 0)) + '</span></div></div>';
+        if (summaryElement) summaryElement.outerHTML = summaryHtml;
+        else {
+          const tableContainer = document.querySelector('#module-view .overflow-x-auto');
+          if (tableContainer) tableContainer.insertAdjacentHTML('beforebegin', summaryHtml);
+        }
+      } else if (summaryElement) {
+        summaryElement.remove();
+      }
+
       if (!records.length) {
         thead.innerHTML = '';
         tbody.innerHTML = '<tr><td colspan="100" class="text-center text-gray-500 py-8">No data available. Add your first record above.</td></tr>';
