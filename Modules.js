@@ -802,7 +802,7 @@ function getEcommerceUsage(sessionId) {
 
 // ==================== MODULE ACCESS CONTROL ====================
 
-function getModuleAccess(licenseResult, moduleName) {
+function getLicenseModuleAccess_(licenseResult, moduleName) {
   if (!licenseResult || !licenseResult.valid) {
     return { hasAccess: false, isReadOnly: true, message: 'Demo Mode' };
   }
@@ -867,9 +867,8 @@ function executeWithLicenseCheck(operation, moduleName, data, sessionId) {
   }
   
   // Check module access based on subscription tier
-  const tier = user.subscriptionTier || 'free';
-  const allowedModules = tier === 'free' ? ['Finance', 'Ecommerce'] : 
-                         ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
+  const tier = normalizeSubscriptionTier(user.subscriptionTier);
+  const allowedModules = getAllowedModulesForTier_(tier);
   
   if (!allowedModules.includes(moduleName)) {
     return {
