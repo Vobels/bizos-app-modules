@@ -119,3 +119,123 @@ function saveClientModuleRecord(moduleName,record,sessionId){try{var session=val
 function getDefaultDashboardData(clientName){return{kpis:{revenue:0,expenses:0,profit:0,margin:0},modules:[{name:'Finance',label:getModuleLabel('Finance'),icon:getModuleIcon('Finance'),count:0},{name:'Ecommerce',label:getModuleLabel('Ecommerce'),icon:getModuleIcon('Ecommerce'),count:0}],recentTransactions:[],clientName:clientName||'My Business',primaryColor:'#5D2A86',logoUrl:''};}
 function getModuleLabel(n){var x={Finance:'Financial Management',Ecommerce:'E-commerce',Sales:'Sales Pipeline',CRM:'Customer Relations',HR:'Human Resources',Logistics:'Logistics',Tax:'Tax Compliance',Agro:'Agriculture',Productivity:'Productivity Suite',POS:'Point of Sale',Attendance:'Staff Attendance',Warehouse:'Warehouse Management'};return x[n]||n;}
 function getModuleIcon(n){var x={Finance:'fa-calculator',Ecommerce:'fa-cart-shopping',Sales:'fa-chart-line',CRM:'fa-users',HR:'fa-briefcase',Logistics:'fa-truck',Tax:'fa-file-invoice',Agro:'fa-seedling',Productivity:'fa-clock',POS:'fa-cash-register',Attendance:'fa-fingerprint',Warehouse:'fa-warehouse'};return x[n]||'fa-folder';}
+
+// V12 client-scoped module/records readers. These must use the client session
+// and client workspace, never the Master getUserFromSession()/getWorkspaceFile()
+// path, because CLIENT_SESS_* tokens are not Master sessions.
+function getClientModuleSheetNameV12_(moduleName) {
+  var names = {
+    Finance: 'Financial_Data',
+    Sales: 'Sales_Data',
+    Ecommerce: 'Ecommerce_Data',
+    CRM: 'CRM_Data',
+    HR: 'HR_Data',
+    Logistics: 'Logistics_Data',
+    Tax: 'Tax_Data',
+    Agro: 'Agro_Data',
+    Productivity: 'Productivity_Data',
+    POS: 'POS_Data',
+    Attendance: 'Attendance_Data',
+    Warehouse: 'Warehouse_Data'
+  };
+  return names[String(moduleName || '')] || '';
+}
+
+function getClientAccessibleModulesV12_(session) {
+  var user = session && session.user ? session.user : {};
+  var role = String(user.role || 'owner').toLowerCase();
+  if (Array.isArray(user.accessibleModules) && user.accessibleModules.length) {
+    return user.accessibleModules;
+  }
+  if (role === 'owner' || role === 'admin') {
+    if (typeof clientModulesForEntitlementV12_ === 'function') {
+      return clientModulesForEntitlementV12_(role, user.subscriptionTier || 'sovereign', []);
+    }
+    return ['Finance','Sales','Ecommerce','CRM','HR','Logistics','Tax','Agro','Productivity','POS','Attendance','Warehouse'];
+  }
+  return [];
+}
+
+function getClientModuleDataWithSync(moduleName, sessionId) {
+  try {
+    var session = validateClientSession(sessionId);
+    if (!session) return {success:false, message:'Session expired. Please sign in again.', code:'SESSION_EXPIRED'};
+    var sheetName = getClientModuleSheetNameV12_(moduleName);
+    if (!sheetName) return {success:false, message:'Module not found.', code:'MODULE_NOT_FOUND'};
+    if (getClientAccessibleModulesV12_(session).indexOf(String(moduleName)) === -1) {
+      return {success:false, message:'You do not have access to this module.', code:'ACCESS_DENIED'};
+    }
+    var ss = SpreadsheetApp.openById(session.sheetId);
+    var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(String(moduleName));
+    if (!sheet) return {success:true, headers:[], records:[], recordCount:0, financialSummary:{totalRevenue:0,totalExpenses:0}, code:'NO_DATA'};
+    var lastRow = sheet.getLastRow(), width = sheet.getLastColumn();
+    if (!lastRow || !width) return {success:true,headers:[],records:[],recordCount:0,financialSummary:{totalRevenue:0,totalExpenses:0},code:'NO_DATA'};
+    var headers = sheet.getRange(1,1,1,width).getValues()[0];
+    if (lastRow < 2) return {success:true,headers:headers,records:[],recordCount:0,financialSummary:{totalRevenue:0,totalExpenses:0},code:'NO_DATA'};
+    var startRow = Math.max(2,lastRow-999);
+    var values = sheet.getRange(startRow,1,lastRow-startRow+1,width).getValues();
+    var records = values.map(function(row,offset) {
+      var item = {};
+      headers.forEach(function(h,i) { if (h !== '' && h != null) item[String(h)] = row[i]; });
+      item._row = startRow + offset;
+      return item;
+    });
+    return {success:true,headers:headers,records:records,recordCount:records.length,financialSummary:{totalRevenue:0,totalExpenses:0},code:'SUCCESS'};
+  } catch (error) {
+    console.error('getClientModuleDataWithSync error:', error);
+    return {success:false,message:'We could not load this app’s records. Please refresh and try again.',code:'FETCH_ERROR'};
+  }
+}
+
+function getClientRecordsDirectory(sessionId) {
+  try {
+    var session = validateClientSession(sessionId);
+    if (!session) return {success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    var modules = getClientAccessibleModulesV12_(session);
+    var ss = SpreadsheetApp.openById(session.sheetId), result = [];
+    modules.forEach(function(moduleName) {
+      var sheetName = getClientModuleSheetNameV12_(moduleName);
+      if (!sheetName) return;
+      var sheet = ss.getSheetByName(sheetName) || ss.getSheetByName(moduleName);
+      result.push({key:moduleName,name:getModuleLabel(moduleName),module:moduleName,count:sheet && sheet.getLastRow()>1 ? sheet.getLastRow()-1 : 0,source:'module'});
+    });
+    if (modules.indexOf('Ecommerce') !== -1) {
+      [['Products','BusinessCenter_Products'],['Customers','BusinessCenter_Customers'],['Sales','BusinessCenter_Sales'],['Sale Items','BusinessCenter_Sale_Items'],['Stock Movements','BusinessCenter_Stock_Movements'],['Business Center Finance','BusinessCenter_Finance_Transactions']].forEach(function(item) {
+        var sheet = ss.getSheetByName(item[1]);
+        result.push({key:'BC:'+item[1],name:item[0],module:'Business Center',count:sheet && sheet.getLastRow()>1 ? sheet.getLastRow()-1 : 0,source:'business_center'});
+      });
+    }
+    return {success:true,records:result};
+  } catch (error) {
+    console.error('getClientRecordsDirectory error:', error);
+    return {success:false,message:'We could not load your records. Please try again.',code:'RECORDS_DIRECTORY_ERROR'};
+  }
+}
+
+function getClientRecordRows(recordKey, sessionId) {
+  try {
+    var session = validateClientSession(sessionId);
+    if (!session) return {success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
+    var modules = getClientAccessibleModulesV12_(session);
+    var key = String(recordKey || ''), sheetName = '', moduleName = '';
+    if (key.indexOf('BC:') === 0) {
+      if (modules.indexOf('Ecommerce') === -1) return {success:false,message:'You do not have access to Business Center records.',code:'ACCESS_DENIED'};
+      sheetName = key.substring(3); moduleName = 'Business Center';
+    } else {
+      moduleName = key;
+      sheetName = getClientModuleSheetNameV12_(moduleName);
+      if (!sheetName || modules.indexOf(moduleName) === -1) return {success:false,message:'You do not have access to this record type.',code:'ACCESS_DENIED'};
+    }
+    var ss = SpreadsheetApp.openById(session.sheetId), sheet = ss.getSheetByName(sheetName);
+    if (!sheet || sheet.getLastRow() < 2 || !sheet.getLastColumn()) return {success:true,recordType:moduleName,records:[],headers:[]};
+    var lastRow = sheet.getLastRow(), width = sheet.getLastColumn(), startRow = Math.max(2,lastRow-499);
+    var headers = sheet.getRange(1,1,1,width).getValues()[0];
+    var records = sheet.getRange(startRow,1,lastRow-startRow+1,width).getValues().reverse().map(function(row) {
+      var item = {}; headers.forEach(function(h,i) { item[h] = row[i]; }); return item;
+    });
+    return {success:true,recordType:moduleName,headers:headers,records:records};
+  } catch (error) {
+    console.error('getClientRecordRows error:', error);
+    return {success:false,message:'We could not load these records. Please try again.',code:'RECORD_ROWS_ERROR'};
+  }
+}
