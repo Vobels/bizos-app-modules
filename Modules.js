@@ -133,84 +133,42 @@ function getModuleDataWithSync(moduleName, sessionId) {
 }
 
 function getModuleSummary(sessionId) {
+  // Resolve the same session-scoped user/business record used by server-side
+  // authorization. Do not independently select the first Users row by email.
+  const sessionUser = getUserFromSession(sessionId);
+  if (!sessionUser) {
+    console.warn("Module summary denied: no valid session user.");
+    return {};
+  }
+
+  const businessId = String(sessionUser.businessId || "");
+  const subscriptionTier = normalizeSubscriptionTier(sessionUser.subscriptionTier);
+  const userRole = String(sessionUser.role || "staff").toLowerCase();
+  const isDemo = sessionUser.isDemo === true || sessionUser.isDemo === "YES";
+  const email = sessionUser.email;
   const cache = CacheService.getScriptCache();
-  const cacheKey = `module_summary_v2_${sessionId}`;
+
+  // Include the resolved business and tier so a changed entitlement cannot
+  // reuse a summary cached for a different business or plan. v3 bypasses old
+  // v2 entries created by the previous email-only lookup.
+  const cacheKey = `module_summary_v3_${sessionId}_${businessId}_${subscriptionTier}`;
   const cached = cache.get(cacheKey);
   if (cached) {
-    console.log("Returning cached module summary");
+    console.log("Returning cached module summary for business:", businessId, "tier:", subscriptionTier);
     return JSON.parse(cached);
   }
-  
+
   try {
-    let email = null;
-    let subscriptionTier = 'free';
-    let isDemo = false;
-    let userRole = 'staff';
-    let businessId = null;
-    let workspace = SpreadsheetApp.getActiveSpreadsheet();
+    // Reuse the canonical workspace resolver. Paid accounts must never have
+    // their module counts read from the master spreadsheet as a fallback.
+    const workspace = getWorkspaceFile(sessionId);
     let staffModules = [];
-    
-    try {
-      email = validateSession(sessionId);
-      if (email) {
-        const userSheet = getOrCreateUserSheet();
-        const userData = userSheet.getDataRange().getValues();
-        const userHeaders = userData[0];
-        
-        const emailCol = userHeaders.indexOf('Email');
-        const businessIdCol = userHeaders.indexOf('Business_ID');
-        const roleCol = userHeaders.indexOf('Role');
-        const isDemoCol = userHeaders.indexOf('Is_Demo');
-        
-        let userRow = null;
-        for (let i = 1; i < userData.length; i++) {
-          if (userData[i][emailCol] && userData[i][emailCol].toLowerCase() === email.toLowerCase()) {
-            userRow = userData[i];
-            break;
-          }
-        }
-        
-        if (userRow) {
-          businessId = userRow[businessIdCol];
-          userRole = userRow[roleCol] || 'staff';
-          isDemo = userRow[isDemoCol] === 'YES';
-          
-          // Get business info
-          const businessSheet = getOrCreateBusinessSheet();
-          const businessData = businessSheet.getDataRange().getValues();
-          const businessHeaders = businessData[0];
-          
-          const bizIdCol = businessHeaders.indexOf('Business_ID');
-          const tierCol = businessHeaders.indexOf('Subscription_Tier');
-          const workspaceIdCol = businessHeaders.indexOf('Workspace_ID');
-          
-          for (let i = 1; i < businessData.length; i++) {
-            if (businessData[i][bizIdCol] === businessId) {
-              subscriptionTier = businessData[i][tierCol] || 'free';
-              const workspaceId = businessData[i][workspaceIdCol];
-              if (workspaceId) {
-                try {
-                  workspace = SpreadsheetApp.openById(workspaceId);
-                } catch(e) {
-                  workspace = SpreadsheetApp.getActiveSpreadsheet();
-                }
-              }
-              break;
-            }
-          }
-          
-          // ===== KEY CHANGE: Get staff assigned modules =====
-          // If user is staff, get their assigned modules
-          if (userRole === 'staff' || userRole === 'viewer' || userRole === 'manager') {
-            staffModules = getStaffModules(email, businessId);
-            console.log('Staff modules for', email, ':', staffModules);
-          }
-        }
-      }
-    } catch(e) {
-      console.log("Session validation error, using defaults:", e);
+
+    if (userRole !== "owner" && userRole !== "admin") {
+      staffModules = getStaffModules(email, businessId);
+      console.log("Staff modules for", email, ":", staffModules);
     }
-    
+
     console.log("Module summary - Tier:", subscriptionTier, "isDemo:", isDemo, "Role:", userRole);
     
     // ===== DEFINE ALL MODULES =====
