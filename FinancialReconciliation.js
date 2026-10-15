@@ -91,6 +91,7 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
       { module: 'Ecommerce', sheet: 'Ecommerce_Data', id: 'Order_ID' },
       { module: 'Sales', sheet: 'Sales_Data', id: 'Deal_ID' },
       { module: 'Agro', sheet: 'Agro_Data', id: 'Record_ID' },
+      { module: 'Tax', sheet: 'Tax_Data', id: 'Tax_ID' },
       { module: 'BusinessCenter', sheet: 'BusinessCenter_Sales', id: 'Sale_ID' },
       { module: 'BusinessCenterExpense', sheet: 'BusinessCenter_Finance_Transactions', id: 'Transaction_ID' }
     ];
@@ -428,6 +429,25 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
         Amount: -Math.abs(number('Total_Cost')),
         Payment_Method: 'completed',
         Reference: recordId,
+        Status: 'completed',
+        Created_By: createdBy,
+        Created_At: createdAt
+      });
+    }
+  } else if (moduleName === 'Tax') {
+    var taxAmount = number('Tax_Amount');
+    if (String(value('Status') || '').toLowerCase() === 'paid' && taxAmount > 0) {
+      entries.push({
+        Date: date,
+        Type: 'expense',
+        Category: 'tax',
+        Subcategory: value('Type') || 'tax_payment',
+        Module_Source: 'Tax',
+        Module_Record_ID: recordId,
+        Description: 'Tax payment: ' + String(value('Type') || value('Reference') || recordId),
+        Amount: -Math.abs(taxAmount),
+        Payment_Method: value('Payment_Method') || 'completed',
+        Reference: value('Reference') || recordId,
         Status: 'completed',
         Created_By: createdBy,
         Created_At: createdAt
