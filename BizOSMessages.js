@@ -238,3 +238,26 @@ function adminPublishBizOSAnnouncement(adminSessionId, payload) {
   if(['feature','info','success','warning','security','system'].indexOf(type)<0)type='feature';
   return createBizOSNotification_('ALL','all',type,title,message,'BizOS','notifications');
 }
+
+function markBizOSConversationRead(conversationId, sessionId) {
+  var actor=bizOSMessageActor_(sessionId);
+  if(!actor.ok)return {success:false,message:actor.message};
+  conversationId=String(conversationId||'').trim();
+  if(!conversationId)return {success:false,message:'Conversation not found.'};
+  try {
+    var user=actor.user,email=bizOSMessageEmail_(user.email),isOwnerAdmin=['owner','admin'].indexOf(bizOSMessageRole_(user))>=0;
+    var sheet=ensureBizOSMessagesSheet_(),data=sheet.getDataRange().getValues(),headers=data[0]||[],idx={};
+    headers.forEach(function(h,i){idx[h]=i;});
+    var now=new Date().toISOString(),changed=0;
+    for(var i=1;i<data.length;i++){
+      var row=data[i];
+      if(String(row[idx.Conversation_ID]||'')!==conversationId||String(row[idx.Business_ID]||'')!==String(user.businessId||''))continue;
+      if(String(row[idx.Scope]||'')==='support'&&!isOwnerAdmin)continue;
+      var recipient=bizOSMessageEmail_(row[idx.Recipient_Email]);
+      if(recipient!==email&&!(String(row[idx.Scope]||'')==='support'&&isOwnerAdmin))continue;
+      if(String(row[idx.Read_At]||''))continue;
+      sheet.getRange(i+1,idx.Read_At+1).setValue(now);changed++;
+    }
+    return {success:true,updated:changed};
+  }catch(error){console.error('markBizOSConversationRead error:',error);return{success:false,message:'Could not mark messages as read.'};}
+}
