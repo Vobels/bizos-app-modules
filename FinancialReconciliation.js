@@ -112,7 +112,10 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
       result.modules[target.module] = moduleResult;
 
       var sheet = workspace.getSheetByName(target.sheet);
-      if (!sheet || sheet.getLastRow() <= 1) return;
+      if (!sheet) return;
+      // Keep historical reconciliation compatible with the append-only Logistics schema migration.
+      if (typeof ensureModuleFinancialColumns_ === 'function') ensureModuleFinancialColumns_(sheet, target.module);
+      if (sheet.getLastRow() <= 1) return;
 
       var values = sheet.getDataRange().getValues();
       var headers = values[0].map(function(h) { return String(h || '').trim(); });
