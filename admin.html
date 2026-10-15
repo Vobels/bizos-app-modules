@@ -1915,7 +1915,7 @@ function publishBizOSAnnouncement(){
   if(!title||!message){if(status)status.textContent='Enter both a title and message.';return;}
   if(status)status.textContent='Publishing…';
   google.script.run.withSuccessHandler(function(r){
-    if(r&&r.success){document.getElementById('bizosAnnouncementTitle').value='';document.getElementById('bizosAnnouncementMessage').value='';if(status)status.textContent='Published. The announcement is now available in BizOS Notifications.';showNotification('Announcement published.','success');}
+    if(r&&r.success){document.getElementById('bizosAnnouncementTitle').value='';document.getElementById('bizosAnnouncementMessage').value='';if(status)status.textContent='Published to BizOS. Delivered to '+Number(r.clientWorkspacesNotified||0)+' client workspace(s); '+Number(r.clientWorkspaceFailures||0)+' workspace(s) could not be reached.';showNotification('Announcement published.','success');}
     else{if(status)status.textContent=(r&&r.message)||'Announcement could not be published.';showNotification((r&&r.message)||'Announcement could not be published.','error');}
   }).withFailureHandler(function(){if(status)status.textContent='Announcement could not be published.';showNotification('Announcement could not be published.','error');}).adminPublishBizOSAnnouncement(getAdminSession(),{title:title,message:message,type:type});
 }
