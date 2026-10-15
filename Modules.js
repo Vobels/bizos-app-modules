@@ -499,7 +499,7 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
     // A source edit can remove an event (for example, a Sales deal changing
     // from closed_won to closed_lost, or an Ecommerce shipping cost becoming 0).
     // Only rows explicitly linked to this module record are touched.
-    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Record_ID || recordData.Transaction_ID;
+    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Sale_ID || recordData.Record_ID || recordData.Transaction_ID;
     const headers = getSheetHeadersBySheet(financeSheet);
     if (sourceRecordId) {
       const sourceCol = headers.indexOf('Module_Source');
@@ -512,7 +512,6 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
 
         const currentValues = financeSheet.getDataRange().getValues();
         const keptTypes = {};
-        const rowsToDelete = [];
 
         for (let i = 1; i < currentValues.length; i++) {
           const sameSource = String(currentValues[i][sourceCol] || '') === moduleName;
@@ -520,17 +519,21 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
           if (!sameSource || !sameRecord) continue;
 
           const type = String(currentValues[i][typeCol] || '').toLowerCase();
+          const statusCol = headers.indexOf('Status');
+          const amountCol = headers.indexOf('Amount');
 
-          // Remove stale linked events and duplicate linked events, while
-          // preserving one current event per financial type.
+          // Keep the ledger audit trail. Superseded or duplicate source-linked
+          // events are voided in place instead of being physically deleted.
           if (!desiredTypes[type] || keptTypes[type]) {
-            rowsToDelete.push(i + 1);
+            if (type !== 'void' && type !== 'voided') {
+              financeSheet.getRange(i + 1, typeCol + 1).setValue('void');
+              if (statusCol >= 0) financeSheet.getRange(i + 1, statusCol + 1).setValue('voided');
+              if (amountCol >= 0) financeSheet.getRange(i + 1, amountCol + 1).setValue(0);
+            }
           } else {
             keptTypes[type] = true;
           }
         }
-
-        rowsToDelete.sort((a, b) => b - a).forEach(row => financeSheet.deleteRow(row));
       }
     }
 
@@ -557,7 +560,10 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         }
       }
 
-      const rowData = headers.map(header => entry[header] !== undefined ? entry[header] : '');
+      const rowData = headers.map((header, index) => {
+        if (entry[header] !== undefined) return entry[header];
+        return existingRow > 0 ? financeValues[existingRow - 1][index] : '';
+      });
       if (existingRow > 0) {
         financeSheet.getRange(existingRow, 1, 1, headers.length).setValues([rowData]);
       } else {
@@ -570,6 +576,13 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
       }
     }
     
+    // Invalidate the short-lived per-session KPI cache after ledger changes.
+    try {
+      if (sessionId) CacheService.getScriptCache().remove('dashboard_fast_' + sessionId);
+    } catch (cacheError) {
+      console.warn('Dashboard KPI cache invalidation warning:', cacheError.message);
+    }
+
     // Recalculate dashboard metrics after sync
     recalculateDashboardMetrics(workspaceId);
     
