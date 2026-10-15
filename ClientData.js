@@ -67,81 +67,10 @@ function getClientModuleData(moduleName, sessionId) {
 // ============================================================
 
 function getClientDashboardData(sessionId) {
-  try {
-    // Validate session
-    const session = validateClientSession(sessionId);
-    if (!session) {
-      return { success: false, message: 'Session expired' };
-    }
-    
-    const client = getClientById(session.clientId);
-    if (!client) {
-      return { success: false, message: 'Client not found' };
-    }
-    
-    const sheetId = session.sheetId;
-    const ss = getClientSheetById(sheetId);
-    if (!ss) {
-      return { 
-        success: false, 
-        dashboard: getDefaultDashboard(client.clientName, client.primaryColor) 
-      };
-    }
-    
-    // Get financial data
-    const financeSheet = ss.getSheetByName('Financial_Data');
-    let revenue = 0, expenses = 0;
-    
-    if (financeSheet) {
-      const data = financeSheet.getDataRange().getValues();
-      if (data.length > 1) {
-        const headers = data[0];
-        const typeCol = headers.indexOf('Type');
-        const amountCol = headers.indexOf('Amount');
-        
-        if (typeCol !== -1 && amountCol !== -1) {
-          for (let i = 1; i < data.length; i++) {
-            const amount = parseFloat(data[i][amountCol]) || 0;
-            const type = data[i][typeCol] || '';
-            if (type.toLowerCase() === 'revenue' || type.toLowerCase() === 'income') {
-              revenue += Math.abs(amount);
-            } else if (type.toLowerCase() === 'expense') {
-              expenses += Math.abs(amount);
-            }
-          }
-        }
-      }
-    }
-    
-    const profit = revenue - expenses;
-    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-    
-    // All 12 modules for sovereign tier
-    const allModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
-    
-    return {
-      success: true,
-      dashboard: {
-        kpis: { 
-          revenue: Math.round(revenue * 100) / 100, 
-          expenses: Math.round(expenses * 100) / 100, 
-          profit: Math.round(profit * 100) / 100, 
-          margin: Math.round(margin * 10) / 10 
-        },
-        modules: allModules,
-        clientName: client.clientName,
-        primaryColor: client.primaryColor || '#1a5276',
-        logoUrl: client.logoUrl || ''
-      }
-    };
-    
-  } catch (error) {
-    console.error('Get client dashboard error:', error);
-    return { 
-      success: false, 
-      dashboard: getDefaultDashboard('My Business', '#1a5276') 
-    };
-  }
+  // Keep one canonical client dashboard implementation. The richer
+  // ClientDashboard.js response matches the master dashboard UI contract
+  // (KPI objects with value/change, charts, health, and recent transactions).
+  return getClientDashboard(sessionId);
 }
 
 // ============================================================
