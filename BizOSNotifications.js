@@ -154,7 +154,7 @@ function bizOSNotificationReadSet_(raw) {
   }
 }
 
-function getBizOSNotifications(sessionId, limit) {
+function getBizOSNotifications(limit, sessionId) {
   var actor = bizOSNotificationActor_(sessionId);
   if (!actor.ok) return {success:false,message:actor.message};
   try {
@@ -167,7 +167,7 @@ function getBizOSNotifications(sessionId, limit) {
     var rows = [];
     for (var i=data.length-1;i>=1 && rows.length<max;i--) {
       var row=data[i];
-      if (String(row[index.Business_ID] || '') !== String(actor.user.businessId || '')) continue;
+      if (String(row[index.Business_ID] || '') !== String(actor.user.businessId || '') && String(row[index.Business_ID] || '').toUpperCase() !== 'ALL') continue;
       if (!bizOSNotificationAudienceMatches_(row[index.Audience], actor.user)) continue;
       var readBy=bizOSNotificationReadSet_(row[index.Read_By_JSON]);
       var email=String(actor.user.email || '').trim().toLowerCase();
@@ -209,7 +209,7 @@ function markAllBizOSNotificationsRead(sessionId) {
     var email=String(actor.user.email || '').trim().toLowerCase();
     var changed=0;
     for(var i=1;i<data.length;i++){
-      if(String(data[i][idx.Business_ID]||'')!==String(actor.user.businessId||''))continue;
+      if(String(data[i][idx.Business_ID]||'')!==String(actor.user.businessId||'')&&String(data[i][idx.Business_ID]||'').toUpperCase()!=='ALL')continue;
       if(!bizOSNotificationAudienceMatches_(data[i][idx.Audience],actor.user))continue;
       var readBy=bizOSNotificationReadSet_(data[i][idx.Read_By_JSON]);
       if(readBy.indexOf(email)===-1){
@@ -235,7 +235,7 @@ function updateBizOSNotificationReadState_(user, notificationId, markUnread) {
     var email=String(user.email || '').trim().toLowerCase();
     for(var i=1;i<data.length;i++){
       if(String(data[i][idx.Notification_ID]||'')!==String(notificationId||''))continue;
-      if(String(data[i][idx.Business_ID]||'')!==String(user.businessId||''))return {success:false,message:'Notification not found.'};
+      if(String(data[i][idx.Business_ID]||'')!==String(user.businessId||'')&&String(data[i][idx.Business_ID]||'').toUpperCase()!=='ALL')return {success:false,message:'Notification not found.'};
       if(!bizOSNotificationAudienceMatches_(data[i][idx.Audience],user))return {success:false,message:'Notification not found.'};
       var readBy=bizOSNotificationReadSet_(data[i][idx.Read_By_JSON]);
       var pos=readBy.indexOf(email);
@@ -251,7 +251,7 @@ function updateBizOSNotificationReadState_(user, notificationId, markUnread) {
   }
 }
 
-function getBizOSActivity(sessionId, limit) {
+function getBizOSActivity(limit, sessionId) {
   var actor = bizOSNotificationActor_(sessionId);
   if (!actor.ok) return {success:false,message:actor.message};
   try {
@@ -309,7 +309,7 @@ function getBizOSNotificationPreferences(sessionId) {
   }
 }
 
-function saveBizOSNotificationPreferences(sessionId, preferences) {
+function saveBizOSNotificationPreferences(preferences, sessionId) {
   var actor=bizOSNotificationActor_(sessionId);
   if(!actor.ok)return {success:false,message:actor.message};
   try{
