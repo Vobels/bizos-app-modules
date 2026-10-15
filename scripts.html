@@ -1951,9 +1951,13 @@ function renderModuleInsights(moduleName, records) {
   const itemField = resolveField(config.item);
   const secondGroupField = resolveField(config.secondGroup);
   if (firstHeading) firstHeading.textContent = config.chart1;
-  if (secondHeading) secondHeading.textContent = config.secondGroup
-    ? (metricField ? config.chart2 : 'Records by Staff Member')
-    : (config.metric && !metricField ? 'Records by Date' : config.chart2);
+  if (secondHeading) {
+    if (config.secondGroup) secondHeading.textContent = metricField ? config.chart2 : 'Records by Staff Member';
+    else if (config.metric && !metricField) secondHeading.textContent = 'Records by Date';
+    else if (moduleName === 'CRM' && dateField === 'Created_At') secondHeading.textContent = 'Contacts Created Over Time';
+    else if (moduleName === 'HR' && dateField === 'Created_At') secondHeading.textContent = 'Employee Records Created Over Time';
+    else secondHeading.textContent = config.chart2;
+  }
   const countGroups = function(field) {
     const grouped = {};
     rows.forEach(function(row) {
