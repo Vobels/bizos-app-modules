@@ -221,11 +221,86 @@ function sendBizOSSupportReply(adminSessionId, conversationId, message) {
     var supportEmail='bizos-support';
     sheet.appendRow([id,conversationId,thread.businessId,'support',supportEmail,'BizOS Support',clientEmail,clientName,message,new Date().toISOString(),'']);
     createBizOSNotification_(thread.businessId,clientEmail,'message','Reply from BizOS Support',message.slice(0,240),supportEmail,'messages');
+    var workspaceRecords=bizOSClientWorkspaceRecords_();
+    var workspace=workspaceRecords.find(function(w){return w.businessId===thread.businessId;});
+    if(workspace)writeClientWorkspaceNotificationV12_(workspace.sheetId,{id:'NTF_'+Utilities.getUuid().replace(/-/g,'').substring(0,20).toUpperCase(),audience:clientEmail,type:'message',title:'Reply from BizOS Support',message:message.slice(0,240),createdAt:new Date().toISOString(),createdBy:'BizOS Support',relatedView:'notifications'});
     return {success:true,messageId:id};
   }catch(error){
     console.error('sendBizOSSupportReply error:',error);
     return {success:false,message:'Reply could not be sent.'};
   }
+}
+
+function writeClientWorkspaceNotificationV12_(sheetId, notification) {
+  sheetId=String(sheetId||'').trim();
+  if(!sheetId)return {success:false,code:'WORKSPACE_ID_MISSING'};
+  try {
+    var ws=SpreadsheetApp.openById(sheetId), sheet=ws.getSheetByName('Client_Notifications');
+    var headers=['Notification_ID','Audience','Type','Title','Message','Created_At','Created_By','Related_View','Read_By_JSON'];
+    if(!sheet){
+      sheet=ws.insertSheet('Client_Notifications');
+      sheet.getRange(1,1,1,headers.length).setValues([headers]);
+      sheet.getRange(1,1,1,headers.length).setFontWeight('bold');
+    } else {
+      ensureBizOSSheetHeadersV1_(sheet,headers);
+      headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0]||headers;
+    }
+    var data=sheet.getDataRange().getValues(), h=data[0]||[], ix={};
+    h.forEach(function(v,i){ix[String(v||'')]=i;});
+    var id=String(notification.id||'');
+    if(id&&ix.Notification_ID!=null){
+      for(var i=1;i<data.length;i++)if(String(data[i][ix.Notification_ID]||'')===id)return {success:true,duplicate:true};
+    }
+    var values={
+      Notification_ID:id||('NTF_'+Utilities.getUuid().replace(/-/g,'').substring(0,20).toUpperCase()),
+      Audience:String(notification.audience||'all'),
+      Type:String(notification.type||'info'),
+      Title:String(notification.title||'Workspace update'),
+      Message:String(notification.message||''),
+      Created_At:String(notification.createdAt||new Date().toISOString()),
+      Created_By:String(notification.createdBy||'BizOS'),
+      Related_View:String(notification.relatedView||'notifications'),
+      Read_By_JSON:'{}'
+    };
+    var row=new Array(h.length).fill('');
+    h.forEach(function(k,j){if(Object.prototype.hasOwnProperty.call(values,k))row[j]=values[k];});
+    sheet.appendRow(row);
+    return {success:true};
+  } catch(error) {
+    console.error('writeClientWorkspaceNotificationV12_ error for workspace '+sheetId+':',error);
+    return {success:false,message:error.message};
+  }
+}
+
+function bizOSClientWorkspaceRecords_() {
+  var ss=getBizOSMasterSpreadsheet_(), sheet=ss.getSheetByName('Clients');
+  if(!sheet||sheet.getLastRow()<2)return [];
+  var data=sheet.getDataRange().getValues(), headers=data[0]||[], idx={};
+  headers.forEach(function(h,i){idx[String(h||'').trim()]=i;});
+  var b=idx.Business_ID, w=idx.Workspace_ID!=null?idx.Workspace_ID:idx.Sheet_ID, st=idx.Status;
+  if(b==null||w==null)return [];
+  var byBusiness={};
+  for(var i=1;i<data.length;i++){
+    var row=data[i], businessId=String(row[b]||'').trim(), sheetId=String(row[w]||'').trim();
+    if(!businessId||!sheetId)continue;
+    var status=st==null?'active':String(row[st]||'active').trim().toLowerCase();
+    if(['archived','disabled','inactive','failed','provisioning_failed','deleted'].indexOf(status)>=0)continue;
+    byBusiness[businessId]={businessId:businessId,sheetId:sheetId,status:status};
+  }
+  return Object.keys(byBusiness).map(function(k){return byBusiness[k];});
+}
+
+function broadcastBizOSNotificationToClientWorkspaces_(notification) {
+  var workspaces=bizOSClientWorkspaceRecords_(), delivered=0, failed=0;
+  workspaces.forEach(function(w){
+    var result=writeClientWorkspaceNotificationV12_(w.sheetId,{
+      id:notification.id,audience:'all',type:notification.type,title:notification.title,
+      message:notification.message,createdAt:notification.createdAt,createdBy:notification.createdBy,
+      relatedView:notification.relatedView
+    });
+    if(result&&result.success)delivered++;else failed++;
+  });
+  return {workspaces:workspaces.length,delivered:delivered,failed:failed};
 }
 
 function adminPublishBizOSAnnouncement(adminSessionId, payload) {
@@ -236,7 +311,13 @@ function adminPublishBizOSAnnouncement(adminSessionId, payload) {
   var relatedView=String(payload.relatedView||'notifications').trim();
   if(!title||title.length>140||!message||message.length>5000)return {success:false,message:'Enter a title (up to 140 characters) and message (up to 5,000 characters).'};
   if(['feature','info','success','warning','security','system'].indexOf(type)<0)type='feature';
-  return createBizOSNotification_('ALL','all',type,title,message,'BizOS','notifications');
+  var created=createBizOSNotification_('ALL','all',type,title,message,'BizOS','notifications');
+  if(!created||!created.success)return created||{success:false,message:'Announcement could not be published.'};
+  var broadcast=broadcastBizOSNotificationToClientWorkspaces_({
+    id:created.notificationId,audience:'all',type:type,title:title,message:message,
+    createdAt:new Date().toISOString(),createdBy:'BizOS',relatedView:relatedView
+  });
+  return {success:true,notificationId:created.notificationId,clientWorkspaces:broadcast.workspaces,clientWorkspacesNotified:broadcast.delivered,clientWorkspaceFailures:broadcast.failed};
 }
 
 function markBizOSConversationRead(conversationId, sessionId) {
