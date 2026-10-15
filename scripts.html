@@ -4800,15 +4800,18 @@ function startTeamMessage() {
 function openMessageConversation(conversationId) {
   const thread=bizOSMessages.filter(function(m){return m.conversationId===conversationId;});
   if(!thread.length)return;
-  activeMessageConversationId=conversationId;activeMessageScope=thread[0].scope||'team';messagesFilter=activeMessageScope;
-  if(activeMessageScope==='support'){activeMessageRecipientEmail='bizos-support';activeMessageRecipientName='BizOS Support';}
-  else {
-    const email=String(currentUser&&currentUser.email||'').toLowerCase(), last=thread[thread.length-1];
+  activeMessageScope=thread[0].scope||'team';
+  setMessagesFilter(activeMessageScope);
+  activeMessageConversationId=conversationId;
+  const email=String(currentUser&&currentUser.email||'').toLowerCase(), last=thread[thread.length-1];
+  if(activeMessageScope==='support'){
+    activeMessageRecipientEmail='bizos-support';activeMessageRecipientName='BizOS Support';
+  } else {
     const counterpart=String(last.senderEmail||'').toLowerCase()===email?last.recipientEmail:last.senderEmail;
     const contact=bizOSMessageContacts.find(function(p){return String(p.email||'').toLowerCase()===String(counterpart||'').toLowerCase();});
-    activeMessageRecipientEmail=counterpart;activeMessageRecipientName=contact?contact.name:(last.senderName||counterpart);
+    activeMessageRecipientEmail=counterpart;
+    activeMessageRecipientName=contact?contact.name:(String(last.senderEmail||'').toLowerCase()===email?last.recipientName:last.senderName)||counterpart;
   }
-  setMessagesFilter(activeMessageScope);activeMessageConversationId=conversationId;
   renderMessagesPage();renderMessageThread();
   callGoogleScript('markBizOSConversationRead',[conversationId],function(r){if(r&&r.success){bizOSMessages.forEach(function(m){if(m.conversationId===conversationId&&String(m.recipientEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase())m.readAt=new Date().toISOString();});updateMessagesBadge();renderMessagesPage();}},function(){});
 }
