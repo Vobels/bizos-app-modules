@@ -790,6 +790,9 @@ function saveRecord(moduleName, data, sessionId) {
     if (!data.Transaction_ID && moduleName === 'Finance') {
       data.Transaction_ID = generateTransactionId();
     }
+    if (!data.Transaction_ID && moduleName === 'POS') {
+      data.Transaction_ID = `POS-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
+    }
     if (!data.Deal_ID && moduleName === 'Sales') {
       data.Deal_ID = `DEAL-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
