@@ -18,6 +18,15 @@ function getBizOSModuleDefinition_(moduleName) {
 
 // Resolve a module sheet consistently for legacy workspaces that predate
 // the full module-sheet set. Creation is idempotent and uses canonical names.
+function ensureModuleFinancialColumns_(sheet, moduleName) {
+  if (!sheet || moduleName !== 'Logistics') return;
+  const required = ['Date', 'Fuel_Cost', 'Repair_Cost', 'Toll_Cost', 'Transport_Income', 'Financial_Status', 'Financial_Link_ID'];
+  const lastColumn = sheet.getLastColumn();
+  const headers = lastColumn > 0 ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(h) { return String(h || '').trim(); }) : [];
+  const missing = required.filter(function(header) { return headers.indexOf(header) < 0; });
+  if (missing.length) sheet.getRange(1, lastColumn + 1, 1, missing.length).setValues([missing]);
+}
+
 function getOrCreateModuleSheet_(workspace, moduleName) {
   if (!workspace) throw new Error('Workspace is unavailable.');
   const definition = getBizOSModuleDefinition_(moduleName);
@@ -28,6 +37,8 @@ function getOrCreateModuleSheet_(workspace, moduleName) {
     sheet = workspace.insertSheet(definition.sheet);
     addDefaultHeadersToModule(sheet, moduleName);
   }
+  // Append-only schema migration for existing Logistics workspaces.
+  ensureModuleFinancialColumns_(sheet, moduleName);
   return sheet;
 }
 
@@ -682,6 +693,7 @@ function saveRecord(moduleName, data, sessionId) {
     }
     
     const sheet = workspace.getSheetByName(definition.sheet);
+    if (sheet) ensureModuleFinancialColumns_(sheet, moduleName);
     if (!sheet) {
       // Create sheet if it doesn't exist
       workspace.insertSheet(definition.sheet);
@@ -786,6 +798,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     if (!definition) return { success: false, message: "Module not found" };
     const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
+    ensureModuleFinancialColumns_(sheet, moduleName);
     
     const values = sheet.getDataRange().getValues();
     const headers = values[0];
