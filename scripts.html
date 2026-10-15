@@ -3541,7 +3541,7 @@ function setupAutoCalculations(moduleName) {
   if (moduleName === 'Finance') {
     // No auto-calculation needed for finance
   }
-  else if (moduleName === 'Sales' || moduleName === 'Ecommerce') {
+  else if (moduleName === 'Sales' || moduleName === 'Ecommerce' || moduleName === 'POS') {
     const quantity = document.getElementById('Quantity');
     const unitPrice = document.getElementById('Unit_Price');
     const totalAmount = document.getElementById('Total_Amount');
