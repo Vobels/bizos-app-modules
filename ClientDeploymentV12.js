@@ -7,8 +7,8 @@
 // ============================================================
 
 var CLIENT_V12_UI_FILES_ = ['ClientShellV12','ClientStylesV12'];
-var CLIENT_V12_PACKAGE_VERSION_ = '12.2.3';
-var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.3';
+var CLIENT_V12_PACKAGE_VERSION_ = '12.2.4';
+var CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.4';
 var CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/full-client-bizos-package';
 
 function generateClientCodeSafelyV12(settings) {
@@ -766,8 +766,8 @@ function validateClientDeploymentPackageV12_(pkg, expected) {
   var missingStyles=requiredStyles.filter(function(token){return styles.indexOf(token)<0;});
   if(missingStyles.length)return{success:false,code:'V12_STYLE_DEPENDENCY_MISSING',message:'V12 client styles are missing required dashboard styles: '+missingStyles.join(', ')};
   try{var manifest=JSON.parse(manifestSource);if(!manifest||manifest.runtimeVersion!=='V8'||!manifest.webapp)return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is missing required V8/webapp configuration.'};}catch(e){return{success:false,code:'V12_MANIFEST_INVALID',message:'V12 manifest is not valid JSON: '+e.message};}
-  if(code.indexOf("CLIENT_V12_PACKAGE_VERSION_ = '12.2.3'")<0)return{success:false,code:'V12_PACKAGE_VERSION_MISMATCH',message:'V12 runtime package version does not match the current V12.2.3 release.'};
-  if(code.indexOf("CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.3'")<0)return{success:false,code:'V12_PACKAGE_RELEASE_MISMATCH',message:'V12 runtime package release does not match the current V12.2.3 release.'};
+  if(code.indexOf("CLIENT_V12_PACKAGE_VERSION_ = '12.2.4'")<0)return{success:false,code:'V12_PACKAGE_VERSION_MISMATCH',message:'V12 runtime package version does not match the current V12.2.4 release.'};
+  if(code.indexOf("CLIENT_V12_PACKAGE_RELEASE_ = 'V12.2.4'")<0)return{success:false,code:'V12_PACKAGE_RELEASE_MISMATCH',message:'V12 runtime package release does not match the current V12.2.4 release.'};
   if(code.indexOf("CLIENT_V12_PACKAGE_PROVENANCE_ = 'fix/full-client-bizos-package'")<0)return{success:false,code:'V12_PACKAGE_PROVENANCE_MISMATCH',message:'V12 runtime package provenance does not match the current full-client package branch.'};
   if(expected&&expected.clientId&&code.indexOf(String(expected.clientId))<0)return{success:false,code:'V12_CLIENT_ID_MISMATCH',message:'V12 runtime does not contain the expected client ID.'};
   if(expected&&expected.sheetId&&code.indexOf(String(expected.sheetId))<0)return{success:false,code:'V12_WORKSPACE_ID_MISMATCH',message:'V12 runtime does not contain the expected workspace ID.'};
