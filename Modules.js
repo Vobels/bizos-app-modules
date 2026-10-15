@@ -349,7 +349,11 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         break;
         
       case 'Ecommerce':
-        if (recordData.Total_Amount > 0) {
+        const ecommercePaymentStatus = String(recordData.Payment_Status || '').toLowerCase();
+        const ecommerceOrderStatus = String(recordData.Order_Status || recordData.Status || '').toLowerCase();
+        const ecommerceRevenueRecognized = ['paid', 'completed', 'success', 'succeeded'].includes(ecommercePaymentStatus) ||
+          ['delivered', 'completed', 'fulfilled'].includes(ecommerceOrderStatus);
+        if (parseFloat(recordData.Total_Amount) > 0 && ecommerceRevenueRecognized) {
           // Revenue entry
           financialEntries.push({
             Transaction_ID: generateTransactionId(),
@@ -429,7 +433,9 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         break;
         
       case 'POS':
-        if (parseFloat(recordData.Total_Amount) > 0) {
+        const posStatus = String(recordData.Status || 'completed').toLowerCase();
+        const posIsReversed = ['cancelled', 'canceled', 'refunded', 'refund', 'void', 'voided', 'failed', 'reversed'].includes(posStatus);
+        if (parseFloat(recordData.Total_Amount) > 0 && !posIsReversed) {
           financialEntries.push({
             Transaction_ID: generateTransactionId(),
             Date: recordData.Date || now.split('T')[0],
