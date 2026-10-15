@@ -158,8 +158,8 @@ function getWorkspaceFile(sessionId) {
 
   if (!user.workspaceId) {
     if (!isPaidTier) {
-      console.log('Using master spreadsheet for free/starter account.');
-      return SpreadsheetApp.getActiveSpreadsheet();
+      console.log('Using canonical master spreadsheet for free/starter account.');
+      return getBizOSMasterSpreadsheet_();
     }
     throw new Error('Workspace is not configured for this paid account.');
   }
@@ -171,8 +171,8 @@ function getWorkspaceFile(sessionId) {
   } catch (error) {
     console.error('Error opening isolated workspace:', error.message);
     if (!isPaidTier) {
-      console.log('Using master spreadsheet for free/starter account after workspace lookup failure.');
-      return SpreadsheetApp.getActiveSpreadsheet();
+      console.log('Using canonical master spreadsheet for free/starter account after workspace lookup failure.');
+      return getBizOSMasterSpreadsheet_();
     }
     throw new Error('Unable to open the isolated workspace for this paid account.');
   }
