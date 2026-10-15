@@ -394,6 +394,40 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         }
         break;
         
+      case 'Logistics': {
+        const logisticsStatus = String(recordData.Financial_Status || '').trim().toLowerCase();
+        const logisticsSettled = ['paid', 'received', 'completed', 'settled'].includes(logisticsStatus);
+        const fuelCost = Math.max(0, parseFloat(recordData.Fuel_Cost) || 0);
+        const repairCost = Math.max(0, parseFloat(recordData.Repair_Cost) || 0);
+        const tollCost = Math.max(0, parseFloat(recordData.Toll_Cost) || 0);
+        const logisticsExpense = fuelCost + repairCost + tollCost;
+        const transportIncome = Math.max(0, parseFloat(recordData.Transport_Income) || 0);
+        if (logisticsSettled && logisticsExpense > 0) {
+          financialEntries.push({
+            Transaction_ID: generateTransactionId(), Date: recordData.Date || now.split('T')[0],
+            Type: 'expense', Category: 'logistics', Subcategory: 'transport_operating_costs',
+            Module_Source: 'Logistics', Module_Record_ID: recordData.Shipment_ID,
+            Description: 'Logistics costs for shipment ' + (recordData.Shipment_ID || '') +
+              ' (fuel ' + fuelCost + ', repairs ' + repairCost + ', tolls ' + tollCost + ')',
+            Amount: -Math.abs(logisticsExpense), Payment_Method: 'completed',
+            Reference: recordData.Shipment_ID, Status: 'completed',
+            Created_By: user?.email || recordData.Created_By, Created_At: now
+          });
+        }
+        if (logisticsSettled && transportIncome > 0) {
+          financialEntries.push({
+            Transaction_ID: generateTransactionId(), Date: recordData.Date || now.split('T')[0],
+            Type: 'revenue', Category: 'logistics', Subcategory: 'transport_income',
+            Module_Source: 'Logistics', Module_Record_ID: recordData.Shipment_ID,
+            Description: 'Transport income for shipment ' + (recordData.Shipment_ID || ''),
+            Amount: transportIncome, Payment_Method: 'completed',
+            Reference: recordData.Shipment_ID, Status: 'completed',
+            Created_By: user?.email || recordData.Created_By, Created_At: now
+          });
+        }
+        break;
+      }
+
       case 'Agro':
         if (String(recordData.Activity || '').trim().toLowerCase() === 'sale' && parseFloat(recordData.Revenue) > 0) {
           financialEntries.push({
@@ -526,7 +560,7 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
     // A source edit can remove an event (for example, a Sales deal changing
     // from closed_won to closed_lost, or an Ecommerce shipping cost becoming 0).
     // Only rows explicitly linked to this module record are touched.
-    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Sale_ID || recordData.Record_ID || recordData.Transaction_ID || recordData.Tax_ID;
+    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Sale_ID || recordData.Record_ID || recordData.Transaction_ID || recordData.Tax_ID || recordData.Shipment_ID;
     const headers = getSheetHeadersBySheet(financeSheet);
     if (sourceRecordId) {
       const sourceCol = headers.indexOf('Module_Source');
