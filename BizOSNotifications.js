@@ -191,7 +191,7 @@ function getBizOSNotifications(limit, sessionId) {
   }
 }
 
-function markBizOSNotificationRead(sessionId, notificationId) {
+function markBizOSNotificationRead(notificationId, sessionId) {
   var actor = bizOSNotificationActor_(sessionId);
   if (!actor.ok) return {success:false,message:actor.message};
   return updateBizOSNotificationReadState_(actor.user, notificationId, false);
