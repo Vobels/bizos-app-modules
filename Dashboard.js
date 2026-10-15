@@ -14,10 +14,17 @@ function safeGetUser(sessionId) {
 // Keep KPI, chart, and recent-transaction views consistent with the ledger.
 // Voided/failed/reversed entries remain in Financial_Data for audit history,
 // but must not contribute to live totals.
-function dashboardFinancialRowIsCountable_(row, headers) {
+function dashboardFinancialType_(row, headers) {
   const typeCol = headers.indexOf('Type');
-  if (typeCol < 0) return false;
-  const type = String(row[typeCol] || '').toLowerCase();
+  const rawType = typeCol >= 0 ? String(row[typeCol] || '').trim().toLowerCase() : '';
+  // Finance historically stores income entries as "Income"; normalize them
+  // to revenue for dashboard calculations without changing the ledger data.
+  if (rawType === 'income') return 'revenue';
+  return rawType;
+}
+
+function dashboardFinancialRowIsCountable_(row, headers) {
+  const type = dashboardFinancialType_(row, headers);
   if (type !== 'revenue' && type !== 'expense') return false;
 
   const statusCol = headers.indexOf('Status');
@@ -97,7 +104,7 @@ function getDashboardKPIsFast(sessionId) {
       if (isNaN(rowDate.getTime()) || rowDate < monthStart || !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
       
       const amount = parseFloat(data[i][amountCol]) || 0;
-      const type = String(data[i][typeCol] || '').toLowerCase();
+      const type = dashboardFinancialType_(data[i], headers);
       
       if (type && type.toLowerCase() === 'revenue') {
         revenue += amount;
@@ -179,7 +186,7 @@ function getDashboardKPIsAccurate(sessionId, period) {
       }
       
       const amount = parseFloat(data[i][amountCol]) || 0;
-      const type = String(data[i][typeCol] || '').toLowerCase();
+      const type = dashboardFinancialType_(data[i], headers);
       
       if (type && type.toLowerCase() === 'revenue') {
         revenue += amount;
@@ -370,7 +377,7 @@ function getChartDataOptimized(workspace, period) {
       
       const dateStr = rowDate.toISOString().split('T')[0];
       const amount = parseFloat(data[i][amountCol]) || 0;
-      const type = data[i][typeCol];
+      const type = dashboardFinancialType_(data[i], headers);
       const category = data[i][categoryCol] || 'other';
       
       if (type === 'revenue') {
@@ -483,7 +490,7 @@ function dashboardReadFinancialPeriod_(sheet, start, end) {
     if (isNaN(rowDate.getTime()) || rowDate < start || rowDate >= end || !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
 
     const amount = Math.abs(parseFloat(data[i][amountCol]) || 0);
-    const type = String(data[i][typeCol] || '').toLowerCase();
+    const type = dashboardFinancialType_(data[i], headers);
     result.count++;
 
     if (type === 'revenue') {
@@ -540,7 +547,7 @@ function getDailyTrends(workspace, period) {
 
         const key = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
         const amount = Math.abs(parseFloat(data[i][amountCol]) || 0);
-        const type = String(data[i][typeCol] || '').toLowerCase();
+        const type = dashboardFinancialType_(data[i], headers);
 
         if (type === 'revenue' && revenue[key] !== undefined) revenue[key] += amount;
         if (type === 'expense' && expenses[key] !== undefined) expenses[key] += amount;
