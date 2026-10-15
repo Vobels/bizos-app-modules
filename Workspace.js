@@ -104,7 +104,7 @@ function addDefaultHeadersToModule(sheet, moduleName) {
       'Reference', 'Filed_By', 'Status', 'Created_By', 'Created_At'
     ],
     Agro: [
-      'Record_ID', 'Date', 'Type', 'Activity', 'Crop_Name', 'Livestock_Type',
+      'Record_ID', 'Customer_ID', 'Customer_Name', 'Date', 'Type', 'Activity', 'Crop_Name', 'Livestock_Type',
       'Quantity', 'Unit', 'Unit_Cost', 'Total_Cost', 'Selling_Price', 
       'Revenue', 'Field_Plot', 'Health_Status', 'Notes', 'Financial_Link_ID', 'Created_By'
     ],
@@ -114,7 +114,7 @@ function addDefaultHeadersToModule(sheet, moduleName) {
       'Apps_Used', 'Notes', 'Created_By', 'Created_At'
     ],
     POS: [
-      'Transaction_ID', 'Date', 'Customer_Name', 'Customer_Email', 
+      'Transaction_ID', 'Customer_ID', 'Date', 'Customer_Name', 'Customer_Email', 
       'Product_Name', 'Quantity', 'Unit_Price', 'Total_Amount', 
       'Payment_Method', 'Status', 'Receipt_Number', 'Created_By', 'Created_At'
     ],
