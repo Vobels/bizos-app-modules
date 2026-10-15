@@ -95,8 +95,9 @@ function addDefaultHeadersToModule(sheet, moduleName) {
       'Salary', 'Manager', 'Status', 'Created_By', 'Created_At'
     ],
     Logistics: [
-      'Shipment_ID', 'Order_ID', 'Status', 'Location', 'Carrier', 
-      'Tracking', 'ETA', 'Dispatched_By', 'Created_By', 'Created_At'
+      'Shipment_ID', 'Order_ID', 'Date', 'Status', 'Location', 'Carrier',
+      'Tracking', 'ETA', 'Dispatched_By', 'Fuel_Cost', 'Repair_Cost', 'Toll_Cost',
+      'Transport_Income', 'Financial_Status', 'Financial_Link_ID', 'Created_By', 'Created_At'
     ],
     Tax: [
       'Tax_ID', 'Date', 'Type', 'Amount', 'Tax_Rate', 'Tax_Amount', 
@@ -188,7 +189,7 @@ function updateSourceRecordWithLink(workspace, moduleName, recordId, financialId
     if (data.length < 2) return;
     
     const headers = data[0];
-    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Record_ID' || h === 'Employee_ID');
+    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Record_ID' || h === 'Employee_ID' || h === 'Shipment_ID');
     const linkCol = headers.findIndex(h => h === 'Financial_Link_ID');
     
     if (idCol === -1 || linkCol === -1) return;
