@@ -395,7 +395,7 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         break;
         
       case 'Agro':
-        if (recordData.Activity === 'sale' && recordData.Revenue > 0) {
+        if (String(recordData.Activity || '').trim().toLowerCase() === 'sale' && parseFloat(recordData.Revenue) > 0) {
           financialEntries.push({
             Transaction_ID: generateTransactionId(),
             Date: recordData.Date || now.split('T')[0],
@@ -784,7 +784,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     // This only applies to modules that already have an authoritative financial
     // sync path; ordinary Finance entries and unrelated module records are untouched.
     if (moduleName !== 'Finance' &&
-        (moduleName === 'Sales' || moduleName === 'Ecommerce' || moduleName === 'Agro' || moduleName === 'POS' || moduleName === 'Tax')) {
+        ['Sales', 'Ecommerce', 'Agro', 'POS', 'Tax', 'Logistics', 'Warehouse', 'CRM'].includes(moduleName)) {
       const updatedValues = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
       const updatedRecord = {};
       headers.forEach((header, i) => { updatedRecord[header] = updatedValues[i]; });
