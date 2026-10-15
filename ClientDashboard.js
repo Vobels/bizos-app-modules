@@ -60,8 +60,9 @@ function getClientDashboard(sessionId) {
             const rowDate = dateCol !== -1 ? new Date(data[i][dateCol]) : null;
             if (!rowDate || isNaN(rowDate.getTime())) continue;
             const amount = parseFloat(data[i][amountCol]) || 0;
-            const type = String(data[i][typeCol] || '').toLowerCase();
-            const isRevenue = type === 'revenue';
+            const type = String(data[i][typeCol] || '').trim().toLowerCase();
+            // Older Finance entries may use Type=Income; treat those as revenue.
+            const isRevenue = type === 'revenue' || type === 'income';
             const isExpense = type === 'expense';
             
             if (rowDate >= monthStart) {
