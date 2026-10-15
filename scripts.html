@@ -1810,15 +1810,45 @@ function updateBusinessHealth(health) {
 }
 
 // ==================== CHART FUNCTIONS ====================
-function updateCharts(charts) {
-  if (typeof Chart === 'undefined') {
-    const script = document.createElement('script');
+function ensureChartJsLoaded() {
+  if (typeof Chart !== 'undefined') return Promise.resolve(true);
+  if (window.chartJsLoadPromise) return window.chartJsLoadPromise;
+
+  window.chartJsLoadPromise = new Promise(function(resolve) {
+    let script = document.querySelector('script[data-bizos-chartjs="true"]');
+    const finish = function(loaded) {
+      if (!loaded) {
+        window.chartJsLoadPromise = null;
+        if (script && script.parentNode) script.parentNode.removeChild(script);
+      }
+      resolve(loaded);
+    };
+
+    if (script) {
+      script.addEventListener('load', function() { finish(typeof Chart !== 'undefined'); }, { once: true });
+      script.addEventListener('error', function() { finish(false); }, { once: true });
+      return;
+    }
+
+    script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-    script.onload = () => renderCharts(charts);
+    script.setAttribute('data-bizos-chartjs', 'true');
+    script.onload = function() { finish(typeof Chart !== 'undefined'); };
+    script.onerror = function() { finish(false); };
     document.head.appendChild(script);
-  } else {
+  });
+
+  return window.chartJsLoadPromise;
+}
+
+function updateCharts(charts) {
+  if (typeof Chart !== 'undefined') {
     renderCharts(charts);
+    return;
   }
+  ensureChartJsLoaded().then(function(loaded) {
+    if (loaded) renderCharts(charts);
+  });
 }
 
 function renderCharts(charts) {
@@ -1895,6 +1925,8 @@ function changeDashboardChartType() {
   if (window.lastDashboardCharts) renderCharts(window.lastDashboardCharts);
 }
 function renderModuleInsights(moduleName, records) {
+  const renderToken = (window.moduleInsightsRenderToken || 0) + 1;
+  window.moduleInsightsRenderToken = renderToken;
   const panel = document.getElementById('module-insights');
   if (!panel) return;
   const title = document.getElementById('module-insights-title');
@@ -1934,15 +1966,45 @@ function renderModuleInsights(moduleName, records) {
   }
   if (typeof Chart === 'undefined') {
     if (chartsGrid) chartsGrid.classList.add('hidden');
-    if (empty) { empty.textContent = 'Charts are unavailable right now. Refresh this module to try again.'; empty.classList.remove('hidden'); }
+    if (empty) { empty.textContent = 'Loading charts…'; empty.classList.remove('hidden'); }
+    ensureChartJsLoaded().then(function(loaded) {
+      if (renderToken !== window.moduleInsightsRenderToken) return;
+      if (loaded) {
+        renderModuleInsights(moduleName, rows);
+      } else if (empty) {
+        empty.textContent = 'Charts are unavailable right now. Check your connection and try again.';
+        empty.classList.remove('hidden');
+      }
+    });
     return;
   }
   if (chartsGrid) chartsGrid.classList.remove('hidden');
   if (empty) empty.classList.add('hidden');
   const resolveField = function(candidates) {
     const list = Array.isArray(candidates) ? candidates : [candidates];
-    const keys = rows.length ? Object.keys(rows[0] || {}) : [];
-    for (let i = 0; i < list.length; i++) if (list[i] && keys.indexOf(list[i]) >= 0) return list[i];
+    const keys = {};
+    rows.forEach(function(row) {
+      Object.keys(row || {}).forEach(function(key) { keys[key] = true; });
+    });
+
+    let bestField = null;
+    let bestCount = 0;
+    for (let i = 0; i < list.length; i++) {
+      const candidate = list[i];
+      if (!candidate || !keys[candidate]) continue;
+      let populatedCount = 0;
+      rows.forEach(function(row) {
+        const value = row && row[candidate];
+        if (value !== null && value !== undefined && String(value).trim() !== '') populatedCount++;
+      });
+      if (populatedCount > bestCount) {
+        bestField = candidate;
+        bestCount = populatedCount;
+      }
+    }
+    if (bestField) return bestField;
+
+    for (let i = 0; i < list.length; i++) if (list[i] && keys[list[i]]) return list[i];
     return null;
   };
   const groupField = resolveField(config.group);
@@ -1952,7 +2014,8 @@ function renderModuleInsights(moduleName, records) {
   const secondGroupField = resolveField(config.secondGroup);
   if (firstHeading) firstHeading.textContent = config.chart1;
   if (secondHeading) {
-    if (config.secondGroup) secondHeading.textContent = metricField ? config.chart2 : 'Records by Staff Member';
+    if (config.secondGroup && secondGroupField) secondHeading.textContent = metricField ? config.chart2 : 'Records by Staff Member';
+    else if (config.secondGroup) secondHeading.textContent = dateField ? 'Records by Date' : 'Records';
     else if (config.metric && !metricField) secondHeading.textContent = 'Records by Date';
     else if (moduleName === 'CRM' && dateField === 'Created_At') secondHeading.textContent = 'Contacts Created Over Time';
     else if (moduleName === 'HR' && dateField === 'Created_At') secondHeading.textContent = 'Employee Records Created Over Time';
@@ -1976,11 +2039,12 @@ function renderModuleInsights(moduleName, records) {
     });
   }
   let secondLabels = [], secondValues = [];
-  if (config.secondGroup && secondGroupField && metricField) {
+  if (config.secondGroup && secondGroupField) {
     const grouped = {};
     rows.forEach(function(row) {
       const key = String((row && row[secondGroupField]) || '').trim() || 'Unspecified staff';
-      grouped[key] = (grouped[key] || 0) + (Number(row && row[metricField]) || 0);
+      const value = metricField ? (Number(row && row[metricField]) || 0) : 1;
+      grouped[key] = (grouped[key] || 0) + value;
     });
     secondLabels = Object.keys(grouped).sort(function(a,b) { return grouped[b] - grouped[a]; }).slice(0, 12);
     secondValues = secondLabels.map(function(key) { return grouped[key]; });
