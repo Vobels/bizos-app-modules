@@ -536,6 +536,10 @@
           <i class="fas fa-rocket"></i>
           <span>Features</span>
         </div>
+        <div class="admin-nav-item" onclick="switchTab('messages')" data-tab="messages">
+          <i class="fas fa-envelope"></i>
+          <span>Messages & Updates</span>
+        </div>
         <div class="admin-nav-item" onclick="switchTab('whitelabel')" data-tab="whitelabel">
           <i class="fas fa-paint-brush"></i>
           <span>White Label</span>
@@ -782,6 +786,29 @@
         </div>
       </div>
 
+      <!-- ===== MESSAGES & UPDATES TAB ===== -->
+      <div id="tab-messages" class="tab-content">
+        <div class="admin-table-wrapper" style="margin-bottom:18px;">
+          <h3 style="margin:0 0 6px;">Publish an announcement</h3>
+          <p style="color:#6b7280;font-size:13px;margin:0 0 16px;">Publish feature releases, planned maintenance, service notices, or other updates to all BizOS business workspaces. Announcements are stored in BizOS and appear in the in-app Notifications center.</p>
+          <div style="display:grid;gap:12px;max-width:850px;">
+            <label style="display:grid;gap:5px;font-size:13px;font-weight:600;">Title<input id="bizosAnnouncementTitle" maxlength="140" placeholder="e.g. New Warehouse reporting is available" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-weight:400;"></label>
+            <label style="display:grid;gap:5px;font-size:13px;font-weight:600;">Category<select id="bizosAnnouncementType" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-weight:400;"><option value="feature">Feature update</option><option value="info">Information</option><option value="system">System notice</option><option value="warning">Important notice</option><option value="security">Security notice</option></select></label>
+            <label style="display:grid;gap:5px;font-size:13px;font-weight:600;">Message<textarea id="bizosAnnouncementMessage" rows="4" maxlength="5000" placeholder="Explain what's new, who it affects, and any action required." style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-weight:400;"></textarea></label>
+            <div><button onclick="publishBizOSAnnouncement()" class="btn-primary" style="padding:10px 16px;"><i class="fas fa-bullhorn" style="margin-right:7px;"></i>Publish to all workspaces</button><span id="bizosAnnouncementStatus" style="font-size:13px;color:#6b7280;margin-left:10px;"></span></div>
+          </div>
+        </div>
+        <div class="admin-table-wrapper">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><div><h3 style="margin:0;">BizOS Support inbox</h3><p style="color:#6b7280;font-size:13px;margin:5px 0 0;">Private messages sent by business owners to BizOS Support.</p></div><button onclick="loadBizOSSupportInbox()" class="btn-secondary" style="padding:8px 12px;"><i class="fas fa-sync-alt" style="margin-right:6px;"></i>Refresh inbox</button></div>
+          <div id="bizosSupportInbox" class="empty-state"><div class="loading-spinner"></div> Loading support conversations…</div>
+          <div id="bizosSupportThread" style="display:none;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:16px;">
+            <h4 id="bizosSupportThreadTitle" style="margin:0 0 10px;"></h4><div id="bizosSupportThreadMessages" class="settings-note" style="max-height:320px;overflow-y:auto;margin-bottom:12px;"></div>
+            <label style="display:grid;gap:5px;font-size:13px;font-weight:600;">Reply<textarea id="bizosSupportReplyText" rows="3" maxlength="5000" placeholder="Write a reply to this client…" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-weight:400;"></textarea></label>
+            <button onclick="replyToBizOSSupport()" class="btn-primary" style="padding:9px 14px;margin-top:10px;">Send reply</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== WHITE LABEL TAB ===== -->
       <div id="tab-whitelabel" class="tab-content">
         <div class="admin-table-wrapper" style="max-width: 600px;">
@@ -955,6 +982,7 @@
         users: 'Users',
         modules: 'Modules',
         features: 'Features',
+        messages: 'Messages & Updates',
         whitelabel: 'White Label',
         settings: 'Settings',
         'business-management': 'Business Management'
@@ -969,6 +997,7 @@
         populateUserDropdown(); // Populate dropdown when Users tab is opened
       }
       if (tabName === 'features') loadFeatures();
+      if (tabName === 'messages') { loadBizOSSupportInbox(); }
       if (tabName === 'modules') loadModules();
       if (tabName === 'whitelabel') loadWhiteLabelConfig();
       if (tabName === 'settings') loadPaymentPricing();
@@ -1875,6 +1904,47 @@ function saveClientFeatureProfile(){
   }).withFailureHandler(function(){showNotification('Client feature profile could not be saved.','error');}).saveClientFeatureProfile(activeClientFeatureProfileId,{enabledFeatureIds:ids},getAdminSession());
 }
 function closeClientFeatureProfile(){document.getElementById('clientFeatureProfileModal').style.display='none';activeClientFeatureProfileId='';}
+function escBizOSAdmin(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+var activeBizOSSupportConversation='';
+var activeBizOSSupportData=null;
+function publishBizOSAnnouncement(){
+  var title=String(document.getElementById('bizosAnnouncementTitle').value||'').trim();
+  var message=String(document.getElementById('bizosAnnouncementMessage').value||'').trim();
+  var type=document.getElementById('bizosAnnouncementType').value;
+  var status=document.getElementById('bizosAnnouncementStatus');
+  if(!title||!message){if(status)status.textContent='Enter both a title and message.';return;}
+  if(status)status.textContent='Publishing…';
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success){document.getElementById('bizosAnnouncementTitle').value='';document.getElementById('bizosAnnouncementMessage').value='';if(status)status.textContent='Published. The announcement is now available in BizOS Notifications.';showNotification('Announcement published.','success');}
+    else{if(status)status.textContent=(r&&r.message)||'Announcement could not be published.';showNotification((r&&r.message)||'Announcement could not be published.','error');}
+  }).withFailureHandler(function(){if(status)status.textContent='Announcement could not be published.';showNotification('Announcement could not be published.','error');}).adminPublishBizOSAnnouncement(getAdminSession(),{title:title,message:message,type:type});
+}
+function loadBizOSSupportInbox(){
+  var el=document.getElementById('bizosSupportInbox');if(!el)return;
+  el.innerHTML='<div class="empty-state"><div class="loading-spinner"></div> Loading support conversations…</div>';
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||!r.success){el.textContent=(r&&r.message)||'Support inbox could not be loaded.';return;}
+    var rows=r.conversations||[];
+    activeBizOSSupportData=rows;
+    if(!rows.length){el.innerHTML='<div class="empty-state"><i class="fas fa-inbox"></i><p>No support messages yet.</p></div>';return;}
+    el.innerHTML=rows.map(function(t){return '<button type="button" onclick="openBizOSSupportThread(\''+String(t.conversationId||'').replace(/'/g,"\\'")+'\')" style="display:block;width:100%;text-align:left;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:8px;background:#fff;"><strong>'+escBizOSAdmin(t.clientName||t.clientEmail||'Business owner')+'</strong><span style="float:right;font-size:11px;color:#6b7280;">'+escBizOSAdmin(t.businessId)+'</span><div style="font-size:12px;color:#6b7280;margin-top:5px;">'+escBizOSAdmin(t.clientEmail)+' · '+escBizOSAdmin(t.lastAt)+'</div><div style="font-size:13px;margin-top:5px;">'+escBizOSAdmin(t.lastMessage)+'</div></button>';}).join('');
+  }).withFailureHandler(function(){el.textContent='Support inbox could not be loaded.';}).getBizOSSupportInbox(getAdminSession());
+}
+function openBizOSSupportThread(id){
+  activeBizOSSupportConversation=String(id||'');
+  var t=(activeBizOSSupportData||[]).find(function(x){return x.conversationId===activeBizOSSupportConversation;});
+  if(!t)return;
+  document.getElementById('bizosSupportThread').style.display='block';
+  document.getElementById('bizosSupportThreadTitle').textContent=(t.clientName||t.clientEmail)+' · '+t.businessId;
+  document.getElementById('bizosSupportThreadMessages').innerHTML=(t.messages||[]).map(function(m){return '<div style="padding:9px 0;border-bottom:1px solid #e5e7eb;"><div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+escBizOSAdmin(m.senderName||m.senderEmail)+' · '+escBizOSAdmin(m.createdAt)+'</div><div style="white-space:pre-wrap;overflow-wrap:anywhere;">'+escBizOSAdmin(m.message)+'</div></div>';}).join('');
+  document.getElementById('bizosSupportReplyText').value='';
+}
+function replyToBizOSSupport(){
+  var message=String(document.getElementById('bizosSupportReplyText').value||'').trim();
+  if(!activeBizOSSupportConversation||!message){showNotification('Select a conversation and enter a reply.','error');return;}
+  google.script.run.withSuccessHandler(function(r){if(r&&r.success){document.getElementById('bizosSupportReplyText').value='';showNotification('Reply sent to the client.','success');loadBizOSSupportInbox();}else showNotification((r&&r.message)||'Reply could not be sent.','error');}).withFailureHandler(function(){showNotification('Reply could not be sent.','error');}).sendBizOSSupportReply(getAdminSession(),activeBizOSSupportConversation,message);
+}
+
 </script>
 
 <script>
