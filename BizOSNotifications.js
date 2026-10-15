@@ -264,7 +264,7 @@ function getBizOSActivity(limit, sessionId) {
     var activity=[];
     for(var i=data.length-1;i>=1 && activity.length<max;i--){
       var row=data[i];
-      if(String(row[idx.Business_ID]||'')!==String(actor.user.businessId||''))continue;
+      if(String(row[idx.Business_ID]||'')!==String(actor.user.businessId||'')&&String(row[idx.Business_ID]||'').toUpperCase()!=='ALL')continue;
       activity.push({
         id:String(row[idx.Activity_ID]||''),
         actorEmail:String(row[idx.Actor_Email]||''),
