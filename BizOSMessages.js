@@ -195,7 +195,12 @@ function getBizOSSupportInbox(adminSessionId) {
     }
     var list=Object.keys(conversations).map(function(k){return conversations[k];});
     list.sort(function(a,b){return new Date(b.lastAt)-new Date(a.lastAt);});
-    return {success:true,conversations:list.slice(0,100)};
+    var unreadCount=0;
+    for(var ri=1;ri<data.length;ri++){
+      var message=bizOSMessageRowToObject_(data[ri],idx);
+      if(message.scope==='support'&&bizOSMessageEmail_(message.recipientEmail)==='bizos-support'&&!message.readAt)unreadCount++;
+    }
+    return {success:true,conversations:list.slice(0,100),unreadCount:unreadCount};
   } catch(error) {
     console.error('getBizOSSupportInbox error:',error);
     return {success:false,message:'Could not load the support inbox.'};
@@ -342,4 +347,22 @@ function markBizOSConversationRead(conversationId, sessionId) {
     }
     return {success:true,updated:changed};
   }catch(error){console.error('markBizOSConversationRead error:',error);return{success:false,message:'Could not mark messages as read.'};}
+}
+
+function markBizOSSupportConversationRead(adminSessionId, conversationId) {
+  requireAdminSession_(adminSessionId);
+  conversationId=String(conversationId||'').trim();
+  if(!conversationId)return {success:false,message:'Support conversation not found.'};
+  try {
+    var sheet=ensureBizOSMessagesSheet_(),data=sheet.getDataRange().getValues(),headers=data[0]||[],idx={};
+    headers.forEach(function(h,i){idx[h]=i;});
+    var now=new Date().toISOString(),changed=0;
+    for(var i=1;i<data.length;i++){
+      var row=data[i];
+      if(String(row[idx.Conversation_ID]||'')!==conversationId||String(row[idx.Scope]||'')!=='support')continue;
+      if(bizOSMessageEmail_(row[idx.Recipient_Email])!=='bizos-support'||String(row[idx.Read_At]||''))continue;
+      sheet.getRange(i+1,idx.Read_At+1).setValue(now);changed++;
+    }
+    return {success:true,updated:changed};
+  }catch(error){console.error('markBizOSSupportConversationRead error:',error);return{success:false,message:'Could not mark support messages as read.'};}
 }
