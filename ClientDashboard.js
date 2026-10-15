@@ -53,11 +53,15 @@ function getClientDashboard(sessionId) {
         
         if (typeCol !== -1 && amountCol !== -1) {
           for (let i = 1; i < data.length; i++) {
+            // Reuse the shared Master dashboard eligibility rule so paid-client
+            // dashboards do not count voided, failed, refunded or unpaid revenue.
+            if (typeof dashboardFinancialRowIsCountable_ === 'function' &&
+                !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
             const rowDate = dateCol !== -1 ? new Date(data[i][dateCol]) : null;
             if (!rowDate || isNaN(rowDate.getTime())) continue;
             const amount = parseFloat(data[i][amountCol]) || 0;
             const type = String(data[i][typeCol] || '').toLowerCase();
-            const isRevenue = type === 'revenue' || type === 'income';
+            const isRevenue = type === 'revenue';
             const isExpense = type === 'expense';
             
             if (rowDate >= monthStart) {
@@ -107,7 +111,7 @@ function getClientDashboard(sessionId) {
         const typeCol = headers.indexOf('Type');
         
         recentTransactions = data.slice(1)
-          .filter(row => row[dateCol])
+          .filter(row => row[dateCol] && (typeof dashboardFinancialRowIsCountable_ !== 'function' || dashboardFinancialRowIsCountable_(row, headers)))
           .sort((a, b) => new Date(b[dateCol]) - new Date(a[dateCol]))
           .slice(0, 5)
           .map(row => ({
