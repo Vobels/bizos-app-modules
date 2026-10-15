@@ -27,6 +27,69 @@ function ensureModuleFinancialColumns_(sheet, moduleName) {
   if (missing.length) sheet.getRange(1, lastColumn + 1, 1, missing.length).setValues([missing]);
 }
 
+// Append-only migration for the optional shared Business Center customer reference.
+// Existing columns and record values are never reordered or rewritten.
+function ensureModuleCustomerReferenceColumns_(sheet, moduleName) {
+  if (!sheet || moduleName !== 'CRM') return;
+  const lastColumn = sheet.getLastColumn();
+  const headers = lastColumn > 0
+    ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(h) { return String(h || '').trim(); })
+    : [];
+  if (headers.indexOf('Customer_ID') === -1) {
+    sheet.getRange(1, lastColumn + 1).setValue('Customer_ID');
+  }
+}
+
+function getBusinessCenterCustomerById_(workspace, customerId) {
+  const id = String(customerId || '').trim();
+  if (!workspace || !id) return null;
+  const sheet = workspace.getSheetByName('BusinessCenter_Customers');
+  if (!sheet || sheet.getLastRow() < 2 || sheet.getLastColumn() < 1) return null;
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(function(h) { return String(h || '').trim(); });
+  const idCol = headers.indexOf('Customer_ID');
+  if (idCol < 0) return null;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idCol] || '').trim() === id) {
+      const customer = {};
+      headers.forEach(function(header, j) { customer[header] = values[i][j]; });
+      return customer;
+    }
+  }
+  return null;
+}
+
+// Return only the fields needed by the CRM customer picker. CRM contacts can
+// remain unlinked; a selected ID is checked again during saveRecord().
+function getCRMCustomerReferences(sessionId) {
+  try {
+    if (!userHasAccess('CRM', sessionId)) return { success: false, message: 'Access denied' };
+    const workspace = getWorkspaceFile(sessionId);
+    if (!workspace) return { success: false, message: 'Workspace is unavailable.' };
+    const sheet = workspace.getSheetByName('BusinessCenter_Customers');
+    if (!sheet || sheet.getLastRow() < 2 || sheet.getLastColumn() < 1) return { success: true, customers: [] };
+    const values = sheet.getDataRange().getValues();
+    const headers = values[0].map(function(h) { return String(h || '').trim(); });
+    const idCol = headers.indexOf('Customer_ID');
+    const nameCol = headers.indexOf('Name');
+    const phoneCol = headers.indexOf('Phone');
+    const emailCol = headers.indexOf('Email');
+    if (idCol < 0) return { success: true, customers: [] };
+    const customers = values.slice(1).map(function(row) {
+      return {
+        Customer_ID: String(row[idCol] || '').trim(),
+        Name: nameCol < 0 ? '' : String(row[nameCol] || ''),
+        Phone: phoneCol < 0 ? '' : String(row[phoneCol] || ''),
+        Email: emailCol < 0 ? '' : String(row[emailCol] || '')
+      };
+    }).filter(function(customer) { return !!customer.Customer_ID; });
+    return { success: true, customers: customers };
+  } catch (error) {
+    console.error('CRM customer reference lookup failed:', error);
+    return { success: false, message: error.message || 'Could not load customer references.' };
+  }
+}
+
 function getOrCreateModuleSheet_(workspace, moduleName) {
   if (!workspace) throw new Error('Workspace is unavailable.');
   const definition = getBizOSModuleDefinition_(moduleName);
@@ -37,8 +100,9 @@ function getOrCreateModuleSheet_(workspace, moduleName) {
     sheet = workspace.insertSheet(definition.sheet);
     addDefaultHeadersToModule(sheet, moduleName);
   }
-  // Append-only schema migration for existing Logistics workspaces.
+  // Append-only schema migrations preserve existing workspace data.
   ensureModuleFinancialColumns_(sheet, moduleName);
+  ensureModuleCustomerReferenceColumns_(sheet, moduleName);
   return sheet;
 }
 
@@ -693,7 +757,10 @@ function saveRecord(moduleName, data, sessionId) {
     }
     
     const sheet = workspace.getSheetByName(definition.sheet);
-    if (sheet) ensureModuleFinancialColumns_(sheet, moduleName);
+    if (sheet) {
+      ensureModuleFinancialColumns_(sheet, moduleName);
+      ensureModuleCustomerReferenceColumns_(sheet, moduleName);
+    }
     if (!sheet) {
       // Create sheet if it doesn't exist
       workspace.insertSheet(definition.sheet);
@@ -717,6 +784,9 @@ function saveRecord(moduleName, data, sessionId) {
     }
     if (!data.Order_ID && moduleName === 'Ecommerce') {
       data.Order_ID = `ORD-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
+    }
+    if (!data.Contact_ID && moduleName === 'CRM') {
+      data.Contact_ID = `CONT-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
     if (!data.Record_ID && moduleName === 'Agro') {
       data.Record_ID = `AGRO-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
@@ -743,6 +813,15 @@ function saveRecord(moduleName, data, sessionId) {
       data.Item_ID = `ITEM-${Utilities.getUuid().substring(0, 8).toUpperCase()}`;
     }
     
+    // CRM may optionally link a contact to a registered Business Center customer.
+    // Never infer identity from name/email/phone during save; the explicit ID is authoritative.
+    if (moduleName === 'CRM') {
+      data.Customer_ID = String(data.Customer_ID || '').trim();
+      if (data.Customer_ID && !getBusinessCenterCustomerById_(workspace, data.Customer_ID)) {
+        return { success: false, message: 'The selected Business Center customer could not be found. Refresh the customer list and try again.' };
+      }
+    }
+
     // Save record to module sheet
     const rowData = headers.map(header => data[header] || "");
     sheet.appendRow(rowData);
@@ -799,6 +878,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
     ensureModuleFinancialColumns_(sheet, moduleName);
+    ensureModuleCustomerReferenceColumns_(sheet, moduleName);
     
     const values = sheet.getDataRange().getValues();
     const headers = values[0];
