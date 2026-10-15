@@ -91,6 +91,7 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
       { module: 'Ecommerce', sheet: 'Ecommerce_Data', id: 'Order_ID' },
       { module: 'Sales', sheet: 'Sales_Data', id: 'Deal_ID' },
       { module: 'Agro', sheet: 'Agro_Data', id: 'Record_ID' },
+      { module: 'Logistics', sheet: 'Logistics_Data', id: 'Shipment_ID' },
       { module: 'Tax', sheet: 'Tax_Data', id: 'Tax_ID' },
       { module: 'BusinessCenter', sheet: 'BusinessCenter_Sales', id: 'Sale_ID' },
       { module: 'BusinessCenterExpense', sheet: 'BusinessCenter_Finance_Transactions', id: 'Transaction_ID' }
@@ -400,8 +401,30 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
         Created_At: createdAt
       });
     }
+  } else if (moduleName === 'Logistics') {
+    var logisticsStatus = String(value('Financial_Status') || '').trim().toLowerCase();
+    var logisticsSettled = ['paid', 'received', 'completed', 'settled'].indexOf(logisticsStatus) >= 0;
+    var fuelCost = Math.max(0, number('Fuel_Cost'));
+    var repairCost = Math.max(0, number('Repair_Cost'));
+    var tollCost = Math.max(0, number('Toll_Cost'));
+    var logisticsExpense = fuelCost + repairCost + tollCost;
+    var transportIncome = Math.max(0, number('Transport_Income'));
+    if (logisticsSettled && logisticsExpense > 0) {
+      entries.push({ Date: date, Type: 'expense', Category: 'logistics', Subcategory: 'transport_operating_costs',
+        Module_Source: 'Logistics', Module_Record_ID: recordId,
+        Description: 'Logistics costs for shipment ' + recordId + ' (fuel ' + fuelCost + ', repairs ' + repairCost + ', tolls ' + tollCost + ')',
+        Amount: -Math.abs(logisticsExpense), Payment_Method: 'completed', Reference: recordId, Status: 'completed',
+        Created_By: createdBy, Created_At: createdAt });
+    }
+    if (logisticsSettled && transportIncome > 0) {
+      entries.push({ Date: date, Type: 'revenue', Category: 'logistics', Subcategory: 'transport_income',
+        Module_Source: 'Logistics', Module_Record_ID: recordId,
+        Description: 'Transport income for shipment ' + recordId, Amount: transportIncome,
+        Payment_Method: 'completed', Reference: recordId, Status: 'completed',
+        Created_By: createdBy, Created_At: createdAt });
+    }
   } else if (moduleName === 'Agro') {
-    if (String(value('Activity') || '').toLowerCase() === 'sale' && number('Revenue') > 0) {
+    if (String(value('Activity') || '').trim().toLowerCase() === 'sale' && number('Revenue') > 0) {
       entries.push({
         Date: date,
         Type: 'revenue',
