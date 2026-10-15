@@ -2913,6 +2913,7 @@ function loadModuleForm(moduleName) {
       setupDynamicFields(moduleName);
       setupAutoCalculations(moduleName);
       setDefaultValues();
+      if (moduleName === 'CRM') loadCRMCustomerReferences();
       
       if (moduleName === 'Finance') {
         const typeSelect = document.getElementById('Type');
@@ -2928,6 +2929,38 @@ function loadModuleForm(moduleName) {
       loadBasicModuleForm(moduleName);
     }
   );
+}
+
+function loadCRMCustomerReferences() {
+  const select = document.getElementById('Customer_ID');
+  if (!select) return;
+  select.innerHTML = '<option value="">Not linked to a registered customer</option>';
+  callGoogleScript('getCRMCustomerReferences', [], (response) => {
+    if (!response || response.success === false) {
+      console.warn('CRM customer references unavailable:', response && response.message);
+      return;
+    }
+    const byId = {};
+    (Array.isArray(response.customers) ? response.customers : []).forEach((customer) => {
+      const id = String(customer.Customer_ID || '').trim();
+      if (!id) return;
+      byId[id] = customer;
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = [customer.Name || 'Unnamed customer', customer.Phone || '', customer.Email || '', id].filter(Boolean).join(' · ');
+      select.appendChild(option);
+    });
+    select.addEventListener('change', () => {
+      const customer = byId[select.value];
+      if (!customer) return;
+      const name = document.getElementById('Name');
+      const email = document.getElementById('Email');
+      const phone = document.getElementById('Phone');
+      if (name) name.value = customer.Name || '';
+      if (email) email.value = customer.Email || '';
+      if (phone) phone.value = customer.Phone || '';
+    });
+  }, (error) => console.warn('CRM customer references failed to load:', error));
 }
 
 function generateModuleForm(moduleName, moduleData) {
@@ -3092,6 +3125,51 @@ function generateModuleForm(moduleName, moduleData) {
       </div>
     `,
     
+    CRM: `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Link to Business Center customer (optional)</label>
+          <select id="Customer_ID" name="Customer_ID" class="input-field w-full border rounded-lg p-2">
+            <option value="">Not linked to a registered customer</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">Choose a registered customer to connect this CRM contact to the same customer record.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Contact Name <span class="text-red-500">*</span></label>
+          <input type="text" id="Name" name="Name" class="input-field w-full border rounded-lg p-2" required>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <input type="email" id="Email" name="Email" class="input-field w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+          <input type="tel" id="Phone" name="Phone" class="input-field w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Company</label>
+          <input type="text" id="Company" name="Company" class="input-field w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <select id="Status" name="Status" class="input-field w-full border rounded-lg p-2">
+            ${moduleData.leadStatus?.map(s => `<option value="${s}">${s}</option>`).join('') || '<option value="New">New</option>'}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Last Contact</label>
+          <input type="date" id="Last_Contact" name="Last_Contact" class="input-field w-full border rounded-lg p-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+          <input type="text" id="Assigned_To" name="Assigned_To" class="input-field w-full border rounded-lg p-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+          <textarea id="Notes" name="Notes" class="input-field w-full border rounded-lg p-2" rows="2"></textarea>
+        </div>
+      </div>
+    `,
     HR: `
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
