@@ -577,6 +577,7 @@ window.handleLogin = function(event) {
         
         loadDashboard();
         loadNotifications();
+        loadMessageUnreadCount();
         
         setTimeout(() => {
           loadModulesList();
@@ -4742,11 +4743,18 @@ function loadMessagesPage() {
   },function(){bizOSMessageContacts=[];renderMessagesPage('Your team directory could not be loaded.');});
 }
 
-function updateMessagesBadge() {
+function updateMessagesBadge(unreadOverride) {
   const email=String(currentUser&&currentUser.email||'').toLowerCase();
-  const unread=bizOSMessages.filter(function(m){return String(m.recipientEmail||'').toLowerCase()===email&&!m.readAt&&m.scope!=='support';}).length;
+  const unread=Number.isFinite(Number(unreadOverride)) ? Math.max(0,Number(unreadOverride)) :
+    bizOSMessages.filter(function(m){return String(m.recipientEmail||'').toLowerCase()===email&&!m.readAt;}).length;
   const badge=document.getElementById('messages-sidebar-badge');
   if(badge){badge.textContent=unread>9?'9+':String(unread);badge.classList.toggle('hidden',unread===0);}
+}
+
+function loadMessageUnreadCount() {
+  callGoogleScript('getBizOSMessageUnreadCount',[],function(response){
+    if(response&&response.success)updateMessagesBadge(response.unreadCount);
+  },function(error){console.log('Could not refresh message count:',error);});
 }
 
 function setMessagesFilter(filter) {
