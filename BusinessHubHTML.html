@@ -479,6 +479,18 @@
             <p id="bc-connected-crm" class="text-lg font-semibold mt-1">—</p>
           </div>
         </div>
+        <div class="grid md:grid-cols-2 gap-4 mt-4">
+          <div class="rounded-lg border border-gray-100 p-4">
+            <h3 class="text-sm font-semibold text-gray-800">Ecommerce preview</h3>
+            <p class="text-xs text-gray-500 mt-1">Read-only · up to 5 records</p>
+            <div id="bc-connected-ecommerce-preview" class="mt-3 space-y-2"><p class="text-sm text-gray-400">Loading records…</p></div>
+          </div>
+          <div class="rounded-lg border border-gray-100 p-4">
+            <h3 class="text-sm font-semibold text-gray-800">CRM preview</h3>
+            <p class="text-xs text-gray-500 mt-1">Read-only · up to 5 records</p>
+            <div id="bc-connected-crm-preview" class="mt-3 space-y-2"><p class="text-sm text-gray-400">Loading records…</p></div>
+          </div>
+        </div>
       </div>
 
       <div class="grid lg:grid-cols-[1.4fr_0.6fr] gap-6">
@@ -655,14 +667,41 @@
   window.showBusinessCenter=function(){['landing-page','dashboard-page','profile-page','settings-page','staff-page','cms-page'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});var page=document.getElementById('business-center-page');if(page)page.classList.remove('hidden');document.title='Business Center - BizOS';loadBusinessCenter();};
   window.closeBusinessCenter=function(){var page=document.getElementById('business-center-page');if(page)page.classList.add('hidden');if(typeof showDashboardHome==='function')showDashboardHome();};
   window.loadBCConnectedData=function(){
+    var ecommerceCount=document.getElementById('bc-connected-ecommerce');
+    var crmCount=document.getElementById('bc-connected-crm');
+    var ecommercePreview=document.getElementById('bc-connected-ecommerce-preview');
+    var crmPreview=document.getElementById('bc-connected-crm-preview');
+    function renderPreview(container, source, type){
+      if(!container)return;
+      if(!source||!source.connected){
+        container.innerHTML='<p class="text-sm text-gray-400">Source is not available.</p>';
+        return;
+      }
+      var records=Array.isArray(source.records)?source.records.slice(0,5):[];
+      if(!records.length){
+        container.innerHTML='<p class="text-sm text-gray-400">No records yet.</p>';
+        return;
+      }
+      container.innerHTML=records.map(function(record){
+        var title=type==='crm'?(record.Name||record.Customer_Name||'Unnamed contact'):(record.Product_Name||record.Name||record.Order_ID||'Ecommerce record');
+        var detail=type==='crm'?[record.Email,record.Phone,record.Status||record.Company].filter(Boolean).join(' · '):[record.Order_ID,record.Customer_Email,record.Payment_Status||record.Fulfillment_Status,record.Total_Amount!=null?'Amount: '+record.Total_Amount:''].filter(Boolean).join(' · ');
+        return '<div class="rounded-md bg-gray-50 px-3 py-2"><p class="text-sm font-medium text-gray-800">'+esc(title)+'</p><p class="text-xs text-gray-500 mt-1">'+esc(detail||'No additional details')+'</p></div>';
+      }).join('');
+    }
     bcCall('getBusinessCenterConnectedData',[],function(result){
-      if(!result||!result.success)return;
+      if(!result||!result.success){
+        if(ecommerceCount)ecommerceCount.textContent='Not available';
+        if(crmCount)crmCount.textContent='Not available';
+        renderPreview(ecommercePreview,null,'ecommerce');
+        renderPreview(crmPreview,null,'crm');
+        return;
+      }
       var ecommerce=result.sources&&result.sources.ecommerce;
       var crm=result.sources&&result.sources.crm;
-      var e=document.getElementById('bc-connected-ecommerce');
-      var c=document.getElementById('bc-connected-crm');
-      if(e)e.textContent=ecommerce&&ecommerce.connected?String(ecommerce.count):'Not available';
-      if(c)c.textContent=crm&&crm.connected?String(crm.count):'Not available';
+      if(ecommerceCount)ecommerceCount.textContent=ecommerce&&ecommerce.connected?String(ecommerce.count):'Not available';
+      if(crmCount)crmCount.textContent=crm&&crm.connected?String(crm.count):'Not available';
+      renderPreview(ecommercePreview,ecommerce,'ecommerce');
+      renderPreview(crmPreview,crm,'crm');
     });
   };
 
