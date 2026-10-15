@@ -101,7 +101,7 @@ function bizOSMessageRowToObject_(row, idx) {
   };
 }
 
-function getBizOSMessages(sessionId, conversationId) {
+function getBizOSMessages(conversationId, sessionId) {
   var actor = bizOSMessageActor_(sessionId);
   if (!actor.ok) return {success:false,message:actor.message};
   try {
@@ -130,7 +130,7 @@ function getBizOSMessages(sessionId, conversationId) {
   }
 }
 
-function sendBizOSMessage(sessionId, payload) {
+function sendBizOSMessage(payload, sessionId) {
   var actor=bizOSMessageActor_(sessionId);
   if(!actor.ok)return {success:false,message:actor.message};
   payload=payload||{};
@@ -324,6 +324,40 @@ function adminPublishBizOSAnnouncement(adminSessionId, payload) {
     createdAt:new Date().toISOString(),createdBy:'BizOS',relatedView:relatedView
   });
   return {success:true,notificationId:created.notificationId,clientWorkspaces:broadcast.workspaces,clientWorkspacesNotified:broadcast.delivered,clientWorkspaceFailures:broadcast.failed};
+}
+
+
+/**
+ * Return only the unread message count needed by the sidebar badge.
+ * Keeps the page load light and uses the same per-user read state as the inbox.
+ */
+function getBizOSMessageUnreadCount(sessionId) {
+  var actor = bizOSMessageActor_(sessionId);
+  if (!actor.ok) return {success:false,message:actor.message};
+  try {
+    var email = bizOSMessageEmail_(actor.user.email);
+    var businessId = String(actor.user.businessId || '').trim();
+    if (!email || !businessId) return {success:true,unreadCount:0};
+    var sheet = ensureBizOSMessagesSheet_();
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0] || [], idx = {};
+    headers.forEach(function(h,i){idx[String(h || '').trim()] = i;});
+    if (idx.Business_ID == null || idx.Recipient_Email == null || idx.Read_At == null) {
+      return {success:false,message:'Message storage is not configured correctly.'};
+    }
+    var unread = 0;
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (String(row[idx.Business_ID] || '').trim() !== businessId) continue;
+      if (bizOSMessageEmail_(row[idx.Recipient_Email]) !== email) continue;
+      if (String(row[idx.Read_At] || '').trim()) continue;
+      unread++;
+    }
+    return {success:true,unreadCount:unread};
+  } catch (error) {
+    console.error('getBizOSMessageUnreadCount error:', error);
+    return {success:false,message:'Could not load the message count.'};
+  }
 }
 
 function markBizOSConversationRead(conversationId, sessionId) {
