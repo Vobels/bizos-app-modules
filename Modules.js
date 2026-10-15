@@ -30,7 +30,7 @@ function ensureModuleFinancialColumns_(sheet, moduleName) {
 // Append-only migration for the optional shared Business Center customer reference.
 // Existing columns and record values are never reordered or rewritten.
 function ensureModuleCustomerReferenceColumns_(sheet, moduleName) {
-  if (!sheet || !['CRM', 'Sales', 'Ecommerce'].includes(moduleName)) return;
+  if (!sheet || !['CRM', 'Sales', 'Ecommerce', 'Agro', 'POS'].includes(moduleName)) return;
   let lastColumn = sheet.getLastColumn();
   if (lastColumn === 0) {
     // Recover an existing but empty CRM sheet using the canonical headers first.
@@ -67,7 +67,7 @@ function getBusinessCenterCustomerById_(workspace, customerId) {
 // and module access are checked server-side; only minimal customer fields return.
 function getBusinessCenterCustomerReferences(moduleName, sessionId) {
   try {
-    const allowedModules = ['CRM', 'Sales', 'Ecommerce'];
+    const allowedModules = ['CRM', 'Sales', 'Ecommerce', 'Agro', 'POS'];
     if (!allowedModules.includes(moduleName)) return { success: false, message: 'Customer references are not enabled for this module.' };
     if (!userHasAccess(moduleName, sessionId)) return { success: false, message: 'Access denied' };
     const workspace = getWorkspaceFile(sessionId);
@@ -826,16 +826,20 @@ function saveRecord(moduleName, data, sessionId) {
     
     // CRM may optionally link a contact to a registered Business Center customer.
     // Never infer identity from name/email/phone during save; the explicit ID is authoritative.
-    if (['CRM', 'Sales', 'Ecommerce'].includes(moduleName)) {
+    if (['CRM', 'Sales', 'Ecommerce', 'Agro', 'POS'].includes(moduleName)) {
       data.Customer_ID = String(data.Customer_ID || '').trim();
       if (data.Customer_ID) {
         const customer = getBusinessCenterCustomerById_(workspace, data.Customer_ID);
         if (!customer) {
           return { success: false, message: 'The selected Business Center customer could not be found. Refresh the customer list and try again.' };
         }
-        if (moduleName === 'Sales') {
+        if (moduleName === 'CRM') {
+          data.Name = String(customer.Name || '');
+          data.Email = String(customer.Email || '');
+          data.Phone = String(customer.Phone || '');
+        } else if (['Sales', 'Agro', 'POS'].includes(moduleName)) {
           data.Customer_Name = String(customer.Name || '');
-          data.Customer_Email = String(customer.Email || '');
+          if (['Sales', 'POS'].includes(moduleName)) data.Customer_Email = String(customer.Email || '');
         } else if (moduleName === 'Ecommerce') {
           data.Customer_Email = String(customer.Email || '');
         }
@@ -919,7 +923,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     if (rowIndex === -1) return { success: false, message: "Record not found" };
     
     // Validate explicit shared-customer links before updating any cells.
-    if (['CRM', 'Sales', 'Ecommerce'].includes(moduleName) &&
+    if (['CRM', 'Sales', 'Ecommerce', 'Agro', 'POS'].includes(moduleName) &&
         Object.prototype.hasOwnProperty.call(data, 'Customer_ID')) {
       data.Customer_ID = String(data.Customer_ID || '').trim();
       if (data.Customer_ID) {
@@ -927,9 +931,13 @@ function updateRecord(moduleName, data, recordId, sessionId) {
         if (!customer) {
           return { success: false, message: 'The selected Business Center customer could not be found. Refresh the customer list and try again.' };
         }
-        if (moduleName === 'Sales') {
+        if (moduleName === 'CRM') {
+          data.Name = String(customer.Name || '');
+          data.Email = String(customer.Email || '');
+          data.Phone = String(customer.Phone || '');
+        } else if (['Sales', 'Agro', 'POS'].includes(moduleName)) {
           data.Customer_Name = String(customer.Name || '');
-          data.Customer_Email = String(customer.Email || '');
+          if (['Sales', 'POS'].includes(moduleName)) data.Customer_Email = String(customer.Email || '');
         } else if (moduleName === 'Ecommerce') {
           data.Customer_Email = String(customer.Email || '');
         }
