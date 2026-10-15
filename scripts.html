@@ -1915,7 +1915,7 @@ function renderModuleInsights(moduleName, records) {
     Productivity: { title: 'Productivity Insights', description: 'Task activity and hours recorded', group: ['Staff_Email','Staff','Staff_Name','Employee_Name','Name'], metric: ['Hours_Spent','Hours','Hours_Worked'], metricLabel: 'Hours', date: ['Date','Created_At'], secondGroup: ['Staff_Email','Staff','Staff_Name','Employee_Name','Name'], chart1: 'Records by Staff Member', chart2: 'Hours by Staff Member' },
     POS: { title: 'POS Insights', description: 'Product sales and transaction value', group: ['Product_Name','Product','Item_Name'], metric: ['Total_Amount','Total','Amount'], metricLabel: 'Sales value', date: ['Date','Created_At'], chart1: 'Transactions by Product', chart2: 'Sales Value by Date' },
     Attendance: { title: 'Attendance Insights', description: 'Attendance status and recorded hours', group: ['Status','Attendance_Status'], metric: ['Hours_Worked','Hours','Duration'], metricLabel: 'Hours worked', date: ['Date','Created_At'], chart1: 'Records by Attendance Status', chart2: 'Hours Worked by Date' },
-    Warehouse: { title: 'Warehouse Insights', description: 'Stock distribution and quantity by item', group: ['Category','Item_Category','Status'], metric: ['Quantity','Stock_Quantity'], metricLabel: 'Quantity', date: ['Date','Created_At'], item: ['Item_Name','Product','Name'], chart1: 'Items by Category', chart2: 'Stock Quantity by Item' }
+    Warehouse: { title: 'Warehouse Insights', description: 'Stock distribution and quantity by item', group: ['Category','Item_Category','Location','Status'], metric: ['Quantity','Stock_Quantity'], metricLabel: 'Quantity', date: ['Date','Created_At'], item: ['Item_Name','Product','Name'], chart1: 'Items by Category', chart2: 'Stock Quantity by Item' }
   };
   const config = configs[moduleName];
   if (!config) { panel.classList.add('hidden'); return; }
@@ -1958,6 +1958,7 @@ function renderModuleInsights(moduleName, records) {
     else if (moduleName === 'HR' && dateField === 'Created_At') secondHeading.textContent = 'Employee Records Created Over Time';
     else secondHeading.textContent = config.chart2;
   }
+  if (firstHeading && moduleName === 'Warehouse' && groupField === 'Location') firstHeading.textContent = 'Items by Location';
   const countGroups = function(field) {
     const grouped = {};
     rows.forEach(function(row) {
