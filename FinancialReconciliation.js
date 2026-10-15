@@ -387,7 +387,7 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
       }
     }
   } else if (moduleName === 'Sales') {
-    if (String(value('Stage') || '').toLowerCase() === 'closed_won' && number('Total_Amount') > 0) {
+    if (String(value('Stage') || '').trim().toLowerCase().replace(/[\\s-]+/g, '_') === 'closed_won' && number('Total_Amount') > 0) {
       entries.push({
         Date: date,
         Type: 'revenue',
