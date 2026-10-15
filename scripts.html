@@ -2913,7 +2913,7 @@ function loadModuleForm(moduleName) {
       setupDynamicFields(moduleName);
       setupAutoCalculations(moduleName);
       setDefaultValues();
-      if (['CRM', 'Sales', 'Ecommerce'].includes(moduleName)) loadModuleCustomerReferences(moduleName);
+      if (['CRM', 'Sales', 'Ecommerce', 'Agro', 'POS'].includes(moduleName)) loadModuleCustomerReferences(moduleName);
       
       if (moduleName === 'Finance') {
         const typeSelect = document.getElementById('Type');
@@ -2955,7 +2955,7 @@ function loadModuleCustomerReferences(moduleName) {
       if (!customer) return;
       const nameId = moduleName === 'CRM' ? 'Name' : 'Customer_Name';
       const name = document.getElementById(nameId);
-      const email = document.getElementById(moduleName === 'CRM' ? 'Email' : 'Customer_Email');
+      const email = moduleName === 'Agro' ? null : document.getElementById(moduleName === 'CRM' ? 'Email' : 'Customer_Email');
       const phone = document.getElementById('Phone');
       if (name) name.value = customer.Name || '';
       if (email) email.value = customer.Email || '';
@@ -3253,8 +3253,36 @@ function generateModuleForm(moduleName, moduleData) {
       </div>
     `,
     
+    POS: `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Registered customer (optional)</label>
+          <select id="Customer_ID" name="Customer_ID" class="input-field w-full border rounded-lg p-2">
+            <option value="">Walk-in / manual customer</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">Selecting a customer fills the customer name and email from Business Center.</p>
+        </div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Date <span class="text-red-500">*</span></label><input type="date" id="Date" name="Date" class="input-field w-full border rounded-lg p-2" required></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Customer Name</label><input type="text" id="Customer_Name" name="Customer_Name" class="input-field w-full border rounded-lg p-2"></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Customer Email</label><input type="email" id="Customer_Email" name="Customer_Email" class="input-field w-full border rounded-lg p-2"></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Product Name <span class="text-red-500">*</span></label><input type="text" id="Product_Name" name="Product_Name" class="input-field w-full border rounded-lg p-2" required></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Quantity <span class="text-red-500">*</span></label><input type="number" id="Quantity" name="Quantity" class="input-field w-full border rounded-lg p-2" min="1" value="1" required></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Unit Price <span class="text-red-500">*</span></label><input type="number" id="Unit_Price" name="Unit_Price" class="input-field w-full border rounded-lg p-2" step="0.01" min="0" required></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Total Amount</label><input type="number" id="Total_Amount" name="Total_Amount" class="input-field w-full border rounded-lg p-2" step="0.01" min="0" readonly></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label><input type="text" id="Payment_Method" name="Payment_Method" class="input-field w-full border rounded-lg p-2"></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Status</label><select id="Status" name="Status" class="input-field w-full border rounded-lg p-2"><option value="completed">Completed</option><option value="pending">Pending</option><option value="cancelled">Cancelled</option></select></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-2">Receipt Number</label><input type="text" id="Receipt_Number" name="Receipt_Number" class="input-field w-full border rounded-lg p-2"></div>
+      </div>
+    `,
     Agro: `
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Link to Business Center customer (optional)</label>
+          <select id="Customer_ID" name="Customer_ID" class="input-field w-full border rounded-lg p-2">
+            <option value="">No customer linked (farm activity or manual record)</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">Use this for a produce or livestock sale to a registered customer.</p>
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Date <span class="text-red-500">*</span></label>
           <input type="date" id="Date" name="Date" class="input-field w-full border rounded-lg p-2" required>
