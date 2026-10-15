@@ -1904,18 +1904,18 @@ function renderModuleInsights(moduleName, records) {
   const secondCanvas = document.getElementById('module-insights-secondary-chart');
   const rows = Array.isArray(records) ? records : [];
   const configs = {
-    Finance: { title: 'Financial Insights', description: 'Transaction mix and recorded amounts', group: 'Category', metric: 'Amount', metricLabel: 'Amount', date: 'Date', chart1: 'Transactions by Category', chart2: 'Amount Over Time' },
-    Sales: { title: 'Sales Insights', description: 'Pipeline distribution and deal value', group: 'Stage', metric: 'Total_Amount', metricLabel: 'Deal value', date: 'Date', chart1: 'Deals by Stage', chart2: 'Deal Value by Date' },
-    Ecommerce: { title: 'E-commerce Insights', description: 'Order fulfillment and order value', group: 'Fulfillment_Status', metric: 'Total_Amount', metricLabel: 'Order value', date: 'Date', chart1: 'Orders by Fulfillment Status', chart2: 'Order Value by Date' },
-    CRM: { title: 'CRM Insights', description: 'Contact status and customer follow-up activity', group: 'Status', metric: null, date: 'Last_Contact', chart1: 'Contacts by Status', chart2: 'Contacts by Last Contact Date' },
-    HR: { title: 'HR Insights', description: 'Team composition and employee status', group: 'Department', metric: null, date: 'Hire_Date', chart1: 'Employees by Department', chart2: 'Hires Over Time' },
-    Logistics: { title: 'Logistics Insights', description: 'Shipment status and transport income', group: 'Status', metric: 'Transport_Income', metricLabel: 'Transport income', date: 'Date', chart1: 'Shipments by Status', chart2: 'Transport Income by Date' },
-    Tax: { title: 'Tax Insights', description: 'Tax record types and recorded tax amounts', group: 'Type', metric: 'Tax_Amount', metricLabel: 'Tax amount', date: 'Date', chart1: 'Records by Tax Type', chart2: 'Tax Amount by Date' },
-    Agro: { title: 'Agro Insights', description: 'Production by crop or livestock and recorded revenue', group: 'Crop_Name', fallbackGroup: 'Livestock_Type', metric: 'Revenue', metricLabel: 'Revenue', date: 'Date', chart1: 'Records by Crop or Livestock', chart2: 'Revenue by Date' },
-    Productivity: { title: 'Productivity Insights', description: 'Task activity and hours recorded', group: 'Staff_Email', metric: 'Hours_Spent', metricLabel: 'Hours', date: 'Date', chart1: 'Records by Staff Member', chart2: 'Hours by Staff Member' },
-    POS: { title: 'POS Insights', description: 'Product sales and transaction value', group: 'Product_Name', metric: 'Total_Amount', metricLabel: 'Sales value', date: 'Date', chart1: 'Transactions by Product', chart2: 'Sales Value by Date' },
-    Attendance: { title: 'Attendance Insights', description: 'Attendance status and hours recorded', group: 'Status', metric: 'Hours_Worked', metricLabel: 'Hours worked', date: 'Date', chart1: 'Records by Attendance Status', chart2: 'Hours Worked by Date' },
-    Warehouse: { title: 'Warehouse Insights', description: 'Stock distribution and quantity by item', group: 'Category', metric: 'Quantity', metricLabel: 'Quantity', item: 'Item_Name', chart1: 'Items by Category', chart2: 'Stock Quantity by Item' }
+    Finance: { title: 'Financial Insights', description: 'Transaction mix and recorded amounts', group: ['Category','Subcategory','Type'], metric: ['Amount','Total_Amount','Total'], metricLabel: 'Amount', date: ['Date','Created_At'], chart1: 'Transactions by Category', chart2: 'Amount Over Time' },
+    Sales: { title: 'Sales Insights', description: 'Pipeline distribution and deal value', group: ['Stage','Status'], metric: ['Amount','Total_Amount','Deal_Value','Total'], metricLabel: 'Deal value', date: ['Date','Created_At'], chart1: 'Deals by Stage', chart2: 'Deal Value by Date' },
+    Ecommerce: { title: 'E-commerce Insights', description: 'Order fulfillment and order value', group: ['Fulfillment_Status','Status'], metric: ['Total_Amount','Total','Amount','Price'], metricLabel: 'Order value', date: ['Date','Created_At'], chart1: 'Orders by Status', chart2: 'Order Value by Date' },
+    CRM: { title: 'CRM Insights', description: 'Contact status and customer follow-up activity', group: ['Status','Company'], metric: null, date: ['Last_Contact','Last_Contact_Date','Created_At'], chart1: 'Contacts by Status', chart2: 'Contacts by Last Contact Date' },
+    HR: { title: 'HR Insights', description: 'Team composition and employee activity', group: ['Department','Position','Status'], metric: null, date: ['Hire_Date','Date','Created_At'], chart1: 'Employees by Department', chart2: 'Hires Over Time' },
+    Logistics: { title: 'Logistics Insights', description: 'Shipment status and recorded transport value', group: ['Status','Location'], metric: ['Transport_Income','Amount','Total','Cost'], metricLabel: 'Transport value', date: ['Date','Created_At'], chart1: 'Shipments by Status', chart2: 'Transport Value by Date' },
+    Tax: { title: 'Tax Insights', description: 'Tax record types and recorded tax amounts', group: ['Type','Tax_Type','Status'], metric: ['Tax_Amount','Amount','Total'], metricLabel: 'Tax amount', date: ['Date','Created_At'], chart1: 'Records by Tax Type', chart2: 'Tax Amount by Date' },
+    Agro: { title: 'Agro Insights', description: 'Production by activity and recorded revenue', group: ['Crop_Name','Livestock_Type','Type','Activity'], metric: ['Revenue','Total_Revenue','Amount'], metricLabel: 'Revenue', date: ['Date','Created_At'], chart1: 'Records by Crop or Activity', chart2: 'Revenue by Date' },
+    Productivity: { title: 'Productivity Insights', description: 'Task activity and hours recorded', group: ['Staff_Email','Staff','Staff_Name','Employee_Name','Name'], metric: ['Hours_Spent','Hours','Hours_Worked'], metricLabel: 'Hours', date: ['Date','Created_At'], secondGroup: ['Staff_Email','Staff','Staff_Name','Employee_Name','Name'], chart1: 'Records by Staff Member', chart2: 'Hours by Staff Member' },
+    POS: { title: 'POS Insights', description: 'Product sales and transaction value', group: ['Product_Name','Product','Item_Name'], metric: ['Total_Amount','Total','Amount'], metricLabel: 'Sales value', date: ['Date','Created_At'], chart1: 'Transactions by Product', chart2: 'Sales Value by Date' },
+    Attendance: { title: 'Attendance Insights', description: 'Attendance status and recorded hours', group: ['Status','Attendance_Status'], metric: ['Hours_Worked','Hours','Duration'], metricLabel: 'Hours worked', date: ['Date','Created_At'], chart1: 'Records by Attendance Status', chart2: 'Hours Worked by Date' },
+    Warehouse: { title: 'Warehouse Insights', description: 'Stock distribution and quantity by item', group: ['Category','Item_Category','Status'], metric: ['Quantity','Stock_Quantity'], metricLabel: 'Quantity', date: ['Date','Created_At'], item: ['Item_Name','Product','Name'], chart1: 'Items by Category', chart2: 'Stock Quantity by Item' }
   };
   const config = configs[moduleName];
   if (!config) { panel.classList.add('hidden'); return; }
@@ -1924,29 +1924,45 @@ function renderModuleInsights(moduleName, records) {
   if (description) description.textContent = config.description;
   const firstHeading = document.getElementById('module-insights-primary-title');
   const secondHeading = document.getElementById('module-insights-secondary-title');
-  if (firstHeading) firstHeading.textContent = config.chart1;
-  if (secondHeading) secondHeading.textContent = config.chart2;
+  const chartsGrid = document.getElementById('module-insights-charts');
   if (window.moduleInsightsPrimaryChart) { window.moduleInsightsPrimaryChart.destroy(); window.moduleInsightsPrimaryChart = null; }
   if (window.moduleInsightsSecondaryChart) { window.moduleInsightsSecondaryChart.destroy(); window.moduleInsightsSecondaryChart = null; }
   if (!rows.length) {
+    if (chartsGrid) chartsGrid.classList.add('hidden');
     if (empty) { empty.textContent = 'No records yet. Add records to see module insights.'; empty.classList.remove('hidden'); }
     return;
   }
   if (typeof Chart === 'undefined') {
+    if (chartsGrid) chartsGrid.classList.add('hidden');
     if (empty) { empty.textContent = 'Charts are unavailable right now. Refresh this module to try again.'; empty.classList.remove('hidden'); }
     return;
   }
+  if (chartsGrid) chartsGrid.classList.remove('hidden');
   if (empty) empty.classList.add('hidden');
+  const resolveField = function(candidates) {
+    const list = Array.isArray(candidates) ? candidates : [candidates];
+    const keys = rows.length ? Object.keys(rows[0] || {}) : [];
+    for (let i = 0; i < list.length; i++) if (list[i] && keys.indexOf(list[i]) >= 0) return list[i];
+    return null;
+  };
+  const groupField = resolveField(config.group);
+  const metricField = resolveField(config.metric);
+  const dateField = resolveField(config.date);
+  const itemField = resolveField(config.item);
+  const secondGroupField = resolveField(config.secondGroup);
+  if (firstHeading) firstHeading.textContent = config.chart1;
+  if (secondHeading) secondHeading.textContent = config.secondGroup
+    ? (metricField ? config.chart2 : 'Records by Staff Member')
+    : (config.metric && !metricField ? 'Records by Date' : config.chart2);
   const countGroups = function(field) {
     const grouped = {};
     rows.forEach(function(row) {
-      const raw = row && ((row[field]) || (config.fallbackGroup && row[config.fallbackGroup]));
-      const key = String(raw || '').trim() || 'Unspecified';
+      const key = String((row && field && row[field]) || '').trim() || 'Unspecified';
       grouped[key] = (grouped[key] || 0) + 1;
     });
     return Object.keys(grouped).sort(function(a,b) { return grouped[b] - grouped[a]; }).slice(0, 12).map(function(key) { return { label:key, value:grouped[key] }; });
   };
-  const primaryGroups = countGroups(config.group);
+  const primaryGroups = countGroups(groupField);
   if (firstCanvas) {
     window.moduleInsightsPrimaryChart = new Chart(firstCanvas.getContext('2d'), {
       type: 'doughnut',
@@ -1955,21 +1971,29 @@ function renderModuleInsights(moduleName, records) {
     });
   }
   let secondLabels = [], secondValues = [];
-  if (config.item) {
+  if (config.secondGroup && secondGroupField && metricField) {
     const grouped = {};
     rows.forEach(function(row) {
-      const key = String((row && row[config.item]) || '').trim() || 'Unnamed item';
-      grouped[key] = (grouped[key] || 0) + (Number(row && row[config.metric]) || 0);
+      const key = String((row && row[secondGroupField]) || '').trim() || 'Unspecified staff';
+      grouped[key] = (grouped[key] || 0) + (Number(row && row[metricField]) || 0);
+    });
+    secondLabels = Object.keys(grouped).sort(function(a,b) { return grouped[b] - grouped[a]; }).slice(0, 12);
+    secondValues = secondLabels.map(function(key) { return grouped[key]; });
+  } else if (itemField && metricField) {
+    const grouped = {};
+    rows.forEach(function(row) {
+      const key = String((row && row[itemField]) || '').trim() || 'Unnamed item';
+      grouped[key] = (grouped[key] || 0) + (Number(row && row[metricField]) || 0);
     });
     secondLabels = Object.keys(grouped).sort(function(a,b) { return grouped[b] - grouped[a]; }).slice(0, 12);
     secondValues = secondLabels.map(function(key) { return grouped[key]; });
   } else {
     const grouped = {};
     rows.forEach(function(row) {
-      const rawDate = row && row[config.date];
-      const date = rawDate instanceof Date ? rawDate.toISOString().slice(0,10) : String(rawDate || '').trim();
-      const key = config.metric ? (date || 'Undated') : (date || 'Undated');
-      grouped[key] = (grouped[key] || 0) + (config.metric ? (Number(row && row[config.metric]) || 0) : 1);
+      const rawDate = row && dateField && row[dateField];
+      const date = rawDate instanceof Date ? rawDate.toISOString().slice(0,10) : String(rawDate || '').trim().slice(0,10);
+      const key = date || 'Undated';
+      grouped[key] = (grouped[key] || 0) + (metricField ? (Number(row && row[metricField]) || 0) : 1);
     });
     secondLabels = Object.keys(grouped).sort(function(a,b) {
       if (a === 'Undated') return 1;
@@ -1982,8 +2006,8 @@ function renderModuleInsights(moduleName, records) {
   if (secondCanvas) {
     window.moduleInsightsSecondaryChart = new Chart(secondCanvas.getContext('2d'), {
       type: 'bar',
-      data: { labels: secondLabels, datasets: [{ label: config.metricLabel || 'Records', data: secondValues, backgroundColor: '#818cf8', borderColor: '#6366f1', borderRadius: 5 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return config.metricLabel ? config.metricLabel + ': ' + Number(ctx.raw || 0).toLocaleString() : 'Records: ' + Number(ctx.raw || 0).toLocaleString(); } } } }, scales: { y: { beginAtZero: true } } }
+      data: { labels: secondLabels, datasets: [{ label: ((config.secondGroup && secondGroupField && metricField) || (config.item && itemField && metricField) || metricField) ? (config.metricLabel || 'Value') : 'Records', data: secondValues, backgroundColor: '#818cf8', borderColor: '#6366f1', borderRadius: 5 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { const label = ((config.secondGroup && secondGroupField && metricField) || (config.item && itemField && metricField) || metricField) ? (config.metricLabel || 'Value') : 'Records'; return label + ': ' + Number(ctx.raw || 0).toLocaleString(); } } } }, scales: { y: { beginAtZero: true } } }
     });
   }
 }
