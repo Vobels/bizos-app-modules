@@ -856,7 +856,8 @@ function getRecentActivityAcrossModules(workspace, limit, moduleSummary) {
     Productivity: 'Productivity_Data',
     POS: 'POS_Data',
     Attendance: 'Attendance_Data',
-    Warehouse: 'Warehouse_Data'
+    Warehouse: 'Warehouse_Data',
+    BusinessCenter: 'BusinessCenter_Sales'
   };
 
   Object.keys(allModules).forEach(moduleName => {
