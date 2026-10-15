@@ -1842,12 +1842,14 @@ function ensureChartJsLoaded() {
 }
 
 function updateCharts(charts) {
+  const renderToken = (window.dashboardChartsRenderToken || 0) + 1;
+  window.dashboardChartsRenderToken = renderToken;
   if (typeof Chart !== 'undefined') {
     renderCharts(charts);
     return;
   }
   ensureChartJsLoaded().then(function(loaded) {
-    if (loaded) renderCharts(charts);
+    if (loaded && renderToken === window.dashboardChartsRenderToken) renderCharts(charts);
   });
 }
 
@@ -2015,7 +2017,7 @@ function renderModuleInsights(moduleName, records) {
   if (firstHeading) firstHeading.textContent = config.chart1;
   if (secondHeading) {
     if (config.secondGroup && secondGroupField) secondHeading.textContent = metricField ? config.chart2 : 'Records by Staff Member';
-    else if (config.secondGroup) secondHeading.textContent = dateField ? 'Records by Date' : 'Records';
+    else if (config.secondGroup) secondHeading.textContent = metricField ? (config.metricLabel || 'Value') + ' by Date' : (dateField ? 'Records by Date' : 'Records');
     else if (config.metric && !metricField) secondHeading.textContent = 'Records by Date';
     else if (moduleName === 'CRM' && dateField === 'Created_At') secondHeading.textContent = 'Contacts Created Over Time';
     else if (moduleName === 'HR' && dateField === 'Created_At') secondHeading.textContent = 'Employee Records Created Over Time';
