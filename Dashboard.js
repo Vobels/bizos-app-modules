@@ -862,6 +862,7 @@ function getRecentActivityAcrossModules(workspace, limit, moduleSummary) {
 
   Object.keys(allModules).forEach(moduleName => {
     if (moduleSummary && moduleSummary[moduleName] && moduleSummary[moduleName].isAccessible === false) return;
+    if (moduleName === 'BusinessCenter' && moduleSummary && moduleSummary.Ecommerce && moduleSummary.Ecommerce.isAccessible === false) return;
 
     try {
       const sheet = workspace.getSheetByName(allModules[moduleName]);
@@ -909,6 +910,7 @@ function dashboardActivityDescription_(moduleName, row, headers, recordId) {
   switch (moduleName) {
     case 'Finance': return (value('Description') || 'Financial transaction') + (recordId ? ' (' + recordId + ')' : '');
     case 'Ecommerce': return 'Order ' + (value('Order_ID') || recordId || 'record') + (value('Product_Name') ? ': ' + value('Product_Name') : '');
+    case 'BusinessCenter': return 'Business Center sale ' + (value('Sale_ID') || recordId || 'record');
     case 'Sales': return 'Deal ' + (value('Deal_ID') || recordId || 'record') + (value('Customer_Name') ? ': ' + value('Customer_Name') : '');
     case 'CRM': return 'Contact ' + (value('Name') || recordId || 'record') + ' updated';
     case 'HR': return 'Employee ' + (value('Name') || recordId || 'record') + ' updated';
