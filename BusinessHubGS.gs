@@ -668,6 +668,7 @@ function completeBusinessCenterSale(data, sessionId) {
       const financialResult = autoSyncToFinancial('BusinessCenter', {
         Sale_ID: saleId,
         Date: data.Date || now.split('T')[0],
+        Customer_ID: customerId,
         Customer_Name: resolvedCustomerName || String(data.Customer_Name || '').trim(),
         Total: total,
         Amount_Paid: amountPaid,
