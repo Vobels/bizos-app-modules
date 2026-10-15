@@ -1266,7 +1266,7 @@ function refreshCurrentView() {
   showNotification('Data refreshed', 'success');
 }
 
-function showAllRecords() {
+function showAllRecords() {\n  hideMessagesPage_();
   if (typeof window.showRecordsPage === 'function') {
     window.showRecordsPage();
   } else {
@@ -2669,7 +2669,7 @@ function filterApps() {
 
 // ==================== MODULE MANAGEMENT====================
 
-function openModule(moduleName) {
+function openModule(moduleName) {\n  hideMessagesPage_();
   const access = getModuleAccess(moduleName);
   
   if (!access.isAccessible) {
@@ -4974,7 +4974,7 @@ function handleNotificationClick(relatedView, notificationId) {
     },function(){});
   }
   if(relatedView){
-    if(relatedView==='notifications'){showNotificationsPage();return;}
+    if(relatedView==='notifications'){showNotificationsPage();return;}\n    if(relatedView==='messages'){showMessagesPage();return;}
     if(relatedView==='profile'){showProfilePage();return;}
     if(relatedView==='staff' && typeof showStaffPage==='function'){showStaffPage();return;}
     if(typeof openModule==='function' && relatedView!=='dashboard') openModule(relatedView);
