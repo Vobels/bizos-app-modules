@@ -168,8 +168,9 @@ function getDashboardKPIsAccurate(sessionId, period) {
           const rowDate = new Date(data[i][dateCol]);
           if (dashboardFinancialRowIsCountable_(data[i], headers) && rowDate >= startDate && rowDate <= endDate) {
             const amount = parseFloat(data[i][amountCol]) || 0;
-            if (data[i][typeCol] === 'revenue') revenue += amount;
-            else if (data[i][typeCol] === 'expense') expenses += Math.abs(amount);
+            const periodType = dashboardFinancialType_(data[i], headers);
+            if (periodType === 'revenue') revenue += amount;
+            else if (periodType === 'expense') expenses += Math.abs(amount);
           }
         }
         const profitLastMonth = revenue - expenses;
