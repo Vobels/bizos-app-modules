@@ -2120,28 +2120,38 @@ function showProfilePage() {
 function updateAlerts(alerts) {
   const container = document.getElementById('alerts-container');
   if (!container) return;
-  
+
   if (!alerts || alerts.length === 0) {
     container.innerHTML = '<p class="text-gray-500 text-center py-4">No alerts</p>';
     return;
   }
-  
+
   container.innerHTML = alerts.map(alert => {
-    const alertIcon = alert.type === 'critical' ? 'fa-exclamation-circle' : 
+    const alertIcon = alert.type === 'critical' ? 'fa-exclamation-circle' :
                       (alert.type === 'warning' ? 'fa-exclamation-triangle' : 'fa-check-circle');
-    const alertColor = alert.type === 'critical' ? 'text-red-600 bg-red-50' : 
+    const alertColor = alert.type === 'critical' ? 'text-red-600 bg-red-50' :
                        (alert.type === 'warning' ? 'text-yellow-600 bg-yellow-50' : 'text-green-600 bg-green-50');
+    const title = String(alert.title || '').toLowerCase();
+    const actionLabel = alert.action || (
+      title.includes('ecommerce') || title.includes('payment') ? 'Manage Store' :
+      title.includes('sales') ? 'Analyze Sales' :
+      title.includes('stock') || title.includes('warehouse') ? 'Manage Warehouse' :
+      title.includes('attendance') ? 'Review Attendance' : 'Review Financial Data'
+    );
+    const actionHandler = actionLabel === 'Review Financial Data' ? "openModule('Finance')" :
+                          actionLabel === 'Analyze Sales' ? "openModule('Sales')" :
+                          actionLabel === 'Manage Store' ? "openModule('Ecommerce')" :
+                          actionLabel === 'Manage Warehouse' ? "openModule('Warehouse')" :
+                          actionLabel === 'Review Attendance' ? "openModule('Attendance')" :
+                          'showDashboardHome()';
     return `
       <div class="flex items-start space-x-3 p-3 ${alertColor} rounded-lg transition">
         <i class="fas ${alertIcon} mt-0.5"></i>
         <div class="flex-1">
-          <p class="text-sm font-medium">${alert.title}</p>
-          <p class="text-xs opacity-90">${alert.message}</p>
-          <button onclick="${alert.action === 'Review Financial Data' ? 'openModule(\'Finance\')' : 
-                           alert.action === 'Analyze Sales' ? 'openModule(\'Sales\')' : 
-                           'showDashboardHome()'}" 
-                  class="text-xs underline mt-1 hover:opacity-80">
-            ${alert.action} →
+          <p class="text-sm font-medium">${alert.title || 'Business alert'}</p>
+          <p class="text-xs opacity-90">${alert.message || ''}</p>
+          <button onclick="${actionHandler}" class="text-xs underline mt-1 hover:opacity-80">
+            ${actionLabel} →
           </button>
         </div>
       </div>
