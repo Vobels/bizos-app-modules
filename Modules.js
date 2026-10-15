@@ -30,7 +30,7 @@ function ensureModuleFinancialColumns_(sheet, moduleName) {
 // Append-only migration for the optional shared Business Center customer reference.
 // Existing columns and record values are never reordered or rewritten.
 function ensureModuleCustomerReferenceColumns_(sheet, moduleName) {
-  if (!sheet || moduleName !== 'CRM') return;
+  if (!sheet || !['CRM', 'Sales', 'Ecommerce'].includes(moduleName)) return;
   let lastColumn = sheet.getLastColumn();
   if (lastColumn === 0) {
     // Recover an existing but empty CRM sheet using the canonical headers first.
@@ -63,11 +63,13 @@ function getBusinessCenterCustomerById_(workspace, customerId) {
   return null;
 }
 
-// Return only the fields needed by the CRM customer picker. CRM contacts can
-// remain unlinked; a selected ID is checked again during saveRecord().
-function getCRMCustomerReferences(sessionId) {
+// Read registered customers for CRM, Sales, or Ecommerce forms. The workspace
+// and module access are checked server-side; only minimal customer fields return.
+function getBusinessCenterCustomerReferences(moduleName, sessionId) {
   try {
-    if (!userHasAccess('CRM', sessionId)) return { success: false, message: 'Access denied' };
+    const allowedModules = ['CRM', 'Sales', 'Ecommerce'];
+    if (!allowedModules.includes(moduleName)) return { success: false, message: 'Customer references are not enabled for this module.' };
+    if (!userHasAccess(moduleName, sessionId)) return { success: false, message: 'Access denied' };
     const workspace = getWorkspaceFile(sessionId);
     if (!workspace) return { success: false, message: 'Workspace is unavailable.' };
     const sheet = workspace.getSheetByName('BusinessCenter_Customers');
@@ -89,9 +91,14 @@ function getCRMCustomerReferences(sessionId) {
     }).filter(function(customer) { return !!customer.Customer_ID; });
     return { success: true, customers: customers };
   } catch (error) {
-    console.error('CRM customer reference lookup failed:', error);
+    console.error('Business Center customer reference lookup failed:', error);
     return { success: false, message: error.message || 'Could not load customer references.' };
   }
+}
+
+// Backwards-compatible CRM lookup name for any older UI callers.
+function getCRMCustomerReferences(sessionId) {
+  return getBusinessCenterCustomerReferences('CRM', sessionId);
 }
 
 function getOrCreateModuleSheet_(workspace, moduleName) {
@@ -819,10 +826,19 @@ function saveRecord(moduleName, data, sessionId) {
     
     // CRM may optionally link a contact to a registered Business Center customer.
     // Never infer identity from name/email/phone during save; the explicit ID is authoritative.
-    if (moduleName === 'CRM') {
+    if (['CRM', 'Sales', 'Ecommerce'].includes(moduleName)) {
       data.Customer_ID = String(data.Customer_ID || '').trim();
-      if (data.Customer_ID && !getBusinessCenterCustomerById_(workspace, data.Customer_ID)) {
-        return { success: false, message: 'The selected Business Center customer could not be found. Refresh the customer list and try again.' };
+      if (data.Customer_ID) {
+        const customer = getBusinessCenterCustomerById_(workspace, data.Customer_ID);
+        if (!customer) {
+          return { success: false, message: 'The selected Business Center customer could not be found. Refresh the customer list and try again.' };
+        }
+        if (moduleName === 'Sales') {
+          data.Customer_Name = String(customer.Name || '');
+          data.Customer_Email = String(customer.Email || '');
+        } else if (moduleName === 'Ecommerce') {
+          data.Customer_Email = String(customer.Email || '');
+        }
       }
     }
 
@@ -902,6 +918,24 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     
     if (rowIndex === -1) return { success: false, message: "Record not found" };
     
+    // Validate explicit shared-customer links before updating any cells.
+    if (['CRM', 'Sales', 'Ecommerce'].includes(moduleName) &&
+        Object.prototype.hasOwnProperty.call(data, 'Customer_ID')) {
+      data.Customer_ID = String(data.Customer_ID || '').trim();
+      if (data.Customer_ID) {
+        const customer = getBusinessCenterCustomerById_(workspace, data.Customer_ID);
+        if (!customer) {
+          return { success: false, message: 'The selected Business Center customer could not be found. Refresh the customer list and try again.' };
+        }
+        if (moduleName === 'Sales') {
+          data.Customer_Name = String(customer.Name || '');
+          data.Customer_Email = String(customer.Email || '');
+        } else if (moduleName === 'Ecommerce') {
+          data.Customer_Email = String(customer.Email || '');
+        }
+      }
+    }
+
     // Update each column
     for (const [key, value] of Object.entries(data)) {
       if (key === '_record_id') continue;
