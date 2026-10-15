@@ -1894,6 +1894,55 @@ function renderCharts(charts) {
 function changeDashboardChartType() {
   if (window.lastDashboardCharts) renderCharts(window.lastDashboardCharts);
 }
+function renderProductivityCharts(records) {
+  const panel = document.getElementById('productivity-insights');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  const rows = Array.isArray(records) ? records : [];
+  const taskCounts = {};
+  const staffHours = {};
+  rows.forEach(function(record) {
+    const date = String(record.Date || '').trim() || 'Undated';
+    taskCounts[date] = (taskCounts[date] || 0) + 1;
+    const staff = String(record.Staff_Email || '').trim() || 'Unassigned';
+    staffHours[staff] = (staffHours[staff] || 0) + (Number(record.Hours_Spent) || 0);
+  });
+  const dates = Object.keys(taskCounts).sort(function(a, b) {
+    if (a === 'Undated') return 1;
+    if (b === 'Undated') return -1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  });
+  const staff = Object.keys(staffHours).sort(function(a, b) { return staffHours[b] - staffHours[a]; });
+  const empty = document.getElementById('productivity-charts-empty');
+  if (!rows.length) {
+    if (window.productivityTasksChart) { window.productivityTasksChart.destroy(); window.productivityTasksChart = null; }
+    if (window.productivityHoursChart) { window.productivityHoursChart.destroy(); window.productivityHoursChart = null; }
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+  if (typeof Chart === 'undefined') {
+    if (empty) { empty.classList.remove('hidden'); empty.textContent = 'Charts are loading. Refresh this module to try again.'; }
+    return;
+  }
+  const tasksCanvas = document.getElementById('productivity-tasks-chart');
+  const hoursCanvas = document.getElementById('productivity-hours-chart');
+  if (tasksCanvas) {
+    if (window.productivityTasksChart) window.productivityTasksChart.destroy();
+    window.productivityTasksChart = new Chart(tasksCanvas.getContext('2d'), {
+      type: 'bar', data: { labels: dates, datasets: [{ label: 'Tasks recorded', data: dates.map(function(date) { return taskCounts[date]; }), backgroundColor: '#6366f1', borderRadius: 5 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+  if (hoursCanvas) {
+    if (window.productivityHoursChart) window.productivityHoursChart.destroy();
+    window.productivityHoursChart = new Chart(hoursCanvas.getContext('2d'), {
+      type: 'bar', data: { labels: staff, datasets: [{ label: 'Hours spent', data: staff.map(function(name) { return staffHours[name]; }), backgroundColor: '#818cf8', borderRadius: 5 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return Number(ctx.raw || 0).toFixed(2) + ' hours'; } } } }, scales: { x: { beginAtZero: true } } }
+    });
+  }
+}
+
 // ==================== DASHBOARD UPDATE FUNCTIONS ====================
 function updateRecentActivity(activities) {
   const container = document.getElementById('recent-activity-list');
@@ -3436,6 +3485,11 @@ function loadModuleTableWithSync(moduleName) {
         ? response
         : (Array.isArray(response.records) ? response.records : []);
       currentModuleData = records;
+      const productivityInsights = document.getElementById('productivity-insights');
+      if (productivityInsights) {
+        if (moduleName === 'Productivity') renderProductivityCharts(records);
+        else productivityInsights.classList.add('hidden');
+      }
 
       // Preserve the Finance summary area when the endpoint supplies totals.
       const financialSummary = response && response.financialSummary;
