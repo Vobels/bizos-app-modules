@@ -3528,11 +3528,9 @@ function loadModuleTableWithSync(moduleName) {
         ? response
         : (Array.isArray(response.records) ? response.records : []);
       currentModuleData = records;
-      const productivityInsights = document.getElementById('productivity-insights');
-      if (productivityInsights) {
-        renderModuleInsights(moduleName, records);
-        else productivityInsights.classList.add('hidden');
-      }
+      // The shared insights panel handles unsupported modules and empty states.
+      // Render only from the records already fetched for this module; no extra server call.
+      renderModuleInsights(moduleName, records);
 
       // Preserve the Finance summary area when the endpoint supplies totals.
       const financialSummary = response && response.financialSummary;
