@@ -87,7 +87,7 @@ function addDefaultHeadersToModule(sheet, moduleName) {
       'Payment_Status', 'Fulfillment_Status', 'Tracking_Number', 'Financial_Link_ID', 'Created_By'
     ],
     CRM: [
-      'Contact_ID', 'Name', 'Email', 'Phone', 'Company', 'Status', 
+      'Contact_ID', 'Customer_ID', 'Name', 'Email', 'Phone', 'Company', 'Status',
       'Last_Contact', 'Assigned_To', 'Notes', 'Created_By', 'Created_At'
     ],
     HR: [
