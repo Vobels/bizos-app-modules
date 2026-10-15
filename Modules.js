@@ -588,9 +588,11 @@ function saveRecord(moduleName, data, sessionId) {
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) return { success: false, message: "Module not found" };
     
-    // Check if workspace exists and is different from main sheet
-    if (!workspace || workspace.getId() === SpreadsheetApp.getActiveSpreadsheet().getId()) {
-      console.log('No dedicated workspace found, using main sheet');
+    // Do not call getActiveSpreadsheet() from a web request: it may be null
+    // outside an interactive spreadsheet UI. getWorkspaceFile() already
+    // resolves the correct master or dedicated workspace.
+    if (!workspace) {
+      throw new Error('Workspace is unavailable.');
     }
     
     const sheet = workspace.getSheetByName(definition.sheet);
