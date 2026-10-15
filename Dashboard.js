@@ -11,6 +11,23 @@ function safeGetUser(sessionId) {
   }
 }
 
+// Keep KPI, chart, and recent-transaction views consistent with the ledger.
+// Voided/failed/reversed entries remain in Financial_Data for audit history,
+// but must not contribute to live totals.
+function dashboardFinancialRowIsCountable_(row, headers) {
+  const typeCol = headers.indexOf('Type');
+  if (typeCol < 0) return false;
+  const type = String(row[typeCol] || '').toLowerCase();
+  if (type !== 'revenue' && type !== 'expense') return false;
+
+  const statusCol = headers.indexOf('Status');
+  const status = statusCol >= 0 ? String(row[statusCol] || '').trim().toLowerCase() : '';
+  const excludedStatuses = ['void', 'voided', 'failed', 'cancelled', 'canceled', 'refunded', 'refund', 'reversed', 'declined'];
+  if (excludedStatuses.includes(status)) return false;
+  if (type === 'revenue' && ['pending', 'unpaid', 'awaiting_payment', 'payment_pending', 'draft'].includes(status)) return false;
+  return true;
+}
+
 // Main entry point - automatically chooses fast or accurate based on period
 function getDashboardKPIs(period, sessionId, forceAccurate = false) {
   // Handle case where parameters are swapped
@@ -37,7 +54,7 @@ function getDashboardKPIs(period, sessionId, forceAccurate = false) {
   }
 }
 
-// FAST VERSION - For dashboard (last 30 days only, cached)
+// FAST VERSION - For dashboard (current month to date, cached)
 function getDashboardKPIsFast(sessionId) {
   const user = safeGetUser(sessionId);
   if (!user) return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
@@ -69,18 +86,18 @@ function getDashboardKPIsFast(sessionId) {
       return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
     }
     
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
     
     let revenue = 0, expenses = 0;
     
     for (let i = 0; i < data.length; i++) {
       const rowDate = new Date(data[i][dateCol]);
-      if (rowDate < thirtyDaysAgo) continue;
+      if (isNaN(rowDate.getTime()) || rowDate < monthStart || !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
       
       const amount = parseFloat(data[i][amountCol]) || 0;
-      const type = data[i][typeCol];
+      const type = String(data[i][typeCol] || '').toLowerCase();
       
       if (type && type.toLowerCase() === 'revenue') {
         revenue += amount;
@@ -142,7 +159,7 @@ function getDashboardKPIsAccurate(sessionId, period) {
         const endDate = new Date(now.getFullYear(), now.getMonth(), 0);
         for (let i = 1; i < data.length; i++) {
           const rowDate = new Date(data[i][dateCol]);
-          if (rowDate >= startDate && rowDate <= endDate) {
+          if (dashboardFinancialRowIsCountable_(data[i], headers) && rowDate >= startDate && rowDate <= endDate) {
             const amount = parseFloat(data[i][amountCol]) || 0;
             if (data[i][typeCol] === 'revenue') revenue += amount;
             else if (data[i][typeCol] === 'expense') expenses += Math.abs(amount);
@@ -155,13 +172,14 @@ function getDashboardKPIsAccurate(sessionId, period) {
     }
     
     for (let i = 1; i < data.length; i++) {
+      if (!dashboardFinancialRowIsCountable_(data[i], headers)) continue;
       if (startDate) {
         const rowDate = new Date(data[i][dateCol]);
-        if (rowDate < startDate) continue;
+        if (isNaN(rowDate.getTime()) || rowDate < startDate) continue;
       }
       
       const amount = parseFloat(data[i][amountCol]) || 0;
-      const type = data[i][typeCol];
+      const type = String(data[i][typeCol] || '').toLowerCase();
       
       if (type && type.toLowerCase() === 'revenue') {
         revenue += amount;
@@ -271,7 +289,11 @@ function getRecentTransactions(limit, sessionId) {
     const startRow = Math.max(2, lastRow - 99);
     const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, width).getValues();
     
-    const transactions = data.map(row => {
+    const transactions = data.filter(row => {
+      const statusCol = headers.indexOf('Status');
+      const status = statusCol >= 0 ? String(row[statusCol] || '').trim().toLowerCase() : '';
+      return !['void', 'voided', 'failed', 'cancelled', 'canceled', 'refunded', 'refund', 'reversed', 'declined'].includes(status);
+    }).map(row => {
       const obj = {};
       headers.forEach((h, i) => {
         const value = row[i];
@@ -344,7 +366,7 @@ function getChartDataOptimized(workspace, period) {
     
     for (let i = 0; i < data.length; i++) {
       const rowDate = new Date(data[i][dateCol]);
-      if (rowDate < thirtyDaysAgo) continue;
+      if (isNaN(rowDate.getTime()) || rowDate < thirtyDaysAgo || !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
       
       const dateStr = rowDate.toISOString().split('T')[0];
       const amount = parseFloat(data[i][amountCol]) || 0;
@@ -458,7 +480,7 @@ function dashboardReadFinancialPeriod_(sheet, start, end) {
   for (let i = 1; i < data.length; i++) {
     const rawDate = data[i][dateCol];
     const rowDate = rawDate instanceof Date ? new Date(rawDate) : new Date(rawDate);
-    if (isNaN(rowDate.getTime()) || rowDate < start || rowDate >= end) continue;
+    if (isNaN(rowDate.getTime()) || rowDate < start || rowDate >= end || !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
 
     const amount = Math.abs(parseFloat(data[i][amountCol]) || 0);
     const type = String(data[i][typeCol] || '').toLowerCase();
@@ -514,7 +536,7 @@ function getDailyTrends(workspace, period) {
     if (dateCol >= 0 && typeCol >= 0 && amountCol >= 0) {
       for (let i = 1; i < data.length; i++) {
         const rowDate = data[i][dateCol] instanceof Date ? new Date(data[i][dateCol]) : new Date(data[i][dateCol]);
-        if (isNaN(rowDate.getTime()) || rowDate < start || rowDate > now) continue;
+        if (isNaN(rowDate.getTime()) || rowDate < start || rowDate > now || !dashboardFinancialRowIsCountable_(data[i], headers)) continue;
 
         const key = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
         const amount = Math.abs(parseFloat(data[i][amountCol]) || 0);
@@ -996,9 +1018,17 @@ function generateBusinessAlerts(workspace, financialMetrics, moduleSummary, busi
 }
 
 function recalculateDashboardMetrics(workspaceId) {
-  // Dashboard values are calculated from the workspace on demand.
-  // The existing short-lived caches expire automatically; this function
-  // remains as the post-sync hook used by module auto-sync.
+  // Invalidate chart caches for the active workspace after a ledger sync.
+  // KPI cache is session-keyed and is invalidated by autoSyncToFinancial.
+  try {
+    if (workspaceId) {
+      const cache = CacheService.getScriptCache();
+      const periods = ['today', 'this_week', 'this_month', 'last_month', 'this_year', 'last_7_days', 'last_30_days', 'all_time', 'undefined'];
+      cache.removeAll(periods.map(period => 'chart_data_' + workspaceId + '_' + period));
+    }
+  } catch (error) {
+    console.warn('Dashboard cache invalidation warning:', error.message);
+  }
   return { success: true, workspaceId: workspaceId || null };
 }
 
