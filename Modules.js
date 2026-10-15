@@ -31,10 +31,14 @@ function ensureModuleFinancialColumns_(sheet, moduleName) {
 // Existing columns and record values are never reordered or rewritten.
 function ensureModuleCustomerReferenceColumns_(sheet, moduleName) {
   if (!sheet || moduleName !== 'CRM') return;
-  const lastColumn = sheet.getLastColumn();
-  const headers = lastColumn > 0
-    ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(h) { return String(h || '').trim(); })
-    : [];
+  let lastColumn = sheet.getLastColumn();
+  if (lastColumn === 0) {
+    // Recover an existing but empty CRM sheet using the canonical headers first.
+    addDefaultHeadersToModule(sheet, moduleName);
+    lastColumn = sheet.getLastColumn();
+  }
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+    .map(function(h) { return String(h || '').trim(); });
   if (headers.indexOf('Customer_ID') === -1) {
     sheet.getRange(1, lastColumn + 1).setValue('Customer_ID');
   }
