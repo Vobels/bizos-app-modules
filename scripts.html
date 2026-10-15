@@ -2112,7 +2112,7 @@ function updateRecentActivity(activities) {
   }).join('');
 }
 
-function showAppsPage() {
+function showAppsPage() {\n  hideMessagesPage_();
   console.log("showAppsPage called");
   
   const dashboardHome = document.getElementById('dashboard-home');
@@ -2177,7 +2177,7 @@ function showAppsPage() {
 }
 
 // KEEP THIS VERSION - More concise and includes all pages
-function showDashboardHome() {
+function showDashboardHome() {\n  hideMessagesPage_();
   console.log("showDashboardHome called");
   // Keep Business Center isolated from the main dashboard view.
   const businessCenterPage = document.getElementById('business-center-page');
@@ -2245,7 +2245,7 @@ function showDashboardHome() {
     dashBtn.classList.add('bg-purple-50', 'text-purple-700');
   }
 }
-function showProfilePage() {
+function showProfilePage() {\n  hideMessagesPage_();
   console.log("showProfilePage called");
   
   const dashboardHome = document.getElementById('dashboard-home');
@@ -4690,7 +4690,164 @@ async function handleUpgradeRequest(event) {
   );
 }
 
+// ==================== PERSISTENT MESSAGES ====================
+let bizOSMessages = [];
+let bizOSMessageContacts = [];
+let activeMessageConversationId = '';
+let activeMessageRecipientEmail = '';
+let activeMessageRecipientName = '';
+let activeMessageScope = 'team';
+let messagesFilter = 'team';
+
+function hideMessagesPage_() {
+  const page=document.getElementById('messages-page');
+  if(page){page.classList.add('hidden');page.style.display='none';}
+}
+function showMessagesPage() {
+  const ids=['dashboard-home','module-view','profile-page','apps-page','settings-page','notifications-page','business-center-page','messages-page'];
+  ids.forEach(function(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}});
+  const page=document.getElementById('messages-page'), dashboard=document.getElementById('dashboard-page');
+  if(page){page.classList.remove('hidden');page.style.display='block';}
+  if(dashboard){dashboard.classList.remove('hidden');dashboard.style.display='block';}
+  const title=document.getElementById('page-title');if(title)title.textContent='Messages';
+  document.querySelectorAll('.sidebar nav button').forEach(function(btn){btn.classList.remove('bg-purple-50','text-purple-700');});
+  loadMessagesPage();window.scrollTo(0,0);
+}
+window.showMessagesPage=showMessagesPage;
+
+function loadMessagesPage() {
+  const list=document.getElementById('messages-conversation-list');
+  if(list)list.innerHTML='<div class="p-5 text-sm text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading messages…</div>';
+  callGoogleScript('getBizOSMessageContacts',[],function(r){
+    bizOSMessageContacts=(r&&r.success)?(r.contacts||[]):[];
+    const select=document.getElementById('message-contact');
+    if(select){
+      const old=select.value;
+      select.innerHTML='<option value="">Choose team member</option>'+bizOSMessageContacts.map(function(p){return '<option value="'+escapeHtml(p.email)+'">'+escapeHtml(p.name)+' · '+escapeHtml(p.role)+'</option>';}).join('');
+      if(old)select.value=old;
+    }
+    const supportBtn=document.getElementById('message-support-filter');
+    if(supportBtn)supportBtn.classList.toggle('hidden',!currentUser||['owner','admin'].indexOf(String(currentUser.role||'').toLowerCase())<0);
+    callGoogleScript('getBizOSMessages',[''],function(response){
+      if(!response||!response.success){bizOSMessages=[];renderMessagesPage((response&&response.message)||'Messages could not be loaded.');return;}
+      bizOSMessages=response.messages||[];
+      renderMessagesPage();
+      updateMessagesBadge();
+      if(activeMessageConversationId){
+        const stillExists=bizOSMessages.some(function(m){return m.conversationId===activeMessageConversationId;});
+        if(stillExists)renderMessageThread();
+        else {activeMessageConversationId='';renderMessageThread();}
+      }
+    },function(){bizOSMessages=[];renderMessagesPage('Messages could not be loaded.');});
+  },function(){bizOSMessageContacts=[];renderMessagesPage('Your team directory could not be loaded.');});
+}
+
+function updateMessagesBadge() {
+  const email=String(currentUser&&currentUser.email||'').toLowerCase();
+  const unread=bizOSMessages.filter(function(m){return String(m.recipientEmail||'').toLowerCase()===email&&!m.readAt&&m.scope!=='support';}).length;
+  const badge=document.getElementById('messages-sidebar-badge');
+  if(badge){badge.textContent=unread>9?'9+':String(unread);badge.classList.toggle('hidden',unread===0);}
+}
+
+function setMessagesFilter(filter) {
+  messagesFilter=filter==='support'?'support':'team';
+  const team=document.getElementById('message-team-filter'), support=document.getElementById('message-support-filter');
+  if(team){team.classList.toggle('text-purple-700',messagesFilter==='team');team.classList.toggle('text-gray-500',messagesFilter!=='team');}
+  if(support){support.classList.toggle('text-purple-700',messagesFilter==='support');support.classList.toggle('text-gray-500',messagesFilter!=='support');}
+  activeMessageConversationId='';activeMessageRecipientEmail='';activeMessageRecipientName='';activeMessageScope=messagesFilter;
+  const thread=document.getElementById('message-thread');
+  if(thread)thread.innerHTML='<div class="text-center py-16 text-gray-400"><i class="fas fa-comments text-3xl mb-3"></i><p>Select a conversation or start a new message.</p></div>';
+  const heading=document.getElementById('message-thread-heading');
+  if(heading)heading.innerHTML='<h2 class="font-semibold text-gray-900">'+(messagesFilter==='support'?'BizOS Support':'Team messages')+'</h2><p class="text-xs text-gray-500 mt-1">'+(messagesFilter==='support'?'Contact the BizOS team about your workspace or feature requests.':'Private messages between members of your business workspace.')+'</p>';
+  const compose=document.getElementById('message-compose-input');if(compose)compose.placeholder=messagesFilter==='support'?'Describe your question or feature request…':'Write a message…';
+  const hint=document.getElementById('message-compose-hint');if(hint)hint.textContent=messagesFilter==='support'?'Only the business owner or an administrator can contact BizOS Support.':'Messages are saved in BizOS, not email.';
+  renderMessagesPage();
+}
+
+function renderMessagesPage(errorMessage) {
+  const list=document.getElementById('messages-conversation-list');if(!list)return;
+  if(errorMessage){list.innerHTML='<div class="p-5 text-sm text-red-600">'+escapeHtml(errorMessage)+'</div>';return;}
+  const email=String(currentUser&&currentUser.email||'').toLowerCase(), groups={};
+  bizOSMessages.forEach(function(m){
+    if((m.scope||'team')!==messagesFilter)return;
+    const id=String(m.conversationId||'');if(!id)return;
+    if(!groups[id])groups[id]={id:id,scope:m.scope||'team',messages:[],name:'',email:'',lastAt:''};
+    const g=groups[id];g.messages.push(m);g.lastAt=m.createdAt;
+    if(m.scope==='support'){g.name='BizOS Support';g.email='BizOS Support';}
+    else if(String(m.senderEmail||'').toLowerCase()===email){g.name=m.recipientName||m.recipientEmail;g.email=m.recipientEmail;}
+    else {g.name=m.senderName||m.senderEmail;g.email=m.senderEmail;}
+  });
+  const rows=Object.keys(groups).map(function(k){const g=groups[k];g.messages.sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt);});g.lastMessage=g.messages[g.messages.length-1];g.lastAt=g.lastMessage.createdAt;return g;}).sort(function(a,b){return new Date(b.lastAt)-new Date(a.lastAt);});
+  if(!rows.length){list.innerHTML='<div class="p-6 text-center text-gray-400"><i class="fas fa-inbox text-2xl mb-2"></i><p class="text-sm">'+(messagesFilter==='support'?'No support conversations yet. Start one using the message box.':'No team conversations yet. Choose a team member above to start one.')+'</p></div>';return;}
+  list.innerHTML=rows.map(function(g){
+    const unread=g.messages.some(function(m){return String(m.recipientEmail||'').toLowerCase()===email&&!m.readAt;});
+    return '<button type="button" onclick="openMessageConversation(\''+String(g.id).replace(/'/g,"\\'")+'\')" class="w-full text-left p-4 hover:bg-gray-50 '+(g.id===activeMessageConversationId?'bg-purple-50':'')+'"><div class="flex items-start gap-3"><div class="w-9 h-9 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center flex-shrink-0"><i class="fas '+(g.scope==='support'?'fa-headset':'fa-user')+'"></i></div><div class="min-w-0 flex-1"><div class="flex items-center justify-between gap-2"><span class="font-medium text-sm text-gray-900 truncate">'+escapeHtml(g.name||g.email)+'</span>'+(unread?'<span class="w-2 h-2 bg-purple-600 rounded-full flex-shrink-0"></span>':'')+'</div><p class="text-xs text-gray-500 truncate mt-1">'+escapeHtml(g.lastMessage.message)+'</p><span class="text-[10px] text-gray-400">'+formatNotificationTime(g.lastAt)+'</span></div></div></button>';
+  }).join('');
+}
+
+function startTeamMessage() {
+  const select=document.getElementById('message-contact'), email=String(select&&select.value||'').toLowerCase();
+  if(!email){showNotification('Choose a team member first.','error');return;}
+  const contact=bizOSMessageContacts.find(function(p){return String(p.email||'').toLowerCase()===email;});
+  if(!contact){showNotification('That team member could not be found.','error');return;}
+  messagesFilter='team';setMessagesFilter('team');
+  activeMessageRecipientEmail=email;activeMessageRecipientName=contact.name||email;activeMessageScope='team';
+  const existing=bizOSMessages.filter(function(m){return m.scope==='team'&&((String(m.senderEmail||'').toLowerCase()===email&&String(m.recipientEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase())||(String(m.recipientEmail||'').toLowerCase()===email&&String(m.senderEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase()));});
+  if(existing.length)activeMessageConversationId=existing[existing.length-1].conversationId;
+  renderMessagesPage();renderMessageThread();
+}
+
+function openMessageConversation(conversationId) {
+  const thread=bizOSMessages.filter(function(m){return m.conversationId===conversationId;});
+  if(!thread.length)return;
+  activeMessageConversationId=conversationId;activeMessageScope=thread[0].scope||'team';messagesFilter=activeMessageScope;
+  if(activeMessageScope==='support'){activeMessageRecipientEmail='bizos-support';activeMessageRecipientName='BizOS Support';}
+  else {
+    const email=String(currentUser&&currentUser.email||'').toLowerCase(), last=thread[thread.length-1];
+    const counterpart=String(last.senderEmail||'').toLowerCase()===email?last.recipientEmail:last.senderEmail;
+    const contact=bizOSMessageContacts.find(function(p){return String(p.email||'').toLowerCase()===String(counterpart||'').toLowerCase();});
+    activeMessageRecipientEmail=counterpart;activeMessageRecipientName=contact?contact.name:(last.senderName||counterpart);
+  }
+  setMessagesFilter(activeMessageScope);activeMessageConversationId=conversationId;
+  renderMessagesPage();renderMessageThread();
+  callGoogleScript('markBizOSConversationRead',[conversationId],function(r){if(r&&r.success){bizOSMessages.forEach(function(m){if(m.conversationId===conversationId&&String(m.recipientEmail||'').toLowerCase()===String(currentUser.email||'').toLowerCase())m.readAt=new Date().toISOString();});updateMessagesBadge();renderMessagesPage();}},function(){});
+}
+
+function renderMessageThread() {
+  const thread=document.getElementById('message-thread'), heading=document.getElementById('message-thread-heading');
+  if(!thread)return;
+  const rows=bizOSMessages.filter(function(m){return activeMessageConversationId&&m.conversationId===activeMessageConversationId;}).sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt);});
+  if(!activeMessageConversationId){
+    if(heading)heading.innerHTML='<h2 class="font-semibold text-gray-900">'+(activeMessageScope==='support'?'BizOS Support':(activeMessageRecipientName||'New team message'))+'</h2><p class="text-xs text-gray-500 mt-1">Your message will start a saved conversation.</p>';
+    thread.innerHTML='<div class="text-center py-16 text-gray-400"><i class="fas fa-comments text-3xl mb-3"></i><p>Write your first message below.</p></div>';return;
+  }
+  if(heading)heading.innerHTML='<h2 class="font-semibold text-gray-900">'+escapeHtml(activeMessageRecipientName||'Conversation')+'</h2><p class="text-xs text-gray-500 mt-1">'+(activeMessageScope==='support'?'BizOS Support · Private support conversation':'Private team conversation')+'</p>';
+  thread.innerHTML=rows.map(function(m){
+    const mine=String(m.senderEmail||'').toLowerCase()===String(currentUser&&currentUser.email||'').toLowerCase();
+    return '<div class="flex '+(mine?'justify-end':'justify-start')+'"><div class="max-w-[85%] rounded-xl px-4 py-3 '+(mine?'bg-purple-600 text-white':'bg-white border border-gray-200 text-gray-800')+'"><div class="text-[10px] '+(mine?'text-purple-100':'text-gray-400')+' mb-1">'+escapeHtml(mine?'You':(m.senderName||m.senderEmail))+' · '+escapeHtml(formatNotificationTime(m.createdAt))+'</div><p class="text-sm whitespace-pre-wrap break-words">'+escapeHtml(m.message)+'</p></div></div>';
+  }).join('')||'<div class="text-sm text-gray-400 text-center py-10">No messages in this conversation yet.</div>';
+  thread.scrollTop=thread.scrollHeight;
+}
+
+function sendCurrentMessage(event) {
+  if(event&&event.preventDefault)event.preventDefault();
+  const input=document.getElementById('message-compose-input'), button=document.getElementById('message-send-button');
+  const message=String(input&&input.value||'').trim();if(!message)return;
+  if(activeMessageScope==='team'&&!activeMessageRecipientEmail){showNotification('Choose a team member or open a conversation first.','error');return;}
+  const payload={message:message,scope:activeMessageScope,recipientEmail:activeMessageRecipientEmail,recipientName:activeMessageRecipientName,conversationId:activeMessageConversationId};
+  if(button)button.disabled=true;
+  callGoogleScript('sendBizOSMessage',[payload],function(r){
+    if(button)button.disabled=false;
+    if(!r||!r.success){showNotification((r&&r.message)||'Message could not be sent.','error');return;}
+    if(input)input.value='';
+    activeMessageConversationId=r.conversationId||activeMessageConversationId;
+    showNotification('Message sent.','success');
+    loadMessagesPage();
+  },function(){if(button)button.disabled=false;showNotification('Message could not be sent.','error');});
+}
+
 // ==================== NOTIFICATION CENTER ====================
+
 
 let notificationCount = 0;
 let allNotifications = [];
@@ -4821,7 +4978,7 @@ function handleNotificationClick(relatedView, notificationId) {
   }
 }
 
-function showNotificationsPage() {
+function showNotificationsPage() {\n  hideMessagesPage_();
   const pages=['dashboard-home','module-view','profile-page','apps-page','settings-page','notifications-page','business-center-page'];
   pages.forEach(function(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}});
   const page=document.getElementById('notifications-page');
@@ -5925,7 +6082,7 @@ window.addEventListener('message', function(event) {
 
 
 // ==================== SETTINGS PAGE FUNCTIONS ====================
-function showSettingsPage() {
+function showSettingsPage() {\n  hideMessagesPage_();
   console.log("showSettingsPage called");
   
   const dashboardHome = document.getElementById('dashboard-home');
@@ -6180,7 +6337,7 @@ window.handleNotificationClick = handleNotificationClick;
   // Business Center navigation guard.
 // Define the navigation entry point here as well so the sidebar does not depend
 // on the BusinessHubHTML script block successfully initializing first.
-window.showBusinessCenter = function() {
+window.showBusinessCenter = function() {\n  hideMessagesPage_();
   console.log("showBusinessCenter called");
   ['landing-page','dashboard-page','profile-page','settings-page','staff-page','cms-page'].forEach(function(id) {
     var el = document.getElementById(id);
