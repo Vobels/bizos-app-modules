@@ -55,13 +55,19 @@ function getDashboardKPIsFast(sessionId) {
     const lastRow = sheet.getLastRow();
     if (lastRow <= 1) return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
     
-    const startRow = Math.max(1, lastRow - 2000);
-    const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
-    const headers = data[0];
+    // Always read headers from row 1; the data window may start later.
+    const width = sheet.getLastColumn();
+    const headers = sheet.getRange(1, 1, 1, width).getValues()[0];
+    const startRow = Math.max(2, lastRow - 1999);
+    const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, width).getValues();
     
     const dateCol = headers.indexOf('Date');
     const typeCol = headers.indexOf('Type');
     const amountCol = headers.indexOf('Amount');
+    if (dateCol < 0 || typeCol < 0 || amountCol < 0) {
+      console.warn('Dashboard KPI skipped: Financial_Data is missing Date, Type, or Amount headers.');
+      return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
+    }
     
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -69,7 +75,7 @@ function getDashboardKPIsFast(sessionId) {
     
     let revenue = 0, expenses = 0;
     
-    for (let i = 1; i < data.length; i++) {
+    for (let i = 0; i < data.length; i++) {
       const rowDate = new Date(data[i][dateCol]);
       if (rowDate < thirtyDaysAgo) continue;
       
@@ -259,17 +265,31 @@ function getRecentTransactions(limit, sessionId) {
     const lastRow = sheet.getLastRow();
     if (lastRow <= 1) return [];
     
-    const startRow = Math.max(1, lastRow - 100);
-    const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
-    const headers = data[0];
+    // Read headers from the actual header row even when only recent rows are fetched.
+    const width = sheet.getLastColumn();
+    const headers = sheet.getRange(1, 1, 1, width).getValues()[0];
+    const startRow = Math.max(2, lastRow - 99);
+    const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, width).getValues();
     
-    const transactions = data.slice(1).map(row => {
+    const transactions = data.map(row => {
       const obj = {};
-      headers.forEach((h, i) => { obj[h] = row[i]; });
+      headers.forEach((h, i) => {
+        const value = row[i];
+        // Date objects cannot be returned directly through google.script.run.
+        if (value instanceof Date && !isNaN(value.getTime())) {
+          obj[h] = Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+        } else {
+          obj[h] = value;
+        }
+      });
       return obj;
     });
     
-    return transactions.sort((a, b) => new Date(b.Date) - new Date(a.Date)).slice(0, limit);
+    return transactions.sort((a, b) => {
+      const dateA = new Date(a.Date).getTime();
+      const dateB = new Date(b.Date).getTime();
+      return (isNaN(dateB) ? 0 : dateB) - (isNaN(dateA) ? 0 : dateA);
+    }).slice(0, Math.max(1, Number(limit) || 10));
   } catch (error) {
     console.error('Error getting transactions:', error);
     return [];
@@ -291,14 +311,20 @@ function getChartDataOptimized(workspace, period) {
     const lastRow = sheet.getLastRow();
     if (lastRow <= 1) return { revenueVsExpenses: { labels: [], revenue: [], expenses: [] }, expenseBreakdown: { labels: [], values: [] } };
     
-    const startRow = Math.max(1, lastRow - 2000);
-    const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, sheet.getLastColumn()).getValues();
-    const headers = data[0];
+    // Keep the header row independent of the bounded recent-data window.
+    const width = sheet.getLastColumn();
+    const headers = sheet.getRange(1, 1, 1, width).getValues()[0];
+    const startRow = Math.max(2, lastRow - 1999);
+    const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, width).getValues();
     
     const dateCol = headers.indexOf('Date');
     const typeCol = headers.indexOf('Type');
     const amountCol = headers.indexOf('Amount');
     const categoryCol = headers.indexOf('Category');
+    if (dateCol < 0 || typeCol < 0 || amountCol < 0) {
+      console.warn('Dashboard chart skipped: Financial_Data is missing required headers.');
+      return { revenueVsExpenses: { labels: [], revenue: [], expenses: [] }, expenseBreakdown: { labels: [], values: [] } };
+    }
     
     const now = new Date();
     const thirtyDaysAgo = new Date();
@@ -316,7 +342,7 @@ function getChartDataOptimized(workspace, period) {
     const expensesByDay = {};
     const expenseByCategory = {};
     
-    for (let i = 1; i < data.length; i++) {
+    for (let i = 0; i < data.length; i++) {
       const rowDate = new Date(data[i][dateCol]);
       if (rowDate < thirtyDaysAgo) continue;
       
