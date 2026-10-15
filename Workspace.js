@@ -77,12 +77,12 @@ function addDefaultHeadersToModule(sheet, moduleName) {
       'Payment_Method', 'Reference', 'Status', 'Created_By', 'Created_At'
     ],
     Sales: [
-      'Deal_ID', 'Date', 'Customer_Name', 'Customer_Email', 'Product_Service',
+      'Deal_ID', 'Customer_ID', 'Date', 'Customer_Name', 'Customer_Email', 'Product_Service',
       'Quantity', 'Unit_Price', 'Total_Amount', 'Stage', 'Probability',
       'Expected_Close_Date', 'Sales_Person', 'Notes', 'Financial_Link_ID', 'Created_By'
     ],
     Ecommerce: [
-      'Order_ID', 'Date', 'Customer_Email', 'Product_Name', 'SKU', 'Quantity',
+      'Order_ID', 'Customer_ID', 'Date', 'Customer_Email', 'Product_Name', 'SKU', 'Quantity',
       'Unit_Price', 'Subtotal', 'Shipping_Cost', 'Tax', 'Total_Amount',
       'Payment_Status', 'Fulfillment_Status', 'Tracking_Number', 'Financial_Link_ID', 'Created_By'
     ],
