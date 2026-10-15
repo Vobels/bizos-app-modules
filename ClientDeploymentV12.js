@@ -1125,6 +1125,7 @@ function auditV12ReleaseCompleteness(businessId) {
     {name:'recentTransactions',master:['function getRecentTransactions'],client:['recentTransactions:recent']},
     {name:'businessSnapshot',master:['businessSnapshot'],client:['businessSnapshot:businessSnapshot']},
     {name:'moduleSummary',master:['function getEnhancedDashboardData','moduleSummary'],client:['moduleSummary:moduleSummary']},
+    {name:'financialRowFilters',master:['function dashboardFinancialRowIsCountable_'],client:['function countableFinance_(row,h)']},
     {name:'alertsRecommendations',master:['function getEnhancedDashboardData','alerts'],client:['alerts:alerts','recommendations:recommendations']}
   ];
 
