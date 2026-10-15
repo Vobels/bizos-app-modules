@@ -288,33 +288,88 @@ function saveBusinessCenterProductsBulk(data, sessionId) {
 }
 
 
+function normalizeBusinessCenterCustomerEmail_(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeBusinessCenterCustomerPhone_(value) {
+  // Normalize common formatting differences without guessing country codes.
+  return String(value || '').replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+}
+
 function saveBusinessCenterCustomer(data, sessionId) {
+  const lock = LockService.getScriptLock();
   try {
+    if (!lock.tryLock(10000)) {
+      return { success: false, message: 'Customer records are being updated. Please try again.' };
+    }
+
     const access = businessCenterAccess_(sessionId, true);
     if (!access.ok) return { success: false, message: access.message };
     data = data || {};
-    if (!String(data.Name || '').trim()) return { success: false, message: 'Customer name is required.' };
+    const name = String(data.Name || '').trim();
+    const email = normalizeBusinessCenterCustomerEmail_(data.Email);
+    const phone = normalizeBusinessCenterCustomerPhone_(data.Phone);
+    if (!name) return { success: false, message: 'Customer name is required.' };
 
     const workspace = getWorkspaceFile(sessionId);
     const sheets = getBusinessCenterSheets_(workspace);
+    const customerSheet = sheets.customers;
+
+    // Preserve workspace-specific columns and existing rows. Add missing
+    // standard columns at the end instead of assuming a fixed column order.
+    let headers = getSheetHeadersBySheet(customerSheet);
+    if (!headers.length) {
+      customerSheet.getRange(1, 1, 1, BUSINESS_CENTER_CUSTOMER_HEADERS.length)
+        .setValues([BUSINESS_CENTER_CUSTOMER_HEADERS]);
+      headers = BUSINESS_CENTER_CUSTOMER_HEADERS.slice();
+    }
+    BUSINESS_CENTER_CUSTOMER_HEADERS.forEach(function(header) {
+      if (headers.indexOf(header) === -1) {
+        customerSheet.getRange(1, headers.length + 1).setValue(header);
+        headers.push(header);
+      }
+    });
+
+    const existing = businessCenterRows_(customerSheet);
+    const duplicate = existing.find(function(customer) {
+      const existingEmail = normalizeBusinessCenterCustomerEmail_(customer.Email);
+      const existingPhone = normalizeBusinessCenterCustomerPhone_(customer.Phone);
+      return (email && existingEmail && email === existingEmail) ||
+        (phone && existingPhone && phone === existingPhone);
+    });
+    if (duplicate) {
+      return {
+        success: false,
+        duplicate: true,
+        existingCustomerId: String(duplicate.Customer_ID || ''),
+        message: 'A customer with this phone number or email already exists. Check the existing customer record before adding another.'
+      };
+    }
+
     const customerId = 'CUS-' + Utilities.getUuid().substring(0, 8).toUpperCase();
     const user = access.user;
-    const row = BUSINESS_CENTER_CUSTOMER_HEADERS.map(function(header) {
+    const now = new Date().toISOString();
+    const row = headers.map(function(header) {
       if (header === 'Customer_ID') return customerId;
+      if (header === 'Name') return name;
+      if (header === 'Email') return String(data.Email || '').trim();
+      if (header === 'Phone') return String(data.Phone || '').trim();
       if (header === 'Balance') return Number(data.Balance || 0);
       if (header === 'Created_By') return user.email || user.name || '';
-      if (header === 'Created_At') return new Date().toISOString();
+      if (header === 'Created_At') return now;
       const value = data[header];
       return value === undefined || value === null ? '' : value;
     });
-    sheets.customers.appendRow(row);
+    customerSheet.appendRow(row);
     return { success: true, customerId: customerId, message: 'Customer added successfully.' };
   } catch (error) {
     console.error('Business Center customer save error:', error);
     return { success: false, message: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
 }
-
 
 
 // ==================== BUSINESS CENTER PART 1: SAFE EXISTING-DATA CONNECTION ====================
