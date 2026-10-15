@@ -88,7 +88,19 @@ function getRecordRows(recordKey, sessionId) {
     const values = sheet.getRange(startRow, 1, lastRow - startRow + 1, width).getValues();
     const records = values.reverse().map(function(row) {
       const obj = {};
-      headers.forEach(function(h, i) { obj[h] = row[i]; });
+      headers.forEach(function(h, i) {
+        const value = row[i];
+        // google.script.run cannot serialize Date objects returned from Sheets.
+        // Match the safe date conversion used by the module record view.
+        if (value instanceof Date && !isNaN(value.getTime())) {
+          const timePart = Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm:ss');
+          obj[h] = timePart === '00:00:00'
+            ? Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+            : Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+        } else {
+          obj[h] = value;
+        }
+      });
       return obj;
     });
 
