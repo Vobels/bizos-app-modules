@@ -320,7 +320,9 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
 
   if (moduleName === 'POS') {
     var posAmount = number('Total_Amount');
-    if (posAmount > 0) {
+    var posStatus = String(value('Status') || 'completed').toLowerCase();
+    var posIsReversed = ['cancelled', 'canceled', 'refunded', 'refund', 'void', 'voided', 'failed', 'reversed'].indexOf(posStatus) >= 0;
+    if (posAmount > 0 && !posIsReversed) {
       entries.push({
         Date: date,
         Type: 'revenue',
@@ -339,7 +341,11 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
     }
   } else if (moduleName === 'Ecommerce') {
     var ecommerceAmount = number('Total_Amount');
-    if (ecommerceAmount > 0) {
+    var paymentStatus = String(value('Payment_Status') || '').toLowerCase();
+    var orderStatus = String(value('Order_Status') || value('Status') || '').toLowerCase();
+    var revenueRecognized = ['paid', 'completed', 'success', 'succeeded'].indexOf(paymentStatus) >= 0 ||
+      ['delivered', 'completed', 'fulfilled'].indexOf(orderStatus) >= 0;
+    if (ecommerceAmount > 0 && revenueRecognized) {
       entries.push({
         Date: date,
         Type: 'revenue',
