@@ -132,7 +132,19 @@ function getModuleDataWithSync(moduleName, sessionId) {
     
     const records = values.map((row, offset) => {
       const record = {};
-      headers.forEach((h, i) => { record[h] = row[i]; });
+      headers.forEach((h, i) => {
+        const value = row[i];
+        // google.script.run cannot serialize Date objects in returned data.
+        // Convert spreadsheet dates to stable strings before returning records.
+        if (value instanceof Date && !isNaN(value.getTime())) {
+          const timePart = Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm:ss');
+          record[h] = timePart === '00:00:00'
+            ? Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+            : Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+        } else {
+          record[h] = value;
+        }
+      });
       record._row = startRow + offset;
       return record;
     });
