@@ -339,7 +339,7 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
     // Determine financial impact based on module and record type
     switch(moduleName) {
       case 'Sales':
-        if (recordData.Stage === 'closed_won' && recordData.Total_Amount > 0) {
+        if (String(recordData.Stage || '').trim().toLowerCase().replace(/[\\s-]+/g, '_') === 'closed_won' && parseFloat(recordData.Total_Amount) > 0) {
           financialEntries.push({
             Transaction_ID: generateTransactionId(),
             Date: recordData.Date || now.split('T')[0],
