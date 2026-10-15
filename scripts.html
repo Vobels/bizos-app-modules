@@ -1894,56 +1894,99 @@ function renderCharts(charts) {
 function changeDashboardChartType() {
   if (window.lastDashboardCharts) renderCharts(window.lastDashboardCharts);
 }
-function renderProductivityCharts(records) {
-  const panel = document.getElementById('productivity-insights');
+function renderModuleInsights(moduleName, records) {
+  const panel = document.getElementById('module-insights');
   if (!panel) return;
-  panel.classList.remove('hidden');
+  const title = document.getElementById('module-insights-title');
+  const description = document.getElementById('module-insights-description');
+  const empty = document.getElementById('module-insights-empty');
+  const firstCanvas = document.getElementById('module-insights-primary-chart');
+  const secondCanvas = document.getElementById('module-insights-secondary-chart');
   const rows = Array.isArray(records) ? records : [];
-  const taskCounts = {};
-  const staffHours = {};
-  rows.forEach(function(record) {
-    const date = String(record.Date || '').trim() || 'Undated';
-    taskCounts[date] = (taskCounts[date] || 0) + 1;
-    const staff = String(record.Staff_Email || '').trim() || 'Unassigned';
-    staffHours[staff] = (staffHours[staff] || 0) + (Number(record.Hours_Spent) || 0);
-  });
-  const dates = Object.keys(taskCounts).sort(function(a, b) {
-    if (a === 'Undated') return 1;
-    if (b === 'Undated') return -1;
-    return new Date(a).getTime() - new Date(b).getTime();
-  });
-  const staff = Object.keys(staffHours).sort(function(a, b) { return staffHours[b] - staffHours[a]; });
-  const empty = document.getElementById('productivity-charts-empty');
+  const configs = {
+    Finance: { title: 'Financial Insights', description: 'Transaction mix and recorded amounts', group: 'Category', metric: 'Amount', metricLabel: 'Amount', date: 'Date', chart1: 'Transactions by Category', chart2: 'Amount Over Time' },
+    Sales: { title: 'Sales Insights', description: 'Pipeline distribution and deal value', group: 'Stage', metric: 'Total_Amount', metricLabel: 'Deal value', date: 'Date', chart1: 'Deals by Stage', chart2: 'Deal Value by Date' },
+    Ecommerce: { title: 'E-commerce Insights', description: 'Order fulfillment and order value', group: 'Fulfillment_Status', metric: 'Total_Amount', metricLabel: 'Order value', date: 'Date', chart1: 'Orders by Fulfillment Status', chart2: 'Order Value by Date' },
+    CRM: { title: 'CRM Insights', description: 'Contact status and customer follow-up activity', group: 'Status', metric: null, date: 'Last_Contact', chart1: 'Contacts by Status', chart2: 'Contacts by Last Contact Date' },
+    HR: { title: 'HR Insights', description: 'Team composition and employee status', group: 'Department', metric: null, date: 'Hire_Date', chart1: 'Employees by Department', chart2: 'Hires Over Time' },
+    Logistics: { title: 'Logistics Insights', description: 'Shipment status and transport income', group: 'Status', metric: 'Transport_Income', metricLabel: 'Transport income', date: 'Date', chart1: 'Shipments by Status', chart2: 'Transport Income by Date' },
+    Tax: { title: 'Tax Insights', description: 'Tax record types and recorded tax amounts', group: 'Type', metric: 'Tax_Amount', metricLabel: 'Tax amount', date: 'Date', chart1: 'Records by Tax Type', chart2: 'Tax Amount by Date' },
+    Agro: { title: 'Agro Insights', description: 'Production by crop or livestock and recorded revenue', group: 'Crop_Name', fallbackGroup: 'Livestock_Type', metric: 'Revenue', metricLabel: 'Revenue', date: 'Date', chart1: 'Records by Crop or Livestock', chart2: 'Revenue by Date' },
+    Productivity: { title: 'Productivity Insights', description: 'Task activity and hours recorded', group: 'Staff_Email', metric: 'Hours_Spent', metricLabel: 'Hours', date: 'Date', chart1: 'Records by Staff Member', chart2: 'Hours by Staff Member' },
+    POS: { title: 'POS Insights', description: 'Product sales and transaction value', group: 'Product_Name', metric: 'Total_Amount', metricLabel: 'Sales value', date: 'Date', chart1: 'Transactions by Product', chart2: 'Sales Value by Date' },
+    Attendance: { title: 'Attendance Insights', description: 'Attendance status and hours recorded', group: 'Status', metric: 'Hours_Worked', metricLabel: 'Hours worked', date: 'Date', chart1: 'Records by Attendance Status', chart2: 'Hours Worked by Date' },
+    Warehouse: { title: 'Warehouse Insights', description: 'Stock distribution and quantity by item', group: 'Category', metric: 'Quantity', metricLabel: 'Quantity', item: 'Item_Name', chart1: 'Items by Category', chart2: 'Stock Quantity by Item' }
+  };
+  const config = configs[moduleName];
+  if (!config) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  if (title) title.textContent = config.title;
+  if (description) description.textContent = config.description;
+  const firstHeading = document.getElementById('module-insights-primary-title');
+  const secondHeading = document.getElementById('module-insights-secondary-title');
+  if (firstHeading) firstHeading.textContent = config.chart1;
+  if (secondHeading) secondHeading.textContent = config.chart2;
+  if (window.moduleInsightsPrimaryChart) { window.moduleInsightsPrimaryChart.destroy(); window.moduleInsightsPrimaryChart = null; }
+  if (window.moduleInsightsSecondaryChart) { window.moduleInsightsSecondaryChart.destroy(); window.moduleInsightsSecondaryChart = null; }
   if (!rows.length) {
-    if (window.productivityTasksChart) { window.productivityTasksChart.destroy(); window.productivityTasksChart = null; }
-    if (window.productivityHoursChart) { window.productivityHoursChart.destroy(); window.productivityHoursChart = null; }
-    if (empty) empty.classList.remove('hidden');
+    if (empty) { empty.textContent = 'No records yet. Add records to see module insights.'; empty.classList.remove('hidden'); }
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    if (empty) { empty.textContent = 'Charts are unavailable right now. Refresh this module to try again.'; empty.classList.remove('hidden'); }
     return;
   }
   if (empty) empty.classList.add('hidden');
-  if (typeof Chart === 'undefined') {
-    if (empty) { empty.classList.remove('hidden'); empty.textContent = 'Charts are loading. Refresh this module to try again.'; }
-    return;
-  }
-  const tasksCanvas = document.getElementById('productivity-tasks-chart');
-  const hoursCanvas = document.getElementById('productivity-hours-chart');
-  if (tasksCanvas) {
-    if (window.productivityTasksChart) window.productivityTasksChart.destroy();
-    window.productivityTasksChart = new Chart(tasksCanvas.getContext('2d'), {
-      type: 'bar', data: { labels: dates, datasets: [{ label: 'Tasks recorded', data: dates.map(function(date) { return taskCounts[date]; }), backgroundColor: '#6366f1', borderRadius: 5 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  const countGroups = function(field) {
+    const grouped = {};
+    rows.forEach(function(row) {
+      const raw = row && ((row[field]) || (config.fallbackGroup && row[config.fallbackGroup]));
+      const key = String(raw || '').trim() || 'Unspecified';
+      grouped[key] = (grouped[key] || 0) + 1;
+    });
+    return Object.keys(grouped).sort(function(a,b) { return grouped[b] - grouped[a]; }).slice(0, 12).map(function(key) { return { label:key, value:grouped[key] }; });
+  };
+  const primaryGroups = countGroups(config.group);
+  if (firstCanvas) {
+    window.moduleInsightsPrimaryChart = new Chart(firstCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: primaryGroups.map(function(item) { return item.label; }), datasets: [{ data: primaryGroups.map(function(item) { return item.value; }), backgroundColor: ['#6366f1','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#64748b','#84cc16','#06b6d4','#a855f7'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
   }
-  if (hoursCanvas) {
-    if (window.productivityHoursChart) window.productivityHoursChart.destroy();
-    window.productivityHoursChart = new Chart(hoursCanvas.getContext('2d'), {
-      type: 'bar', data: { labels: staff, datasets: [{ label: 'Hours spent', data: staff.map(function(name) { return staffHours[name]; }), backgroundColor: '#818cf8', borderRadius: 5 }] },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return Number(ctx.raw || 0).toFixed(2) + ' hours'; } } } }, scales: { x: { beginAtZero: true } } }
+  let secondLabels = [], secondValues = [];
+  if (config.item) {
+    const grouped = {};
+    rows.forEach(function(row) {
+      const key = String((row && row[config.item]) || '').trim() || 'Unnamed item';
+      grouped[key] = (grouped[key] || 0) + (Number(row && row[config.metric]) || 0);
+    });
+    secondLabels = Object.keys(grouped).sort(function(a,b) { return grouped[b] - grouped[a]; }).slice(0, 12);
+    secondValues = secondLabels.map(function(key) { return grouped[key]; });
+  } else {
+    const grouped = {};
+    rows.forEach(function(row) {
+      const rawDate = row && row[config.date];
+      const date = rawDate instanceof Date ? rawDate.toISOString().slice(0,10) : String(rawDate || '').trim();
+      const key = config.metric ? (date || 'Undated') : (date || 'Undated');
+      grouped[key] = (grouped[key] || 0) + (config.metric ? (Number(row && row[config.metric]) || 0) : 1);
+    });
+    secondLabels = Object.keys(grouped).sort(function(a,b) {
+      if (a === 'Undated') return 1;
+      if (b === 'Undated') return -1;
+      const delta = new Date(a).getTime() - new Date(b).getTime();
+      return Number.isNaN(delta) ? a.localeCompare(b) : delta;
+    }).slice(-20);
+    secondValues = secondLabels.map(function(key) { return grouped[key]; });
+  }
+  if (secondCanvas) {
+    window.moduleInsightsSecondaryChart = new Chart(secondCanvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: secondLabels, datasets: [{ label: config.metricLabel || 'Records', data: secondValues, backgroundColor: '#818cf8', borderColor: '#6366f1', borderRadius: 5 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return config.metricLabel ? config.metricLabel + ': ' + Number(ctx.raw || 0).toLocaleString() : 'Records: ' + Number(ctx.raw || 0).toLocaleString(); } } } }, scales: { y: { beginAtZero: true } } }
     });
   }
 }
-
-// ==================== DASHBOARD UPDATE FUNCTIONS ====================
 function updateRecentActivity(activities) {
   const container = document.getElementById('recent-activity-list');
   if (!container) return;
@@ -3487,7 +3530,7 @@ function loadModuleTableWithSync(moduleName) {
       currentModuleData = records;
       const productivityInsights = document.getElementById('productivity-insights');
       if (productivityInsights) {
-        if (moduleName === 'Productivity') renderProductivityCharts(records);
+        renderModuleInsights(moduleName, records);
         else productivityInsights.classList.add('hidden');
       }
 
