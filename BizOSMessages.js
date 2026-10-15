@@ -285,7 +285,8 @@ function bizOSClientWorkspaceRecords_() {
     if(!businessId||!sheetId)continue;
     var status=st==null?'active':String(row[st]||'active').trim().toLowerCase();
     if(['archived','disabled','inactive','failed','provisioning_failed','deleted'].indexOf(status)>=0)continue;
-    byBusiness[businessId]={businessId:businessId,sheetId:sheetId,status:status};
+    var current=byBusiness[businessId];
+    if(!current||status==='active'||current.status!=='active')byBusiness[businessId]={businessId:businessId,sheetId:sheetId,status:status};
   }
   return Object.keys(byBusiness).map(function(k){return byBusiness[k];});
 }
