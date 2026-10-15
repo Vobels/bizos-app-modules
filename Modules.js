@@ -455,6 +455,27 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
         }
         break;
 
+      case 'Tax':
+        if (String(recordData.Status || '').toLowerCase() === 'paid' && parseFloat(recordData.Tax_Amount) > 0 && recordData.Tax_ID) {
+          financialEntries.push({
+            Transaction_ID: generateTransactionId(),
+            Date: recordData.Date || now.split('T')[0],
+            Type: 'expense',
+            Category: 'tax',
+            Subcategory: recordData.Type || 'tax_payment',
+            Module_Source: 'Tax',
+            Module_Record_ID: recordData.Tax_ID,
+            Description: 'Tax payment: ' + (recordData.Type || recordData.Reference || recordData.Tax_ID),
+            Amount: -Math.abs(parseFloat(recordData.Tax_Amount)),
+            Payment_Method: recordData.Payment_Method || 'completed',
+            Reference: recordData.Reference || recordData.Tax_ID,
+            Status: 'completed',
+            Created_By: user?.email || recordData.Created_By,
+            Created_At: now
+          });
+        }
+        break;
+
       case 'BusinessCenterExpense':
         if (parseFloat(recordData.Total) > 0 && recordData.Transaction_ID) {
           financialEntries.push({
@@ -505,7 +526,7 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
     // A source edit can remove an event (for example, a Sales deal changing
     // from closed_won to closed_lost, or an Ecommerce shipping cost becoming 0).
     // Only rows explicitly linked to this module record are touched.
-    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Sale_ID || recordData.Record_ID || recordData.Transaction_ID;
+    const sourceRecordId = recordData.Deal_ID || recordData.Order_ID || recordData.Sale_ID || recordData.Record_ID || recordData.Transaction_ID || recordData.Tax_ID;
     const headers = getSheetHeadersBySheet(financeSheet);
     if (sourceRecordId) {
       const sourceCol = headers.indexOf('Module_Source');
@@ -763,7 +784,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     // This only applies to modules that already have an authoritative financial
     // sync path; ordinary Finance entries and unrelated module records are untouched.
     if (moduleName !== 'Finance' &&
-        (moduleName === 'Sales' || moduleName === 'Ecommerce' || moduleName === 'Agro' || moduleName === 'POS')) {
+        (moduleName === 'Sales' || moduleName === 'Ecommerce' || moduleName === 'Agro' || moduleName === 'POS' || moduleName === 'Tax')) {
       const updatedValues = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
       const updatedRecord = {};
       headers.forEach((header, i) => { updatedRecord[header] = updatedValues[i]; });
