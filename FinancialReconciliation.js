@@ -91,7 +91,8 @@ function reconcileHistoricalFinancialEvents_(workspaceId, applyChanges) {
       { module: 'Ecommerce', sheet: 'Ecommerce_Data', id: 'Order_ID' },
       { module: 'Sales', sheet: 'Sales_Data', id: 'Deal_ID' },
       { module: 'Agro', sheet: 'Agro_Data', id: 'Record_ID' },
-      { module: 'BusinessCenter', sheet: 'BusinessCenter_Sales', id: 'Sale_ID' }
+      { module: 'BusinessCenter', sheet: 'BusinessCenter_Sales', id: 'Sale_ID' },
+      { module: 'BusinessCenterExpense', sheet: 'BusinessCenter_Finance_Transactions', id: 'Transaction_ID' }
     ];
 
     targets.forEach(function(target) {
@@ -421,6 +422,25 @@ function historicalFinancialEntries_(moduleName, headers, row, recordId) {
         Amount: -Math.abs(number('Total_Cost')),
         Payment_Method: 'completed',
         Reference: recordId,
+        Status: 'completed',
+        Created_By: createdBy,
+        Created_At: createdAt
+      });
+    }
+  } else if (moduleName === 'BusinessCenterExpense') {
+    var expenseAmount = number('Amount');
+    if (String(value('Type') || '').toLowerCase() === 'expense' && expenseAmount > 0) {
+      entries.push({
+        Date: date,
+        Type: 'expense',
+        Category: value('Category') || 'business_center',
+        Subcategory: 'business_center_expense',
+        Module_Source: 'BusinessCenterExpense',
+        Module_Record_ID: recordId,
+        Description: value('Description') || 'Business Center expense',
+        Amount: -Math.abs(expenseAmount),
+        Payment_Method: value('Payment_Method') || 'completed',
+        Reference: value('Reference_ID') || recordId,
         Status: 'completed',
         Created_By: createdBy,
         Created_At: createdAt
