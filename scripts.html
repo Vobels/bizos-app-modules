@@ -1822,12 +1822,16 @@ function updateCharts(charts) {
 }
 
 function renderCharts(charts) {
+  if (!charts) return;
+  window.lastDashboardCharts = charts;
+  const selectedRevenueChartType = document.getElementById('revenue-expense-chart-type')?.value || 'line';
+  const selectedExpenseChartType = document.getElementById('expense-breakdown-chart-type')?.value || 'doughnut';
   const revenueExpenseCtx = document.getElementById('revenue-expense-chart')?.getContext('2d');
   if (revenueExpenseCtx && charts.revenueVsExpenses) {
     if (window.revenueExpenseChart) window.revenueExpenseChart.destroy();
     
     window.revenueExpenseChart = new Chart(revenueExpenseCtx, {
-      type: 'line',
+      type: selectedRevenueChartType,
       data: {
         labels: charts.revenueVsExpenses.labels,
         datasets: [
@@ -1865,7 +1869,7 @@ function renderCharts(charts) {
     if (window.expenseBreakdownChart) window.expenseBreakdownChart.destroy();
     
     window.expenseBreakdownChart = new Chart(expenseBreakdownCtx, {
-      type: 'doughnut',
+      type: selectedExpenseChartType,
       data: {
         labels: charts.expenseBreakdown.labels,
         datasets: [{
@@ -1886,6 +1890,10 @@ function renderCharts(charts) {
   }
 }
 
+
+function changeDashboardChartType() {
+  if (window.lastDashboardCharts) renderCharts(window.lastDashboardCharts);
+}
 // ==================== DASHBOARD UPDATE FUNCTIONS ====================
 function updateRecentActivity(activities) {
   const container = document.getElementById('recent-activity-list');
