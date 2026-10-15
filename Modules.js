@@ -44,6 +44,18 @@ function ensureModuleCustomerReferenceColumns_(sheet, moduleName) {
   }
 }
 
+// Append the customer reference to Finance only when a source explicitly carries
+// one. Existing finance columns and transaction rows are never reordered.
+function ensureFinanceCustomerReferenceColumn_(sheet) {
+  if (!sheet || sheet.getLastColumn() < 1) return;
+  const lastColumn = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+    .map(function(h) { return String(h || '').trim(); });
+  if (headers.indexOf('Customer_ID') === -1) {
+    sheet.getRange(1, lastColumn + 1).setValue('Customer_ID');
+  }
+}
+
 function getBusinessCenterCustomerById_(workspace, customerId) {
   const id = String(customerId || '').trim();
   if (!workspace || !id) return null;
@@ -405,7 +417,10 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
     const workspace = SpreadsheetApp.openById(workspaceId);
     const financeSheet = workspace.getSheetByName('Financial_Data');
     if (!financeSheet) return { success: false, message: "Financial_Data sheet not found" };
-    
+    if (moduleName === 'BusinessCenter' || String(recordData && recordData.Customer_ID || '').trim()) {
+      ensureFinanceCustomerReferenceColumn_(financeSheet);
+    }
+
     const user = getUserFromSession(sessionId);
     const now = new Date().toISOString();
     
@@ -642,6 +657,13 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
       // Payroll should only be synced from an explicit payroll transaction source.
     }
     
+    // Carry explicit shared-customer identity to linked ledger entries. Do not
+    // infer or backfill customer identity from names/emails on historical rows.
+    const linkedCustomerId = String(recordData && recordData.Customer_ID || '').trim();
+    if (linkedCustomerId) {
+      financialEntries.forEach(function(entry) { entry.Customer_ID = linkedCustomerId; });
+    }
+
     // Reconcile existing linked financial events for this source record.
     // A source edit can remove an event (for example, a Sales deal changing
     // from closed_won to closed_lost, or an Ecommerce shipping cost becoming 0).
