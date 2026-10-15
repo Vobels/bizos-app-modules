@@ -831,7 +831,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     // This only applies to modules that already have an authoritative financial
     // sync path; ordinary Finance entries and unrelated module records are untouched.
     if (moduleName !== 'Finance' &&
-        ['Sales', 'Ecommerce', 'Agro', 'POS', 'Tax', 'Logistics', 'Warehouse', 'CRM'].includes(moduleName)) {
+        ['Sales', 'Ecommerce', 'Agro', 'POS', 'Tax', 'Logistics'].includes(moduleName)) {
       const updatedValues = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
       const updatedRecord = {};
       headers.forEach((header, i) => { updatedRecord[header] = updatedValues[i]; });
