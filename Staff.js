@@ -371,13 +371,18 @@ function updateStaffMemberRole(businessId, email, newRole, sessionId) {
     if (oldRole === role) return { success: true, message: 'This team member already has that role.' };
 
     const assigned = normalizeStaffModules_(data[rowIndex][assignedCol]);
-    if (!assigned.length) return { success: false, message: 'Assign at least one app to this team member before changing their role.' };
     userSheet.getRange(rowIndex + 1, roleCol + 1).setValue(role);
     if (role === 'admin') {
       const allModules = getAvailableModulesForStaff();
       userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue(allModules.join(','));
       syncStaffModules_(targetEmail, businessId, allModules, actor.user.email);
+    } else if (oldRole === 'admin') {
+      // Do not silently turn an administrator into a staff member with
+      // business-wide access. The owner can assign the required apps afterward.
+      userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue('');
+      syncStaffModules_(targetEmail, businessId, [], actor.user.email);
     } else {
+      userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue(assigned.join(','));
       syncStaffModules_(targetEmail, businessId, assigned, actor.user.email);
     }
     try {
