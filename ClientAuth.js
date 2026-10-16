@@ -136,8 +136,8 @@ function saveClientModuleRecord(moduleName, record, sessionId) {
       var key = String(header || '').trim();
       if (!key) return '';
       if (key === idColumn) return idValue;
-      if (key === 'Created_By' && record[key] === undefined) return session.email || '';
-      if (key === 'Created_At' && record[key] === undefined) return now;
+      if (key === 'Created_By') return String(session.email || '');
+      if (key === 'Created_At') return now;
       return Object.prototype.hasOwnProperty.call(record,key) ? record[key] : '';
     });
     sheet.appendRow(row);
@@ -235,7 +235,7 @@ function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
     var beforeRecord = {};
     headers.forEach(function(header,i){var key=String(header||'').trim();if(key)beforeRecord[key]=current[i];});
     headers.forEach(function(header,i){var key=String(header||'').trim();if(key&&key!==idColumn&&key!=='Created_At'&&key!=='Created_By'&&key!=='Updated_At'&&key!=='Updated_By'&&key!=='_row'&&Object.prototype.hasOwnProperty.call(incoming,key))current[i]=incoming[key];});
-    sheet.getRange(targetRow,1,width).setValues([current]);
+    sheet.getRange(targetRow,1,1,width).setValues([current]);
     var afterRecord = {};
     headers.forEach(function(header,i){var key=String(header||'').trim();if(key)afterRecord[key]=current[i];});
     auditRecordChange_(ss, sessionId, moduleName, 'UPDATE', recordId, beforeRecord, afterRecord, session);
