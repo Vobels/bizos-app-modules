@@ -764,18 +764,23 @@ function autoSyncToFinancial(moduleName, recordData, workspaceId, sessionId) {
 }
 
 
-function assertModuleWriteAccess_(moduleName, sessionId) {
+function assertModuleWriteAccess_(moduleName, sessionId, operation) {
   if (!userHasAccess(moduleName, sessionId)) throw new Error("Access denied");
   const user = getUserFromSession(sessionId);
   if (!user) throw new Error("Session expired. Please login again.");
   const role = String(user.role || "staff").toLowerCase();
-  if (role !== "owner" && role !== "admin") throw new Error("This module is read-only for staff accounts.");
+  const isPrivileged = role === "owner" || role === "admin";
+  const isDemo = user.isDemo === true || String(user.isDemo || "").toUpperCase() === "YES";
+  if (isDemo) throw new Error("Demo accounts are read-only.");
+  if (!isPrivileged && (role !== "staff" || operation !== "write")) {
+    throw new Error(operation === "delete" ? "Only a business owner or administrator can delete records." : "This module is read-only for staff accounts.");
+  }
   return user;
 }
 
 function saveRecord(moduleName, data, sessionId) {
   try {
-    const user = assertModuleWriteAccess_(moduleName, sessionId);
+    const user = assertModuleWriteAccess_(moduleName, sessionId, "write");
     
     // IMPORTANT: Get the user's workspace file, not the main sheet
     const workspace = getWorkspaceFile(sessionId);
@@ -924,7 +929,7 @@ function saveRecord(moduleName, data, sessionId) {
 
 function updateRecord(moduleName, data, recordId, sessionId) {
   try {
-    const user = assertModuleWriteAccess_(moduleName, sessionId);
+    const user = assertModuleWriteAccess_(moduleName, sessionId, "write");
     const workspace = getWorkspaceFile(sessionId);
     const definition = getBizOSModuleDefinition_(moduleName);
     if (!definition) return { success: false, message: "Module not found" };
@@ -1016,7 +1021,7 @@ function updateRecord(moduleName, data, recordId, sessionId) {
 
 function deleteRecord(moduleName, index, sessionId) {
   try {
-    assertModuleWriteAccess_(moduleName, sessionId);
+    assertModuleWriteAccess_(moduleName, sessionId, "delete");
     
     const workspace = getWorkspaceFile(sessionId);
     const definition = getBizOSModuleDefinition_(moduleName);
