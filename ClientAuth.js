@@ -141,6 +141,9 @@ function saveClientModuleRecord(moduleName, record, sessionId) {
       return Object.prototype.hasOwnProperty.call(record,key) ? record[key] : '';
     });
     sheet.appendRow(row);
+    var savedRecord = {};
+    headers.forEach(function(header, index) { var key = String(header || '').trim(); if (key) savedRecord[key] = row[index]; });
+    auditRecordChange_(ss, sessionId, moduleName, 'CREATE', idValue, {}, savedRecord, session);
     return {success:true,message:'Record saved successfully.',code:'SAVE_SUCCESS',recordId:idValue};
   } catch (error) {
     console.error('saveClientModuleRecord error:', error);
@@ -229,8 +232,13 @@ function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
     for(var i=0;i<values.length;i++)if(String(values[i][idIndex])===String(recordId)){targetRow=i+2;break;}
     if(targetRow<0)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
     var current=sheet.getRange(targetRow,1,1,width).getValues()[0],incoming=record&&typeof record==='object'?record:{};
-    headers.forEach(function(header,i){var key=String(header||'').trim();if(key&&key!==idColumn&&key!=='Created_At'&&key!=='_row'&&Object.prototype.hasOwnProperty.call(incoming,key))current[i]=incoming[key];});
-    sheet.getRange(targetRow,1,1,width).setValues([current]);
+    var beforeRecord = {};
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key)beforeRecord[key]=current[i];});
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key&&key!==idColumn&&key!=='Created_At'&&key!=='Created_By'&&key!=='Updated_At'&&key!=='Updated_By'&&key!=='_row'&&Object.prototype.hasOwnProperty.call(incoming,key))current[i]=incoming[key];});
+    sheet.getRange(targetRow,1,width).setValues([current]);
+    var afterRecord = {};
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key)afterRecord[key]=current[i];});
+    auditRecordChange_(ss, sessionId, moduleName, 'UPDATE', recordId, beforeRecord, afterRecord, session);
     return{success:true,message:'Record updated successfully.',code:'UPDATE_SUCCESS'};
   }catch(error){console.error('updateClientModuleRecord error:',error);return{success:false,message:'We could not update this record. No existing records were deleted.',code:'UPDATE_ERROR'};}
 }
@@ -249,6 +257,10 @@ function deleteClientModuleRecord(moduleName, dataIndex, sessionId) {
     if(!sheet)return{success:false,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
     var rowNumber=index+2;
     if(rowNumber>sheet.getLastRow())return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    var width=sheet.getLastColumn(),headers=sheet.getRange(1,1,1,width).getValues()[0],row=sheet.getRange(rowNumber,1,1,width).getValues()[0],beforeRecord={};
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key)beforeRecord[key]=row[i];});
+    var recordId=beforeRecord[idColumn]||'';
+    auditRecordChange_(ss, sessionId, moduleName, 'DELETE', recordId, beforeRecord, {}, session);
     sheet.deleteRow(rowNumber);
     return{success:true,message:'Record deleted successfully.',code:'DELETE_SUCCESS'};
   }catch(error){console.error('deleteClientModuleRecord error:',error);return{success:false,message:'We could not delete this record.',code:'DELETE_ERROR'};}
@@ -272,7 +284,13 @@ function updateClientModuleRecordField(moduleName, dataIndex, columnName, newVal
     if(columnIndex<0)return{success:false,message:'The requested field does not exist in this sheet.',code:'FIELD_NOT_FOUND'};
     var startRow=Math.max(2,lastRow-999),rowNumber=startRow+index;
     if(rowNumber>lastRow)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
+    var rowValues=sheet.getRange(rowNumber,1,1,width).getValues()[0],beforeRecord={};
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key)beforeRecord[key]=rowValues[i];});
+    var recordIdColumn=getClientModuleIdColumnV12_(moduleName),recordId=recordIdColumn&&headers.indexOf(recordIdColumn)>=0?rowValues[headers.indexOf(recordIdColumn)]:'';
     sheet.getRange(rowNumber,columnIndex+1).setValue(newValue);
+    var afterValues=sheet.getRange(rowNumber,1,1,width).getValues()[0],afterRecord={};
+    headers.forEach(function(header,i){var key=String(header||'').trim();if(key)afterRecord[key]=afterValues[i];});
+    auditRecordChange_(ss, sessionId, moduleName, 'UPDATE', recordId, beforeRecord, afterRecord, session);
     return{success:true,message:'Record updated successfully.',code:'UPDATE_SUCCESS'};
   }catch(error){console.error('updateClientModuleRecordField error:',error);return{success:false,message:'We could not update this field.',code:'UPDATE_ERROR'};}
 }
