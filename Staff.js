@@ -95,7 +95,7 @@ function inviteStaffMember(businessId, email, name, role, invitedByEmail, assign
     if (!modules.length) return { success: false, message: 'Please assign at least one valid module for the staff member.' };
 
     const invitationCode = generateInvitationCode();
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const existingIndex = data.findIndex(function(row) {
       return String(row[emailCol] || '').toLowerCase() === email &&
              String(row[businessIdCol] || '') === String(businessId);
@@ -139,7 +139,8 @@ function inviteStaffMember(businessId, email, name, role, invitedByEmail, assign
     // Assigned_Modules is the canonical assignment. Staff_Modules is kept
     // synchronized for legacy callers during the transition.
     syncStaffModules_(email, businessId, modules, invitedByEmail);
-    sendInvitationEmail(email, name, invitationCode, role);
+    const invitationSent = sendInvitationEmail(email, name, invitationCode, role);
+    if (!invitationSent) return { success: false, message: 'The invitation was created, but the email could not be sent. Please try again.' };
     try {
       logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_invited', 'Invited ' + email + ' as ' + role + '.', 'staff');
       createBizOSNotification_(businessId, 'all', 'staff', 'New team invitation', actor.user.name + ' invited ' + email + ' to join the business.', actor.user.email, 'staff');
@@ -281,14 +282,15 @@ function resendStaffInvitation(businessId, email, sessionId) {
     }
 
     const code = generateInvitationCode();
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     userSheet.getRange(rowIndex + 1, statusCol + 1).setValue('pending');
     userSheet.getRange(rowIndex + 1, codeCol + 1).setValue(code);
     userSheet.getRange(rowIndex + 1, expiresCol + 1).setValue(expiresAt);
 
     const role = String(data[rowIndex][roleCol] || 'staff').toLowerCase();
     const name = String(data[rowIndex][nameCol] || '');
-    sendInvitationEmail(email, name, code, role);
+    const invitationSent = sendInvitationEmail(email, name, code, role);
+    if (!invitationSent) return { success: false, message: 'The invitation could not be emailed. Please try again.' };
     try {
       logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_invitation_resent', 'Resent the invitation to ' + email + '.', 'staff');
       createBizOSNotification_(businessId, 'all', 'staff', 'Staff invitation resent', actor.user.name + ' resent the invitation to ' + email + '.', actor.user.email, 'staff');
