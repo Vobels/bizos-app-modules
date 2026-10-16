@@ -546,7 +546,11 @@ window.handleLogin = function(event) {
         saveSession(res.sessionId, res.user);
         
         const loginModal = document.getElementById('login-modal');
-        if (loginModal) loginModal.classList.add('hidden');
+        if (loginModal) {
+          // Use ModalFix's close handler so its body/document scroll lock is released.
+          if (typeof window.closeLoginModal === 'function') window.closeLoginModal();
+          else loginModal.classList.add('hidden');
+        }
         
         console.log('Session saved:', {
           sessionId: currentSessionId,
