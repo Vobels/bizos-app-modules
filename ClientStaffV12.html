@@ -45,7 +45,7 @@
         var status=String(x.invitationStatus||'').toLowerCase()||'active';
         var modules=Array.isArray(x.assignedModules)?x.assignedModules:[];
         var isOwner=String(x.role||'').toLowerCase()==='owner';
-        var canEditRole=String((window.clientUser||{}).role||'').toLowerCase()==='owner';
+        var canEditRole=String((window.clientUser||{}).role||(window.clientUser||{}).Role||'').toLowerCase()==='owner';
         var roleCell=(!isOwner&&canEditRole)?'<select aria-label="Role for '+esc(x.name||x.email)+'" onchange="staffV12UpdateRole(\''+escAttr(x.email)+'\',this.value,this)"><option value="staff" '+(String(x.role||'staff').toLowerCase()==='staff'?'selected':'')+'>Staff</option><option value="admin" '+(String(x.role||'').toLowerCase()==='admin'?'selected':'')+'>Admin</option></select>':esc(x.role||'staff');
         return '<div class="staff-row"><span><b>'+esc(x.name||x.email)+'</b><small>'+esc(x.email||'')+'</small></span><span>'+roleCell+'</span><span><i class="staff-status '+status+'">'+esc(status)+'</i></span><span><small>'+esc(modules.join(', ')||'No modules')+'</small></span><span class="staff-actions">'+(status==='pending'?'<button onclick="staffV12Resend(\''+escAttr(x.email)+'\')">Resend</button>':'')+'<button onclick="staffV12Manage(\''+escAttr(x.email)+'\',\''+escAttr(x.name||'')+'\')">Manage</button><button class="danger" onclick="staffV12Remove(\''+escAttr(x.email)+'\')">Remove</button></span></div>';
       }).join('')+'</div>';
