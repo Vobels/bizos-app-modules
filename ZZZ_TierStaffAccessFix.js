@@ -6,7 +6,7 @@
 // Owner/admin permissions remain role-based.
 // ============================================================
 
-function getStaffModules(email, businessId) {
+function getStaffModulesByTierLegacy_(email, businessId) {
   try {
     const businessSheet = getOrCreateBusinessSheet();
     const data = businessSheet.getDataRange().getValues();
