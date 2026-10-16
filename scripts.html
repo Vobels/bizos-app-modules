@@ -1226,21 +1226,54 @@ function removeTeamMember(email) {
 
 // ==================== DASHBOARD FUNCTIONS ====================
 // KEEP THIS VERSION (most complete with safety checks)
+function refreshBizOSSessionPermissions_(force) {
+  if (!currentUser || !currentUser.email || !currentSessionId) return;
+  const sessionId = currentSessionId;
+  const lastRefresh = Number(window.__bizosSessionPermissionRefreshAt || 0);
+  const refreshDue = force === true ||
+    window.__bizosSessionPermissionRefreshSession !== sessionId ||
+    (Date.now() - lastRefresh) >= 60000;
+  if (!refreshDue || window.__bizosSessionPermissionRefreshInFlight === sessionId) return;
+  window.__bizosSessionPermissionRefreshInFlight = sessionId;
+  google.script.run.withSuccessHandler(function(result) {
+    if (currentSessionId !== sessionId) return;
+    window.__bizosSessionPermissionRefreshInFlight = null;
+    if (result && result.success && result.user) {
+      currentUser = result.user;
+      saveSession(sessionId, result.user);
+      // A role/assignment change can affect every cached dashboard element.
+      BIZ_CACHE.data = { kpis: null, recentTransactions: [], modules: {} };
+      BIZ_CACHE.initialized = false;
+      window.__bizosSessionPermissionRefreshSession = sessionId;
+      window.__bizosSessionPermissionRefreshAt = Date.now();
+      loadDashboard();
+      return;
+    }
+    // Fail closed if the session cannot be revalidated.
+    currentUser.role = 'staff';
+    currentUser.accessibleModules = [];
+    BIZ_CACHE.data = { kpis: null, recentTransactions: [], modules: {} };
+    BIZ_CACHE.initialized = false;
+    window.__bizosSessionPermissionRefreshSession = sessionId;
+    window.__bizosSessionPermissionRefreshAt = Date.now();
+    loadDashboard();
+  }).withFailureHandler(function() {
+    if (currentSessionId !== sessionId) return;
+    window.__bizosSessionPermissionRefreshInFlight = null;
+    // Keep the existing session usable on transient transport errors, but do
+    // not claim the permissions were refreshed; retry on the next visibility
+    // event or dashboard refresh.
+    window.__bizosSessionPermissionRefreshAt = 0;
+  }).validateBizOSSession(sessionId);
+}
+
 function loadDashboard() {
   console.log("🔵 loadDashboard called");
   if (!currentUser || !currentUser.email || !currentSessionId) return;
+  refreshBizOSSessionPermissions_(false);
+  if (window.__bizosSessionPermissionRefreshInFlight === currentSessionId) return;
   const role = String(currentUser.role || currentUser.Role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
-  if (!isOwnerOrAdmin && window.__bizosStaffAccessHydrationSession !== currentSessionId) {
-    window.__bizosStaffAccessHydrationSession = currentSessionId;
-    google.script.run.withSuccessHandler(function(result) {
-      if (currentSessionId !== window.__bizosStaffAccessHydrationSession) return;
-      if (result && result.success && result.user) { currentUser = result.user; saveSession(currentSessionId, result.user); }
-      else currentUser.accessibleModules = [];
-      loadDashboard();
-    }).withFailureHandler(function() { if (currentUser) currentUser.accessibleModules = []; loadDashboard(); }).validateBizOSSession(currentSessionId);
-    return;
-  }
   updateUserInfo();
   updateStaffSidebarForRole();
   applyRoleNavigationAccess_();
@@ -1252,6 +1285,14 @@ function loadDashboard() {
   addUpgradeButton();
   loadEnhancedDashboard();
 }
+// Recheck role and module permissions when users return to an open tab.
+if (!window.__bizosPermissionRefreshListenersBound) {
+  window.__bizosPermissionRefreshListenersBound = true;
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && currentSessionId) refreshBizOSSessionPermissions_(true);
+  });
+}
+
 function applyRoleNavigationAccess_() {
   const role = String(currentUser && (currentUser.role || currentUser.Role) || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
