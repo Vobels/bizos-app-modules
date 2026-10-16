@@ -94,7 +94,8 @@
   <script>
     (function () {
       var params = new URLSearchParams(window.location.search || '');
-      var code = String(params.get('invite') || '').trim().toUpperCase();
+      var templateCode = '<?= invitationCode ?>';
+      var code = String(templateCode || params.get('invite') || '').trim().toUpperCase();
       var loading = document.getElementById('loading');
       var content = document.getElementById('content');
       var invalid = document.getElementById('invalid');
