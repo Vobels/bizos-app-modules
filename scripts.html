@@ -433,7 +433,7 @@ function callGoogleScript(functionName, params, successHandler, errorHandler) {
 function checkModuleAccess(moduleName) {
   const tier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
+  const userRole = String(currentUser?.role || 'staff').toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
   // ===== STAFF: Check if module is assigned =====
@@ -481,7 +481,7 @@ function getModuleAccess(moduleName) {
 
   const effectiveTier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
+  const userRole = String(currentUser?.role || 'staff').toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 
   if (!isOwnerOrAdmin) {
@@ -2434,7 +2434,7 @@ function loadAllApps() {
       
       const userTier = normalizeClientTier(currentUser?.subscriptionTier);
       const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-      const userRole = currentUser?.role || 'staff';
+      const userRole = String(currentUser?.role || 'staff').toLowerCase();
       const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
       
       // ===== CHECK IF USER IS PREMIUM =====
@@ -2793,7 +2793,7 @@ function loadModulesList() {
   const moduleOrder = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
   const userTier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
+  const userRole = String(currentUser?.role || 'staff').toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
   // ===== CHECK IF USER IS PREMIUM =====
