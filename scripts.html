@@ -1236,7 +1236,12 @@ function refreshBizOSSessionPermissions_(force) {
   if (!refreshDue || window.__bizosSessionPermissionRefreshInFlight === sessionId) return;
   window.__bizosSessionPermissionRefreshInFlight = sessionId;
   google.script.run.withSuccessHandler(function(result) {
-    if (currentSessionId !== sessionId) return;
+    if (currentSessionId !== sessionId) {
+      if (window.__bizosSessionPermissionRefreshInFlight === sessionId) {
+        window.__bizosSessionPermissionRefreshInFlight = null;
+      }
+      return;
+    }
     window.__bizosSessionPermissionRefreshInFlight = null;
     if (result && result.success && result.user) {
       currentUser = result.user;
@@ -1249,29 +1254,39 @@ function refreshBizOSSessionPermissions_(force) {
       loadDashboard();
       return;
     }
-    // Fail closed if the session cannot be revalidated.
-    currentUser.role = 'staff';
-    currentUser.accessibleModules = [];
-    BIZ_CACHE.data = { kpis: null, recentTransactions: [], modules: {} };
-    BIZ_CACHE.initialized = false;
-    window.__bizosSessionPermissionRefreshSession = sessionId;
-    window.__bizosSessionPermissionRefreshAt = Date.now();
-    loadDashboard();
-  }).withFailureHandler(function() {
-    if (currentSessionId !== sessionId) return;
+    // A definitive invalid-session response must not preserve stale privileges.
+    clearSession();
+    if (typeof window.__bizosForceLanding === 'function') {
+      window.__bizosForceLanding();
+    } else {
+      showLoginModal();
+    }
+  }).withFailureHandler(function(error) {
+    if (currentSessionId !== sessionId) {
+      if (window.__bizosSessionPermissionRefreshInFlight === sessionId) {
+        window.__bizosSessionPermissionRefreshInFlight = null;
+      }
+      return;
+    }
     window.__bizosSessionPermissionRefreshInFlight = null;
-    // Keep the existing session usable on transient transport errors, but do
-    // not claim the permissions were refreshed; retry on the next visibility
-    // event or dashboard refresh.
+    // A transient RPC failure is not proof that the session is invalid. Render
+    // with the last server-confirmed user once, then retry on a later refresh.
     window.__bizosSessionPermissionRefreshAt = 0;
+    window.__bizosPermissionRefreshBypassOnce = sessionId;
+    console.warn('Session permission refresh failed; retaining last confirmed session for this render.', error);
+    loadDashboard();
   }).validateBizOSSession(sessionId);
 }
 
 function loadDashboard() {
   console.log("🔵 loadDashboard called");
   if (!currentUser || !currentUser.email || !currentSessionId) return;
-  refreshBizOSSessionPermissions_(false);
-  if (window.__bizosSessionPermissionRefreshInFlight === currentSessionId) return;
+  if (window.__bizosPermissionRefreshBypassOnce === currentSessionId) {
+    window.__bizosPermissionRefreshBypassOnce = null;
+  } else {
+    refreshBizOSSessionPermissions_(false);
+    if (window.__bizosSessionPermissionRefreshInFlight === currentSessionId) return;
+  }
   const role = String(currentUser.role || currentUser.Role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
   updateUserInfo();
@@ -6131,6 +6146,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (result && result.success && result.user) {
           currentUser = result.user;
           saveSession(savedSessionId, result.user);
+          // The session was just validated by this restore request. Seed the
+          // refresh marker so loadDashboard does not immediately issue a
+          // duplicate validation and block its own first render.
+          window.__bizosSessionPermissionRefreshSession = savedSessionId;
+          window.__bizosSessionPermissionRefreshAt = Date.now();
+          window.__bizosSessionPermissionRefreshInFlight = null;
           updateStaffSidebarForRole();
           const landingPage = document.getElementById('landing-page');
           const dashboardPage = document.getElementById('dashboard-page');
