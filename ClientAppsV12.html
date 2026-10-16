@@ -20,11 +20,11 @@
     if(!hasAccessible){grid.innerHTML='<div class="apps-empty"><h3>No apps assigned</h3><p>Your account does not currently have any application modules assigned.</p></div>';return;}
     grid.innerHTML=names.filter(function(n){return !!summary[n];}).map(function(n){
       var m=summary[n]||{}, ok=!!m.isAccessible, route=routes[n]||'overview';
-      var badge=!ok?'<span class="bizos-app-badge lock"><i class="fas fa-lock"></i> Not assigned to this account</span>':(m.isReadOnly?'<span class="bizos-app-badge view">(View Only)</span>':'');
+      var badge=!ok?'<span class="bizos-app-badge lock"><i class="fas fa-lock"></i> Not assigned</span>':(m.isReadOnly?'<span class="bizos-app-badge view">View only</span>':'');
       var action=ok?' onclick="selectView(\''+route+'\')"':'';
       return '<article class="bizos-app-card '+(ok?'':'locked')+'"'+action+'>'+
-        '<div class="bizos-app-card-top"><div class="bizos-app-icon '+(iconClasses[n]||'')+'"><i class="fas '+(icons[n]||'fa-folder')+'"></i></div><i class="fas fa-arrow-right bizos-app-arrow"></i></div>'+
-        '<h3 class="bizos-app-name">'+esc(m.label||n)+'</h3><p class="bizos-app-help">'+(ok?'Click to open':'Upgrade or request access to use this app')+'</p>'+badge+
+        '<div class="bizos-app-card-top"><div class="bizos-app-icon '+(iconClasses[n]||'')+'"><i class="fas '+(icons[n]||'fa-folder')+'"></i></div><i class="fas '+(ok?'fa-arrow-right':'fa-lock')+' bizos-app-arrow"></i></div>'+
+        '<h3 class="bizos-app-name">'+esc(m.label||n)+'</h3><p class="bizos-app-help">'+(ok?'Open workspace':'Ask your business owner or admin to assign access')+'</p>'+badge+
         '</article>';
     }).join('');
   }
