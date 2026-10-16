@@ -485,7 +485,7 @@ function getModuleAccess(moduleName) {
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
+    const assignedModules = currentUser?.accessibleModules || [];
     const isAssigned = assignedModules.includes(moduleName);
     return {
       isAccessible: isAssigned,
@@ -2802,7 +2802,7 @@ function loadModulesList() {
   // ===== STAFF: Get assigned modules =====
   let staffAssignedModules = [];
   if (!isOwnerOrAdmin) {
-    staffAssignedModules = currentUser?.accessibleModules || ['Finance'];
+    staffAssignedModules = currentUser?.accessibleModules || [];
     console.log("Staff assigned modules:", staffAssignedModules);
   }
   
