@@ -340,6 +340,63 @@ function removeTeamMember(businessId, email, sessionId) {
   }
 }
 
+function updateStaffMemberRole(businessId, email, newRole, sessionId) {
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(10000)) return { success: false, message: 'Another staff change is in progress. Please try again.' };
+    const actor = staffActor_(sessionId, businessId, ['owner']);
+    if (!actor.ok) return { success: false, message: actor.message };
+    const targetEmail = String(email || '').trim().toLowerCase();
+    const role = String(newRole || '').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) return { success: false, message: 'Enter a valid staff email.' };
+    if (role !== 'staff' && role !== 'admin') return { success: false, message: 'Choose Staff or Administrator.' };
+
+    const userSheet = getOrCreateUserSheet();
+    const headers = ensureStaffInvitationColumns_(userSheet);
+    const data = userSheet.getDataRange().getValues();
+    const emailCol = headers.indexOf('Email');
+    const businessCol = headers.indexOf('Business_ID');
+    const roleCol = headers.indexOf('Role');
+    const assignedCol = headers.indexOf('Assigned_Modules');
+    if ([emailCol, businessCol, roleCol, assignedCol].some(function(i) { return i < 0; })) {
+      return { success: false, message: 'Staff role fields are unavailable. Please contact support.' };
+    }
+    const rowIndex = data.findIndex(function(row) {
+      return String(row[emailCol] || '').trim().toLowerCase() === targetEmail &&
+        String(row[businessCol] || '') === String(businessId || '');
+    });
+    if (rowIndex < 1) return { success: false, message: 'Team member not found in this business.' };
+    const oldRole = String(data[rowIndex][roleCol] || 'staff').trim().toLowerCase();
+    if (oldRole === 'owner') return { success: false, message: 'The business owner role cannot be changed here.' };
+    if (oldRole === role) return { success: true, message: 'This team member already has that role.' };
+
+    const assigned = normalizeStaffModules_(data[rowIndex][assignedCol]);
+    if (!assigned.length) return { success: false, message: 'Assign at least one app to this team member before changing their role.' };
+    userSheet.getRange(rowIndex + 1, roleCol + 1).setValue(role);
+    if (role === 'admin') {
+      const allModules = getAvailableModulesForStaff();
+      userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue(allModules.join(','));
+      syncStaffModules_(targetEmail, businessId, allModules, actor.user.email);
+    } else {
+      syncStaffModules_(targetEmail, businessId, assigned, actor.user.email);
+    }
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_role_updated',
+        'Changed ' + targetEmail + ' role from ' + oldRole + ' to ' + role + '.', 'staff');
+      createBizOSNotification_(businessId, 'all', 'staff', 'Staff role updated',
+        actor.user.name + ' changed ' + targetEmail + ' role to ' + role + '.', actor.user.email, 'staff');
+    } catch (notificationError) {
+      console.error('Staff role update notification error:', notificationError);
+    }
+    return { success: true, message: 'Role updated to ' + (role === 'admin' ? 'Administrator' : 'Staff') + '.' };
+  } catch (error) {
+    console.error('Update staff role error:', error);
+    return { success: false, message: error && error.message ? error.message : 'Could not update staff role.' };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
 function getBusinessStaff(businessId, sessionId) {
   const actor = staffActor_(sessionId, businessId, ['owner', 'admin']);
   if (!actor.ok) return { success: false, message: actor.message };
