@@ -88,7 +88,7 @@
     var rows=filtered(), box=document.getElementById('client-module-table');document.getElementById('client-module-record-count').textContent=' · '+rows.length+' record'+(rows.length===1?'':'s');
     if(!state.headers.length){box.innerHTML='<div class="client-module-empty">No fields were found for this module.</div>';return;}
     var cols=state.headers.slice(0,8);
-    box.innerHTML='<div class="client-module-scroll"><table><thead><tr>'+cols.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'<th>Actions</th></tr></thead><tbody>'+rows.slice(0,100).map(function(r){return '<tr>'+cols.map(function(h){return '<td>'+esc(r[h])+'</td>';}).join('')+'<td class="client-module-row-actions">'+(state.readOnly?'<span class="client-module-readonly">Read only</span>':'<button type="button" onclick="clientModuleV12Edit('+Number(r._row||0)+')">Edit</button><button type="button" onclick="clientModuleV12Delete('+Number(r._row||0)+')">Delete</button>')+'</td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>100?'<div class="client-module-more">Showing the first 100 matching records.</div>':'');
+    box.innerHTML='<div class="client-module-scroll"><table><thead><tr>'+cols.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'<th>Actions</th></tr></thead><tbody>'+rows.slice(0,100).map(function(r){return '<tr>'+cols.map(function(h){return '<td>'+esc(r[h])+'</td>';}).join('')+'<td class="client-module-row-actions"><button type="button" onclick="clientModuleV12History('+Number(r._row||0)+')">History</button>'+(state.readOnly?'<span class="client-module-readonly">Read only</span>':'<button type="button" onclick="clientModuleV12Edit('+Number(r._row||0)+')">Edit</button><button type="button" onclick="clientModuleV12Delete('+Number(r._row||0)+')">Delete</button>')+'</td></tr>';}).join('')+'</tbody></table></div>'+(rows.length>100?'<div class="client-module-more">Showing the first 100 matching records.</div>':'');
   }
   function recordId(r){
     return r&&((state.module==='Ecommerce'&&r.Order_ID)||(state.module==='Sales'&&r.Deal_ID)||(state.module==='CRM'&&r.Contact_ID)||(state.module==='HR'&&r.Employee_ID)||(state.module==='Logistics'&&r.Shipment_ID)||(state.module==='Tax'&&r.Tax_ID)||(state.module==='Agro'&&r.Record_ID)||(state.module==='Productivity'&&r.Record_ID)||(state.module==='POS'&&r.Transaction_ID)||(state.module==='Attendance'&&r.Record_ID)||(state.module==='Warehouse'&&r.Item_ID)||(state.module==='Finance'&&r.Transaction_ID));
@@ -154,6 +154,27 @@
     e.scrollIntoView({behavior:'smooth',block:'start'});
   }
   window.clientModuleV12New=function(){if(state.readOnly){showMessage('This module is read-only for staff accounts.',true);return;}state.editingRow=null;renderEditor(null);};
+  window.clientModuleV12History=function(row){
+    var record=state.records.find(function(x){return Number(x._row)===Number(row);}),id=recordId(record);
+    if(!record||!id){showMessage('This record has no stable ID, so its history cannot be opened yet.',true);return;}
+    var modal=document.getElementById('client-module-history-modal');
+    if(!modal){modal=document.createElement('div');modal.id='client-module-history-modal';modal.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;';
+      modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:20px;width:min(680px,100%);max-height:85vh;overflow:auto;"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><h3 style="margin:0;font-size:18px;font-weight:600;">Record history</h3><button type="button" onclick="clientModuleV12CloseHistory()">Close</button></div><div id="client-module-history-content" style="margin-top:16px;">Loading history…</div></div>';document.body.appendChild(modal);
+    } else modal.style.display='flex';
+    var content=document.getElementById('client-module-history-content');content.textContent='Loading history…';
+    google.script.run.withSuccessHandler(function(result){
+      if(!result||result.success===false){content.textContent='Could not load this record’s history.';return;}
+      var history=Array.isArray(result.history)?result.history:[];
+      if(!history.length){content.textContent='No history has been recorded for this record yet. New changes will appear here.';return;}
+      content.innerHTML=history.map(function(event){
+        var changed=Array.isArray(event.Changed_Fields_JSON)?event.Changed_Fields_JSON:[];
+        var details=changed.map(function(item){return '<li><strong>'+esc(item.field||'')+'</strong>: '+esc(item.before==null?'—':item.before)+' → '+esc(item.after==null?'—':item.after)+'</li>';}).join('');
+        return '<article style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-top:10px;"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;"><strong>'+esc(event.Action||'Changed')+'</strong><small>'+esc(event.Timestamp||'')+'</small></div><p style="margin:6px 0;color:#6b7280;font-size:13px;">'+esc(event.Actor_Name||event.Actor_Email||'Unknown user')+' · '+esc(event.Actor_Role||'user')+'</p>'+(details?'<ul style="padding-left:20px;margin:8px 0;">'+details+'</ul>':'')+'</article>';
+      }).join('');
+    }).withFailureHandler(function(){content.textContent='Could not load this record’s history.';}).getClientRecordAuditHistory(state.module,id,window.clientSessionId);
+  };
+  window.clientModuleV12CloseHistory=function(){var modal=document.getElementById('client-module-history-modal');if(modal)modal.style.display='none';};
+
   window.clientModuleV12Edit=function(row){if(state.readOnly){showMessage('This module is read-only for staff accounts.',true);return;}var r=state.records.find(function(x){return Number(x._row)===Number(row);});if(r){state.editingRow=Number(row);renderEditor(r);}};
   window.clientModuleV12CloseEditor=function(){document.getElementById('client-module-editor').classList.add('hidden');};
   window.clientModuleV12Delete=function(row){if(state.readOnly){showMessage('This module is read-only for staff accounts.',true);return;}if(!confirm('Delete this record?'))return;var record=state.records.find(function(x){return Number(x._row)===Number(row);});if(!record){showMessage('Record not found.',true);return;}var index=Number(record._row)-2;if(index<0){showMessage('Invalid record position.',true);return;}google.script.run.withSuccessHandler(function(r){if(r&&r.success===false){showMessage(r.message||'Could not delete record.',true);return;}showMessage('Record deleted.');clientModuleV12Refresh(true);}).withFailureHandler(function(e){showMessage(window.clientFriendlyError(e&&e.message,'Could not delete record.'),true);}).deleteClientModuleRecord(state.module,index,window.clientSessionId);};
