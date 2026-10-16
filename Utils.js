@@ -28,7 +28,7 @@ function userHasAccess(moduleName, sessionId) {
   }
   
   // Staff: Check assigned modules
-  const accessibleModules = user.accessibleModules || ['Finance'];
+  const accessibleModules = Array.isArray(user.accessibleModules) ? user.accessibleModules : [];
   return accessibleModules.includes(moduleName);
 }
 
