@@ -193,6 +193,15 @@ function doPost(e) {
       case 'getModuleSummary':
         result = getModuleSummary(sessionId);
         break;
+      case 'getRecordAuditHistory':
+        result = getRecordAuditHistory(payload[0] || '', payload[1] || '', sessionId);
+        break;
+      case 'getActivityHistory':
+        result = getActivityHistory(payload[0] || '', payload[1] || 100, sessionId);
+        break;
+      case 'getClientRecordAuditHistory':
+        result = getClientRecordAuditHistory(payload.moduleName || payload[0] || '', payload.recordId || payload[1] || '', sessionId);
+        break;
       
       // Business Center Part 1
       case 'getBusinessCenterData':
