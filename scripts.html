@@ -3789,6 +3789,7 @@ function loadModuleTableWithSync(moduleName) {
       tbody.innerHTML = records.map((row, i) => '<tr class="hover:bg-gray-50">' +
         headers.map(h => '<td class="px-4 py-2 text-sm text-gray-600">' + escapeHtml(row[h] == null ? '' : String(row[h])) + '</td>').join('') +
         '<td class="px-4 py-2 text-sm">' +
+        '<button onclick="openRecordAuditHistory(' + i + ')" class="text-gray-600 hover:text-gray-900 mr-3" aria-label="View record history" title="History"><i class="fas fa-history"></i></button>' +
         '<button onclick="editRecord(' + i + ')" class="text-blue-600 hover:text-blue-800 mr-3" aria-label="Edit record"><i class="fas fa-edit"></i></button>' +
         '<button onclick="showDeleteModal(' + i + ')" class="text-red-600 hover:text-red-800" aria-label="Delete record"><i class="fas fa-trash"></i></button>' +
         '</td></tr>').join('');
@@ -3802,6 +3803,69 @@ function loadModuleTableWithSync(moduleName) {
       showNotification('Failed to load module data. Please refresh.', 'error');
     }
   );
+}
+
+function openRecordAuditHistory(index) {
+  const record = currentModuleData[index];
+  if (!record) return;
+  const idKeys = ['Transaction_ID','Deal_ID','Order_ID','Contact_ID','Employee_ID','Shipment_ID','Tax_ID','Item_ID','Record_ID'];
+  let recordId = '';
+  for (const key of idKeys) {
+    if (record[key] !== undefined && record[key] !== null && String(record[key]) !== '') {
+      recordId = String(record[key]);
+      break;
+    }
+  }
+  if (!recordId) {
+    showNotification('This record has no stable ID, so its history cannot be opened yet.', 'info');
+    return;
+  }
+  let modal = document.getElementById('bizos-record-history-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bizos-record-history-modal';
+    modal.className = 'fixed inset-0 z-[10000] bg-black bg-opacity-40 flex items-center justify-center p-4';
+    modal.innerHTML = '<div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-auto p-6"><div class="flex items-center justify-between gap-4 mb-4"><h2 class="text-lg font-semibold">Record history</h2><button type="button" onclick="closeRecordAuditHistory()" class="text-gray-500 hover:text-gray-900" aria-label="Close history"><i class="fas fa-times"></i></button></div><div id="bizos-record-history-content" class="space-y-3"><p class="text-sm text-gray-500">Loading history…</p></div></div>';
+    document.body.appendChild(modal);
+  }
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+  const content = document.getElementById('bizos-record-history-content');
+  if (content) content.innerHTML = '<p class="text-sm text-gray-500">Loading history…</p>';
+  callGoogleScript('getRecordAuditHistory', [currentModuleName, recordId], function(result) {
+    if (!content) return;
+    if (!result || result.success === false) {
+      content.innerHTML = '<p class="text-sm text-red-600">Could not load this record’s history.</p>';
+      return;
+    }
+    const history = Array.isArray(result.history) ? result.history : [];
+    if (!history.length) {
+      content.innerHTML = '<p class="text-sm text-gray-500">No history has been recorded for this record yet. New changes will appear here.</p>';
+      return;
+    }
+    content.innerHTML = history.map(function(event) {
+      const changed = Array.isArray(event.Changed_Fields_JSON) ? event.Changed_Fields_JSON : [];
+      const details = changed.map(function(change) {
+        return '<li><span class="font-medium">' + escapeHtml(change.field || '') + '</span>: ' +
+          escapeHtml(change.before == null ? '—' : String(change.before)) + ' → ' +
+          escapeHtml(change.after == null ? '—' : String(change.after)) + '</li>';
+      }).join('');
+      return '<article class="border border-gray-200 rounded-lg p-3"><div class="flex flex-wrap justify-between gap-2"><strong>' +
+        escapeHtml(event.Action || 'Changed') + '</strong><time class="text-xs text-gray-500">' +
+        escapeHtml(event.Timestamp || '') + '</time></div><p class="text-sm text-gray-600 mt-1">' +
+        escapeHtml(event.Actor_Name || event.Actor_Email || 'Unknown user') + ' · ' +
+        escapeHtml(event.Actor_Role || 'user') + '</p>' +
+        (details ? '<ul class="text-sm text-gray-700 mt-2 list-disc pl-5">' + details + '</ul>' : '') +
+        '</article>';
+    }).join('');
+  }, function() {
+    if (content) content.innerHTML = '<p class="text-sm text-red-600">Could not load this record’s history.</p>';
+  });
+}
+
+function closeRecordAuditHistory() {
+  const modal = document.getElementById('bizos-record-history-modal');
+  if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
 }
 
 function editRecord(index) {
