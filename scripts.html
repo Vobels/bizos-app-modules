@@ -481,11 +481,11 @@ function getModuleAccess(moduleName) {
 
   const effectiveTier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
+  const userRole = String(currentUser?.role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
+    const assignedModules = Array.isArray(currentUser?.accessibleModules) ? currentUser.accessibleModules : [];
     const isAssigned = assignedModules.includes(moduleName);
     return {
       isAccessible: isAssigned,
@@ -2434,7 +2434,7 @@ function loadAllApps() {
       
       const userTier = normalizeClientTier(currentUser?.subscriptionTier);
       const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-      const userRole = currentUser?.role || 'staff';
+      const userRole = String(currentUser?.role || 'staff').trim().toLowerCase();
       const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
       
       // ===== CHECK IF USER IS PREMIUM =====
@@ -2445,7 +2445,7 @@ function loadAllApps() {
       
       // ===== STAFF: Only assigned modules =====
       if (!isOwnerOrAdmin) {
-        accessibleModules = currentUser?.accessibleModules || ['Finance'];
+        accessibleModules = Array.isArray(currentUser?.accessibleModules) ? currentUser.accessibleModules : [];
         showDemoBadge = false;
       } 
       // ===== PREMIUM: All modules, NO demo badge =====
@@ -2785,7 +2785,7 @@ function loadModulesList() {
   const moduleOrder = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
   const userTier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
+  const userRole = String(currentUser?.role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
   // ===== CHECK IF USER IS PREMIUM =====
