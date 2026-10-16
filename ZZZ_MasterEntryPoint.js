@@ -39,6 +39,7 @@ function doGet(e) {
     if (invitationCode || requestedPage === 'invite' || requestedPage === 'invitation') {
       var invitationTemplate = HtmlService.createTemplateFromFile('staff-invitation');
       invitationTemplate.invitationCode = invitationCode;
+      invitationTemplate.loginUrl = (getAuthoritativeBizOSWebAppUrl_() || getPublicBizOSUrl_()) + '?page=login';
       return invitationTemplate.evaluate().setTitle('Join BizOS').addMetaTag('viewport','width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     if (requestedPage === 'payment-method' || requestedPage === 'paymentmethod') {
