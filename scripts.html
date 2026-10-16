@@ -433,12 +433,12 @@ function callGoogleScript(functionName, params, successHandler, errorHandler) {
 function checkModuleAccess(moduleName) {
   const tier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
-  const userRole = currentUser?.role || 'staff';
+  const userRole = String(currentUser?.role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
   
   // ===== STAFF: Check if module is assigned =====
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
+    const assignedModules = Array.isArray(currentUser?.accessibleModules) ? currentUser.accessibleModules : [];
     if (!assignedModules.includes(moduleName)) {
       showNotification('You do not have access to this module', 'warning');
       return false;
@@ -2794,7 +2794,7 @@ function loadModulesList() {
   // ===== STAFF: Get assigned modules =====
   let staffAssignedModules = [];
   if (!isOwnerOrAdmin) {
-    staffAssignedModules = currentUser?.accessibleModules || ['Finance'];
+    staffAssignedModules = Array.isArray(currentUser?.accessibleModules) ? currentUser.accessibleModules : [];
     console.log("Staff assigned modules:", staffAssignedModules);
   }
   
