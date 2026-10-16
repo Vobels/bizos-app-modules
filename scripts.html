@@ -438,7 +438,7 @@ function checkModuleAccess(moduleName) {
   
   // ===== STAFF: Check if module is assigned =====
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
+    const assignedModules = currentUser?.accessibleModules || [];
     if (!assignedModules.includes(moduleName)) {
       showNotification('You do not have access to this module', 'warning');
       return false;
@@ -1561,7 +1561,7 @@ function loadModuleSummary() {
               <i class="fas fa-arrow-right text-gray-400 group-hover:text-[#5D2A86] transition"></i>
             </div>
             <p class="font-semibold text-gray-800">${mod.label}</p>
-            <p class="text-xs text-gray-400 mt-1">Click to open</p>
+            <p class="text-xs text-gray-400 mt-1">Open workspace</p>
           </div>
         `;
       });
@@ -2445,7 +2445,7 @@ function loadAllApps() {
       
       // ===== STAFF: Only assigned modules =====
       if (!isOwnerOrAdmin) {
-        accessibleModules = currentUser?.accessibleModules || ['Finance'];
+        accessibleModules = currentUser?.accessibleModules || [];
         showDemoBadge = false;
       } 
       // ===== PREMIUM: All modules, NO demo badge =====
@@ -2490,15 +2490,17 @@ function loadAllApps() {
         appsRendered++;
         
         if (!isAccessible && !isDemo && !isPremium) {
-          // Locked for free users
+          // Owners/admins can review the plan upgrade; staff must request assignment.
+          const lockedAction = isOwnerOrAdmin ? 'onclick="showUpgradeModal()"' : '';
+          const lockedMessage = isOwnerOrAdmin ? 'Upgrade to Sovereign' : 'Not assigned · Ask your business owner or admin';
           container.innerHTML += `
-            <div onclick="showUpgradeModal()" class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer opacity-60">
+            <div ${lockedAction} class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition ${isOwnerOrAdmin ? 'cursor-pointer' : 'cursor-not-allowed'} opacity-60">
               <div class="w-12 h-12 bg-gradient-to-br ${colorClass} rounded-xl flex items-center justify-center mb-3">
                 <i class="fas ${iconClass} text-white text-xl"></i>
               </div>
               <h3 class="font-semibold text-gray-900 text-sm">${mod.label}</h3>
               <p class="text-xs text-gray-400 mt-1 flex items-center">
-                <i class="fas fa-lock text-gray-400 text-xs mr-1"></i> Upgrade to Sovereign
+                <i class="fas fa-lock text-gray-400 text-xs mr-1"></i> ${lockedMessage}
               </p>
             </div>
           `;
@@ -2520,7 +2522,7 @@ function loadAllApps() {
                 <i class="fas ${iconClass} text-white text-xl"></i>
               </div>
               <h3 class="font-semibold text-gray-900 text-sm">${mod.label}</h3>
-              <p class="text-xs text-gray-400 mt-1">Click to open</p>
+              <p class="text-xs text-gray-400 mt-1">Open workspace</p>
               ${badgeHtml}
             </div>
           `;
