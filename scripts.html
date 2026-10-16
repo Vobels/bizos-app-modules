@@ -1291,6 +1291,11 @@ if (!window.__bizosPermissionRefreshListenersBound) {
   document.addEventListener('visibilitychange', function() {
     if (!document.hidden && currentSessionId) refreshBizOSSessionPermissions_(true);
   });
+  // While the page stays open, revalidate at most once per minute. The helper
+  // skips calls when permissions were refreshed more recently or a call is in flight.
+  window.setInterval(function() {
+    if (!document.hidden && currentSessionId) refreshBizOSSessionPermissions_(false);
+  }, 60000);
 }
 
 function applyRoleNavigationAccess_() {
