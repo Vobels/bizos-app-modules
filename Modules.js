@@ -874,6 +874,10 @@ function saveRecord(moduleName, data, sessionId) {
     // Save record to module sheet
     const rowData = headers.map(header => data[header] || "");
     sheet.appendRow(rowData);
+    const savedRecord = {};
+    headers.forEach(function(header, index) { savedRecord[header] = rowData[index]; });
+    const savedRecordId = data.Transaction_ID || data.Deal_ID || data.Order_ID || data.Contact_ID || data.Employee_ID || data.Shipment_ID || data.Tax_ID || data.Item_ID || data.Record_ID || '';
+    auditRecordChange_(workspace, sessionId, moduleName, 'CREATE', savedRecordId, {}, savedRecord);
     
     // Auto-sync to financial data (if applicable and not already finance)
     if (moduleName !== 'Finance') {
@@ -969,14 +973,24 @@ function updateRecord(moduleName, data, recordId, sessionId) {
       }
     }
 
-    // Update each column
+    // Capture the full previous row for the audit trail before applying edits.
+    const beforeRecord = {};
+    headers.forEach(function(header, i) { beforeRecord[header] = values[rowIndex][i]; });
+
+    // Update each column. The audit actor is derived from the authenticated session,
+    // never from client-supplied Created_By / Updated_By fields.
     for (const [key, value] of Object.entries(data)) {
-      if (key === '_record_id') continue;
+      if (key === '_record_id' || key === 'Created_By' || key === 'Created_At' ||
+          key === 'Updated_By' || key === 'Updated_At') continue;
       const colIndex = headers.indexOf(key);
       if (colIndex !== -1) {
         sheet.getRange(rowIndex + 1, colIndex + 1).setValue(value);
       }
     }
+    const updatedValuesForAudit = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
+    const afterRecord = {};
+    headers.forEach(function(header, i) { afterRecord[header] = updatedValuesForAudit[i]; });
+    auditRecordChange_(workspace, sessionId, moduleName, 'UPDATE', recordId, beforeRecord, afterRecord);
 
     // Keep linked financial events in sync with the edited source record.
     // This only applies to modules that already have an authoritative financial
@@ -1010,9 +1024,22 @@ function deleteRecord(moduleName, index, sessionId) {
     const sheet = workspace.getSheetByName(definition.sheet);
     if (!sheet) return { success: false, message: "Sheet not found" };
     
-    // +2 because row 1 is headers, and index is 0-based
-    sheet.deleteRow(index + 2);
-    
+    // +2 because row 1 is headers, and index is 0-based.
+    // Capture the record before removal so the audit log retains its context.
+    const rowNumber = Number(index) + 2;
+    if (!Number.isInteger(Number(index)) || Number(index) < 0 || rowNumber > sheet.getLastRow()) {
+      return { success: false, message: "Record not found" };
+    }
+    const headers = getSheetHeadersBySheet(sheet);
+    const rowValues = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+    const beforeRecord = {};
+    headers.forEach(function(header, i) { beforeRecord[header] = rowValues[i]; });
+    const recordId = beforeRecord.Transaction_ID || beforeRecord.Deal_ID || beforeRecord.Order_ID ||
+      beforeRecord.Contact_ID || beforeRecord.Employee_ID || beforeRecord.Shipment_ID ||
+      beforeRecord.Tax_ID || beforeRecord.Item_ID || beforeRecord.Record_ID || '';
+    auditRecordChange_(workspace, sessionId, moduleName, 'DELETE', recordId, beforeRecord, {});
+    sheet.deleteRow(rowNumber);
+
     return { success: true, message: "Record deleted successfully" };
   } catch (error) {
     console.error('Delete error:', error);
