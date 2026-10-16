@@ -207,6 +207,21 @@ function getDashboardKPIsAccurate(sessionId, period) {
 }
 
 // Optimized Enhanced Dashboard Data
+/**
+ * Server-side dashboard authorization. Resolve access from the validated session,
+ * never from browser-supplied user data. Unknown/missing assignments fail closed.
+ */
+function dashboardUserCanViewFinance_(sessionId) {
+  if (!sessionId || typeof getUserFromSession !== 'function') return false;
+  const user = getUserFromSession(sessionId);
+  if (!user) return false;
+
+  const role = String(user.role || 'staff').toLowerCase();
+  const modules = Array.isArray(user.accessibleModules) ? user.accessibleModules : [];
+  return modules.indexOf('Finance') !== -1 &&
+    (role === 'owner' || role === 'admin' || role === 'staff' || role !== '');
+}
+
 function getEnhancedDashboardData(period, sessionId) {
   // Handle case where parameters are swapped
   if (typeof period === 'string' && period.length > 30 && sessionId === undefined) {
@@ -244,14 +259,33 @@ function getEnhancedDashboardData(period, sessionId) {
     }
     
     const workspace = getWorkspaceFile(sessionId);
-    const useAccurate = (period === 'this_year' || period === 'last_month');
-    const financialMetrics = getDetailedFinancialMetrics(workspace, period, useAccurate);
     const moduleSummary = getModuleSummary(sessionId);
+    const canViewFinance = dashboardUserCanViewFinance_(sessionId);
+    const useAccurate = (period === 'this_year' || period === 'last_month');
+    const emptyFinancialMetrics = {
+      kpis: {
+        revenue: { value: 0, change: 0 },
+        expenses: { value: 0, change: 0 },
+        netProfit: { value: 0, change: 0 },
+        profitMargin: { value: 0, change: 0 }
+      },
+      trends: { categoryBreakdown: {}, daily: {}, weekly: {} }
+    };
+    // Do not read or return Finance metrics for users without Finance access.
+    const financialMetrics = canViewFinance
+      ? getDetailedFinancialMetrics(workspace, period, useAccurate)
+      : emptyFinancialMetrics;
     const businessSnapshot = getDashboardBusinessSnapshot(workspace, moduleSummary);
-    const businessHealth = calculateBusinessHealth(workspace, financialMetrics, businessSnapshot);
-    const chartData = getChartDataOptimized(workspace, period);
+    const businessHealth = canViewFinance
+      ? calculateBusinessHealth(workspace, financialMetrics, businessSnapshot)
+      : { overall: 0, metrics: [], recommendations: [] };
+    const chartData = canViewFinance
+      ? getChartDataOptimized(workspace, period)
+      : { revenueVsExpenses: { labels: [], revenue: [], expenses: [] }, expenseBreakdown: { labels: [], values: [] } };
     const recentActivity = getRecentActivityAcrossModules(workspace, 10, moduleSummary);
-    const alerts = generateBusinessAlerts(workspace, financialMetrics, moduleSummary, businessSnapshot);
+    const alerts = canViewFinance
+      ? generateBusinessAlerts(workspace, financialMetrics, moduleSummary, businessSnapshot)
+      : [];
     
     return {
       success: true,
@@ -281,7 +315,7 @@ function getRecentTransactions(limit, sessionId) {
   }
   
   const user = safeGetUser(sessionId);
-  if (!user) return [];
+  if (!user || !dashboardUserCanViewFinance_(sessionId)) return [];
   
   try {
     const workspace = getWorkspaceFile(sessionId);
