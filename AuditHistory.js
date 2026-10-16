@@ -126,6 +126,10 @@ function getActivityHistory(moduleName, limit, sessionId) {
     var user = getUserFromSession(sessionId);
     if (!user) return {success:false, message:'Session expired. Please sign in again.'};
     var requestedModule = String(moduleName || '').trim();
+    var role = String(user.role || '').toLowerCase();
+    if (!requestedModule && role !== 'owner' && role !== 'admin') {
+      return {success:false, message:'Choose an app you are authorized to access.'};
+    }
     if (requestedModule && !userHasAccess(requestedModule, sessionId)) {
       return {success:false, message:'Access denied'};
     }
