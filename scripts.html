@@ -430,19 +430,19 @@ function callGoogleScript(functionName, params, successHandler, errorHandler) {
 }
 
 // ==================== MODULE ACCESS CONTROL ====================
+function getStaffAccessibleModules_() {
+  const summary = BIZ_CACHE && BIZ_CACHE.data && BIZ_CACHE.data.modules;
+  if (summary && Object.keys(summary).length) return Object.keys(summary).filter(function(name) { return summary[name] && summary[name].isAccessible === true; });
+  return currentUser && Array.isArray(currentUser.accessibleModules) ? currentUser.accessibleModules.slice() : [];
+}
 function checkModuleAccess(moduleName) {
   const tier = normalizeClientTier(currentUser?.subscriptionTier);
   const isDemo = currentUser?.isDemo === true || currentUser?.isDemo === 'YES';
   const userRole = currentUser?.role || 'staff';
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
-  
-  // ===== STAFF: Check if module is assigned =====
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
-    if (!assignedModules.includes(moduleName)) {
-      showNotification('You do not have access to this module', 'warning');
-      return false;
-    }
+    const assignedModules = getStaffAccessibleModules_();
+    if (!assignedModules.includes(moduleName)) { showNotification('This app has not been assigned to your account.', 'warning'); return false; }
     return true;
   }
   
@@ -485,16 +485,8 @@ function getModuleAccess(moduleName) {
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 
   if (!isOwnerOrAdmin) {
-    const assignedModules = currentUser?.accessibleModules || ['Ecommerce'];
-    const isAssigned = assignedModules.includes(moduleName);
-    return {
-      isAccessible: isAssigned,
-      isLocked: !isAssigned,
-      isReadOnly: true,
-      showInSidebar: true,
-      badge: isAssigned ? '' : '🔒',
-      message: isAssigned ? 'View only' : 'This module is not assigned to you'
-    };
+    const isAssigned = getStaffAccessibleModules_().includes(moduleName);
+    return { isAccessible: isAssigned, isLocked: false, isReadOnly: true, showInSidebar: isAssigned, badge: '', message: isAssigned ? 'View only' : 'This app has not been assigned to your account' };
   }
 
   const allModules = ['Finance', 'Ecommerce', 'Sales', 'CRM', 'HR', 'Logistics', 'Tax', 'Agro', 'Productivity', 'POS', 'Attendance', 'Warehouse'];
@@ -1225,34 +1217,61 @@ function removeTeamMember(email) {
 // KEEP THIS VERSION (most complete with safety checks)
 function loadDashboard() {
   console.log("🔵 loadDashboard called");
-  
-  if (!currentUser || !currentUser.email) {
-    console.log("No valid user object, skipping dashboard load");
+  if (!currentUser || !currentUser.email || !currentSessionId) return;
+  const role = String(currentUser.role || currentUser.Role || 'staff').trim().toLowerCase();
+  const isOwnerOrAdmin = role === 'owner' || role === 'admin';
+  if (!isOwnerOrAdmin && !Array.isArray(currentUser.accessibleModules) && window.__bizosStaffAccessHydrationSession !== currentSessionId) {
+    window.__bizosStaffAccessHydrationSession = currentSessionId;
+    google.script.run.withSuccessHandler(function(result) {
+      if (currentSessionId !== window.__bizosStaffAccessHydrationSession) return;
+      if (result && result.success && result.user) { currentUser = result.user; saveSession(currentSessionId, result.user); }
+      else currentUser.accessibleModules = [];
+      loadDashboard();
+    }).withFailureHandler(function() { if (currentUser) currentUser.accessibleModules = []; loadDashboard(); }).validateBizOSSession(currentSessionId);
     return;
   }
-  
-  if (!currentSessionId) {
-    console.log("No session ID, skipping dashboard load");
-    return;
-  }
-  
-  console.log("Loading dashboard for user:", currentUser.email);
-  
-  // The enhanced dashboard already returns moduleSummary and should be the
-  // single initial source for module navigation/counts. Avoid starting a
-  // second getModuleSummary request in parallel with getEnhancedDashboardData.
+  updateUserInfo();
+  updateStaffSidebarForRole();
+  applyRoleNavigationAccess_();
+  if (!isOwnerOrAdmin) { loadStaffDashboardHome_(); loadModulesList(); return; }
   loadRecentTransactions();
   loadDashboardRecentEntries('finance');
-  updateUserInfo();
   loadUpgradePaymentStatus();
   addStaffManagementButton();
-  updateStaffSidebarForRole();
   addUpgradeButton();
-  
-  console.log("🟢 About to call loadEnhancedDashboard");
   loadEnhancedDashboard();
-  console.log("🟢 loadEnhancedDashboard called");
-
+}
+function applyRoleNavigationAccess_() {
+  const role = String(currentUser && (currentUser.role || currentUser.Role) || 'staff').trim().toLowerCase();
+  const isOwnerOrAdmin = role === 'owner' || role === 'admin';
+  document.querySelectorAll('[data-bizos-billing-link="1"]').forEach(function(el) { el.classList.toggle('hidden', !isOwnerOrAdmin); el.setAttribute('aria-hidden', isOwnerOrAdmin ? 'false' : 'true'); });
+  const upgrade = document.getElementById('user-upgrade-btn');
+  if (upgrade) upgrade.classList.toggle('hidden', !isOwnerOrAdmin);
+  const headerActions = document.getElementById('header-actions');
+  if (!isOwnerOrAdmin && headerActions) headerActions.querySelectorAll('#upgrade-tier-btn, [data-bizos-upgrade-header="1"], button[onclick*="triggerUpgrade"]').forEach(function(el) { el.remove(); });
+}
+function loadStaffDashboardHome_() {
+  const home = document.getElementById('dashboard-home');
+  if (!home) return;
+  let panel = document.getElementById('staff-dashboard-home');
+  if (!panel) { panel = document.createElement('section'); panel.id = 'staff-dashboard-home'; panel.className = 'space-y-6'; home.insertBefore(panel, home.firstChild); }
+  Array.from(home.children).forEach(function(child) { if (child !== panel) { child.classList.add('hidden'); child.style.display = 'none'; } });
+  panel.classList.remove('hidden'); panel.style.display = 'block';
+  panel.innerHTML = '<div class="card p-6"><h2 class="text-xl font-semibold text-gray-900">My Work Dashboard</h2><p class="text-sm text-gray-500 mt-1">Your dashboard shows only the applications assigned to you.</p><div class="py-8 text-sm text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading your assigned apps…</div></div>';
+  callGoogleScript('getModuleSummary', [], function(summary) {
+    summary = summary && typeof summary === 'object' ? summary : {};
+    BIZ_CACHE.data.modules = summary;
+    const icons = {Finance:'fa-calculator',Sales:'fa-chart-line',Ecommerce:'fa-cart-shopping',CRM:'fa-users',HR:'fa-briefcase',Logistics:'fa-truck',Tax:'fa-file-invoice',Agro:'fa-seedling',Productivity:'fa-clock',POS:'fa-cash-register',Attendance:'fa-fingerprint',Warehouse:'fa-warehouse'};
+    const assigned = Object.keys(summary).filter(function(name) { return summary[name] && summary[name].isAccessible === true; });
+    if (!assigned.length) { panel.innerHTML = '<div class="card p-6"><h2 class="text-xl font-semibold text-gray-900">My Work Dashboard</h2><p class="text-sm text-gray-500 mt-2">No apps are currently assigned to your account. Please contact your business administrator.</p></div>'; loadModulesList(); return; }
+    const cards = assigned.map(function(name) {
+      const item = summary[name] || {}, count = Number(item.count) || 0;
+      const safeName = String(item.label || name).replace(/[&<>"']/g, function(ch) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; });
+      return '<button type="button" onclick="openModule(\'' + name + '\')" class="card p-5 text-left border border-gray-200 hover:border-purple-300 hover:shadow-sm transition"><div class="flex items-center gap-3 mb-3"><span class="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center"><i class="fas ' + (icons[name] || 'fa-folder') + '"></i></span><span class="font-semibold text-gray-900">' + safeName + '</span></div><p class="text-sm text-gray-500">' + count.toLocaleString() + ' records available</p><p class="text-xs text-blue-600 mt-2">View only · Open app →</p></button>';
+    }).join('');
+    panel.innerHTML = '<div class="card p-6"><h2 class="text-xl font-semibold text-gray-900">My Work Dashboard</h2><p class="text-sm text-gray-500 mt-1">A quick view of the apps assigned to you.</p><div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-6">' + cards + '</div></div>';
+    loadModulesList();
+  }, function() { panel.innerHTML = '<div class="card p-6"><h2 class="text-xl font-semibold text-gray-900">My Work Dashboard</h2><p class="text-sm text-red-600 mt-2">Could not load your assigned apps. Refresh the page or contact your administrator.</p></div>'; });
 }
 
 
@@ -1577,7 +1596,8 @@ function loadModuleSummary() {
 // ==================== ENHANCED DASHBOARD ====================
 function loadEnhancedDashboard() {
   console.log("🟣 loadEnhancedDashboard called");
-  
+  const role = String(currentUser && (currentUser.role || currentUser.Role) || 'staff').trim().toLowerCase();
+  if (role !== 'owner' && role !== 'admin') { loadStaffDashboardHome_(); return; }
   if (!currentUser || !currentUser.email) {
     console.log("No user, skipping enhanced dashboard");
     return;
@@ -2445,7 +2465,7 @@ function loadAllApps() {
       
       // ===== STAFF: Only assigned modules =====
       if (!isOwnerOrAdmin) {
-        accessibleModules = currentUser?.accessibleModules || ['Finance'];
+        accessibleModules = getStaffAccessibleModules_();
         showDemoBadge = false;
       } 
       // ===== PREMIUM: All modules, NO demo badge =====
@@ -2486,7 +2506,7 @@ function loadAllApps() {
         const iconClass = moduleIcons[moduleName] || 'fa-folder';
         const colorClass = moduleColors[moduleName] || 'from-gray-500 to-gray-700';
         const isAccessible = accessibleModules.includes(moduleName);
-        
+        if (!isOwnerOrAdmin && !isAccessible) return;
         appsRendered++;
         
         if (!isAccessible && !isDemo && !isPremium) {
@@ -2794,7 +2814,7 @@ function loadModulesList() {
   // ===== STAFF: Get assigned modules =====
   let staffAssignedModules = [];
   if (!isOwnerOrAdmin) {
-    staffAssignedModules = currentUser?.accessibleModules || ['Finance'];
+    staffAssignedModules = getStaffAccessibleModules_();
     console.log("Staff assigned modules:", staffAssignedModules);
   }
   
@@ -4480,6 +4500,8 @@ function getPricingByCountryCode(countryCode) {
 // ==================== UPGRADE SYSTEM ====================
 function showUpgradeModal() {
   console.log('showUpgradeModal called');
+  const role = String(currentUser && (currentUser.role || currentUser.Role) || '').trim().toLowerCase();
+  if (currentUser && role !== 'owner' && role !== 'admin') { showNotification('Billing is managed by your business owner or administrator.', 'info'); return; }
   if (typeof window.clearUpgradeEditMode === 'function') window.clearUpgradeEditMode();
 
   const modal = document.getElementById('upgrade-modal');
