@@ -177,16 +177,22 @@ function authenticateUser(email, password, businessName) {
     }
     
     // ===== BUILD USER RESPONSE =====
+    const authenticatedRole = roleCol !== -1 ? userRow[roleCol] || 'owner' : 'owner';
+    const isPrivilegedRole = ['owner', 'admin'].includes(String(authenticatedRole).trim().toLowerCase());
+    // Include the canonical per-business staff assignments in the login response.
+    // The browser uses this list to render My Access and gate module navigation.
+    const accessibleModules = isPrivilegedRole ? [] : getStaffModules(email, businessId);
     const user = {
       email: userRow[emailCol],
       name: nameCol !== -1 ? userRow[nameCol] || email : email,
-      role: roleCol !== -1 ? userRow[roleCol] || 'owner' : 'owner',
+      role: authenticatedRole,
       businessId: businessId || '',
       businessName: businessNameCol !== -1 ? userRow[businessNameCol] || businessName || '' : businessName || '',
       subscriptionTier: subscriptionTier,
       workspaceId: workspaceId,
       isDemo: isDemo,
-      isClient: isClientUser
+      isClient: isClientUser,
+      accessibleModules: accessibleModules
     };
     
     console.log('✅ ========================================');
