@@ -1267,7 +1267,8 @@ function refreshCurrentView() {
   showNotification('Data refreshed', 'success');
 }
 
-function showAllRecords() {\n  hideMessagesPage_();
+function showAllRecords() {
+  hideMessagesPage_();
   if (typeof window.showRecordsPage === 'function') {
     window.showRecordsPage();
   } else {
@@ -2113,7 +2114,8 @@ function updateRecentActivity(activities) {
   }).join('');
 }
 
-function showAppsPage() {\n  hideMessagesPage_();
+function showAppsPage() {
+  hideMessagesPage_();
   console.log("showAppsPage called");
   
   const dashboardHome = document.getElementById('dashboard-home');
@@ -2178,7 +2180,8 @@ function showAppsPage() {\n  hideMessagesPage_();
 }
 
 // KEEP THIS VERSION - More concise and includes all pages
-function showDashboardHome() {\n  hideMessagesPage_();
+function showDashboardHome() {
+  hideMessagesPage_();
   console.log("showDashboardHome called");
   // Keep Business Center isolated from the main dashboard view.
   const businessCenterPage = document.getElementById('business-center-page');
@@ -2246,7 +2249,8 @@ function showDashboardHome() {\n  hideMessagesPage_();
     dashBtn.classList.add('bg-purple-50', 'text-purple-700');
   }
 }
-function showProfilePage() {\n  hideMessagesPage_();
+function showProfilePage() {
+  hideMessagesPage_();
   console.log("showProfilePage called");
   
   const dashboardHome = document.getElementById('dashboard-home');
@@ -2670,7 +2674,8 @@ function filterApps() {
 
 // ==================== MODULE MANAGEMENT====================
 
-function openModule(moduleName) {\n  hideMessagesPage_();
+function openModule(moduleName) {
+  hideMessagesPage_();
   const access = getModuleAccess(moduleName);
   
   if (!access.isAccessible) {
@@ -4982,14 +4987,16 @@ function handleNotificationClick(relatedView, notificationId) {
     },function(){});
   }
   if(relatedView){
-    if(relatedView==='notifications'){showNotificationsPage();return;}\n    if(relatedView==='messages'){showMessagesPage();return;}
+    if(relatedView==='notifications'){showNotificationsPage();return;}
+    if(relatedView==='messages'){showMessagesPage();return;}
     if(relatedView==='profile'){showProfilePage();return;}
     if(relatedView==='staff' && typeof showStaffPage==='function'){showStaffPage();return;}
     if(typeof openModule==='function' && relatedView!=='dashboard') openModule(relatedView);
   }
 }
 
-function showNotificationsPage() {\n  hideMessagesPage_();
+function showNotificationsPage() {
+  hideMessagesPage_();
   const pages=['dashboard-home','module-view','profile-page','apps-page','settings-page','notifications-page','business-center-page'];
   pages.forEach(function(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}});
   const page=document.getElementById('notifications-page');
@@ -6093,7 +6100,8 @@ window.addEventListener('message', function(event) {
 
 
 // ==================== SETTINGS PAGE FUNCTIONS ====================
-function showSettingsPage() {\n  hideMessagesPage_();
+function showSettingsPage() {
+  hideMessagesPage_();
   console.log("showSettingsPage called");
   
   const dashboardHome = document.getElementById('dashboard-home');
@@ -6348,7 +6356,8 @@ window.handleNotificationClick = handleNotificationClick;
   // Business Center navigation guard.
 // Define the navigation entry point here as well so the sidebar does not depend
 // on the BusinessHubHTML script block successfully initializing first.
-window.showBusinessCenter = function() {\n  hideMessagesPage_();
+window.showBusinessCenter = function() {
+  hideMessagesPage_();
   console.log("showBusinessCenter called");
   ['landing-page','dashboard-page','profile-page','settings-page','staff-page','cms-page'].forEach(function(id) {
     var el = document.getElementById(id);
