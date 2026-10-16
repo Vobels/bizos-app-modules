@@ -2566,6 +2566,8 @@ function loadFeaturedApps() {
   const renderFeaturedApps = (summary) => {
       const container = document.getElementById('featured-apps');
       if (!container) return;
+      const userRole = String(currentUser?.role || 'staff').toLowerCase();
+      const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
       
       container.innerHTML = '';
       
