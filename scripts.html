@@ -53,10 +53,15 @@ function getBizOSModuleRegistry_() {
 // ==================== SESSION MANAGEMENT ====================
 function saveSession(sessionId, user) {
   if (sessionId) {
+    const sessionChanged = currentSessionId !== sessionId;
     sessionStorage.setItem('bizos_session', sessionId);
     sessionStorage.setItem('bizos_user', JSON.stringify(user));
     currentSessionId = sessionId;
     currentUser = user;
+    if (sessionChanged && typeof BIZ_CACHE !== 'undefined') {
+      BIZ_CACHE.data = { kpis: null, recentTransactions: [], modules: {} };
+      BIZ_CACHE.initialized = false;
+    }
   }
 }
 
@@ -85,6 +90,10 @@ function clearSession() {
   localStorage.removeItem('bizos_user');
   currentSessionId = null;
   currentUser = null;
+  if (typeof BIZ_CACHE !== 'undefined') {
+    BIZ_CACHE.data = { kpis: null, recentTransactions: [], modules: {} };
+    BIZ_CACHE.initialized = false;
+  }
 }
 
 // ==================== CACHE MANAGEMENT ====================
@@ -431,9 +440,11 @@ function callGoogleScript(functionName, params, successHandler, errorHandler) {
 
 // ==================== MODULE ACCESS CONTROL ====================
 function getStaffAccessibleModules_() {
+  // The user object comes from validateBizOSSession during dashboard entry.
+  if (currentUser && Array.isArray(currentUser.accessibleModules)) return currentUser.accessibleModules.slice();
   const summary = BIZ_CACHE && BIZ_CACHE.data && BIZ_CACHE.data.modules;
   if (summary && Object.keys(summary).length) return Object.keys(summary).filter(function(name) { return summary[name] && summary[name].isAccessible === true; });
-  return currentUser && Array.isArray(currentUser.accessibleModules) ? currentUser.accessibleModules.slice() : [];
+  return [];
 }
 function checkModuleAccess(moduleName) {
   const tier = normalizeClientTier(currentUser?.subscriptionTier);
@@ -1220,7 +1231,7 @@ function loadDashboard() {
   if (!currentUser || !currentUser.email || !currentSessionId) return;
   const role = String(currentUser.role || currentUser.Role || 'staff').trim().toLowerCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
-  if (!isOwnerOrAdmin && !Array.isArray(currentUser.accessibleModules) && window.__bizosStaffAccessHydrationSession !== currentSessionId) {
+  if (!isOwnerOrAdmin && window.__bizosStaffAccessHydrationSession !== currentSessionId) {
     window.__bizosStaffAccessHydrationSession = currentSessionId;
     google.script.run.withSuccessHandler(function(result) {
       if (currentSessionId !== window.__bizosStaffAccessHydrationSession) return;
