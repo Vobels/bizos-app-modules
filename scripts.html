@@ -2489,7 +2489,7 @@ function loadAllApps() {
         
         appsRendered++;
         
-        if (!isAccessible && !isDemo && !isPremium) {
+        if (!isAccessible && (!isOwnerOrAdmin || (!isDemo && !isPremium))) {
           // Owners/admins can review the plan upgrade; staff must request assignment.
           const lockedAction = isOwnerOrAdmin ? 'onclick="showUpgradeModal()"' : '';
           const lockedMessage = isOwnerOrAdmin ? 'Upgrade to Sovereign' : 'Not assigned · Ask your business owner or admin';
