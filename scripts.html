@@ -490,10 +490,10 @@ function getModuleAccess(moduleName) {
     return {
       isAccessible: isAssigned,
       isLocked: !isAssigned,
-      isReadOnly: true,
+      isReadOnly: isDemo,
       showInSidebar: true,
-      badge: isAssigned ? '' : '🔒',
-      message: isAssigned ? 'View only' : 'This module is not assigned to you'
+      badge: isAssigned ? 'Assigned' : 'Not assigned',
+      message: isAssigned ? '' : 'This module is not assigned to you'
     };
   }
 
@@ -2513,7 +2513,7 @@ function loadAllApps() {
           
           // Staff view-only badge
           if (!isOwnerOrAdmin && isAccessible) {
-            badgeHtml = '<span class="text-xs text-blue-500 mt-1 inline-block">(View Only)</span>';
+            badgeHtml = '<span class="text-xs text-blue-500 mt-1 inline-block">(Assigned)</span>';
           }
           
           container.innerHTML += `
@@ -2611,13 +2611,15 @@ function loadFeaturedApps() {
         const colorClass = moduleColors[moduleName] || 'from-gray-500 to-gray-700';
         
         if (!access.isAccessible && access.isLocked) {
+          const lockedAction = isOwnerOrAdmin ? 'onclick="showUpgradeModal()"' : '';
+          const lockedText = isOwnerOrAdmin ? 'Upgrade to Sovereign' : 'Not assigned';
           container.innerHTML += `
-            <div onclick="showUpgradeModal()" class="bg-white rounded-lg p-3 text-center border border-gray-200 hover:shadow-md transition cursor-pointer opacity-60">
+            <div ${lockedAction} class="bg-white rounded-lg p-3 text-center border border-gray-200 hover:shadow-md transition ${isOwnerOrAdmin ? 'cursor-pointer' : 'cursor-not-allowed'} opacity-60">
               <div class="w-10 h-10 bg-gradient-to-br ${colorClass} rounded-lg flex items-center justify-center mx-auto mb-2">
                 <i class="fas ${iconClass} text-white text-sm"></i>
               </div>
               <p class="font-medium text-gray-800 text-xs">${mod.label}</p>
-              <i class="fas fa-lock text-gray-400 text-xs mt-1"></i>
+              <p class="text-xs text-gray-400 mt-1">${lockedText}</p>
             </div>
           `;
         } else {
@@ -2681,8 +2683,10 @@ function openModule(moduleName) {
   const access = getModuleAccess(moduleName);
   
   if (!access.isAccessible) {
-    showNotification(access.message || 'Upgrade to access this module', 'warning');
-    showUpgradeModal();
+    const role = String(currentUser?.role || 'staff').toLowerCase();
+    const isOwnerOrAdmin = role === 'owner' || role === 'admin';
+    showNotification(access.message || (isOwnerOrAdmin ? 'Upgrade to access this module' : 'This app has not been assigned to your account.'), 'warning');
+    if (isOwnerOrAdmin && access.isLocked) showUpgradeModal();
     return;
   }
   
@@ -2823,7 +2827,7 @@ function loadModulesList() {
         <button onclick="openModule('${moduleName}')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 transition flex items-center space-x-3 opacity-75">
           <i class="fas ${iconClass} text-gray-500 w-5"></i>
           <span>${label}</span>
-          <span class="text-xs text-blue-500 ml-2">(View Only)</span>
+          <span class="text-xs text-blue-500 ml-2">(Assigned)</span>
         </button>
       `;
       modulesRendered++;
