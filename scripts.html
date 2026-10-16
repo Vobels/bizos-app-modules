@@ -1218,22 +1218,43 @@ function removeTeamMember(email) {
 function loadDashboard() {
   console.log("🔵 loadDashboard called");
   if (!currentUser || !currentUser.email || !currentSessionId) return;
-  const role = String(currentUser.role || currentUser.Role || 'staff').trim().toLowerCase();
+
+  const role = String(currentUser.role || currentUser.Role || '').trim().toLowerCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
-  if (!isOwnerOrAdmin && !Array.isArray(currentUser.accessibleModules) && window.__bizosStaffAccessHydrationSession !== currentSessionId) {
+  const isStaff = role === 'staff';
+
+  // Resolve the server-side role before choosing a role-specific dashboard.
+  // Do not infer "staff" merely because the role field is missing.
+  if (!isOwnerOrAdmin && window.__bizosStaffAccessHydrationSession !== currentSessionId) {
     window.__bizosStaffAccessHydrationSession = currentSessionId;
     google.script.run.withSuccessHandler(function(result) {
       if (currentSessionId !== window.__bizosStaffAccessHydrationSession) return;
-      if (result && result.success && result.user) { currentUser = result.user; saveSession(currentSessionId, result.user); }
-      else currentUser.accessibleModules = [];
-      loadDashboard();
-    }).withFailureHandler(function() { if (currentUser) currentUser.accessibleModules = []; loadDashboard(); }).validateBizOSSession(currentSessionId);
+      if (result && result.success && result.user) {
+        currentUser = result.user;
+        saveSession(currentSessionId, result.user);
+        loadDashboard();
+      } else {
+        showBizOSRoleResolutionNotice_();
+      }
+    }).withFailureHandler(function() {
+      showBizOSRoleResolutionNotice_();
+    }).validateBizOSSession(currentSessionId);
     return;
   }
+
+  // Unknown/missing roles must not silently fall into the staff dashboard,
+  // nor receive owner/admin dashboard data.
+  if (!isOwnerOrAdmin && !isStaff) {
+    showBizOSRoleResolutionNotice_();
+    return;
+  }
+
   updateUserInfo();
   updateStaffSidebarForRole();
   applyRoleNavigationAccess_();
-  if (!isOwnerOrAdmin) { loadStaffDashboardHome_(); loadModulesList(); return; }
+  if (isStaff) { loadStaffDashboardHome_(); loadModulesList(); return; }
+
+  // Preserve the original owner/admin dashboard initialization flow.
   loadRecentTransactions();
   loadDashboardRecentEntries('finance');
   loadUpgradePaymentStatus();
@@ -1241,8 +1262,28 @@ function loadDashboard() {
   addUpgradeButton();
   loadEnhancedDashboard();
 }
+function showBizOSRoleResolutionNotice_() {
+  const home = document.getElementById('dashboard-home');
+  if (!home) return;
+  let notice = document.getElementById('bizos-role-resolution-notice');
+  if (!notice) {
+    notice = document.createElement('section');
+    notice.id = 'bizos-role-resolution-notice';
+    notice.className = 'card p-6';
+    home.insertBefore(notice, home.firstChild);
+  }
+  Array.from(home.children).forEach(function(child) {
+    if (child !== notice) {
+      child.classList.add('hidden');
+      child.style.display = 'none';
+    }
+  });
+  notice.classList.remove('hidden');
+  notice.style.display = 'block';
+  notice.innerHTML = '<h2 class="text-xl font-semibold text-gray-900">We could not confirm your account role</h2><p class="text-sm text-gray-600 mt-2">Your dashboard is protected until BizOS can confirm your access. Refresh the page or sign in again. If this continues, contact your business administrator.</p>';
+}
 function applyRoleNavigationAccess_() {
-  const role = String(currentUser && (currentUser.role || currentUser.Role) || 'staff').trim().toLowerCase();
+  const role = String(currentUser && (currentUser.role || currentUser.Role) || '').trim().toLowerCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
   document.querySelectorAll('[data-bizos-billing-link="1"]').forEach(function(el) { el.classList.toggle('hidden', !isOwnerOrAdmin); el.setAttribute('aria-hidden', isOwnerOrAdmin ? 'false' : 'true'); });
   const upgrade = document.getElementById('user-upgrade-btn');
@@ -1596,8 +1637,9 @@ function loadModuleSummary() {
 // ==================== ENHANCED DASHBOARD ====================
 function loadEnhancedDashboard() {
   console.log("🟣 loadEnhancedDashboard called");
-  const role = String(currentUser && (currentUser.role || currentUser.Role) || 'staff').trim().toLowerCase();
-  if (role !== 'owner' && role !== 'admin') { loadStaffDashboardHome_(); return; }
+  const role = String(currentUser && (currentUser.role || currentUser.Role) || '').trim().toLowerCase();
+  if (role === 'staff') { loadStaffDashboardHome_(); return; }
+  if (role !== 'owner' && role !== 'admin') { showBizOSRoleResolutionNotice_(); return; }
   if (!currentUser || !currentUser.email) {
     console.log("No user, skipping enhanced dashboard");
     return;
