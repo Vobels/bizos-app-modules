@@ -489,6 +489,59 @@ function removeModuleFromStaff(email, businessId, moduleName, sessionId) {
   }
 }
 
+
+function replaceStaffModuleAssignments(email, businessId, modules, sessionId) {
+  try {
+    const actor = staffActor_(sessionId, businessId, ['owner', 'admin']);
+    if (!actor.ok) return { success: false, message: actor.message };
+
+    const normalized = normalizeStaffModules_(modules);
+    const tierModules = actor.user.isDemo === true || actor.user.isDemo === 'YES'
+      ? getAvailableModulesForStaff()
+      : getAllowedModulesForTier_(actor.user.subscriptionTier);
+    const allowed = Array.isArray(tierModules) ? tierModules : [];
+    const disallowed = normalized.filter(function(moduleName) { return allowed.indexOf(moduleName) === -1; });
+    if (disallowed.length) {
+      return { success: false, message: 'Your current plan does not allow assigning: ' + disallowed.join(', ') + '.' };
+    }
+
+    const userSheet = getOrCreateUserSheet();
+    const headers = ensureStaffInvitationColumns_(userSheet);
+    const data = userSheet.getDataRange().getValues();
+    const emailCol = headers.indexOf('Email');
+    const businessCol = headers.indexOf('Business_ID');
+    const roleCol = headers.indexOf('Role');
+    const assignedCol = headers.indexOf('Assigned_Modules');
+    if (emailCol < 0 || businessCol < 0 || assignedCol < 0) {
+      return { success: false, message: 'Staff assignment fields are unavailable. Please contact support.' };
+    }
+
+    const rowIndex = data.findIndex(function(row, index) {
+      return index > 0 &&
+        String(row[emailCol] || '').trim().toLowerCase() === String(email || '').trim().toLowerCase() &&
+        String(row[businessCol] || '') === String(businessId || '');
+    });
+    if (rowIndex < 1) return { success: false, message: 'Staff member not found in this business.' };
+    const targetRole = String(roleCol >= 0 ? data[rowIndex][roleCol] || 'staff' : 'staff').trim().toLowerCase();
+    if (targetRole === 'owner' || targetRole === 'admin') {
+      return { success: false, message: 'Owner and administrator access cannot be changed here.' };
+    }
+
+    userSheet.getRange(rowIndex + 1, assignedCol + 1).setValue(normalized.join(','));
+    syncStaffModules_(email, businessId, normalized, actor.user.email);
+    try {
+      logBizOSActivity_(businessId, actor.user.email, actor.user.name, 'staff_modules_updated',
+        'Updated assigned apps for ' + email + ': ' + (normalized.join(', ') || 'none') + '.', 'staff');
+    } catch (activityError) {
+      console.error('Staff assignment activity log error:', activityError);
+    }
+    return { success: true, assignedModules: normalized, message: 'App assignments updated for ' + email + '.' };
+  } catch (error) {
+    console.error('Failed to replace staff module assignments:', error);
+    return { success: false, message: 'Could not update app assignments. Please try again.' };
+  }
+}
+
 function getStaffDashboard(sessionId) {
   const user = getUserFromSession(sessionId);
   if (!user) return { success: false, message: 'User not found' };
