@@ -306,20 +306,22 @@ function getModuleSummary(sessionId) {
   const isDemo = sessionUser.isDemo === true || sessionUser.isDemo === "YES";
   const email = sessionUser.email;
   const cache = CacheService.getScriptCache();
-  // Resolve assignments before reading cache so role/module changes create a
-  // different cache key immediately, even if an older summary is still cached.
-  const staffModules = (userRole !== "owner" && userRole !== "admin")
-    ? getStaffModules(email, businessId)
-    : [];
-  const permissionFingerprint = staffModules.slice().map(String).sort().join(",");
-  const cacheKey = `module_summary_v4_${sessionId}_${businessId}_${subscriptionTier}_${userRole}_${permissionFingerprint || "noassignments"}`;
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    console.log("Returning cached module summary for business:", businessId, "tier:", subscriptionTier, "role:", userRole);
-    return JSON.parse(cached);
-  }
 
   try {
+    // Resolve assignments inside the same error boundary as workspace and
+    // summary generation. A sheet/assignment lookup failure must not escape
+    // the server function as an unhandled RPC exception.
+    const staffModules = (userRole !== "owner" && userRole !== "admin")
+      ? getStaffModules(email, businessId)
+      : [];
+    const permissionFingerprint = staffModules.slice().map(String).sort().join(",");
+    const cacheKey = `module_summary_v4_${sessionId}_${businessId}_${subscriptionTier}_${userRole}_${permissionFingerprint || "noassignments"}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log("Returning cached module summary for business:", businessId, "tier:", subscriptionTier, "role:", userRole);
+      return JSON.parse(cached);
+    }
+
     // Reuse the canonical workspace resolver. Paid accounts must never have
     // their module counts read from the master spreadsheet as a fallback.
     const workspace = getWorkspaceFile(sessionId);
