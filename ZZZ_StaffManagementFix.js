@@ -297,14 +297,25 @@ function resendStaffInvitationV2(businessId, email, sessionId) {
         const code = Utilities.getUuid().replace(/-/g, '').substring(0, 12).toUpperCase();
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
+        const codeCol = zzzStaffCol_(headers, 'Invitation_Code');
+        const expiryCol = zzzStaffCol_(headers, 'Invitation_Expires_At');
+        const previousCode = codeCol === -1 ? '' : data[i][codeCol];
+        const previousExpiry = expiryCol === -1 ? '' : data[i][expiryCol];
+
         zzzStaffWriteInvitation_(sheet, headers, i + 1, {
           Invitation_Code: code,
           Invitation_Expires_At: expiresAt.toISOString()
         });
         const sent = sendInvitationEmail(email, data[i][nameCol], code, data[i][roleCol] || 'staff');
-        return sent
-          ? { success: true, message: 'Invitation resent to ' + email }
-          : { success: false, message: 'The invitation could not be emailed.' };
+        if (!sent) {
+          // Keep the prior link usable if email delivery fails.
+          zzzStaffWriteInvitation_(sheet, headers, i + 1, {
+            Invitation_Code: previousCode,
+            Invitation_Expires_At: previousExpiry
+          });
+          return { success: false, message: 'The invitation could not be emailed. The previous invitation remains unchanged.' };
+        }
+        return { success: true, message: 'Invitation resent to ' + email };
       }
     }
     return { success: false, message: 'Pending invitation not found.' };
