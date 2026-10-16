@@ -306,14 +306,16 @@ function getModuleSummary(sessionId) {
   const isDemo = sessionUser.isDemo === true || sessionUser.isDemo === "YES";
   const email = sessionUser.email;
   const cache = CacheService.getScriptCache();
-
-  // Include the resolved business and tier so a changed entitlement cannot
-  // reuse a summary cached for a different business or plan. v3 bypasses old
-  // v2 entries created by the previous email-only lookup.
-  const cacheKey = `module_summary_v3_${sessionId}_${businessId}_${subscriptionTier}`;
+  // Resolve assignments before reading cache so role/module changes create a
+  // different cache key immediately, even if an older summary is still cached.
+  const staffModules = (userRole !== "owner" && userRole !== "admin")
+    ? getStaffModules(email, businessId)
+    : [];
+  const permissionFingerprint = staffModules.slice().map(String).sort().join(",");
+  const cacheKey = `module_summary_v4_${sessionId}_${businessId}_${subscriptionTier}_${userRole}_${permissionFingerprint || "noassignments"}`;
   const cached = cache.get(cacheKey);
   if (cached) {
-    console.log("Returning cached module summary for business:", businessId, "tier:", subscriptionTier);
+    console.log("Returning cached module summary for business:", businessId, "tier:", subscriptionTier, "role:", userRole);
     return JSON.parse(cached);
   }
 
@@ -321,10 +323,7 @@ function getModuleSummary(sessionId) {
     // Reuse the canonical workspace resolver. Paid accounts must never have
     // their module counts read from the master spreadsheet as a fallback.
     const workspace = getWorkspaceFile(sessionId);
-    let staffModules = [];
-
     if (userRole !== "owner" && userRole !== "admin") {
-      staffModules = getStaffModules(email, businessId);
       console.log("Staff modules for", email, ":", staffModules);
     }
 
