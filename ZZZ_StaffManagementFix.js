@@ -325,6 +325,64 @@ function resendStaffInvitationV2(businessId, email, sessionId) {
   }
 }
 
+function getInvitationDetailsV2(invitationCode) {
+  try {
+    invitationCode = String(invitationCode || '').trim().toUpperCase();
+    if (!invitationCode) {
+      return { success: false, message: 'Invitation code is missing.' };
+    }
+
+    const sheet = getOrCreateUserSheet();
+    const headers = zzzStaffEnsureColumns_(sheet, [
+      'Email', 'Name', 'Role', 'Business_ID', 'Business_Name',
+      'Invitation_Status', 'Invitation_Code', 'Invitation_Expires_At'
+    ]);
+    const data = sheet.getDataRange().getValues();
+    const codeCol = zzzStaffCol_(headers, 'Invitation_Code');
+    const statusCol = zzzStaffCol_(headers, 'Invitation_Status');
+    const expiryCol = zzzStaffCol_(headers, 'Invitation_Expires_At');
+    const emailCol = zzzStaffCol_(headers, 'Email');
+    const nameCol = zzzStaffCol_(headers, 'Name');
+    const roleCol = zzzStaffCol_(headers, 'Role');
+    const businessNameCol = zzzStaffCol_(headers, 'Business_Name');
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][codeCol] || '').trim().toUpperCase() !== invitationCode) continue;
+
+      if (String(data[i][statusCol] || '').trim().toLowerCase() !== 'pending') {
+        return { success: false, message: 'This invitation has already been accepted or is no longer active.' };
+      }
+
+      if (expiryCol !== -1 && data[i][expiryCol]) {
+        const expiry = data[i][expiryCol] instanceof Date
+          ? data[i][expiryCol]
+          : new Date(data[i][expiryCol]);
+        if (isNaN(expiry.getTime())) {
+          return { success: false, message: 'The invitation expiry date is invalid. Ask the business owner to resend it.' };
+        }
+        if (expiry.getTime() < Date.now()) {
+          return { success: false, message: 'This invitation has expired. Ask the business owner to resend it.' };
+        }
+      }
+
+      return {
+        success: true,
+        invitation: {
+          email: emailCol === -1 ? '' : String(data[i][emailCol] || ''),
+          name: nameCol === -1 ? '' : String(data[i][nameCol] || ''),
+          role: roleCol === -1 ? 'staff' : String(data[i][roleCol] || 'staff').toLowerCase(),
+          businessName: businessNameCol === -1 ? '' : String(data[i][businessNameCol] || '')
+        }
+      };
+    }
+
+    return { success: false, message: 'Invalid invitation code.' };
+  } catch (error) {
+    console.error('getInvitationDetailsV2 error:', error);
+    return { success: false, message: 'Unable to load this invitation. Please ask the business owner to resend it.' };
+  }
+}
+
 function acceptInvitationV2(invitationCode, password, name, phone) {
   try {
     invitationCode = String(invitationCode || '').trim().toUpperCase();
