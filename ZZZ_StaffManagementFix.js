@@ -314,6 +314,55 @@ function resendStaffInvitationV2(businessId, email, sessionId) {
   }
 }
 
+
+function getInvitationDetailsV2(invitationCode) {
+  try {
+    invitationCode = String(invitationCode || '').trim().toUpperCase();
+    if (!invitationCode) return { success: false, message: 'No invitation code was provided.' };
+
+    const sheet = getOrCreateUserSheet();
+    const headers = zzzStaffEnsureColumns_(sheet, [
+      'Email', 'Name', 'Role', 'Business_ID', 'Business_Name',
+      'Invitation_Status', 'Invitation_Code', 'Invitation_Expires_At'
+    ]);
+    const data = sheet.getDataRange().getValues();
+    const codeCol = zzzStaffCol_(headers, 'Invitation_Code');
+    const statusCol = zzzStaffCol_(headers, 'Invitation_Status');
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][codeCol] || '').trim().toUpperCase() !== invitationCode) continue;
+      const row = data[i];
+      if (String(row[statusCol] || '').trim().toLowerCase() !== 'pending') {
+        return { success: false, message: 'This invitation has already been accepted or is no longer active.' };
+      }
+      const expiryCol = zzzStaffCol_(headers, 'Invitation_Expires_At');
+      if (expiryCol !== -1 && row[expiryCol]) {
+        const expiry = new Date(row[expiryCol]);
+        if (isNaN(expiry.getTime()) || expiry.getTime() < Date.now()) {
+          return { success: false, message: 'This invitation has expired. Ask the business owner to resend it.' };
+        }
+      }
+      const value = function(header) {
+        const col = zzzStaffCol_(headers, header);
+        return col === -1 ? '' : row[col];
+      };
+      return {
+        success: true,
+        invitation: {
+          email: String(value('Email') || '').trim(),
+          name: String(value('Name') || '').trim(),
+          role: String(value('Role') || 'staff').trim().toLowerCase(),
+          businessName: String(value('Business_Name') || '').trim()
+        }
+      };
+    }
+    return { success: false, message: 'Invalid invitation code.' };
+  } catch (error) {
+    console.error('getInvitationDetailsV2 error:', error);
+    return { success: false, message: error.message || 'Unable to load this invitation.' };
+  }
+}
+
 function acceptInvitationV2(invitationCode, password, name, phone) {
   try {
     invitationCode = String(invitationCode || '').trim().toUpperCase();
