@@ -45,8 +45,8 @@ function getDashboardKPIs(period, sessionId, forceAccurate = false) {
   
   try {
     const user = safeGetUser(sessionId);
-    if (!user) {
-      console.log("getDashboardKPIs: No valid session, returning zeros");
+    if (!user || !dashboardUserCanViewFinance_(sessionId)) {
+      console.log("getDashboardKPIs: Missing session or Finance access, returning zeros");
       return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
     }
     
@@ -64,7 +64,7 @@ function getDashboardKPIs(period, sessionId, forceAccurate = false) {
 // FAST VERSION - For dashboard (current month to date, cached)
 function getDashboardKPIsFast(sessionId) {
   const user = safeGetUser(sessionId);
-  if (!user) return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
+  if (!user || !dashboardUserCanViewFinance_(sessionId)) return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
   
   const cache = CacheService.getScriptCache();
   const cacheKey = `dashboard_fast_${sessionId}`;
@@ -128,7 +128,7 @@ function getDashboardKPIsFast(sessionId) {
 // ACCURATE VERSION - For reports
 function getDashboardKPIsAccurate(sessionId, period) {
   const user = safeGetUser(sessionId);
-  if (!user) return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
+  if (!user || !dashboardUserCanViewFinance_(sessionId)) return { revenue: 0, expenses: 0, profit: 0, profitMargin: 0 };
   
   try {
     const workspace = getWorkspaceFile(sessionId);
@@ -218,8 +218,7 @@ function dashboardUserCanViewFinance_(sessionId) {
 
   const role = String(user.role || 'staff').toLowerCase();
   const modules = Array.isArray(user.accessibleModules) ? user.accessibleModules : [];
-  return modules.indexOf('Finance') !== -1 &&
-    (role === 'owner' || role === 'admin' || role === 'staff' || role !== '');
+  return !!role && modules.indexOf('Finance') !== -1;
 }
 
 function getEnhancedDashboardData(period, sessionId) {
