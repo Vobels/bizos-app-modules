@@ -405,8 +405,18 @@ function getModuleSummary(sessionId) {
   } catch (error) {
     console.error('Error in getModuleSummary:', error);
     return {
-      'Finance': { label: 'Financial Management', icon: 'calculator', count: 0, isAccessible: true },
-      'Ecommerce': { label: 'E-commerce', icon: 'cart', count: 0, isAccessible: true }
+      'Finance': { label: 'Financial Management', icon: 'calculator', count: 0, isAccessible: false, isReadOnly: true },
+      'Ecommerce': { label: 'E-commerce', icon: 'cart', count: 0, isAccessible: false, isReadOnly: true },
+      'Sales': { label: 'Sales Pipeline', icon: 'chart-line', count: 0, isAccessible: false, isReadOnly: true },
+      'CRM': { label: 'Customer Relations', icon: 'users', count: 0, isAccessible: false, isReadOnly: true },
+      'HR': { label: 'Human Resources', icon: 'briefcase', count: 0, isAccessible: false, isReadOnly: true },
+      'Logistics': { label: 'Logistics', icon: 'truck', count: 0, isAccessible: false, isReadOnly: true },
+      'Tax': { label: 'Tax Compliance', icon: 'file-invoice', count: 0, isAccessible: false, isReadOnly: true },
+      'Agro': { label: 'Agriculture', icon: 'seedling', count: 0, isAccessible: false, isReadOnly: true },
+      'Productivity': { label: 'Productivity Suite', icon: 'clock', count: 0, isAccessible: false, isReadOnly: true },
+      'POS': { label: 'Point of Sale', icon: 'cash-register', count: 0, isAccessible: false, isReadOnly: true },
+      'Attendance': { label: 'Staff Attendance', icon: 'fingerprint', count: 0, isAccessible: false, isReadOnly: true },
+      'Warehouse': { label: 'Warehouse Management', icon: 'warehouse', count: 0, isAccessible: false, isReadOnly: true }
     };
   }
 }
