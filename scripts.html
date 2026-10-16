@@ -2679,8 +2679,11 @@ function openModule(moduleName) {
   const access = getModuleAccess(moduleName);
   
   if (!access.isAccessible) {
-    showNotification(access.message || 'Upgrade to access this module', 'warning');
-    showUpgradeModal();
+    showNotification(access.message || 'This module is not available to your account.', 'warning');
+    const role = String(currentUser?.role || 'staff').trim().toLowerCase();
+    // Only owners/admins can act on plan upgrades. Staff should never be sent
+    // to the billing flow when a module is unavailable to their assignment.
+    if (role === 'owner' || role === 'admin') showUpgradeModal();
     return;
   }
   
