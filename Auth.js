@@ -186,7 +186,12 @@ function authenticateUser(email, password, businessName) {
       subscriptionTier: subscriptionTier,
       workspaceId: workspaceId,
       isDemo: isDemo,
-      isClient: isClientUser
+      isClient: isClientUser,
+      // The initial login payload is stored directly in browser session state.
+      // Include staff assignments here so Apps/Staff UI does not treat every app as unassigned.
+      accessibleModules: ['owner', 'admin'].indexOf(String(roleCol !== -1 ? userRow[roleCol] : 'owner').trim().toLowerCase()) !== -1
+        ? undefined
+        : getStaffModules(email.toLowerCase(), businessId)
     };
     
     console.log('✅ ========================================');
