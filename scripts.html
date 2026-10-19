@@ -3717,11 +3717,14 @@ function submitModuleForm() {
   }
 
   const method = isEditing ? 'updateRecord' : 'saveRecord';
+  const recordId = form.getAttribute('data-edit-record-id') || '';
+  // Client deployments route updateRecord to their own server bridge, which
+  // expects the legacy scalar ID. The master BizOS endpoint can target the
+  // exact physical row, including when historical duplicate IDs exist.
   const args = isEditing
-    ? [currentModuleName, data, {
-        rowNumber: editRow,
-        recordId: form.getAttribute('data-edit-record-id') || ''
-      }]
+    ? [currentModuleName, data, (window.__CLIENT && window.__CLIENT.isClient)
+        ? recordId
+        : { rowNumber: editRow, recordId: recordId }]
     : [currentModuleName, data];
 
   callGoogleScript(
@@ -3919,6 +3922,10 @@ function editRecord(index) {
 
   const idField = ['Deal_ID', 'Order_ID', 'Contact_ID', 'Record_ID', 'Employee_ID', 'Transaction_ID', 'Shipment_ID', 'Tax_ID', 'Item_ID']
     .find(key => record[key] !== undefined && record[key] !== null && String(record[key]) !== '');
+  if (window.__CLIENT && window.__CLIENT.isClient && !idField) {
+    showNotification('This record has no supported ID for a safe update. Please contact support before editing it.', 'error');
+    return;
+  }
   form.setAttribute('data-edit-row', String(rowNumber));
   form.setAttribute('data-edit-record-id', idField ? String(record[idField]) : '');
 
