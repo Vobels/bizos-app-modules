@@ -249,7 +249,7 @@ function deleteClientModuleRecord(moduleName, dataIndex, sessionId) {
     if(!session)return{success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
     if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
     if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
-    var role=String(session.user&&session.user.role||'owner').toLowerCase();
+    var role=String(session.user&&session.user.role||'staff').toLowerCase();
     var isDemo=session.user&&(session.user.isDemo===true||String(session.user.isDemo||'').toUpperCase()==='YES');
     if(isDemo)return{success:false,message:'Demo accounts are read-only.',code:'READ_ONLY'};
     if(role!=='owner'&&role!=='admin'&&role!=='staff')return{success:false,message:'You do not have permission to delete records.',code:'FORBIDDEN'};
