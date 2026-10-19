@@ -218,7 +218,7 @@ function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
     if(!session)return{success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
     if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
     if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
-    var role=String(session.user&&session.user.role||'owner').toLowerCase();
+    var role=String(session.user&&session.user.role||'staff').toLowerCase();
     if(role!=='owner'&&role!=='admin')return{success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
     var idColumn=getClientModuleIdColumnV12_(moduleName);
     if(!idColumn||recordId==null||String(recordId)==='')return{success:false,message:'Record ID is missing.',code:'RECORD_ID_MISSING'};
