@@ -3686,44 +3686,61 @@ function submitModuleForm() {
   if (!checkModuleAccess(currentModuleName)) {
     return;  // Notification already shown in checkModuleAccess
   }
-  
-  // Then do the actual save
+
   if (isLoading) {
     showNotification('Please wait...', 'warning');
     return;
   }
-  
-  isLoading = true;
-  
+
   const form = document.getElementById('module-form');
+  if (!form) {
+    showNotification('The record form is unavailable. Please reopen the app.', 'error');
+    return;
+  }
+
+  const editRow = Number(form.getAttribute('data-edit-row') || 0);
+  const isEditing = Number.isInteger(editRow) && editRow >= 2;
+  if (form.hasAttribute('data-edit-row') && !isEditing) {
+    showNotification('Could not identify the record being edited. Please reopen it and try again.', 'error');
+    return;
+  }
+
+  isLoading = true;
   const inputs = form.querySelectorAll('input, select, textarea');
-  
   const data = {};
   inputs.forEach(input => {
-    if (input.id) {
-      data[input.id] = input.value;
-    }
+    if (input.id) data[input.id] = input.value;
   });
-  
+
   if (!data.Date && getBizOSModuleRegistry_()[currentModuleName]?.sheet === 'Financial_Data') {
     data.Date = new Date().toISOString().split('T')[0];
   }
-  
+
+  const method = isEditing ? 'updateRecord' : 'saveRecord';
+  const args = isEditing
+    ? [currentModuleName, data, {
+        rowNumber: editRow,
+        recordId: form.getAttribute('data-edit-record-id') || ''
+      }]
+    : [currentModuleName, data];
+
   callGoogleScript(
-    'saveRecord',
-    [currentModuleName, data],
+    method,
+    args,
     (res) => {
-      showNotification(res.message, res.success ? 'success' : 'error');
-      if (res.success) {
+      showNotification(res && res.message ? res.message : (isEditing ? 'Record update failed.' : 'Record save failed.'), res && res.success ? 'success' : 'error');
+      if (res && res.success) {
         inputs.forEach(input => {
           if (input.type !== 'submit') input.value = '';
         });
+        form.removeAttribute('data-edit-row');
+        form.removeAttribute('data-edit-record-id');
         loadModuleTable(currentModuleName);
       }
       isLoading = false;
     },
     () => {
-      showNotification('Save failed. Please try again.', 'error');
+      showNotification(isEditing ? 'Update failed. Please try again.' : 'Save failed. Please try again.', 'error');
       isLoading = false;
     }
   );
@@ -3883,16 +3900,30 @@ function closeRecordAuditHistory() {
 function editRecord(index) {
   const record = currentModuleData[index];
   const form = document.getElementById('module-form');
-  
-  if (!form) return;
-  
+
+  if (!record || !form) return;
+
+  // Only allow form edits when the server supplied the physical sheet row.
+  // This prevents a stale or filtered table index from updating the wrong record.
+  const rowNumber = Number(record._row || 0);
+  if (!Number.isInteger(rowNumber) || rowNumber < 2) {
+    showNotification('Could not identify this record safely. Refresh the records and try again.', 'error');
+    return;
+  }
+
   Object.keys(record).forEach(key => {
+    if (key === '_row') return;
     const input = form.querySelector(`#${key}`);
-    if (input) input.value = record[key];
+    if (input) input.value = record[key] == null ? '' : record[key];
   });
-  
+
+  const idField = ['Deal_ID', 'Order_ID', 'Contact_ID', 'Record_ID', 'Employee_ID', 'Transaction_ID', 'Shipment_ID', 'Tax_ID', 'Item_ID']
+    .find(key => record[key] !== undefined && record[key] !== null && String(record[key]) !== '');
+  form.setAttribute('data-edit-row', String(rowNumber));
+  form.setAttribute('data-edit-record-id', idField ? String(record[idField]) : '');
+
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  showNotification('Edit the record and click Save', 'info');
+  showNotification('Edit the record and click Save to update the existing row.', 'info');
 }
 
 function showDeleteModal(index) {
