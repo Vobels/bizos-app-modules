@@ -1149,35 +1149,38 @@ function executeWithLicenseCheck(operation, moduleName, data, sessionId) {
     };
   }
   
-  const userRole = user.role || 'staff';
+  const userRole = String(user.role || 'staff').toLowerCase();
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
-  
-  // ===== STAFF: Check if module is assigned =====
+  const isDemo = user.isDemo === true || String(user.isDemo || '').toUpperCase() === 'YES';
+
+  // Demo accounts are read-only regardless of role or assigned modules.
+  if (isDemo) {
+    return {
+      success: false,
+      isReadOnly: true,
+      message: 'This is a Read-Only Demo. You cannot change or delete records.'
+    };
+  }
+
+  // Non-owner roles must have explicit module assignment. Staff may delete
+  // assigned-module records, but creating and editing remain owner/admin actions.
   if (!isOwnerOrAdmin) {
-    const accessibleModules = user.accessibleModules || [];
+    const accessibleModules = Array.isArray(user.accessibleModules) ? user.accessibleModules : [];
     if (!accessibleModules.includes(moduleName)) {
       return {
         success: false,
         message: 'You do not have access to this module'
       };
     }
-    // Staff are read-only by default
-    if (operation === 'save' || operation === 'delete' || operation === 'update') {
+    if (!(userRole === 'staff' && operation === 'delete')) {
       return {
         success: false,
         isReadOnly: true,
-        message: 'You have view-only access to this module'
+        message: operation === 'delete'
+          ? 'You do not have permission to delete records.'
+          : 'You have view-only access to this module'
       };
     }
-  }
-  
-  // ===== OWNER/ADMIN: Check demo mode =====
-  if (user.isDemo === 'YES') {
-    return {
-      success: false,
-      isReadOnly: true,
-      message: 'This is a Read-Only Demo. Upgrade to Sovereign to save, edit, or delete records.'
-    };
   }
   
   // Check module access based on subscription tier
