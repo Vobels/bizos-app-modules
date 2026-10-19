@@ -1162,8 +1162,15 @@ function executeWithLicenseCheck(operation, moduleName, data, sessionId) {
         message: 'You do not have access to this module'
       };
     }
-    // Staff are read-only by default
-    if (operation === 'save' || operation === 'delete' || operation === 'update') {
+    // Master staff remain view-only by default. In a client deployment, an
+    // authenticated staff member assigned to this module may delete its records.
+    // The client wrapper separately rejects demo sessions and unassigned modules.
+    const isAuthorizedClientStaffDelete = operation === 'delete' &&
+      user.isClient === true &&
+      user.isDemo !== true &&
+      String(user.isDemo || '').toUpperCase() !== 'YES';
+    if ((operation === 'save' || operation === 'delete' || operation === 'update') &&
+        !isAuthorizedClientStaffDelete) {
       return {
         success: false,
         isReadOnly: true,
