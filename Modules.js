@@ -772,9 +772,9 @@ function assertModuleWriteAccess_(moduleName, sessionId, operation) {
   const isPrivileged = role === "owner" || role === "admin";
   const isDemo = user.isDemo === true || String(user.isDemo || "").toUpperCase() === "YES";
   if (isDemo) throw new Error("Demo accounts are read-only.");
-  // Staff may delete records only in modules assigned to them.
-  // Creating and editing remain owner/admin actions; demo accounts stay read-only.
-  if (!isPrivileged && !(role === "staff" && operation === "delete")) {
+  // Assigned staff may create, edit, and delete records in their modules.
+  // Demo accounts and unsupported roles remain blocked.
+  if (!isPrivileged && role !== "staff") {
     throw new Error(operation === "delete" ? "You do not have permission to delete records." : "This module is read-only for your account.");
   }
   return user;
@@ -1172,7 +1172,7 @@ function executeWithLicenseCheck(operation, moduleName, data, sessionId) {
         message: 'You do not have access to this module'
       };
     }
-    if (!(userRole === 'staff' && operation === 'delete')) {
+    if (userRole !== 'staff') {
       return {
         success: false,
         isReadOnly: true,
