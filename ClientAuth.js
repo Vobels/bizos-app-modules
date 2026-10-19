@@ -250,7 +250,11 @@ function deleteClientModuleRecord(moduleName, dataIndex, sessionId) {
     if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
     if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
     var role=String(session.user&&session.user.role||'owner').toLowerCase();
-    if(role!=='owner'&&role!=='admin')return{success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    var isDemo=session.user&&(session.user.isDemo===true||String(session.user.isDemo||'').toUpperCase()==='YES');
+    if(isDemo)return{success:false,message:'Demo accounts are read-only.',code:'READ_ONLY'};
+    if(role!=='owner'&&role!=='admin'&&role!=='staff')return{success:false,message:'You do not have permission to delete records.',code:'FORBIDDEN'};
+    var idColumn=getClientModuleIdColumnV12_(moduleName);
+    if(!idColumn)return{success:false,message:'This app has no supported record ID field.',code:'ID_COLUMN_MISSING'};
     var index=Number(dataIndex);
     if(!Number.isInteger(index)||index<0)return{success:false,message:'Invalid record position.',code:'INVALID_ROW'};
     var ss=SpreadsheetApp.openById(session.sheetId),sheet=getClientModuleSheetV12_(ss,moduleName);
@@ -258,6 +262,8 @@ function deleteClientModuleRecord(moduleName, dataIndex, sessionId) {
     var rowNumber=index+2;
     if(rowNumber>sheet.getLastRow())return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
     var width=sheet.getLastColumn(),headers=sheet.getRange(1,1,1,width).getValues()[0],row=sheet.getRange(rowNumber,1,1,width).getValues()[0],beforeRecord={};
+    var idIndex=headers.indexOf(idColumn);
+    if(idIndex<0)return{success:false,message:'The existing sheet is missing its record ID column.',code:'ID_COLUMN_MISSING'};
     headers.forEach(function(header,i){var key=String(header||'').trim();if(key)beforeRecord[key]=row[i];});
     var recordId=beforeRecord[idColumn]||'';
     auditRecordChange_(ss, sessionId, moduleName, 'DELETE', recordId, beforeRecord, {}, session);
