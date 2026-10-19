@@ -121,8 +121,10 @@ function saveClientModuleRecord(moduleName, record, sessionId) {
     if (!session) return {success:false,message:'Session expired. Please sign in again.',code:'SESSION_EXPIRED'};
     if (!getClientModuleSheetNameV12_(moduleName)) return {success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
     if (getClientAccessibleModulesV12_(session).indexOf(String(moduleName)) === -1) return {success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
-    var role = String(session.user && session.user.role || 'owner').toLowerCase();
-    if (role !== 'owner' && role !== 'admin') return {success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    var role = String(session.user && session.user.role || 'staff').toLowerCase();
+    if (role !== 'owner' && role !== 'admin' && role !== 'staff') return {success:false,message:'This module is read-only for your account.',code:'READ_ONLY'};
+    var isDemo = session.user && (session.user.isDemo === true || String(session.user.isDemo || '').toUpperCase() === 'YES');
+    if (isDemo) return {success:false,message:'Demo accounts are read-only.',code:'READ_ONLY'};
     var ss = SpreadsheetApp.openById(session.sheetId), sheet = getClientModuleSheetV12_(ss, moduleName);
     if (!sheet) return {success:false,message:'The existing sheet for this app could not be found. No data was changed.',code:'SHEET_NOT_FOUND'};
     var width = sheet.getLastColumn();
@@ -219,7 +221,9 @@ function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
     if(!getClientModuleSheetNameV12_(moduleName))return{success:false,message:'Module not found.',code:'MODULE_NOT_FOUND'};
     if(getClientAccessibleModulesV12_(session).indexOf(String(moduleName))===-1)return{success:false,message:'You do not have access to this module.',code:'ACCESS_DENIED'};
     var role=String(session.user&&session.user.role||'staff').toLowerCase();
-    if(role!=='owner'&&role!=='admin')return{success:false,message:'This module is read-only for staff accounts.',code:'READ_ONLY'};
+    if(role!=='owner'&&role!=='admin'&&role!=='staff')return{success:false,message:'This module is read-only for your account.',code:'READ_ONLY'};
+    var isDemo=session.user&&(session.user.isDemo===true||String(session.user.isDemo||'').toUpperCase()==='YES');
+    if(isDemo)return{success:false,message:'Demo accounts are read-only.',code:'READ_ONLY'};
     var idColumn=getClientModuleIdColumnV12_(moduleName);
     if(!idColumn||recordId==null||String(recordId)==='')return{success:false,message:'Record ID is missing.',code:'RECORD_ID_MISSING'};
     var ss=SpreadsheetApp.openById(session.sheetId),sheet=getClientModuleSheetV12_(ss,moduleName);
