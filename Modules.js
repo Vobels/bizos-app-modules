@@ -772,10 +772,9 @@ function assertModuleWriteAccess_(moduleName, sessionId, operation) {
   const isPrivileged = role === "owner" || role === "admin";
   const isDemo = user.isDemo === true || String(user.isDemo || "").toUpperCase() === "YES";
   if (isDemo) throw new Error("Demo accounts are read-only.");
-  // Staff may create, edit, and delete records in modules they can access.
-  // Keep demo accounts read-only and do not grant these write permissions to
-  // manager, viewer, or other roles.
-  if (!isPrivileged && !(role === "staff" && ["write", "delete"].includes(operation))) {
+  // Staff may delete records only in modules assigned to them.
+  // Creating and editing remain owner/admin actions; demo accounts stay read-only.
+  if (!isPrivileged && !(role === "staff" && operation === "delete")) {
     throw new Error(operation === "delete" ? "You do not have permission to delete records." : "This module is read-only for your account.");
   }
   return user;
