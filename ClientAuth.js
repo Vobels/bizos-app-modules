@@ -229,7 +229,17 @@ function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
     var headers=sheet.getRange(1,1,1,width).getValues()[0],idIndex=headers.indexOf(idColumn);
     if(idIndex<0)return{success:false,message:'The existing sheet is missing its record ID column.',code:'ID_COLUMN_MISSING'};
     var values=sheet.getRange(2,1,lastRow-1,width).getValues(),targetRow=-1;
-    for(var i=0;i<values.length;i++)if(String(values[i][idIndex])===String(recordId)){targetRow=i+2;break;}
+    // Prefer the physical row captured by the editor. This avoids editing a
+    // different record when legacy sheets contain duplicate IDs.
+    var requestedRow=recordId&&typeof recordId==='object'?Number(recordId.rowNumber||recordId._row||0):0;
+    var expectedId=recordId&&typeof recordId==='object'?String(recordId.recordId||recordId.id||''):String(recordId==null?'':recordId);
+    if(Number.isInteger(requestedRow)&&requestedRow>=2&&requestedRow<=lastRow){
+      var selected=sheet.getRange(requestedRow,1,1,width).getValues()[0];
+      if(expectedId&&String(selected[idIndex])!==expectedId)return{success:false,message:'This record changed while you were editing. Refresh the list and try again.',code:'RECORD_CHANGED'};
+      targetRow=requestedRow;
+    } else {
+      for(var i=0;i<values.length;i++)if(String(values[i][idIndex])===expectedId){targetRow=i+2;break;}
+    }
     if(targetRow<0)return{success:false,message:'The record could not be found.',code:'RECORD_NOT_FOUND'};
     var current=sheet.getRange(targetRow,1,1,width).getValues()[0],incoming=record&&typeof record==='object'?record:{};
     var beforeRecord = {};
@@ -238,7 +248,7 @@ function updateClientModuleRecord(moduleName, record, recordId, sessionId) {
     sheet.getRange(targetRow,1,1,width).setValues([current]);
     var afterRecord = {};
     headers.forEach(function(header,i){var key=String(header||'').trim();if(key)afterRecord[key]=current[i];});
-    auditRecordChange_(ss, sessionId, moduleName, 'UPDATE', recordId, beforeRecord, afterRecord, session);
+    auditRecordChange_(ss, sessionId, moduleName, 'UPDATE', beforeRecord[idColumn] || expectedId || '', beforeRecord, afterRecord, session);
     return{success:true,message:'Record updated successfully.',code:'UPDATE_SUCCESS'};
   }catch(error){console.error('updateClientModuleRecord error:',error);return{success:false,message:'We could not update this record. No existing records were deleted.',code:'UPDATE_ERROR'};}
 }
