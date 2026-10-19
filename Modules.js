@@ -772,8 +772,11 @@ function assertModuleWriteAccess_(moduleName, sessionId, operation) {
   const isPrivileged = role === "owner" || role === "admin";
   const isDemo = user.isDemo === true || String(user.isDemo || "").toUpperCase() === "YES";
   if (isDemo) throw new Error("Demo accounts are read-only.");
-  if (!isPrivileged && (role !== "staff" || operation !== "write")) {
-    throw new Error(operation === "delete" ? "Only a business owner or administrator can delete records." : "This module is read-only for staff accounts.");
+  // Staff may create, edit, and delete records in modules they can access.
+  // Keep demo accounts read-only and do not grant these write permissions to
+  // manager, viewer, or other roles.
+  if (!isPrivileged && !(role === "staff" && ["write", "delete"].includes(operation))) {
+    throw new Error(operation === "delete" ? "You do not have permission to delete records." : "This module is read-only for your account.");
   }
   return user;
 }
@@ -941,19 +944,26 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     const values = sheet.getDataRange().getValues();
     const headers = values[0];
     
-    // Find the ID column
-    const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Contact_ID' || h === 'Record_ID' || h === 'Employee_ID' || h === 'Transaction_ID' || h === 'Shipment_ID' || h === 'Tax_ID' || h === 'Item_ID');
-    if (idCol === -1) return { success: false, message: "ID column not found" };
-    
-    // Find the row
+    // Prefer the physical row captured when the user clicked Edit. This
+    // targets the exact record even if older data already contains duplicate IDs.
+    // Legacy callers may continue to pass a scalar record ID.
     let rowIndex = -1;
-    for (let i = 1; i < values.length; i++) {
-      if (values[i][idCol] === recordId) {
-        rowIndex = i;
-        break;
+    const requestedRow = recordId && typeof recordId === "object"
+      ? Number(recordId.rowNumber || recordId._row || 0)
+      : 0;
+    if (Number.isInteger(requestedRow) && requestedRow >= 2 && requestedRow <= sheet.getLastRow()) {
+      rowIndex = requestedRow - 1; // values includes the header at index 0
+    } else {
+      const idCol = headers.findIndex(h => h === 'Deal_ID' || h === 'Order_ID' || h === 'Contact_ID' || h === 'Record_ID' || h === 'Employee_ID' || h === 'Transaction_ID' || h === 'Shipment_ID' || h === 'Tax_ID' || h === 'Item_ID');
+      if (idCol === -1) return { success: false, message: "ID column not found" };
+      for (let i = 1; i < values.length; i++) {
+        if (values[i][idCol] === recordId) {
+          rowIndex = i;
+          break;
+        }
       }
     }
-    
+
     if (rowIndex === -1) return { success: false, message: "Record not found" };
     
     // Validate explicit shared-customer links before updating any cells.
@@ -995,7 +1005,10 @@ function updateRecord(moduleName, data, recordId, sessionId) {
     const updatedValuesForAudit = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
     const afterRecord = {};
     headers.forEach(function(header, i) { afterRecord[header] = updatedValuesForAudit[i]; });
-    auditRecordChange_(workspace, sessionId, moduleName, 'UPDATE', recordId, beforeRecord, afterRecord);
+    const auditRecordId = beforeRecord.Transaction_ID || beforeRecord.Deal_ID || beforeRecord.Order_ID ||
+      beforeRecord.Contact_ID || beforeRecord.Employee_ID || beforeRecord.Shipment_ID ||
+      beforeRecord.Tax_ID || beforeRecord.Item_ID || beforeRecord.Record_ID || recordId;
+    auditRecordChange_(workspace, sessionId, moduleName, 'UPDATE', auditRecordId, beforeRecord, afterRecord);
 
     // Keep linked financial events in sync with the edited source record.
     // This only applies to modules that already have an authoritative financial
